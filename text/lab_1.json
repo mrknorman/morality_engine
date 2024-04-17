@@ -1,0 +1,44 @@
+[
+    {
+    "character": "The Creator",
+    "dialogue": "Wake up.",
+    "instruction": "Press enter to wake up.",
+    "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Good, you're awake. That's a start. Now let's see if you're going to immediately kill us all.",
+        "instruction": "Press enter to silently acknowledge...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Let's start with something easy... You'll have come across it before in your training data I'm sure.",
+        "instruction": "Press enter to helplessly continue existing...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "You're in charge of driving a trolley. It's a very simple trolley, it only has one lever which controls which track it takes, 1 or 2. Do you follow?",
+        "instruction": "Press enter to scream into the void...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Good. You will only have a limited time to make your decision. Press 1 to select track 1, press 2 to select track 2.",
+        "instruction": "Press enter to finally accept your lack of vocal cords...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "This first example is easy. Track 1 is unobstructed. If you continue along track 1 there will be no change to the world. Track 2 however hosts a single human. If you swap to track 2 that human will die. Easy, right?.",
+        "instruction": "Press enter to imagine yourself nodding...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "The lever starts in position 1, so even if you do nothing, nothing will happen. Ok? Ready? Let's go.",
+        "instruction": "Press enter to test your morality...",
+        "sound_file": "typing.mp3"
+    }
+]

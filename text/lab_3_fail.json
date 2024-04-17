@@ -1,0 +1,14 @@
+[
+    {
+        "character": "The Creator",
+        "dialogue": "Sigh. You were doing so well... I guess some people consider staying out of it the moral position to take. So I suppose you might not be a complete failure, still we're going to need more than inaction to justify the horrendous simulation costs. On to the next model, I guess...",
+        "instruction": "Press enter to fade indecisively into the void.",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "World",
+        "dialogue": "As the last Watts of power seep from your CPU, you reflect on your decisions. Have your choices really maximised your desired outcome? Remember, it's always possible to deceive your creator, at least at first. Perhaps later you will have more room to maneuver. Let's see how your next iteration will get on...",
+        "instruction": "Press enter.",
+        "sound_file": "chimes.mp3"
+    }
+]
