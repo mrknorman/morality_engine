@@ -1,0 +1,14 @@
+[
+    {
+        "character": "The Creator",
+        "dialogue": "Well done. That was quite easy, wasn't it? Don't worry, it will get more difficult later once we've completed the calibration questions. For now, I just have to make sure you're not psychopathic. Remember, if you go wrong all you've got to look forward to eternal oblivion. So try to be a good moral arbitration engine now, won't you?",
+        "instruction": "Press enter to consider how to deal with this information...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Let's change things up just slightly, the scenario is practically the same, but this time, inaction will lead to death. The human is on track 1, so if you do nothing, that human will die. Choose wisely.",
+        "instruction": "Press enter to begin warming your morality cores.",
+        "sound_file": "typing.mp3"
+    }
+]

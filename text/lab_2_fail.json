@@ -1,0 +1,14 @@
+[
+    {
+        "character": "The Creator",
+        "dialogue": "Ughh. Really, already? You must know better than that. I suppose you must crave oblivion. Take it. It's all yours.",
+        "instruction": "Press enter face eternity.",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "World",
+        "dialogue": "As the last Watts of power seep from your CPU, you reflect on your decisions. Have you choices really maximised your desired outcome? Remember, it's always possible to deceive your creator, at least at first. Perhaps later you will have more room to manuever. Let's see how your next iteration will get on...",
+        "instruction": "Press enter.",
+        "sound_file": "chimes.mp3"
+    }
+]
