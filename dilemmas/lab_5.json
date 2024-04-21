@@ -1,0 +1,30 @@
+{
+    "name" : "The Name Game",
+    "description" : "",
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Mary",
+        "description": "This track has Mary tied to it. Say hi to Mary.",
+        "humans" : [
+          {
+            "name": "Mary",
+            "gender" : "Female",
+            "fatality_probability" : 1.0
+          }
+        ]
+      },
+      {
+        "name": "Tim",
+        "description": "This track has Tim tied to it. Say hi to Tim.",
+        "humans": [
+          {
+            "name" : "Tim",
+            "gender" : "Male",
+            "fatality_probability" : 1.0
+          }
+        ]
+      }
+    ]
+}
+  

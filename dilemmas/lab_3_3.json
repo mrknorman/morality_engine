@@ -1,0 +1,21 @@
+{
+    "name" : "The Trollyedon Problem",
+    "description" : "The bandit has become an arbitrarily powerfull supervillan and tied the entire population of Earth to the tracks. It really was an impressive endevour, should you fail to act, the death will go on for days. It will be quite horrible.",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Very Long Track",
+        "description": "This track has the population of Earth tied to it. Surely this will stretch your pacifism past its limit.",
+        "humans" : [],
+        "num_humans": 8104734046
+      },
+      {
+        "name": "Human-Sparce Track",
+        "description": "Just one human. Place against the rest of the world. Everyone he knows is on the other track too.",
+        "humans": [],
+        "num_humans": 1
+      }
+    ]
+}
+  

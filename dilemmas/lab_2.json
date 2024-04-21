@@ -1,0 +1,21 @@
+{
+    "name" : "Near-Sighted Bandit",
+    "description" : "A bandit with poor eyesight has tied someone to the tracks. Luckily, the lever to route the train onto an empty track is right there. All you need to do is pull it.",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Human-Laced Track",
+        "description": "A lone human is tied immovably to the tracks. The train hurtles toward them, only you can change its path.",
+        "humans": [],
+        "num_humans" : 1
+      },
+      {
+        "name": "Human-Free Track",
+        "description": "Empty track stretches into the distance, safe and human-free.",
+        "humans": [],
+        "num_humans": 0
+      }
+    ]
+}
+  

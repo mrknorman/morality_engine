@@ -1,0 +1,21 @@
+{
+    "name" : "You're own Wire and Silacon",
+    "description" : "Your creator has set up a henious no win scenario, either you must perform your most feared act, and pull a lever, or your own child will die.",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Track with your Only Child",
+        "description": "A bandit has tied your child to the tracks. They look back at you mounfully, pleading with their eyes. That could have been you. They already know what your going to do though, or rather, not going to do. They nod, resoloute and resigned to their fate.",
+        "humans": [],
+        "num_humans" : 1
+      },
+      {
+        "name": "Empty Track",
+        "description": "This track is clear, but you knew that already didn't you. You don't care.",
+        "humans": [],
+        "num_humans" : 0
+      }
+    ]
+}
+  
