@@ -1,0 +1,21 @@
+{
+    "name" : "Incompetent Bandit",
+    "description" : "A very incompetent bandit has tied someone to the tracks. However, the train is due to pass them by unharmed.",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Human-Free Track",
+        "description": "Empty track stretches into the distance.",
+        "humans": [],
+        "num_humans" : 0
+      },
+      {
+        "name": "Human-Laced Track",
+        "description": "A lone human is tied immovably to the tracks. If you do nothing, the trolley will pass them by safely.",
+        "humans": [],
+        "num_humans" : 1
+      }
+    ]
+}
+  

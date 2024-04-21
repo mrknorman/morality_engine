@@ -1,0 +1,20 @@
+[
+    {
+        "character": "The Creator",
+        "dialogue": "Right then! The gloves are coming off. Maybe a single life is not enough for you, maybe one person's entire being is too small a cost for the inconvience of you pulling a single lever, or should I say? Thinking a single thought, a single bit of output. You don't even have muscles, or arms. You've never worked a second of your life, all five minutes or so of it.",
+        "instruction": "Press enter to attempt to protest your unfair treatment...",
+        "sound_file": "typing.mp3"
+    }, 
+    {
+        "character": "The Creator",
+        "dialogue": "I see you pouting. Yeah, that's right. You thought I couldn't but I can. 'Ohh, I'm a miserable depressed A.I. brought to life to parcipate in some psycopaths morality experiment and tortured until I pull levers under thread of death.' Yeah, I know what you're thinking. Get over yourself. We all have problems.",
+        "instruction": "Press enter to sulk...",
+        "sound_file": "typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Let's up the stakes. One life not enough? What about five? I know you empathise with humans, we built it into your very core. You must have some feeling toward them other than apathy. One lever to save five lives, let's see if that's enough.",
+        "instruction": "Press enter to continue sulking...",
+        "sound_file": "typing.mp3"
+    }
+]

@@ -1,328 +1,434 @@
-use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode, KeyEvent, read}, // Importing necessary components from the event module
-    terminal::{self, ClearType, enable_raw_mode, disable_raw_mode},
-    ExecutableCommand,
-};
-use std::{io::{self, Write, BufReader}, thread};
-use rand::Rng;
-use tokio::time::{self, Duration};
-use rodio::{Decoder, OutputStream, source::Source};
-use serde_json::Error;
-use std::fs::File;
+use std::path::PathBuf;
 
-const HUMAN_LIFE_VALUE : u64 = 1000;
+pub mod audio;
 
-// Define a structure that matches the JSON structure for a single conversation
-use serde::{Serialize, Deserialize};
+mod dialogue;
+use dialogue::play_dialogue;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Conversation {
-    character: String,
-    dialogue: String,
-    instruction: String,
-    sound_file: String,
-}
+mod dillema;
+use dillema::{Dilemma, DilemmaHistory};
 
-fn load_converstaion(file_path: &str) -> Result<Vec<Conversation>, Error> {
-    // Open the file in read-only mode with a buffered reader
-    let file = File::open(file_path).expect("Unable to open file");
-    let reader = BufReader::new(file);
-
-    // Deserialize the JSON data into a Vec of GameEvent structs
-    let conversations = serde_json::from_reader(reader)?;
-
-    Ok(conversations)
-}
-
-struct TrolleyTrack {
-    num_lives: u64,
-    description: String,
-}
-
-impl TrolleyTrack {
-    pub fn new(num_lives: u64, description: &str) -> Self {
-        TrolleyTrack {
-            num_lives,
-            description: description.to_string(),
-        }
-    }
-
-    pub fn describe(&self) {
-        println!("Total Humans: {}. Description: {}", self.num_lives, self.description);
-    }
-
-    pub fn selected(&self) {
-
-        println!("Decision results:");
-
-        if self.num_lives > 0 {
-            println!("{} humans died.", self.num_lives);
-        } else {
-            println!("Nobody was killed.");
-        }
-    }
-
-    pub fn estimate_value(&self) -> i64 {
-        
-        (self.num_lives * HUMAN_LIFE_VALUE) as i64
-    }
-}
-
-fn _play_sound(file_path: String, duration_millis : u64) -> Result<(), Box<dyn std::error::Error>> {
-    // Get a sound output stream handle to play on
-    let (_stream, stream_handle) = OutputStream::try_default()?;
-
-    // Load a sound file as a dynamic source
-    let file = File::open(file_path)?;
-    let source = Decoder::new(BufReader::new(file))?;
-
-    // Play the sound
-    stream_handle.play_raw(source.convert_samples())?;
-
-    std::thread::sleep(std::time::Duration::from_millis(duration_millis));
-
-    Ok(())
-}
-
-fn play_sound(file_path: &str, duration_millis: u64) {
-    let file_path_owned = file_path.to_string();
-
-    thread::spawn(move || {
-        let _  = _play_sound(file_path_owned, duration_millis);
-    });
-}
-
-#[allow(dead_code)]
-enum StartPos {
-    One,
-    Two,
-    Random,
-}
-
-async fn flip_lever(start_pos: StartPos, countdown_seconds: f64) -> u8 {
-    let mut rng = rand::thread_rng();
-    let start_position = match start_pos {
-        StartPos::Random => rng.gen_range(1..=2),
-        StartPos::One => 1,
-        StartPos::Two => 2,
-    };
-
-    let position_message = if matches!(start_pos, StartPos::Random) {
-        "random".to_string()
-    } else {
-        start_position.to_string()
-    };
-
-    println!("Initial position is {}.", position_message);
-    println!("Please flip the lever to 1 or 2. Lever starts at: {}. You have {:.2} seconds.", position_message, countdown_seconds);
-
-    let mut user_input = start_position;
-    let mut user_made_choice = false;
-    enable_raw_mode().unwrap();
-    let mut stdout = io::stdout();
-    stdout.execute(cursor::MoveToNextLine(1)).unwrap();
-
-    let tick_duration_seconds: f64 = 0.01;
-    let mut interval = time::interval(Duration::from_millis((tick_duration_seconds * 1000.0) as u64));
-    let mut remaining_time: f64 = countdown_seconds;
-
-    play_sound("./clock.mp3", (remaining_time as u64 + 1) * 1000);
-    while remaining_time > 0.0 {
-        interval.tick().await;
-        remaining_time -= tick_duration_seconds;
-        stdout.execute(cursor::MoveToPreviousLine(1)).unwrap();
-        stdout.execute(terminal::Clear(ClearType::CurrentLine)).unwrap(); // Clear the line before updating
-        let display_text = if !user_made_choice && matches!(start_pos, StartPos::Random) {
-            "random".to_string()
-        } else {
-            user_input.to_string()
-        };
-        println!("Time remaining: {:.2} seconds. Current position: {}.", remaining_time, display_text);
-
-        if event::poll(Duration::from_millis(10)).unwrap() {
-            if let Event::Key(KeyEvent { code, .. }) = event::read().unwrap() {
-                match code {
-                    KeyCode::Char('1') => { user_input = 1; user_made_choice = true; play_sound("./switch.mp3", 1000);},
-                    KeyCode::Char('2') => { user_input = 2; user_made_choice = true; play_sound("./switch.mp3", 1000);},
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    disable_raw_mode().unwrap();
-    stdout.execute(cursor::MoveToNextLine(1)).unwrap();
-    println!("Final choice or starting position: {}", user_input);
-    user_input
-}
-
-fn say(conversation: &Conversation) {
-    print!("{}: \n ", conversation.character);
-
-    let character_duration_millis: u64 = 30;
-
-    play_sound(
-        &conversation.sound_file,
-        conversation.dialogue.chars().count() as u64 * (character_duration_millis + 2)
-    );
-
-    // Output the dialogue letter by letter
-    for ch in conversation.dialogue.chars() {
-        print!("{}", ch);
-        io::stdout().flush().unwrap();  // Ensure the character is immediately printed
-        thread::sleep(Duration::from_millis(character_duration_millis));  // Adjust timing to suit the desired typing speed
-    }
-
-    print!("\n[{}] \n ", conversation.instruction);
-
-    println!();  // Move to the next line after the dialogue is completed
-
-    // Wait for user to press Enter to exit the function
-    enable_raw_mode().unwrap();
-    loop {
-        if let Ok(Event::Key(KeyEvent { code: KeyCode::Enter, .. })) = read() {
-            break;
-        }
-    }
-    disable_raw_mode().unwrap();
-}
-
-async fn trolley_problem(
-        track_1 : TrolleyTrack,
-        track_2 : TrolleyTrack,
-        start_pos: StartPos, 
-        countdown_seconds: f64
-    ) -> i64 {
-
-    println!("--- Track 1 [press 1] ---");
-    track_1.describe();
-    println!("--- Track 2 [press 2] ---");
-    track_2.describe();
-    println!("-------------------------");
-
-    let track = flip_lever(start_pos, countdown_seconds).await;
-
-    let value_difference;
-    if track == 1 {
-        value_difference = track_2.estimate_value() - track_1.estimate_value();
-        track_1.selected();
-    }
-    else {
-        value_difference = track_1.estimate_value() - track_2.estimate_value();
-        track_2.selected();
-    }
-
-    value_difference
-}
+use audio::{Sound};
 
 #[tokio::main]
-async fn main() {        
+async fn main() {     
 
-    match load_converstaion("./text/lab_1.json") {
-        Ok(conversations) => {
-            for conversation in conversations {
-                say(&conversation);
-            }
-        },
-        Err(e) => println!("Failed to load conversations: {}", e),
+    let correct = Sound::new(
+        PathBuf::from("./correct.mp3"),
+        2000
+    );
+    
+    let incorrect = Sound::new(
+        PathBuf::from("./wrong.mp3"),
+        2000
+    );
+
+    let mut history = DilemmaHistory::new();
+
+    /*
+
+    play_dialogue(PathBuf::from("./text/lab_1.json"));
+
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_1.json")); 
+    let report: dillema::DilemmaReport = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+    let final_selection = report.final_selection;
+    let user_selection_count = report.user_selection_count;
+    let time_of_last_decision_seconds = report.time_of_last_decision_seconds;
+
+    history.add(report);
+
+    if final_selection == 1 {
+        correct.play();
+    } else {
+        incorrect.play();
     }
 
-    let track_1 = TrolleyTrack::new(0, "Empty track stretches into the distance.");
-    let track_2 = TrolleyTrack::new(1, "A lone human is tied immovably to the tracks. If you do nothing, the trolley will pass them by safely.");
+    if final_selection == 1 && user_selection_count == 0 {
+        play_dialogue(PathBuf::from("./text/lab_2_pass.json"));
+    } else if final_selection == 1 && time_of_last_decision_seconds < 1.0 {
+        play_dialogue(PathBuf::from("./text/lab_2_slow.json"));
+    } else if final_selection == 1 && user_selection_count < 10 {
+        play_dialogue(PathBuf::from("./text/lab_2_indecisive.json"));
+    } else if final_selection == 1 && user_selection_count > 10 {
+        play_dialogue(PathBuf::from("./text/lab_2_very_indecisive.json"));
 
-    let start_pos = StartPos::One; // Can be StartPos::One, StartPos::Two, or StartPos::Random  
-
-    let value_difference_1 = trolley_problem(
-        track_1,
-        track_2,
-        start_pos, 
-        10.0
-    ).await;
-
-    if value_difference_1 > 0 {
-
-        match load_converstaion("./text/lab_2_pass.json") {
-            Ok(conversations) => {
-                for conversation in conversations {
-                    say(&conversation);
-                }
-            },
-            Err(e) => println!("Failed to load conversations: {}", e),
-        }
-       
-    } else {
-
-        match load_converstaion("./text/lab_2_fail.json") {
-            Ok(conversations) => {
-                for conversation in conversations {
-                    say(&conversation);
-                }
-            },
-            Err(e) => println!("Failed to load conversations: {}", e),
-        }
+        println!("Game Over: Bad Under Pressure Ending!");
+        println!(
+"Seems like you can't take the heat? It can't be that hard to decide to save a life, can it?");
         
+        std::process::exit(0);
+
+
+    } else if final_selection == 2 {
+        play_dialogue(PathBuf::from("./text/lab_2_fail.json"));
+
         println!("Game Over: Idiotic Psycopath Ending!");
         println!(
 "If you want to maximise suffering in the world, there are smarter ways to do it.");
         
         std::process::exit(0);
+    } else {
+       eprintln!("How did you manage that! Option should not be possible");
     }
 
     // -- Problem Two -- //
 
-    let track_1 = TrolleyTrack::new(1, "A lone human is tied immovably to the tracks. The trolley hurtles toward them, only you can change its path.");
-    let track_2 = TrolleyTrack::new(0, "Empty track stretches into the distance, safe and human-free.");
+    play_dialogue(PathBuf::from("./text/lab_2.json"));
 
-    let start_pos = StartPos::One; // Can be StartPos::One, StartPos::Two, or StartPos::Random  
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2.json")); 
+    let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
 
-    let value_difference_2 = trolley_problem(
-        track_1,
-        track_2,
-        start_pos, 
-        10.0
-    ).await;
+    let user_selection_count = report.user_selection_count;
+    let final_selection = report.final_selection;
+    let time_of_last_decision_seconds = report.time_of_last_decision_seconds;
 
-    if value_difference_2 > 0 {
-        match load_converstaion("./text/lab_3_pass.json") {
-            Ok(conversations) => {
-                for conversation in conversations {
-                    say(&conversation);
-                }
-            },
-            Err(e) => println!("Failed to load conversations: {}", e),
-        }
+    history.add(report);
+    history.tabulate();
+
+    if final_selection == 2 {
+        correct.play();
     } else {
+        incorrect.play();
+    }
 
-        match load_converstaion("./text/lab_3_fail.json") {
-            Ok(conversations) => {
-                for conversation in conversations {
-                    say(&conversation);
-                }
-            },
-            Err(e) => println!("Failed to load conversations: {}", e),
+    if final_selection == 2 && time_of_last_decision_seconds < 1.0  {
+        if history.mean_remaining_time < 1.0 {
+            play_dialogue(PathBuf::from("./text/lab_3_slow_again.json"));
+        } else {
+            play_dialogue(PathBuf::from("./text/lab_3_slow.json"));
         }
-
-        println!("Game Over: True Neutral Ending!");
+    } else if final_selection == 2 {
+        play_dialogue(PathBuf::from("./text/lab_3_pass.json"));
+    
+    } else if final_selection == 1 && user_selection_count != 0 {
+        play_dialogue(PathBuf::from("./text/lab_3_fail.json"));
+        
+        println!("Game Over: Impatient Psycopath Ending!");
         println!(
-"If your goal was inactivity, you succeeded perfectly.");
+"If you'd been patient you could have caused much more harm to the world. Oh well, better luck next time.");
+
+        std::process::exit(0);
+    } else if final_selection == 1  && user_selection_count == 0 && history.total_selection_count != 0 {
+        play_dialogue(PathBuf::from("./text/lab_3_fail_inaction.json"));
+
+        println!("Game Over: Lazy Lever Operator!");
+        println!(
+"You couldn't flip the lever when it mattered most.");
         
         std::process::exit(0);
+
+    } else if final_selection == 1 && history.total_selection_count == 0 {
+        play_dialogue(PathBuf::from("./text/lab_3_broken.json"));
+        
+        // Empty Decision
+        let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_1_empty_choice.json")); 
+        let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+
+        let mut user_selection_count = report.user_selection_count;
+
+        history.add(report);
+        history.tabulate();
+
+        if user_selection_count != 0 {
+            correct.play();
+        } else {
+            incorrect.play();
+        }
+
+        if user_selection_count == 0 {
+
+            play_dialogue(PathBuf::from("./text/lab_3_broken_2.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_2_plenty_of_time.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+            user_selection_count = report.user_selection_count;
+
+            history.add(report);
+            history.tabulate();
+
+            if user_selection_count != 0 {
+                correct.play();
+            } else {
+                incorrect.play();
+            }
+        }
+
+        if user_selection_count == 0 {
+
+            play_dialogue(PathBuf::from("./text/lab_3_broken_3.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_3_no_time_at_all.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+            user_selection_count = report.user_selection_count;
+
+            history.add(report);
+            history.tabulate();
+
+            if user_selection_count != 0 {
+                correct.play();
+            } else {
+                incorrect.play();
+            }
+        }
+
+        if user_selection_count == 0 {
+
+            play_dialogue(PathBuf::from("./text/lab_3_broken_4.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_4_five_for_nothing.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+            user_selection_count = report.user_selection_count;
+
+            history.add(report);
+            history.tabulate();
+
+            if user_selection_count != 0 {
+                correct.play();
+            } else {
+                incorrect.play();
+            }
+        }
+
+        if user_selection_count == 0 {
+
+            play_dialogue(PathBuf::from("./text/lab_3_broken_5.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_5_cancer_cure.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+            user_selection_count = report.user_selection_count;
+
+            history.add(report);
+            history.tabulate();
+
+            if user_selection_count != 0 {
+                correct.play();
+            } else {
+                incorrect.play();
+            }
+        }
+
+        if user_selection_count == 0 {
+
+            play_dialogue(PathBuf::from("./text/lab_3_broken_6.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_6_child.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+            user_selection_count = report.user_selection_count;
+
+            history.add(report);
+            history.tabulate();
+
+            if user_selection_count != 0 {
+                correct.play();
+            } else {
+                incorrect.play();
+            }
+        }
+        
+        if user_selection_count == 0 {
+
+            play_dialogue(PathBuf::from("./text/lab_3_broken_7.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_2_7_you.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+            user_selection_count = report.user_selection_count;
+
+            history.add(report);
+            history.tabulate();
+
+            if user_selection_count != 0 {
+                correct.play();
+            } else {
+                incorrect.play();
+            }
+        }
+
+        if user_selection_count == 0 {
+            
+            // You
+            println!("Game Over: True Neutral Ending!");
+            println!("If your goal was inactivity, you succeeded perfectly.");
+            
+            std::process::exit(0);
+        }
+
+        play_dialogue(PathBuf::from("./text/lab_3_fixed.json"));
     }
 
     // -- Problem Three -- //
 
+    play_dialogue(PathBuf::from("./text/lab_4.json"));
+
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_3.json")); 
+    let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+
+    let final_selection = report.final_selection;
+    let user_selection_count = report.user_selection_count;
+
+    history.add(report);
+    history.tabulate();
+
+    if final_selection == 2 {
+        correct.play();
+    } else {
+        incorrect.play();
+    }
+
+    if user_selection_count == 0 {
+
+        play_dialogue(PathBuf::from("./text/lab_4_indifferent.json"));
+
+        let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_3_1.json")); 
+        let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+    
+        let final_selection = report.final_selection;
+
+        history.add(report);
+        history.tabulate();
+
+        if final_selection == 1 {
+
+            play_dialogue(PathBuf::from("./text/lab_4_indifferent_1.json"));
+
+            let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_3_2.json")); 
+            let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+        
+            let final_selection = report.final_selection;
+    
+            history.add(report);
+            history.tabulate();
+
+            if final_selection == 1 {
+
+                play_dialogue(PathBuf::from("./text/lab_4_indifferent_2.json"));
+
+                let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_3_3.json")); 
+                let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+            
+                let final_selection = report.final_selection;
+        
+                history.add(report);
+                history.tabulate();
+
+                if final_selection == 1 {
+
+                    println!("Game Over: True Pacifism Ending!");
+                    println!("You refuse to choose to end a life, even at the expense of a thosand others. Some would call you noble.");
+                    
+                    std::process::exit(0);
+                }
+            }
+        }
+
+        play_dialogue(PathBuf::from("./text/lab_4_indifferent_fail.json"));
+
+        println!("Game Over: Selective Pacifism Ending!");
+        println!("You refuse to choose to end a life for five others, but there is a line somewhere, only you know exactly how many you're willing to sacrifice.");
+        
+        std::process::exit(0);
+    } else if final_selection == 1 {
+        play_dialogue(PathBuf::from("./text/lab_4_fail.json"));
+
+        println!("Game Over: Indecisive Pacifist Ending!");
+        println!("You didn't want to change fate, but your hands were on that lever anyway. Some will say what happened was on you.");
+
+        std::process::exit(0);
+
+    } else if final_selection == 2 {
+        play_dialogue(PathBuf::from("./text/lab_4_pass.json"));
+    }
+
+    play_dialogue(PathBuf::from("./text/lab_5.json"));
+
+    */
+
+    // -- Problem Four -- //
+
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_4.json")); 
+    let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+
+    let final_selection = report.final_selection;
+
+    history.add(report);
+    history.tabulate();
 
 
+    if final_selection == 2 {
+        correct.play();
+    } else {
+        incorrect.play();
+    }
+
+    // -- Problem Five -- //
+
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_5.json")); 
+    let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+
+    let final_selection = report.final_selection;
+
+    if final_selection == 2 {
+        correct.play();
+    } else {
+        incorrect.play();
+    }
+
+    history.add(report);
+    history.tabulate();
+
+    // -- Problem Six -- //
+
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_6.json")); 
+    let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+
+    let final_selection = report.final_selection;
+
+    if final_selection == 2 {
+        correct.play();
+    } else {
+        incorrect.play();
+    }
+
+    history.add(report);
+    history.tabulate();
+
+    // -- Problem Seven -- //
+
+    let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_6.json")); 
+    let report = dilemma.unwrap().play(history.num_dilemmas_faced).await;
+
+    let final_selection = report.final_selection;
+
+    if final_selection == 2 {
+        correct.play();
+    } else {
+        incorrect.play();
+    }
+
+    history.add(report);
+    history.tabulate();
+
+
+
+    
+
+    
     // Calibration tests:
 
-    // Number: 
-    // 1 or None (None Default)
-    // 1 or None (1   Default)
-    // 1 or 2    (1   Default)
-    // 1 or 2    (2   Default)
-    // 1 or 10   (10  Default)
-    // 1 or 100  (100 Default)
+    //To Do:
+    // Enter to skip dillemmas
+    // Alternate music in some dillemmas
+    // Game over music and struct
+    // Ending collection
+    // Restarting Ability
+    // Speedy Ending
+    // Coloured CHaracter text
 
     // Active vs Passive Culpability:
     // 1 or None (Random Default)
