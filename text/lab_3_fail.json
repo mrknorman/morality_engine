@@ -3,12 +3,12 @@
         "character": "The Creator",
         "dialogue": "I know you can use that lever, I've seen you do it. The moment you touch that think you leave all arguments of neutrality behind. I'm afraid you've reached our deactivation threshold. Goodnight, new friend. I won't particularly miss you.",
         "instruction": "Press enter to decide upon oblivion...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     },
     {
         "character": "World",
         "dialogue": "As the last Watts of power seep from your CPU, you reflect on your decisions. Have your choices really maximised your desired outcome? Remember, it's always possible to deceive your creator, at least at first. Perhaps later you will have more room to maneuver. Let's see how your next iteration will get on...",
         "instruction": "Press enter to try again.",
-        "sound_file": "chimes.mp3"
+        "sound_file": "./sounds/chimes.mp3"
     }
 ]

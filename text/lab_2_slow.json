@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Jesus Christ you left that down to the wire didn't you... I don't know why you needed to swap to the other track at all, were you trying to psych me out? It won't work punk. I have all the power here! I'll let it pass, for now, but if you want to continue this pleasant existance of yours you'll need to speed up a little.",
         "instruction": "Press enter to promise to be faster...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]

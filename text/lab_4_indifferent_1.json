@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Interesting? You still refuse to act, even with fifty lives on the line? I suppose you put all blame on the nefarious bandit tieing people onto the line. Or maybe onto me, for presenting you with this choice in the first place. Maybe that's right, but that dosn't change the number of dead. Maybe you've realised that this is just a simulation, as real as my attempts have been to hide it. I wonder if you'd act the same if there were real lives on the line. Could you say that you could, if they were there begging for your help? You have my curiosity. How long will you refuse to act? How many lives will I have to dangle before you before you are willing to make that choice.",
         "instruction": "Press enter to reflect on what you have done...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]

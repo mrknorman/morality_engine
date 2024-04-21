@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Jesus Christ! You're going to give me a heart attack if you keep this up. It's really not looking good on your score card! Make your decision before the last second won't you? Give it some breathing space... Well done, I suppose. You made the right choice eventually, let's continue.",
         "instruction": "Press enter to apply oil to the level...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]
