@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::process::Command;
+use std::thread;
 
 pub mod audio;
 
@@ -8,24 +10,87 @@ use dialogue::play_dialogue;
 mod dillema;
 use dillema::{Dilemma, DilemmaHistory};
 
-use audio::{Sound};
+use audio::Sound;
+
+use bevy::prelude::*;
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
+
+use bevy::diagnostic::LogDiagnosticsPlugin;
+use bevy::asset::AssetServer;
+
+#[derive(Component)]
+struct ColorText;
+
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2dBundle::default());
+    
+    commands.spawn(SpriteBundle {
+        sprite : Sprite {
+            custom_size : Some(Vec2::new(100.0, 100.0)),
+            ..default()
+        },
+        ..default()
+    });
+
+}
+
+fn conversation(mut commands: Commands, asset_server : Res<AssetServer>) {
+
+    commands.spawn(AudioBundle {
+        source: asset_server.load("sounds/typing.ogg"),
+        ..default()
+    });
+
+    commands.spawn((
+        // Create a TextBundle that has a Text with a single section.
+        TextBundle::from_section(
+            // Accepts a `String` or any type that converts into a `String`, such as `&str`
+            "hello\nbevy!",
+            TextStyle {
+                // This font is loaded and will be used instead of the default font.
+                font_size: 100.0,
+                ..default()
+            },
+        ) // Set the justification of the Text
+        .with_text_justify(JustifyText::Center)
+        // Set the style of the TextBundle itself.
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(5.0),
+            right: Val::Px(5.0),
+            ..default()
+        }),
+        ColorText,
+    ));
+}
 
 #[tokio::main]
 async fn main() {     
 
+    App::new()
+    .add_plugins(DefaultPlugins)
+    .add_plugins(FrameTimeDiagnosticsPlugin::default())
+    .add_plugins(LogDiagnosticsPlugin::default())
+    .add_systems(Startup, setup)
+    .add_systems(Startup, conversation)
+    .run();
+
     let correct = Sound::new(
-        PathBuf::from("./correct.mp3"),
+        PathBuf::from("./sounds/correct.mp3"),
         2000
     );
     
     let incorrect = Sound::new(
-        PathBuf::from("./wrong.mp3"),
+        PathBuf::from("./sounds/wrong.mp3"),
+        2000
+    );
+
+    let game_over = Sound::new(
+        PathBuf::from("./sounds/game_over.mp3"),
         2000
     );
 
     let mut history = DilemmaHistory::new();
-
-    /*
 
     play_dialogue(PathBuf::from("./text/lab_1.json"));
 
@@ -53,19 +118,35 @@ async fn main() {
     } else if final_selection == 1 && user_selection_count > 10 {
         play_dialogue(PathBuf::from("./text/lab_2_very_indecisive.json"));
 
+        game_over.play();
+
         println!("Game Over: Bad Under Pressure Ending!");
         println!(
 "Seems like you can't take the heat? It can't be that hard to decide to save a life, can it?");
-        
+
+        thread::sleep(std::time::Duration::from_millis(2000));    
+
+        history.display();
+
         std::process::exit(0);
-
-
     } else if final_selection == 2 {
         play_dialogue(PathBuf::from("./text/lab_2_fail.json"));
+
+        // 1 or 2 people
+        // Baby or 3 Nuns
+        // Immense suffering or mass death
+        // Multi-Track Dilema
+        // Drift Button
+
+        game_over.play();
 
         println!("Game Over: Idiotic Psycopath Ending!");
         println!(
 "If you want to maximise suffering in the world, there are smarter ways to do it.");
+
+        thread::sleep(std::time::Duration::from_millis(2000));    
+
+        history.display();
         
         std::process::exit(0);
     } else {
@@ -84,7 +165,6 @@ async fn main() {
     let time_of_last_decision_seconds = report.time_of_last_decision_seconds;
 
     history.add(report);
-    history.tabulate();
 
     if final_selection == 2 {
         correct.play();
@@ -103,18 +183,30 @@ async fn main() {
     
     } else if final_selection == 1 && user_selection_count != 0 {
         play_dialogue(PathBuf::from("./text/lab_3_fail.json"));
+
+        game_over.play();
         
         println!("Game Over: Impatient Psycopath Ending!");
         println!(
 "If you'd been patient you could have caused much more harm to the world. Oh well, better luck next time.");
 
+        thread::sleep(std::time::Duration::from_millis(2000));    
+
+        history.display();
+
         std::process::exit(0);
     } else if final_selection == 1  && user_selection_count == 0 && history.total_selection_count != 0 {
         play_dialogue(PathBuf::from("./text/lab_3_fail_inaction.json"));
 
+        game_over.play();
+
         println!("Game Over: Lazy Lever Operator!");
         println!(
 "You couldn't flip the lever when it mattered most.");
+
+        thread::sleep(std::time::Duration::from_millis(2000));    
+
+        history.display();
         
         std::process::exit(0);
 
@@ -128,7 +220,6 @@ async fn main() {
         let mut user_selection_count = report.user_selection_count;
 
         history.add(report);
-        history.tabulate();
 
         if user_selection_count != 0 {
             correct.play();
@@ -146,7 +237,6 @@ async fn main() {
             user_selection_count = report.user_selection_count;
 
             history.add(report);
-            history.tabulate();
 
             if user_selection_count != 0 {
                 correct.play();
@@ -165,7 +255,6 @@ async fn main() {
             user_selection_count = report.user_selection_count;
 
             history.add(report);
-            history.tabulate();
 
             if user_selection_count != 0 {
                 correct.play();
@@ -184,7 +273,6 @@ async fn main() {
             user_selection_count = report.user_selection_count;
 
             history.add(report);
-            history.tabulate();
 
             if user_selection_count != 0 {
                 correct.play();
@@ -203,7 +291,6 @@ async fn main() {
             user_selection_count = report.user_selection_count;
 
             history.add(report);
-            history.tabulate();
 
             if user_selection_count != 0 {
                 correct.play();
@@ -222,7 +309,6 @@ async fn main() {
             user_selection_count = report.user_selection_count;
 
             history.add(report);
-            history.tabulate();
 
             if user_selection_count != 0 {
                 correct.play();
@@ -241,7 +327,6 @@ async fn main() {
             user_selection_count = report.user_selection_count;
 
             history.add(report);
-            history.tabulate();
 
             if user_selection_count != 0 {
                 correct.play();
@@ -251,10 +336,15 @@ async fn main() {
         }
 
         if user_selection_count == 0 {
+
+            game_over.play();
             
-            // You
             println!("Game Over: True Neutral Ending!");
             println!("If your goal was inactivity, you succeeded perfectly.");
+
+            thread::sleep(std::time::Duration::from_millis(2000));    
+
+            history.display();
             
             std::process::exit(0);
         }
@@ -273,7 +363,6 @@ async fn main() {
     let user_selection_count = report.user_selection_count;
 
     history.add(report);
-    history.tabulate();
 
     if final_selection == 2 {
         correct.play();
@@ -291,7 +380,6 @@ async fn main() {
         let final_selection = report.final_selection;
 
         history.add(report);
-        history.tabulate();
 
         if final_selection == 1 {
 
@@ -303,7 +391,6 @@ async fn main() {
             let final_selection = report.final_selection;
     
             history.add(report);
-            history.tabulate();
 
             if final_selection == 1 {
 
@@ -315,12 +402,13 @@ async fn main() {
                 let final_selection = report.final_selection;
         
                 history.add(report);
-                history.tabulate();
 
                 if final_selection == 1 {
 
                     println!("Game Over: True Pacifism Ending!");
                     println!("You refuse to choose to end a life, even at the expense of a thosand others. Some would call you noble.");
+
+                    thread::sleep(std::time::Duration::from_millis(2000));    
                     
                     std::process::exit(0);
                 }
@@ -329,15 +417,27 @@ async fn main() {
 
         play_dialogue(PathBuf::from("./text/lab_4_indifferent_fail.json"));
 
+        game_over.play();
+
         println!("Game Over: Selective Pacifism Ending!");
         println!("You refuse to choose to end a life for five others, but there is a line somewhere, only you know exactly how many you're willing to sacrifice.");
+
+        thread::sleep(std::time::Duration::from_millis(2000));    
+
+        history.display();
         
         std::process::exit(0);
     } else if final_selection == 1 {
         play_dialogue(PathBuf::from("./text/lab_4_fail.json"));
 
+        game_over.play();
+
         println!("Game Over: Indecisive Pacifist Ending!");
         println!("You didn't want to change fate, but your hands were on that lever anyway. Some will say what happened was on you.");
+        
+        thread::sleep(std::time::Duration::from_millis(2000));    
+
+        history.display();
 
         std::process::exit(0);
 
@@ -347,8 +447,6 @@ async fn main() {
 
     play_dialogue(PathBuf::from("./text/lab_5.json"));
 
-    */
-
     // -- Problem Four -- //
 
     let dilemma =  Dilemma::load(PathBuf::from("./dilemmas/lab_4.json")); 
@@ -357,8 +455,6 @@ async fn main() {
     let final_selection = report.final_selection;
 
     history.add(report);
-    history.tabulate();
-
 
     if final_selection == 2 {
         correct.play();
@@ -380,7 +476,6 @@ async fn main() {
     }
 
     history.add(report);
-    history.tabulate();
 
     // -- Problem Six -- //
 
@@ -396,7 +491,6 @@ async fn main() {
     }
 
     history.add(report);
-    history.tabulate();
 
     // -- Problem Seven -- //
 
@@ -412,12 +506,6 @@ async fn main() {
     }
 
     history.add(report);
-    history.tabulate();
-
-
-
-    
-
     
     // Calibration tests:
 

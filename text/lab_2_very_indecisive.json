@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Jesus Christ! You flip that lever like a maniac, you know what, my heart can't take it. You're either broken or psychotic, I'll end whatever mad state you exist in before it gets out of hand.",
         "instruction": "Press enter to regret your manic indecision...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]

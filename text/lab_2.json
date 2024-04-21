@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Let's change things up just slightly, the scenario is practically the same, but this time, inaction will lead to death. The human is on track 1, so if you do nothing, that human will die. Choose wisely.",
         "instruction": "Press enter to begin warming your morality cores.",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]

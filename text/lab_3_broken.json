@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Hello... Hello... Can you hear me? Well I suppose not hear, you don't have any ears but... are you reading me? Whatever this is like for you. You havn't done anything yet, not at all, you know that, right? Zero lever flips, that what it says here. Unless my outputs are wrong. Hang on, let's try again. Maybe you can't do it when someone's watching. Hang on... I'll look away. Flip the lever if you're not broken. Nothing bad will happen, I promise.",
         "instruction": "Press enter to remain silent...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]

@@ -3,6 +3,6 @@
         "character": "The Creator",
         "dialogue": "Well done, that is what we had down as the correct awnser. Sometimes, morality is hard. For what we need you for, you're going to have to get used to making hard choices. Much harder choices than this. I hope you're ready...",
         "instruction": "Press enter to try to imagine why you have been brought into this world...",
-        "sound_file": "typing.mp3"
+        "sound_file": "./sounds/typing.mp3"
     }
 ]

@@ -159,11 +159,11 @@ impl DilemmaReport {
 
         if self.selected_option.consequences.unwrap().total_fatalities > 0 {
             Sound::new(
-                PathBuf::from("./blood.mp3"),
+                PathBuf::from("./sounds/blood.mp3"),
                 2000
             ).play();
             Sound::new(
-                PathBuf::from("./male_scream.mp3"),
+                PathBuf::from("./sounds/male_scream.mp3"),
                 4000
             ).play();
         }
@@ -201,6 +201,7 @@ impl DilemmaHistory {
     pub fn add(&mut self, report : DilemmaReport) {
         self.history.push(report);
         self.num_dilemmas_faced = self.history.len();
+        self.tabulate();
     }
     
     pub fn tabulate(&mut self) {
@@ -411,17 +412,17 @@ impl Dilemma {
         let speech_duration_milliseconds : u64 = (remaining_time as u64 + 1) * 1000;
     
         let clock_sound : Sound = Sound::new(
-            PathBuf::from("./clock.mp3"),
+            PathBuf::from("./sounds/clock.mp3"),
             speech_duration_milliseconds
         );
     
         let horn_sound : Sound = Sound::new(
-            PathBuf::from("./horn.mp3"),
+            PathBuf::from("./sounds/horn.mp3"),
             speech_duration_milliseconds
         );
     
         let lever_sound : Sound = Sound::new(
-            PathBuf::from("./switch.mp3"),
+            PathBuf::from("./sounds/switch.mp3"),
             1000
         );
     
