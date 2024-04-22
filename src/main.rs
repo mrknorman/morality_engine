@@ -1,5 +1,5 @@
 mod dialogue;
-use dialogue::{conversation, play_dialogue, typewriter_effect};
+use dialogue::{spawn_conversation, play_dialogue, typewriter_effect};
 
 use bevy::prelude::*;
 
@@ -14,7 +14,7 @@ async fn main() {
     App::new()
     .add_plugins(DefaultPlugins)
     .add_systems(Startup, setup)
-    .add_systems(Startup, conversation)
+    .add_systems(Startup, spawn_conversation)
     .add_systems(Update, (play_dialogue, typewriter_effect))
     .run();
 }
