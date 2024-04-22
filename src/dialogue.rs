@@ -1,116 +1,174 @@
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, read}, // Importing necessary components from the event module
-    terminal::{enable_raw_mode, disable_raw_mode},
-};
-use std::{io::{self, Write, BufReader}, thread};
-use tokio::time::Duration;
-use serde_json::Error;
-use std::fs::File;
-use serde::{Serialize, Deserialize};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::path::PathBuf;
 
-use crate::audio::Sound;
+use std::{path::PathBuf, time::Duration};
+use bevy::{asset::AssetServer, prelude::*};
 
-fn wait_for_enter(stop_flag : Arc<AtomicBool>, character_duration_milliseconds : u64) {
+#[derive(Component)]
+pub struct Character {
+    name : String,
+    audio_source_file_path : PathBuf
+}
 
-    if event::poll(Duration::from_millis(character_duration_milliseconds)).unwrap() {
-
-        if let Ok(Event::Key(KeyEvent { code: KeyCode::Enter, .. })) = read() {
-            stop_flag.store(true, Ordering::Relaxed);
-            return;
+impl Character {
+    fn new(name : &str, audio_source_file_path : &str) -> Character {
+    
+        Character {
+            name: String::from(name),
+            audio_source_file_path: PathBuf::from(audio_source_file_path)
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct DialogueLine {
-    character: String,
-    dialogue: String,
-    instruction: String,
-    sound_file: String,
-}
+#[derive(Component)]
+pub struct DialogueLine {
+    raw_text : String,
+    current_index : usize,
+    playing : bool,
+    started : bool,
+    timer: Timer,
+    char_duration_milis : u64
+} 
 
 impl DialogueLine {
-
-	fn say(&self) {
-		print!("{}: \n ", self.character);
-	
-		let character_duration_milliseconds: u64 = 30;
-		let total_duration_milliseconds = self.dialogue.chars().count() as u64 * (character_duration_milliseconds + 2);
-	
-		let dialogue_sound : Sound = Sound::new(
-			PathBuf::from(&self.sound_file),
-			total_duration_milliseconds
-		);
-	
-		let space_flag = Arc::new(AtomicBool::new(false));
-		let space_flag_clone = space_flag.clone();
-		let _handle = thread::spawn(move || {
-			let _ = wait_for_enter(space_flag_clone, total_duration_milliseconds);
-		});
-	
-		// Output the dialogue letter by letter
-		dialogue_sound.play();
-		for ch in self.dialogue.chars() {
-			print!("{}", ch);
-			io::stdout().flush().unwrap();  // Ensure the character is immediately printed
-			if space_flag.load(Ordering::Relaxed) {
-				thread::sleep(Duration::from_millis(1));  // Adjust timing to suit the desired typing speed
-				dialogue_sound.stop();
-			} else {
-				thread::sleep(Duration::from_millis(character_duration_milliseconds));  // Adjust timing to suit the desired typing speed
-			}
-		}
-	
-		print!("\n[{}] \n ", self.instruction);
-	
-		println!();  // Move to the next line after the dialogue is completed
-	
-		// Wait for user to press Enter to exit the function
-		enable_raw_mode().unwrap();
-		loop {
-			if let Ok(Event::Key(KeyEvent { code: KeyCode::Enter, .. })) = read() {
-				break;
-			}
-		}
-		disable_raw_mode().unwrap();
-	}
-}
-
-pub struct Dialogue {
-	lines : Vec<DialogueLine>
-}
-
-impl Dialogue {
-
-	pub fn load(file_path: PathBuf) -> Result<Self, Error> {
-        // Open the file in read-only mode with a buffered reader
-        let file = File::open(file_path).expect("Unable to open file");
-        let reader = BufReader::new(file);
-
-        // Deserialize the JSON data into a Dialogue struct
-        Ok(Dialogue {
-			lines : serde_json::from_reader(reader)?
-		})
+    fn new(raw_text : &str) -> DialogueLine {
+        DialogueLine {
+            raw_text : String::from(raw_text),
+            current_index : 0,
+            playing : false,
+            started : false,
+            timer : Timer::new(Duration::from_millis(0), TimerMode::Repeating),
+            char_duration_milis : 30
+        }
     }
-	
-	pub fn play(&self) {
-		for line in &self.lines {
-			DialogueLine::say(&line);
-		}
-	}
-
 }
 
-pub fn play_dialogue(file_path : PathBuf) {
+pub fn play_dialogue (
+        mut query: Query<(&Character, &mut DialogueLine, &mut Text, &mut AudioSink)>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
+    ) {
 
-	match Dialogue::load(file_path) {
-		Ok(dialogue) => dialogue.play(),
-		Err(e) => println!(
-			"Failed to load conversation with error {}", 
-			e
-		),
-	}
+    if keyboard_input.just_pressed(KeyCode::Enter) {
+
+        for (character, mut dialogue, mut text, audio) in query.iter_mut() {
+            if !dialogue.started {
+                text.sections[0].value += character.name.as_str();
+                text.sections[0].value += ":\n    ";
+                audio.play();
+                dialogue.playing = true;
+                dialogue.timer = Timer::new(
+                    Duration::from_millis(dialogue.char_duration_milis), 
+                    TimerMode::Repeating
+                );
+                dialogue.started = true;
+            }
+        }
+    }
+}
+
+pub fn typewriter_effect(
+        mut query: Query<(&mut DialogueLine, &mut Text, &mut AudioSink)>,
+        time: Res<Time>
+    ) {
+    
+    // For each character in the dialogue, update all texts in the query
+    for (mut entity, mut text, audio) in query.iter_mut() {
+
+        if entity.playing {
+
+            entity.timer.tick(time.delta());
+
+            if entity.timer.finished() {
+
+                let char = entity.raw_text.chars().nth(entity.current_index);
+
+                match char {
+                    Some(_) => text.sections[0].value.push(char.unwrap()), // Push character directly to each text,
+                    None => {
+                        audio.stop();
+                        entity.playing = false;
+                    }
+                }
+
+                entity.current_index += 1; 
+            }
+        }
+    }
+}
+#[derive(Bundle)]
+struct DialogueLineBundle {
+    character : Character,
+    audio : AudioBundle,
+    line : DialogueLine,
+    text : TextBundle,
+}
+
+impl DialogueLineBundle {
+
+    fn new(
+        character : Character,
+        line : DialogueLine,
+        asset_server : Res<AssetServer>
+    ) -> DialogueLineBundle {
+
+        let audio_source_file_path = character.audio_source_file_path.clone();
+
+        DialogueLineBundle {
+            character : character,
+            audio : AudioBundle {
+                    source: asset_server.load(audio_source_file_path),
+                    settings : PlaybackSettings {
+                        paused : true,
+                        mode:  bevy::audio::PlaybackMode::Loop,
+                        ..default()
+                    }
+            },
+            line : line,
+            // Create a TextBundle that has a Text with a single section.
+            text : TextBundle::from_section(
+                // Accepts a `String` or any type that converts into a `String`, such as `&str`
+                "",
+                TextStyle {
+                    // This font is loaded and will be used instead of the default font.
+                    font_size: 12.0,
+                    ..default()
+                }
+            ) // Set the justification of the Text
+            .with_text_justify(JustifyText::Left)
+            // Set the style of the TextBundle itself.
+            .with_style(Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(5.0),
+                left: Val::Px(5.0),
+                ..default()
+            })
+        }
+    }
+}
+
+
+#[derive(Component)]
+struct Dialogue {
+    lines : Vec<DialogueLineBundle>
+}
+
+#[derive(Bundle)]
+struct DialogueBundle {
+    text : TextBundle,
+    dialogue : Dialogue
+}
+
+
+
+
+pub fn conversation(
+        mut commands: Commands, 
+        asset_server : Res<AssetServer>
+    ) {
+    
+    commands.spawn(
+        DialogueLineBundle::new(
+            Character::new("The Creator", "sounds/typing.ogg"),
+            DialogueLine::new("Wake Up!"),
+            asset_server
+        )
+    );
 }

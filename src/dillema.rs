@@ -6,7 +6,7 @@ use crossterm::{
     terminal::{self, ClearType, enable_raw_mode, disable_raw_mode},
     ExecutableCommand,
 };
-use std::{io};
+use std::io;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Read;
