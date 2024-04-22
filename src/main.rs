@@ -1,79 +1,25 @@
-use std::path::PathBuf;
-use std::process::Command;
-use std::thread;
-
-pub mod audio;
-
 mod dialogue;
-use dialogue::play_dialogue;
-
-mod dillema;
-use dillema::{Dilemma, DilemmaHistory};
-
-use audio::Sound;
+use dialogue::{conversation, play_dialogue, typewriter_effect};
 
 use bevy::prelude::*;
-use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
-
-use bevy::diagnostic::LogDiagnosticsPlugin;
-use bevy::asset::AssetServer;
-
-#[derive(Component)]
-struct ColorText;
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
-    
-    commands.spawn(SpriteBundle {
-        sprite : Sprite {
-            custom_size : Some(Vec2::new(100.0, 100.0)),
-            ..default()
-        },
-        ..default()
-    });
-
 }
 
-fn conversation(mut commands: Commands, asset_server : Res<AssetServer>) {
-
-    commands.spawn(AudioBundle {
-        source: asset_server.load("sounds/typing.ogg"),
-        ..default()
-    });
-
-    commands.spawn((
-        // Create a TextBundle that has a Text with a single section.
-        TextBundle::from_section(
-            // Accepts a `String` or any type that converts into a `String`, such as `&str`
-            "hello\nbevy!",
-            TextStyle {
-                // This font is loaded and will be used instead of the default font.
-                font_size: 100.0,
-                ..default()
-            },
-        ) // Set the justification of the Text
-        .with_text_justify(JustifyText::Center)
-        // Set the style of the TextBundle itself.
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(5.0),
-            right: Val::Px(5.0),
-            ..default()
-        }),
-        ColorText,
-    ));
-}
 
 #[tokio::main]
 async fn main() {     
 
     App::new()
     .add_plugins(DefaultPlugins)
-    .add_plugins(FrameTimeDiagnosticsPlugin::default())
-    .add_plugins(LogDiagnosticsPlugin::default())
     .add_systems(Startup, setup)
     .add_systems(Startup, conversation)
+    .add_systems(Update, (play_dialogue, typewriter_effect))
     .run();
+}
+
+/*
 
     let correct = Sound::new(
         PathBuf::from("./sounds/correct.mp3"),
@@ -557,3 +503,5 @@ async fn main() {
     // - 
 
 }
+
+*/
