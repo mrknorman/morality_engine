@@ -1,6 +1,6 @@
 
 use std::{path::PathBuf, time::Duration, fs::File, io::BufReader, collections::HashMap};
-use bevy::{asset::AssetServer, prelude::*};
+use bevy::{asset::AssetServer, text::{BreakLineOn, Text2dBounds}, sprite::Anchor, prelude::*};
 use serde::{Serialize, Deserialize};
 
 #[derive(Component, Clone)]
@@ -41,7 +41,7 @@ impl DialogueLine {
             playing : false,
             started : false,
             timer : Timer::new(Duration::from_millis(0), TimerMode::Repeating),
-            char_duration_milis : 30
+            char_duration_milis : 50
         }
     }
 }
@@ -118,7 +118,9 @@ pub fn typewriter_effect(
                                     audio.stop();
                                     entity.playing = false;
                                     dialogue.current_line_index += 1;
-                                    text.as_mut().sections[entity.index].value.push('\n')
+                                    text.as_mut().sections[entity.index].value += "\n    [";
+                                    text.as_mut().sections[entity.index].value += entity.instructon_text.as_str();
+                                    text.as_mut().sections[entity.index].value += "]\n";
                                 }
                             }
 
@@ -243,7 +245,6 @@ pub fn spawn_conversation(
         asset_server,
         character_map
     );
-    
 
     let text_section = TextSection::new(
         "",
@@ -260,19 +261,25 @@ pub fn spawn_conversation(
 
     }
 
+    let box_size = Vec2::new(500.0, 2000.0);
+
     commands.spawn(
-        (TextBundle::from_sections(
-            line_vector
-        ) // Set the justification of the Text
-        .with_text_justify(JustifyText::Left)
-        // Set the style of the TextBundle itself.
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(5.0),
-            left: Val::Px(5.0),
+        (Text2dBundle {
+            text : Text {
+                sections : line_vector,
+                justify : JustifyText::Left, 
+                linebreak_behavior: BreakLineOn::WordBoundary
+            },
+            text_2d_bounds : Text2dBounds {
+                size: box_size,
+            },
+            transform: Transform::from_xyz(-500.0,0.0, 1.0),
+            text_anchor : Anchor::CenterLeft,
             ..default()
-        }),
+        },
         DialogueText{
             current_line_index : 0
         }));
+
+    
 }
