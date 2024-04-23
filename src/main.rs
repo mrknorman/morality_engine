@@ -1,21 +1,34 @@
 mod dialogue;
-use dialogue::{spawn_conversation, play_dialogue, typewriter_effect};
+use dialogue::{spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogue};
 
-use bevy::prelude::*;
+pub mod game_states;
+pub mod audio;
+use game_states::{GameState, MainState};
+
+mod menu;
+use menu::{setup_menu, menu, cleanup_menu};
+
+
+use bevy::{prelude::*, window::close_on_esc};
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-
-#[tokio::main]
-async fn main() {     
+fn main() {     
 
     App::new()
+    .insert_state(MainState::Menu)
     .add_plugins(DefaultPlugins)
+    .add_systems(Update, close_on_esc)
     .add_systems(Startup, setup)
-    .add_systems(Startup, spawn_conversation)
-    .add_systems(Update, (play_dialogue, typewriter_effect))
+    .add_systems(OnEnter(MainState::Menu), setup_menu)
+    .add_systems(Update, menu.run_if(in_state(MainState::Menu)))
+    .add_systems(OnExit(MainState::Menu), cleanup_menu)
+    .add_systems(OnEnter(MainState::InGame), spawn_dialogue)
+    .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(MainState::InGame)))
+    .add_systems(OnExit(MainState::InGame), cleanup_dialogue)
+
     .run();
 }
 
