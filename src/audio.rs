@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 pub fn play_sound_once(
 	audio_path : &str,
@@ -7,7 +7,7 @@ pub fn play_sound_once(
 	asset_server : &Res<AssetServer>
 ) {
 
-	commands.spawn((
+	commands.spawn(
 		AudioBundle {
 			source: asset_server.load(PathBuf::from(audio_path)),
 			settings : PlaybackSettings {
@@ -16,5 +16,5 @@ pub fn play_sound_once(
 				..default()
 			}
 		}
-	));
+	);
 }
