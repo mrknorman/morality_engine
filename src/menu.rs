@@ -24,7 +24,19 @@ pub struct TrainWhistle {
 }
 
 #[derive(Component)]
-pub struct TrainPart;
+pub struct TrainTrack;
+
+#[derive(Component)]
+pub struct TrainPart{
+	index : usize,
+	initial_position : Vec3
+}
+
+#[derive(Component)]
+pub struct TrainEngine{
+	index : usize,
+	initial_position : Vec3
+}
 
 pub fn setup_menu(
 		mut commands: Commands,
@@ -122,7 +134,7 @@ let track = "\n
 	}}).id();
 
 	let train_button = commands
-        .spawn(NodeBundle {
+        .spawn((NodeBundle {
             style: Style {
                 // center button
                 width: Val::Percent(100.),
@@ -137,7 +149,12 @@ let track = "\n
                 ..default()
             },
             ..default()
-        })
+		},
+		TrainEngine {
+			index : 0,
+			initial_position : Transform::from_xyz(-0.0, 0.0, 1.0).translation
+		}
+		))
         .with_children(|parent| {
             parent
                 .spawn((ButtonBundle {
@@ -154,7 +171,9 @@ let track = "\n
 						Color::Rgba{red: 0.0, green: 0.0, blue: 0.0, alpha: 0.0}
 					),
                     ..default()
-                }, TrainWhistle{playing : false}))
+                }, TrainWhistle{playing : false}
+				
+				))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
 						text : Text {
@@ -174,7 +193,7 @@ let track = "\n
         })
         .id();
 
-	let train_entity = commands.spawn((TrainPart,
+	let train_entity = commands.spawn((TrainTrack,
 		Text2dBundle {
 			text : Text {
 				sections : vec!(
@@ -190,7 +209,7 @@ let track = "\n
 			..default()
 		},)).with_children(|parent| {
 			
-			parent.spawn(
+			parent.spawn((
 				Text2dBundle {
 					text : Text {
 						sections : vec!(
@@ -204,10 +223,14 @@ let track = "\n
 					},
 					transform: Transform::from_xyz(30.0, 0.0, 1.0),
 					..default()
-				}
+				},
+				TrainPart {
+					index : 1,
+					initial_position :  Transform::from_xyz(30.0, 0.0, 1.0).translation
+				})
 			); 
 
-            parent.spawn(
+            parent.spawn((
 				Text2dBundle {
 					text : Text {
 						sections : vec!(
@@ -221,10 +244,14 @@ let track = "\n
 					},
 					transform: Transform::from_xyz(-40.0, 0.0, 1.0),
 					..default()
-				}
+				},
+				TrainPart {
+					index : 2,
+					initial_position :  Transform::from_xyz(-40.0, 0.0, 1.0).translation
+				})
 			); 
 			
-			parent.spawn(
+            parent.spawn((
 				Text2dBundle {
 					text : Text {
 						sections : vec!(
@@ -238,8 +265,12 @@ let track = "\n
 					},
 					transform: Transform::from_xyz(-110.0, 0.0, 1.0),
 					..default()
-				}
-			);
+				},
+				TrainPart {
+					index : 2,
+					initial_position :  Transform::from_xyz(-110.0, 0.0, 1.0).translation
+				})
+			); 
 		
 		}
 		).id();
@@ -429,59 +460,33 @@ pub fn train_whistle(
 	}
 }
 
-/*
-pub fn wobble_train_(
-    time: Res<Time>, // Inject the Time resource to access the game time
-    mut query: Query<(&Children, &mut Transform), With<TrainPart>>,
-) {
-    let time_seconds = time.elapsed_seconds_f64(); // Current time in seconds
-
-    for (children, parent_transform) in query.iter() {
-        for child in children.iter() {
-            // Oscillate around the parent's original position
-            let original_position = parent_transform.translation;
-
-            if let Ok((_, mut transform)) = query.get_mut(*child) {
-                // Calculate offset using sine and cosine functions for smooth oscillation
-                let dx = 5.0 * (3.14 * time_seconds).sin(); // Horizontal oscillation
-                let dy = 5.0 * (3.14 * time_seconds).cos(); // Vertical oscillation
-
-				println!("{}", dx);
-
-                // Apply the calculated offsets to the child's position
-                transform.translation.x = original_position.x + dx as f32;
-                transform.translation.y = original_position.y + dy as f32;
-            }
-        }
-    }
-}
-*/
-
 pub fn wobble_train(
 	time: Res<Time>, // Inject the Time resource to access the game time
     mut commands: Commands, 
-    mut train_query: Query<(&mut Transform, &Children), With<TrainPart>>,
-    mut transform_query: Query<&mut Transform, Without<Children>>,
+    mut transform_query: Query<(&mut Transform, &mut TrainPart) >,
+	mut button_query: Query<(&mut Style, &mut TrainEngine)>
 ) {
     let mut rng = rand::thread_rng(); // Random number generator
 
 	let time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
 
+	for (mut transform, mut train_part) in transform_query.iter_mut() {
+			// Calculate offset using sine and cosine functions for smooth oscillation
+			let dx = rng.gen_range(-1.0..=1.0);
+			let dy = rng.gen_range(-1.0..=1.0);  
+						
+			// Apply the calculated offsets to the child's position
+			transform.translation.x = train_part.initial_position.x + dx as f32;
+			transform.translation.y = train_part.initial_position.y + dy as f32;
+	}
 
-    for (parent_transform, children) in train_query.iter_mut() {
+	for (mut style, mut train_part) in button_query.iter_mut() {
+		// Calculate offset using sine and cosine functions for smooth oscillation
+		let dx = rng.gen_range(-1.0..=1.0);
+		let dy = rng.gen_range(-1.0..=1.0);  
 
-		let original_position = parent_transform.translation;
-
-        for child in children.iter() {
-            if let Ok(mut transform) = transform_query.get_mut(*child) {
-                  // Calculate offset using sine and cosine functions for smooth oscillation
-				  let dx = rng.gen_range(-5.0..=5.0);
-				  let dy = rng.gen_range(-5.0..=5.0);  
-					
-				  // Apply the calculated offsets to the child's position
-				  //transform.translation.x = original_position.x + dx as f32;
-				  //transform.translation.y = original_position.y + dy as f32;
-            }
-        }
-    }
+		// Apply the calculated offsets to the child's position
+		style.top = Val::Px(train_part.initial_position.x + dx as f32);
+		style.left = Val::Px(train_part.initial_position.y + dy as f32);
+}
 }
