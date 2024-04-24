@@ -3,10 +3,10 @@ use dialogue::{spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogu
 
 pub mod game_states;
 pub mod audio;
-use game_states::{GameState, MainState};
+use game_states:: MainState;
 
 mod menu;
-use menu::{setup_menu, menu, cleanup_menu};
+use menu::{setup_menu, menu, cleanup_menu, train_whistle, wobble_train};
 
 
 use bevy::{prelude::*, window::close_on_esc};
@@ -23,7 +23,7 @@ fn main() {
     .add_systems(Update, close_on_esc)
     .add_systems(Startup, setup)
     .add_systems(OnEnter(MainState::Menu), setup_menu)
-    .add_systems(Update, menu.run_if(in_state(MainState::Menu)))
+    .add_systems(Update, (menu, train_whistle, wobble_train).run_if(in_state(MainState::Menu)))
     .add_systems(OnExit(MainState::Menu), cleanup_menu)
     .add_systems(OnEnter(MainState::InGame), spawn_dialogue)
     .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(MainState::InGame)))
