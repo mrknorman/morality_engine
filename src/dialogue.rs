@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration, fs::File, io::BufReader, collections::H
 use bevy::{asset::AssetServer, text::{BreakLineOn, Text2dBounds}, sprite::Anchor, prelude::*};
 use serde::{Serialize, Deserialize};
 
-use crate::audio::play_sound_once;
+use crate::audio::{play_sound_once, BackgroundAudio};
 use crate::game_states::{MainState, GameState};
 
 
@@ -22,6 +22,7 @@ impl Character {
         }
     }
 }
+
 
 #[derive(Component)]
 pub struct DialogueLine {
@@ -326,12 +327,36 @@ pub fn spawn_dialogue(
             total_num_lines : num_lines
         }
     ));
+
+    let hum_audio = commands.spawn(AudioBundle {
+		source: asset_server.load(PathBuf::from("./sounds/hum.ogg")),
+		settings : PlaybackSettings {
+			paused : false,
+			volume : bevy::audio::Volume::new(0.5),
+			mode:  bevy::audio::PlaybackMode::Loop,
+			..default()
+	}}).id();
+
+    let office_audio = commands.spawn(AudioBundle {
+		source: asset_server.load(PathBuf::from("./sounds/office.ogg")),
+		settings : PlaybackSettings {
+			paused : false,
+			volume : bevy::audio::Volume::new(0.5),
+			mode:  bevy::audio::PlaybackMode::Loop,
+			..default()
+	}}).id();
+
+    let background_audio = vec![hum_audio, office_audio];
+
+    commands.insert_resource(BackgroundAudio{audio: background_audio});
+
 }
 
 pub fn cleanup_dialogue(
         mut commands: Commands, 
         mut query_line: Query<(Entity, &Character, &mut DialogueLine, &mut AudioSink), Without<DialogueText>>,
-        mut query_text: Query<(Entity, &mut Text, &DialogueText), Without<DialogueLine>>
+        mut query_text: Query<(Entity, &mut Text, &DialogueText), Without<DialogueLine>>,
+        background_audio : Res<BackgroundAudio>
     ) {
 
     for (entity, _, _, _) in query_line.iter_mut() {
@@ -340,6 +365,10 @@ pub fn cleanup_dialogue(
 
     for (entity, _, _) in query_text.iter_mut() {
         commands.entity(entity).despawn()
+    }
+
+    for i in 0..background_audio.audio.len(){
+        commands.entity(background_audio.audio[i]).despawn()
     }
 }
 

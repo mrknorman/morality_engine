@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 use rand::Rng;
 
 use crate::game_states::MainState;
@@ -10,6 +10,7 @@ pub struct MenuData {
 	title_entity : Entity,
 	train_entity : Entity,
 	train_audio : Entity,
+	train_button : Entity,
 	signature_entity: Entity,
     button_entity: Entity,
 }
@@ -27,6 +28,13 @@ pub struct TrainWhistle {
 pub struct TrainTrack;
 
 #[derive(Component)]
+pub struct TrainSmoke {
+	index : usize, 
+	smoke : Vec<String>
+}
+
+
+#[derive(Component)]
 pub struct TrainPart{
 	index : usize,
 	initial_position : Vec3
@@ -35,7 +43,8 @@ pub struct TrainPart{
 #[derive(Component)]
 pub struct TrainEngine{
 	index : usize,
-	initial_position : Vec3
+	initial_position : Vec3,
+	timer: Timer
 }
 
 pub fn setup_menu(
@@ -60,7 +69,49 @@ pub fn setup_menu(
 	oo    oo 'oo      oo ' oo    oo 'oo 0000---oo\\_
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
 
-   let back_carridge = "\n
+	let smoke_1 = String::from(". . . . . o o o o o
+                    o");
+
+	let smoke_2 = String::from(". . . . o o o o o o
+                    .");
+	
+	let smoke_3 = String::from(". . . o o o o o o .
+                    .");
+
+	let smoke_4 = String::from(". . . o o o o o o .
+                    .");
+
+	let smoke_5 = String::from(". . o o o o o o . .
+                    .");
+	
+	let smoke_6 = String::from(". o o o o o o . . .
+                    .");
+
+	let smoke_7 = String::from("o o o o o o . . . .
+                    .");
+
+	let smoke_8 = String::from("o o o o o . . . . .
+                    o");
+		
+	let smoke_9 = String::from("o o o o . . . . . o
+                    o");
+
+	let smoke_10 = String::from("o o o . . . . . o o
+                    o");
+
+	let smoke_11 = String::from("o o . . . . . o o o
+                    o");
+
+	let smoke_12 = String::from("o . . . . . o o o o
+                    o");
+	
+	let smoke_13 = String::from(". . . . . o o o o o
+                    o");
+
+
+	let smoke_parts = vec![smoke_1, smoke_2, smoke_3, smoke_4, smoke_5, smoke_6, smoke_7, smoke_8, smoke_9, smoke_10, smoke_11, smoke_12, smoke_13];
+
+	let back_carridge = "\n
       _____    
   __|[_]|__
  |[] [] []|
@@ -152,7 +203,8 @@ let track = "\n
 		},
 		TrainEngine {
 			index : 0,
-			initial_position : Transform::from_xyz(-0.0, 0.0, 1.0).translation
+			initial_position : Transform::from_xyz(-0.0, 0.0, 1.0).translation,
+			timer :  Timer::new(Duration::from_millis(100), TimerMode::Repeating)
 		}
 		))
         .with_children(|parent| {
@@ -271,6 +323,23 @@ let track = "\n
 					initial_position :  Transform::from_xyz(-110.0, 0.0, 1.0).translation
 				})
 			); 
+
+			parent.spawn((
+				Text2dBundle {
+					text : Text {
+						sections : vec!(
+							TextSection::new(smoke_parts[0].clone(), TextStyle {
+								font_size : 12.0,
+								..default()
+							})
+						),
+						justify : JustifyText::Center, 
+						..default()
+					},
+					transform: Transform::from_xyz(70.0, 10.0, 1.0),
+					..default()
+				}, TrainSmoke{index:0, smoke : smoke_parts})
+			); 
 		
 		}
 		).id();
@@ -357,6 +426,7 @@ let track = "\n
 		title_entity, 
 		train_entity,
 		train_audio,
+		train_button,
 		signature_entity,
 		button_entity 
 	});
@@ -419,6 +489,7 @@ pub fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
 	commands.entity(menu_data.signature_entity).despawn_recursive();
 	commands.entity(menu_data.train_entity).despawn_recursive();
 	commands.entity(menu_data.train_audio).despawn_recursive();
+	commands.entity(menu_data.train_button).despawn_recursive();
 }
 
 pub fn train_whistle(
@@ -461,26 +532,20 @@ pub fn train_whistle(
 }
 
 pub fn wobble_train(
-	time: Res<Time>, // Inject the Time resource to access the game time
-    mut commands: Commands, 
-    mut transform_query: Query<(&mut Transform, &mut TrainPart) >,
-	mut button_query: Query<(&mut Style, &mut TrainEngine)>
-) {
+		time: Res<Time>, // Inject the Time resource to access the game time
+		mut transform_query: Query<(&mut Transform, &mut TrainPart) >,
+		mut button_query: Query<(&mut Style, &mut TrainEngine)>,
+		mut smoke_query: Query<(&mut Text, &mut TrainSmoke)>
+	) {
+
     let mut rng = rand::thread_rng(); // Random number generator
 
-	let time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
+	let (mut style, mut train_part) = button_query.single_mut();
 
-	for (mut transform, mut train_part) in transform_query.iter_mut() {
-			// Calculate offset using sine and cosine functions for smooth oscillation
-			let dx = rng.gen_range(-1.0..=1.0);
-			let dy = rng.gen_range(-1.0..=1.0);  
-						
-			// Apply the calculated offsets to the child's position
-			transform.translation.x = train_part.initial_position.x + dx as f32;
-			transform.translation.y = train_part.initial_position.y + dy as f32;
-	}
+	train_part.timer.tick(time.delta());
 
-	for (mut style, mut train_part) in button_query.iter_mut() {
+	if train_part.timer.finished() {
+
 		// Calculate offset using sine and cosine functions for smooth oscillation
 		let dx = rng.gen_range(-1.0..=1.0);
 		let dy = rng.gen_range(-1.0..=1.0);  
@@ -488,5 +553,24 @@ pub fn wobble_train(
 		// Apply the calculated offsets to the child's position
 		style.top = Val::Px(train_part.initial_position.x + dx as f32);
 		style.left = Val::Px(train_part.initial_position.y + dy as f32);
-}
+
+		let time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
+
+		for (mut transform, train_part) in transform_query.iter_mut() {
+				// Calculate offset using sine and cosine functions for smooth oscillation
+				let dx = rng.gen_range(-1.0..=1.0);
+				let dy = rng.gen_range(-1.0..=1.0);  
+
+				// Apply the calculated offsets to the child's position
+				transform.translation.x = train_part.initial_position.x + dx as f32;
+				transform.translation.y = train_part.initial_position.y + dy as f32;
+		}
+
+		for (mut text, mut smoke_part) in smoke_query.iter_mut() {
+
+			smoke_part.index += 1;
+
+			text.sections[0].value = smoke_part.smoke[smoke_part.index % smoke_part.smoke.len() ].clone();
+		}
+	}
 }

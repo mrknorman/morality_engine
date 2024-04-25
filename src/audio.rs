@@ -18,3 +18,8 @@ pub fn play_sound_once(
 		}
 	);
 }
+
+#[derive(Resource)]
+pub struct BackgroundAudio {
+	pub audio : Vec<Entity>
+}
