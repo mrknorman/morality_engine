@@ -6,7 +6,6 @@ use serde::{Serialize, Deserialize};
 use crate::audio::{play_sound_once, BackgroundAudio};
 use crate::game_states::{MainState, GameState};
 
-
 #[derive(Component, Clone)]
 pub struct Character {
     name : String,
@@ -23,7 +22,6 @@ impl Character {
     }
 }
 
-
 #[derive(Component)]
 pub struct DialogueLine {
     index : usize,
@@ -39,7 +37,7 @@ pub struct DialogueLine {
 impl DialogueLine {
     fn new(raw_text : &str, instructon_text : &str, index : usize) -> DialogueLine {
         DialogueLine {
-            index : index,
+            index,
             raw_text : String::from(raw_text),
             instructon_text : String::from(instructon_text),
             current_index : 0,
@@ -52,9 +50,9 @@ impl DialogueLine {
 }
 
 fn setup_line(
-    mut text : &mut Mut<'_, Text>, 
-    mut audio : Mut<'_, AudioSink>, 
-    mut character : &Character,
+    text : &mut Mut<'_, Text>, 
+    audio : Mut<'_, AudioSink>, 
+    character : &Character,
     mut line : Mut<'_, DialogueLine>) {
 
     text.as_mut().sections[line.index].value += character.name.as_str();
@@ -75,13 +73,15 @@ pub fn play_dialogue (
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut commands: Commands, 
         asset_server : Res<AssetServer>,
-        mut next_state: ResMut<NextState<MainState>>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+
     ) {
 
     let (mut text, dialogue) = query_text.single_mut(); 
 
     if dialogue.current_line_index == 0 {
-        for (mut character, mut line, mut audio) in query_line.iter_mut() {
+        for (character, line, audio) in query_line.iter_mut() {
             if line.index == 0 && !line.started {
                 setup_line(&mut text, audio, character, line);
             }
@@ -112,7 +112,8 @@ pub fn play_dialogue (
                     line.started = true;
                 } 
             } else if dialogue.current_line_index >= dialogue.total_num_lines {
-                next_state.set(MainState::Menu);
+                next_main_state.set(MainState::InGame);
+                next_game_state.set(GameState::Dilemma);
             } else {
                 line.timer = Timer::new(
                     Duration::from_millis(line.char_duration_milis / 4), 
@@ -139,25 +140,22 @@ pub fn typewriter_effect(
 
             entity.timer.tick(time.delta());
 
-            if entity.timer.finished() {
-                if entity.index == dialogue.current_line_index {
-                    let char: Option<char> = entity.raw_text.chars().nth(entity.current_index);
+            if entity.timer.finished() && entity.index == dialogue.current_line_index {
+                let char: Option<char> = entity.raw_text.chars().nth(entity.current_index);
 
-                    match char {
-                        Some(_) => text.as_mut().sections[entity.index].value.push(char.unwrap()), // Push character directly to each text,
-                        None => {
-                            audio.stop();
-                            entity.playing = false;
-                            dialogue.current_line_index += 1;
-                            text.sections[entity.index].value += "\n    [";
-                            text.sections[entity.index].value += entity.instructon_text.as_str();
-                            text.sections[entity.index].value += "]\n";
-                        }
+                match char {
+                    Some(_) => text.as_mut().sections[entity.index].value.push(char.unwrap()), // Push character directly to each text,
+                    None => {
+                        audio.stop();
+                        entity.playing = false;
+                        dialogue.current_line_index += 1;
+                        text.sections[entity.index].value += "\n    [";
+                        text.sections[entity.index].value += entity.instructon_text.as_str();
+                        text.sections[entity.index].value += "]\n";
                     }
-
-                    entity.current_index += 1; 
                 }
 
+                entity.current_index += 1; 
             }
         }
     }
@@ -180,7 +178,7 @@ impl DialogueLineBundle {
         let audio_source_file_path = character.audio_source_file_path.clone();
 
         DialogueLineBundle {
-            character : character,
+            character,
             audio : AudioBundle {
                     source: asset_server.load(audio_source_file_path),
                     settings : PlaybackSettings {
@@ -189,7 +187,7 @@ impl DialogueLineBundle {
                         ..default()
                     }
             },
-            line : line
+            line
         }
     }
 }
@@ -231,11 +229,6 @@ impl Dialogue {
         let reader = BufReader::new(file);
         
         let loaded_dialogue : DialogueLoader = serde_json::from_reader(reader).unwrap();
-        // Deserialize the JSON data into a Dialogue struct
-        //let loaded_dialogue: DialogueLoader = DialogueLoader {
-		//	lines : map.get("lines"),
-        //    possible_exit_states : map.get("possible_exit_states")
-		//};
 
         let mut line_vec = vec![];
         for (index, line) in loaded_dialogue.lines.iter().enumerate() {
@@ -346,7 +339,7 @@ pub fn spawn_dialogue(
 			..default()
 	}}).id();
 
-    let background_audio = vec![hum_audio, office_audio];
+    let background_audio: Vec<Entity> = vec![hum_audio, office_audio];
 
     commands.insert_resource(BackgroundAudio{audio: background_audio});
 

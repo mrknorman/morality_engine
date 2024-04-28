@@ -3,10 +3,26 @@ use dialogue::{spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogu
 
 pub mod game_states;
 pub mod audio;
-use game_states:: MainState;
+pub mod io_elements;
+
+use game_states::{MainState, GameState};
+
+pub mod train;
+use train::Train;
 
 mod menu;
-use menu::{setup_menu, menu, cleanup_menu, train_whistle, wobble_train};
+use menu::{setup_menu, menu, cleanup_menu};
+
+mod loading;
+use loading::{setup_loading, cleanup_loading, LoadingBar};
+
+pub mod narration;
+use narration::start_narration;
+
+use io_elements::{show_text_button, text_button_interaction, check_if_enter_pressed};
+
+pub mod dilemma;
+use dilemma::setup_dilemma;
 
 
 use bevy::{prelude::*, window::close_on_esc};
@@ -19,15 +35,29 @@ fn main() {
 
     App::new()
     .insert_state(MainState::Menu)
+    .insert_state(GameState::None)
     .add_plugins(DefaultPlugins)
     .add_systems(Update, close_on_esc)
     .add_systems(Startup, setup)
     .add_systems(OnEnter(MainState::Menu), setup_menu)
-    .add_systems(Update, (menu, train_whistle, wobble_train).run_if(in_state(MainState::Menu)))
+    .add_systems(Update, (menu, Train::whistle, Train::wobble).run_if(in_state(MainState::Menu)))
     .add_systems(OnExit(MainState::Menu), cleanup_menu)
-    .add_systems(OnEnter(MainState::InGame), spawn_dialogue)
-    .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(MainState::InGame)))
-    .add_systems(OnExit(MainState::InGame), cleanup_dialogue)
+    .add_systems(OnEnter(GameState::Loading), setup_loading)
+    .add_systems(OnExit(GameState::Loading), cleanup_loading)
+    .add_systems(Update,  (
+        start_narration, 
+        show_text_button, 
+        text_button_interaction,
+        LoadingBar::fill_loading_bar,
+        check_if_enter_pressed
+    ).run_if(in_state(GameState::Loading)))
+    .add_systems(OnEnter(GameState::Dialogue), spawn_dialogue)
+    .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(GameState::Dialogue)))
+    .add_systems(OnExit(GameState::Dialogue), cleanup_dialogue)
+    .add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
+    .add_systems(Update, (Train::whistle, Train::wobble, start_narration).run_if(in_state(GameState::Dilemma)))
+
+
 
     .run();
 }
