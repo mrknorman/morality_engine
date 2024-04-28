@@ -10,6 +10,8 @@ pub enum MainState {
 
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GameState {
+    None,
+    Loading,
     Dialogue,
     Dilemma,
 }
