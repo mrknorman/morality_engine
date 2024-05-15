@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use crate::train::{
 	TrainEntities, 
 	Train, 
-	TrainWhistle, 
-	TrainTrackText
+	TrainWhistle,
+	TrainText
 
 };
 use crate::io_elements::{spawn_text_button, NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
@@ -71,13 +71,14 @@ pub fn setup_menu(
 			..default()
 	}}).id();
 
-	let train_1 = TrainTrackText::new();
+	let train_1 = TrainText::new(true, 50);
 
 	let train = Train::new(
 		train_1.train_track_text,
 		train_1.train_engine_text,
 		train_1.carridge_text_vector,
-		train_1.smoke_text_frames
+		train_1.smoke_text_frames,
+		Vec3::new(100.0, 0.0, 1.0)
 	);
 
 	let train_entity = train.spawn(&mut commands);
@@ -199,5 +200,8 @@ pub fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
 	commands.entity(menu_data.signature_entity).despawn_recursive();
 	commands.entity(menu_data.train_entity.train).despawn_recursive();
 	commands.entity(menu_data.train_audio).despawn_recursive();
-	commands.entity(menu_data.train_entity.engine).despawn_recursive();
+
+	if menu_data.train_entity.engine.is_some() {
+		commands.entity(menu_data.train_entity.engine.unwrap()).despawn_recursive();
+	}
 }

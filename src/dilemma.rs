@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader, path::PathBuf};
 use bevy::{prelude::*, text::{BreakLineOn, Text2dBounds}, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 
-use crate::train::{Train, TrainEntities, TrainTrackText};
+use crate::train::{Train, TrainEntities, TrainText, TrainTrack};
 use crate::narration::Narration;
 
 #[derive(Resource)]
@@ -253,12 +253,13 @@ pub fn setup_dilemma(
 		asset_server: Res<AssetServer>
 	) {
 		
-	let train_text = TrainTrackText::new();
+	let train_text = TrainText::new(false, 0);
 	let train: Train = Train::new(
-		train_text.train_track_text,
+		None,
 		train_text.train_engine_text,
 		train_text.carridge_text_vector,
-		train_text.smoke_text_frames
+		train_text.smoke_text_frames,
+		Vec3::new(-500.0, -75.0, 1.0)
 	);
 	let train_entity : crate::train::TrainEntities = train.spawn(&mut commands);
 
@@ -286,6 +287,26 @@ pub fn setup_dilemma(
 		dilemma_entity,
 		narration_audio_entity
 	});
+
+	let track_1 = TrainTrack::new_from_length(
+		300, 
+		Vec3{x : -850.0, y : 0.0, z: 0.0}
+	);
+
+	let track_2 = TrainTrack::new_from_length(
+		300, 
+		Vec3{x : 1000.0, y : 0.0, z: 0.0}
+	);
+
+	let track_3 = TrainTrack::new_from_length(
+		300, 
+		Vec3{x : 1000.0, y : -100.0, z: 0.0}
+	);
+
+	track_1.spawn(&mut commands);
+	track_2.spawn(&mut commands);
+	track_3.spawn(&mut commands);
+
 }
 
 

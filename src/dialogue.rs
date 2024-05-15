@@ -30,6 +30,7 @@ pub struct DialogueLine {
     current_index : usize,
     playing : bool,
     started : bool,
+    skip_count : usize,
     timer: Timer,
     char_duration_milis : u64
 } 
@@ -43,6 +44,7 @@ impl DialogueLine {
             current_index : 0,
             playing : false,
             started : false,
+            skip_count : 0,
             timer : Timer::new(Duration::from_millis(0), TimerMode::Repeating),
             char_duration_milis : 50
         }
@@ -100,7 +102,7 @@ pub fn play_dialogue (
                         &asset_server
                     );
 
-                    text.as_mut().sections[line.index].value += character.name.as_str();
+                    text.as_mut().sections[line.index].value += &character.name.as_str();
                     text.as_mut().sections[line.index].value += ":\n    ";
                 
                     audio.play();
@@ -111,15 +113,24 @@ pub fn play_dialogue (
                     );
                     line.started = true;
                 } 
-            } else if dialogue.current_line_index >= dialogue.total_num_lines {
-                next_main_state.set(MainState::InGame);
-                next_game_state.set(GameState::Dilemma);
-            } else {
+            } else if line.playing && line.skip_count == 0 {
+                line.skip_count += 1;
                 line.timer = Timer::new(
                     Duration::from_millis(line.char_duration_milis / 4), 
                     TimerMode::Repeating
                 );
                 audio.set_speed(4.0);
+            } else if line.playing && line.skip_count > 0 {
+                text.as_mut().sections[line.index].value = character.name.clone();
+                text.as_mut().sections[line.index].value += ":\n    ";
+                text.as_mut().sections[line.index].value += line.raw_text.as_str();
+
+                line.current_index = line.raw_text.len() + 1;
+ 
+                line.skip_count += 1;
+            } else if dialogue.current_line_index >= dialogue.total_num_lines {
+                next_main_state.set(MainState::InGame);
+                next_game_state.set(GameState::Dilemma);
             }
         }
     }
@@ -134,28 +145,26 @@ pub fn typewriter_effect(
     let (mut text, mut dialogue) = query_text.single_mut(); 
     
     // For each character in the dialogue, update all texts in the query
-    for (mut entity, audio) in query_line.iter_mut() {
+    for (mut line, audio) in query_line.iter_mut() {
 
-        if entity.playing {
+        if line.playing {
 
-            entity.timer.tick(time.delta());
-
-            if entity.timer.finished() && entity.index == dialogue.current_line_index {
-                let char: Option<char> = entity.raw_text.chars().nth(entity.current_index);
+            if (line.timer.tick(time.delta()).finished() || line.skip_count > 1) && line.index == dialogue.current_line_index {
+                let char: Option<char> = line.raw_text.chars().nth(line.current_index);
 
                 match char {
-                    Some(_) => text.as_mut().sections[entity.index].value.push(char.unwrap()), // Push character directly to each text,
+                    Some(_) => text.as_mut().sections[line.index].value.push(char.unwrap()), // Push character directly to each text,
                     None => {
                         audio.stop();
-                        entity.playing = false;
+                        line.playing = false;
+                        text.sections[line.index].value += "\n    [";
+                        text.sections[line.index].value += line.instructon_text.as_str();
+                        text.sections[line.index].value += "]\n";
                         dialogue.current_line_index += 1;
-                        text.sections[entity.index].value += "\n    [";
-                        text.sections[entity.index].value += entity.instructon_text.as_str();
-                        text.sections[entity.index].value += "]\n";
                     }
                 }
 
-                entity.current_index += 1; 
+                line.current_index += 1; 
             }
         }
     }

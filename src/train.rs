@@ -42,41 +42,56 @@ const COAL_TRUCK_TEXT : &str = "\n
 _[_________]_
   oo    oo ' \n";
 
-const TRAIN_ENGINE_TEXT : &str = "____      
+const TRAIN_ENGINE_TEXT : &str = "\n
+                   
+____      
  ][]]_n_n__][.
 _|__|________)<
 oo 0000---oo\\_\n";
-
-
-const TRAIN_TRACK_TEXT : &str = "\n
-                                                         
-
-
-
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-
-pub struct TrainTrackText{
-	pub train_track_text : String,
-	pub train_engine_text : String,
+pub struct TrainText{
+	pub train_track_text : Option<String>,
+	pub train_engine_text : Option<String>,
 	pub carridge_text_vector : Vec<String>,
 	pub smoke_text_frames : Vec<String>
 }
 
-impl TrainTrackText {
+impl TrainText {
 
-	pub fn new() -> TrainTrackText {
-		TrainTrackText{
-			train_track_text: String::from(TRAIN_TRACK_TEXT),
-			train_engine_text : String::from(TRAIN_ENGINE_TEXT),
-			carridge_text_vector : vec![
-				String::from(COAL_TRUCK_TEXT),
-				String::from(MIDDLE_CARRIDGE_TEXT),
-				String::from(BACK_CARRIDGE_TEXT)
-			],
-			smoke_text_frames : SMOKE_TEXT_FRAMES.iter().map(
-				|&s| String::from(s)
-			).collect()
+	pub fn new(
+		button_engine : bool,
+		track_length : usize
+	) -> TrainText {
+
+		let train_track_text : Option<String> = if track_length > 0 {
+			Some(TrainTrack::generate_train_track_text(track_length))} else {None};
+		
+		if button_engine {
+			TrainText{
+				train_track_text,
+				train_engine_text : Some(String::from(TRAIN_ENGINE_TEXT)),
+				carridge_text_vector : vec![
+					String::from(COAL_TRUCK_TEXT),
+					String::from(MIDDLE_CARRIDGE_TEXT),
+					String::from(BACK_CARRIDGE_TEXT)
+				],
+				smoke_text_frames : SMOKE_TEXT_FRAMES.iter().map(
+					|&s| String::from(s)
+				).collect()
+			}
+		} else {
+			TrainText{
+				train_track_text,
+				train_engine_text : None,
+				carridge_text_vector : vec![
+					String::from(TRAIN_ENGINE_TEXT),
+					String::from(COAL_TRUCK_TEXT),
+					String::from(MIDDLE_CARRIDGE_TEXT),
+					String::from(BACK_CARRIDGE_TEXT)
+				],
+				smoke_text_frames : SMOKE_TEXT_FRAMES.iter().map(
+					|&s| String::from(s)
+				).collect()
+			}
 		}
 	}
 }
@@ -92,14 +107,32 @@ pub struct TrainTrack {
 
 impl TrainTrack {
 
-	pub fn new(text: String, translation : Vec3) -> TrainTrack {
+	pub fn new(text: String, mut translation : Vec3) -> TrainTrack {
+
+		translation.y -= 40.0;
 		TrainTrack {
 			text,
 			translation
 		}
 	}
 
-	pub fn spawn(self, parent: &mut ChildBuilder<'_>) -> Entity  {
+	pub fn generate_train_track_text(length: usize) -> String {
+		let tilde_section = std::iter::repeat('~').take(length).collect::<String>();
+		let train_track_text = format!("\n{}\n", tilde_section);
+		train_track_text
+	}
+
+	pub fn new_from_length(length: usize, mut translation : Vec3) -> TrainTrack {
+
+		translation.y -= 40.0;
+		
+		TrainTrack {
+			text: TrainTrack::generate_train_track_text(length),
+			translation
+		}
+	}
+
+	pub fn spawn_with_parent(self, parent: &mut ChildBuilder<'_>) -> Entity  {
 
 		let text = self.text.clone();
 
@@ -127,13 +160,42 @@ impl TrainTrack {
 			})).id()
 	}
 
+	pub fn spawn(self, commands : &mut Commands) -> Entity  {
+
+		let text = self.text.clone();
+
+		let translation = self.translation;
+
+		commands.spawn((
+			self,
+			Text2dBundle {
+				text : Text {
+					sections : vec!(
+						TextSection::new(text, TextStyle {
+							font_size : 12.0,
+							..default()
+						})
+					),
+					justify : JustifyText::Center, 
+					..default()
+				},
+				transform: Transform::from_xyz(
+					translation.x + 110.0,
+					translation.y, 
+					translation.z
+				),
+				..default()
+			})).id()
+	}
+
 }
 
 #[derive(Component)]
 pub struct TrainSmoke {
 	pub frame_index : usize,
 	pub text_frames : Vec<String>,
-	pub translation : Vec3
+	pub translation : Vec3,
+	pub timer: Timer
 }
 
 impl TrainSmoke {
@@ -150,6 +212,10 @@ impl TrainSmoke {
 				translation.x - 25.0,
 				translation.y + 10.0,
 				translation.z,
+			),
+			timer: Timer::new(
+				Duration::from_millis(100), 
+				TimerMode::Repeating
 			)
 		}
 	}
@@ -181,10 +247,26 @@ impl TrainSmoke {
 #[derive(Component)]
 pub struct TrainPart{
 	pub text : String,
-	pub translation : Vec3
+	pub translation : Vec3,
+	pub timer: Timer
 }
 
 impl TrainPart {
+
+	pub fn new(
+			text : String,
+			translation : Vec3
+		) -> TrainPart {
+
+		TrainPart{
+			text,
+			translation,
+			timer : Timer::new(
+				Duration::from_millis(100), 
+				TimerMode::Repeating
+			)
+		}
+	}
 	
 	pub fn spawn(
 			self,
@@ -226,11 +308,12 @@ pub struct TrainEngine{
 impl TrainEngine {
 
 	pub fn new(
-		text : String
+		text : String,
+		translation : Vec3
 	) -> TrainEngine {
 		TrainEngine {
 			text,
-			translation : Transform::from_xyz(0.0, 0.0, 1.0).translation,
+			translation,
 			timer :  Timer::new(
 				Duration::from_millis(100), 
 				TimerMode::Repeating
@@ -254,8 +337,8 @@ impl TrainEngine {
 					justify_content: JustifyContent::Center,
 					align_items: AlignItems::Center,
 					margin: UiRect {
-						top : Val::Px(-53.0),
-						left : Val::Px(72.0),
+						top : Val::Px(-71.0),
+						left : Val::Px(80.0),
 						..default()
 					},
 					..default()
@@ -305,14 +388,14 @@ impl TrainEngine {
 
 #[derive(Component)]
 pub struct Train{
-	pub track : TrainTrack,
-	pub engine : TrainEngine,
+	pub track : Option<TrainTrack>,
+	pub engine : Option<TrainEngine>,
 	pub carridges : Vec<TrainPart>,
 	pub smoke : TrainSmoke
 }
 
 pub struct TrainEntities{
-	pub engine : Entity,
+	pub engine : Option<Entity>,
 	pub train : Entity
 }
 
@@ -322,29 +405,50 @@ pub struct TrainNode;
 impl Train {
 
 	pub fn new (
-			train_track_text : String,
-			train_engine_text : String,
+			train_track_text : Option<String>,
+			train_engine_text : Option<String>,
 			carridge_text_vector : Vec<String>,
-			smoke_text_frames : Vec<String>
+			smoke_text_frames : Vec<String>,
+			mut translation : Vec3
 		) -> Train {
-
-		let mut translation: Vec3 = Vec3::new(100.0, 0.0, 1.0);
+		
 		let mut carridges : Vec<TrainPart> = vec![];
 		let smoke = TrainSmoke::new(
 			smoke_text_frames,
 			translation
 		);
-		for carridge_text in carridge_text_vector {
+
+		if train_engine_text.is_some() {
 			translation.x -= 70.0;
-			carridges.push(
-				TrainPart{
-					text : carridge_text,
-					translation
-				}
-			);
+		} else {
+			translation.x += 10.0;
 		}
-		let engine: TrainEngine = TrainEngine::new(train_engine_text);
-		let track : TrainTrack = TrainTrack::new(train_track_text, translation);
+
+		for carridge_text in carridge_text_vector {
+			carridges.push(
+				TrainPart::new(
+					carridge_text,
+					translation
+				)
+			);
+			translation.x -= 70.0;
+		}
+
+		translation.x += 70.0;
+
+		let engine : Option<TrainEngine> = if train_track_text.is_some() {
+			Some(TrainEngine::new(
+				train_engine_text.unwrap(),
+				Vec3::new(0.0, 0.0, 1.0)
+			))
+		} else {None};
+
+		let track : Option<TrainTrack> = if train_track_text.is_some() {
+			Some(TrainTrack::new(
+				train_track_text.unwrap(), 
+				translation
+			))
+		} else {None};
 
 		Train {
 			track,
@@ -358,8 +462,11 @@ impl Train {
 			self,
 			 commands: &mut Commands
 		) -> TrainEntities {
+		
+		let engine_entity = if self.engine.is_some() {
+			Some(self.engine.unwrap().spawn(commands))
+		} else {None};
 
-		let engine_entity : Entity = self.engine.spawn(commands);
 		let train_entity : Entity = commands.spawn((TrainNode, Text2dBundle {
 			text : Text {
 				sections : vec!(
@@ -379,7 +486,10 @@ impl Train {
 					part.spawn(parent);
 				}
 				self.smoke.spawn(parent);
-				self.track.spawn(parent);
+
+				if self.track.is_some() {
+					self.track.unwrap().spawn_with_parent(parent);
+				}
 			}).id();
 
 		TrainEntities{
@@ -397,39 +507,42 @@ impl Train {
 
 		let mut rng = rand::thread_rng(); // Random number generator
 
-		let (mut style, mut train_part) = button_query.single_mut();
+		for (mut style, mut train_part) in button_query.iter_mut() {
+			if train_part.timer.tick(time.delta()).finished() {
 
-		train_part.timer.tick(time.delta());
-
-		if train_part.timer.finished() {
-
-			// Calculate offset using sine and cosine functions for smooth oscillation
-			let dx = rng.gen_range(-1.0..=1.0);
-			let dy = rng.gen_range(-1.0..=1.0);  
-
-			// Apply the calculated offsets to the child's position
-			style.top = Val::Px(train_part.translation.x + dx as f32);
-			style.left = Val::Px(train_part.translation.y + dy as f32);
-
-			let _time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
-
-			for (mut transform, train_part) in transform_query.iter_mut() {
-					// Calculate offset using sine and cosine functions for smooth oscillation
-					let dx = rng.gen_range(-1.0..=1.0);
-					let dy = rng.gen_range(-1.0..=1.0);  
-
-					// Apply the calculated offsets to the child's position
-					transform.translation.x = train_part.translation.x + dx as f32;
-					transform.translation.y = train_part.translation.y + dy as f32;
+				// Calculate offset using sine and cosine functions for smooth oscillation
+				let dx = rng.gen_range(-1.0..=1.0);
+				let dy = rng.gen_range(-1.0..=1.0);  
+	
+				// Apply the calculated offsets to the child's position
+				style.top = Val::Px(train_part.translation.x + dx as f32);
+				style.left = Val::Px(train_part.translation.y + dy as f32);
 			}
+		}
 
-			for (mut text, mut smoke_part) in smoke_query.iter_mut() {
+		let _time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
 
+		for (mut transform, mut train_part) in transform_query.iter_mut() {
+			if train_part.timer.tick(time.delta()).finished() {
+				// Calculate offset using sine and cosine functions for smooth oscillation
+				let dx = rng.gen_range(-1.0..=1.0);
+				let dy = rng.gen_range(-1.0..=1.0);  
+
+				// Apply the calculated offsets to the child's position
+				transform.translation.x = train_part.translation.x + dx as f32;
+				transform.translation.y = train_part.translation.y + dy as f32;
+			}
+		}
+
+		for (mut text, mut smoke_part) in smoke_query.iter_mut() {
+
+			if smoke_part.timer.tick(time.delta()).finished() {
 				smoke_part.frame_index += 1;
 
 				text.sections[0].value = smoke_part.text_frames[smoke_part.frame_index % smoke_part.text_frames.len() ].clone();
 			}
 		}
+
 	}
 
 	pub fn whistle(
@@ -470,5 +583,35 @@ impl Train {
 			}
 		}
 	}
+
+	pub fn move_train(
+		time: Res<Time>, // Inject the Time resource to access the game time
+		mut transform_query: Query<(&mut Transform, &mut TrainPart), Without<TrainSmoke>>,
+		mut button_query: Query<(&mut Style, &mut TrainEngine)>,
+		mut smoke_query: Query<(&mut Transform, &mut Text, &mut TrainSmoke)>
+	) {
+
+
+	let dx = 1.0;
+
+	for (mut style, mut train_part) in button_query.iter_mut() {
+		// Apply the calculated offsets to the child's position
+		train_part.translation.x += dx;
+		style.left = Val::Px(train_part.translation.x as f32);
+	}
+
+	let _time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
+
+	for (mut transform, mut train_part) in transform_query.iter_mut() {
+		// Apply the calculated offsets to the child's position
+		train_part.translation.x += dx;
+		transform.translation.x = train_part.translation.x + dx as f32;
+	}
+
+	for (mut transformm, mut text, mut smoke_part) in smoke_query.iter_mut() {
+		smoke_part.translation.x += dx;
+		transformm.translation.x = smoke_part.translation.x + dx as f32;
+	}
+}
 
 }

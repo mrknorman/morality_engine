@@ -55,10 +55,7 @@ fn main() {
     .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(GameState::Dialogue)))
     .add_systems(OnExit(GameState::Dialogue), cleanup_dialogue)
     .add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
-    .add_systems(Update, (Train::whistle, Train::wobble, start_narration).run_if(in_state(GameState::Dilemma)))
-
-
-
+    .add_systems(Update, (Train::wobble, Train::move_train, start_narration).run_if(in_state(GameState::Dilemma)))
     .run();
 }
 
