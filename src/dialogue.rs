@@ -35,6 +35,36 @@ pub struct DialogueLine {
     char_duration_milis : u64
 } 
 
+const LINE_WIDTH: usize = 50; // Adjust the width as needed
+fn format_text(raw_text: &str) -> String {
+    let mut formatted_text = String::new();
+    let words: Vec<&str> = raw_text.split_whitespace().collect();
+    let mut current_line: String = String::new();
+
+    for word in words {
+        if current_line.len() + word.len() + 1 > LINE_WIDTH - 2 {
+            // Pad the current line to the desired width
+            formatted_text.push('|');
+            formatted_text.push_str(&format!("{:<1$}|", current_line, LINE_WIDTH - 2));
+            formatted_text.push('\n');
+            current_line.clear();
+        }
+        if !current_line.is_empty() {
+            current_line.push(' ');
+        }
+        current_line.push_str(word);
+    }
+
+    // Add the last line
+    if !current_line.is_empty() {
+        formatted_text.push('|');
+        formatted_text.push_str(&format!("{:<1$}|", current_line, LINE_WIDTH - 2));
+        formatted_text.push('\n');
+    }
+
+    formatted_text
+}
+
 impl DialogueLine {
     fn new(raw_text : &str, instructon_text : &str, index : usize) -> DialogueLine {
         DialogueLine {
@@ -96,7 +126,7 @@ pub fn play_dialogue (
             if !line.started {
                 if line.index == dialogue.current_line_index {
 
-                    play_sound_once(
+                    let _ = play_sound_once(
                         "sounds/mech_click.ogg", 
                         &mut commands, 
                         &asset_server
@@ -268,7 +298,6 @@ impl Dialogue {
 
 #[derive(Component)]
 pub struct ButtonClick;
-
 
 #[derive(Component)]
 pub struct DialogueText {

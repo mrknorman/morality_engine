@@ -3,8 +3,20 @@ use std::{fs::File, io::BufReader, path::PathBuf};
 use bevy::{prelude::*, text::{BreakLineOn, Text2dBounds}, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 
-use crate::train::{Train, TrainEntities, TrainText, TrainTrack};
+use crate::{audio::play_sound_once, train::{Train, TrainEntities, TrainText, TrainTrack}};
 use crate::narration::Narration;
+
+#[derive(PartialEq)]
+enum LeverState{
+	Left,
+	Right,
+	Random
+}
+#[derive(Resource)]
+pub struct Lever{
+	state : LeverState,
+	current_audio : Option<Entity>
+}
 
 #[derive(Resource)]
 struct DilemmaEntities{
@@ -209,7 +221,7 @@ pub struct DilemmaInfoPanel;
 impl DilemmaInfoPanel {
 	pub fn spawn(
 		commands : &mut Commands,
-		dilemma : Dilemma
+		dilemma : &Dilemma
 	) -> Entity {
 
 		let box_size = Vec2::new(500.0, 2000.0);
@@ -227,7 +239,7 @@ impl DilemmaInfoPanel {
 								..default()
 						}),
 						TextSection::new(
-							dilemma.description,
+							dilemma.description.clone(),
 							TextStyle {
 								font_size: 15.0,
 								..default()
@@ -266,7 +278,7 @@ pub fn setup_dilemma(
 	let dilemma : Dilemma = Dilemma::load(
 		PathBuf::from("./dilemmas/lab_1.json")
 	);
-	let dilemma_entity : Entity = DilemmaInfoPanel::spawn(&mut commands, dilemma);
+	let dilemma_entity : Entity = DilemmaInfoPanel::spawn(&mut commands, &dilemma);
 
 	let narration_audio_entity : Entity = commands.spawn((
         Narration {
@@ -288,9 +300,20 @@ pub fn setup_dilemma(
 		narration_audio_entity
 	});
 
+	let start_state = match dilemma.default_option {
+		None => LeverState::Random,
+		Some(ref option) if *option == 1 => LeverState::Left,
+		Some(_) => LeverState::Right,
+	};
+
+	commands.insert_resource(Lever{
+		state : start_state,
+		current_audio : None
+	});
+
 	let track_1 = TrainTrack::new_from_length(
 		300, 
-		Vec3{x : -850.0, y : 0.0, z: 0.0}
+		Vec3{x : -800.0, y : 0.0, z: 0.0}
 	);
 
 	let track_2 = TrainTrack::new_from_length(
@@ -309,7 +332,30 @@ pub fn setup_dilemma(
 
 }
 
+pub fn check_level_pull(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    lever: Res<Lever>,
+) {
+    // Variables to hold new state and audio entity
+    let mut new_state = None;
+    let mut new_audio = None;
 
-
-
-
+    // Determine the new state and despawn the current audio if necessary
+    if keyboard_input.just_pressed(KeyCode::Digit1) && (lever.state != LeverState::Left) {
+        new_state = Some(LeverState::Left);
+        new_audio = Some(play_sound_once("sounds/switch.ogg", &mut commands, &asset_server));
+    } else if keyboard_input.just_pressed(KeyCode::Digit2) && (lever.state != LeverState::Right) {
+        new_state = Some(LeverState::Right);
+        new_audio = Some(play_sound_once("sounds/switch.ogg", &mut commands, &asset_server));
+    }
+	
+    // If there is a new state, update the Lever resource
+    if let Some(state) = new_state {
+        commands.insert_resource(Lever {
+            state,
+            current_audio: new_audio,
+        });
+    }
+}
