@@ -588,10 +588,9 @@ impl Train {
 		time: Res<Time>, // Inject the Time resource to access the game time
 		mut transform_query: Query<(&mut Transform, &mut TrainPart), Without<TrainSmoke>>,
 		mut button_query: Query<(&mut Style, &mut TrainEngine)>,
-		mut smoke_query: Query<(&mut Transform, &mut Text, &mut TrainSmoke)>
+		mut smoke_query: Query<(&mut Transform, &mut TrainSmoke)>
 	) {
-
-
+	
 	let dx = 1.0;
 
 	for (mut style, mut train_part) in button_query.iter_mut() {
@@ -608,7 +607,7 @@ impl Train {
 		transform.translation.x = train_part.translation.x + dx as f32;
 	}
 
-	for (mut transformm, mut text, mut smoke_part) in smoke_query.iter_mut() {
+	for (mut transformm, mut smoke_part) in smoke_query.iter_mut() {
 		smoke_part.translation.x += dx;
 		transformm.translation.x = smoke_part.translation.x + dx as f32;
 	}

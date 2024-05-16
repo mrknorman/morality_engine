@@ -9,7 +9,7 @@ pub fn play_sound_once(
 	audio_path : &str,
 	commands: &mut Commands, 
 	asset_server : &Res<AssetServer>
-) {
+) -> Entity {
 
 	commands.spawn(
 		(SingleSound,
@@ -21,7 +21,7 @@ pub fn play_sound_once(
 				..default()
 			}
 		}
-	));
+	)).id()
 }
 
 #[derive(Resource)]
