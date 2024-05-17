@@ -22,7 +22,7 @@ use narration::start_narration;
 use io_elements::{show_text_button, text_button_interaction, check_if_enter_pressed};
 
 pub mod dilemma;
-use dilemma::{setup_dilemma, check_level_pull};
+use dilemma::{setup_dilemma, check_level_pull, lever_motion};
 
 
 use bevy::{prelude::*, window::close_on_esc};
@@ -55,7 +55,9 @@ fn main() {
     .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(GameState::Dialogue)))
     .add_systems(OnExit(GameState::Dialogue), cleanup_dialogue)
     .add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
-    .add_systems(Update, (Train::wobble, Train::move_train, start_narration, check_level_pull).run_if(in_state(GameState::Dilemma)))
+    .add_systems(Update, (
+        Train::wobble, Train::move_train, start_narration, check_level_pull, lever_motion
+    ).run_if(in_state(GameState::Dilemma)))
     .run();
 }
 

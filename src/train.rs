@@ -110,6 +110,7 @@ impl TrainTrack {
 	pub fn new(text: String, mut translation : Vec3) -> TrainTrack {
 
 		translation.y -= 40.0;
+
 		TrainTrack {
 			text,
 			translation

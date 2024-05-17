@@ -1,6 +1,6 @@
 
 use std::{fs::File, io::BufReader, path::PathBuf};
-use bevy::{prelude::*, text::{BreakLineOn, Text2dBounds}, sprite::Anchor};
+use bevy::{prelude::*, sprite::Anchor, text::{BreakLineOn, Text2dBounds}, transform};
 use serde::{Deserialize, Serialize};
 
 use crate::{audio::play_sound_once, train::{Train, TrainEntities, TrainText, TrainTrack}};
@@ -16,6 +16,14 @@ enum LeverState{
 pub struct Lever{
 	state : LeverState,
 	current_audio : Option<Entity>
+}
+
+#[derive(Component)]
+pub struct LeverTransform{
+	initial : Vec3,
+	left : Vec3,
+	right : Vec3,
+	random : Vec3
 }
 
 #[derive(Resource)]
@@ -310,25 +318,47 @@ pub fn setup_dilemma(
 		state : start_state,
 		current_audio : None
 	});
-
+	
+	let track_1_translation = Vec3{x : -800.0, y : 0.0, z: 0.0};
 	let track_1 = TrainTrack::new_from_length(
 		300, 
-		Vec3{x : -800.0, y : 0.0, z: 0.0}
+		track_1_translation.clone()
 	);
 
+	let mut track_2_translation: Vec3 = Vec3{x : 1000.0, y : 100.0, z: 0.0};
 	let track_2 = TrainTrack::new_from_length(
 		300, 
-		Vec3{x : 1000.0, y : 0.0, z: 0.0}
+		track_2_translation.clone()
 	);
+	track_2_translation.x += 110.0;
+	track_2_translation.y -= 40.0;
 
+	let mut track_3_translation = Vec3{x : 1000.0, y : 0.0, z: 0.0};
 	let track_3 = TrainTrack::new_from_length(
 		300, 
-		Vec3{x : 1000.0, y : -100.0, z: 0.0}
+		track_3_translation.clone()
 	);
+	track_3_translation.x += 110.0;
+	track_3_translation.y -= 40.0;
 
 	track_1.spawn(&mut commands);
-	track_2.spawn(&mut commands);
-	track_3.spawn(&mut commands);
+	let id_1: Entity = track_2.spawn(&mut commands);
+	let id_2 : Entity = track_3.spawn(&mut commands);
+
+	commands.entity(id_1).insert(LeverTransform{
+			initial : track_2_translation.clone(),
+			left : Vec3{x: 0.0, y: 0.0, z: 0.0},
+			right : Vec3{x: 0.0, y: -100.0, z: 0.0},
+			random : Vec3{x: 0.0, y: -50.0, z: 0.0}
+		}
+	);
+	commands.entity(id_2).insert(LeverTransform{
+		initial : track_3_translation.clone(),
+		left : Vec3{x: 0.0, y: 0.0, z: 0.0},
+		right : Vec3{x: 0.0, y: -100.0, z: 0.0},
+		random : Vec3{x: 0.0, y: -50.0, z: 0.0}
+	}
+);
 
 }
 
@@ -357,5 +387,43 @@ pub fn check_level_pull(
             state,
             current_audio: new_audio,
         });
+    }
+}
+
+pub fn lever_motion(
+    mut movement_query: Query<(&mut LeverTransform, &mut Transform)>,
+    lever: Res<Lever>,
+    time: Res<Time>,  // Add time resource to manage frame delta time
+) {
+    for (lever_transform, mut transform) in movement_query.iter_mut() {
+        let right_position: Vec3 = lever_transform.initial + lever_transform.right;
+        let left_position: Vec3 = lever_transform.initial + lever_transform.left;
+
+        let distance_threshold = 0.01; // Small threshold to determine when to snap to the final position
+        let proportional_speed_factor = 0.1; // Factor to adjust the proportional speed
+        let bounce_amplitude = 0.02; // Amplitude of the bounce effect
+        let bounce_frequency = 10.0; // Frequency of the bounce effect
+
+        if lever.state == LeverState::Right {
+            let distance = (right_position - transform.translation).length();
+            if distance > distance_threshold {
+                let direction = (right_position - transform.translation).normalize();
+                let movement_speed = distance * proportional_speed_factor;
+                transform.translation += direction * movement_speed;
+            } else {
+                let bounce_offset = bounce_amplitude * (time.elapsed_seconds() * bounce_frequency).sin() as f32;
+                transform.translation = right_position + Vec3::new(bounce_offset, 0.0, 0.0);
+            }
+        } else if lever.state == LeverState::Left {
+            let distance = (left_position - transform.translation).length();
+            if distance > distance_threshold {
+                let direction = (left_position - transform.translation).normalize();
+                let movement_speed = distance * proportional_speed_factor;
+                transform.translation += direction * movement_speed;
+            } else {
+                let bounce_offset = bounce_amplitude * (time.elapsed_seconds() * bounce_frequency).sin() as f32;
+                transform.translation = left_position + Vec3::new(bounce_offset, 0.0, 0.0);
+            }
+        }
     }
 }
