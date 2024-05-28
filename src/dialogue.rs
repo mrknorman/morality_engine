@@ -106,8 +106,7 @@ pub fn play_dialogue (
         mut commands: Commands, 
         asset_server : Res<AssetServer>,
         mut next_main_state: ResMut<NextState<MainState>>,
-        mut next_game_state: ResMut<NextState<GameState>>,
-
+        mut next_game_state: ResMut<NextState<GameState>>
     ) {
 
     let (mut text, dialogue) = query_text.single_mut(); 

@@ -1,8 +1,9 @@
+use bevy::log::tracing_subscriber::FmtSubscriber;
 use bevy::{prelude::*, time::Timer};
 
 use crate::audio::play_sound_once;
 
-use crate::game_states::{GameState, MainState};
+use crate::game_states::{GameState, MainState, SubState};
 
 pub const NORMAL_BUTTON: Color = Color::rgb(1.0, 1.0, 1.0);
 pub const HOVERED_BUTTON: Color = Color::rgb(0.0, 1.0, 1.0);
@@ -13,12 +14,14 @@ pub struct TextButton{
     timer : Timer,
     next_main_state : Option<MainState>,
     next_game_state : Option<GameState>,
+    next_sub_state : Option<SubState>
 }
 
 pub fn spawn_text_button (
         text : &str,
         next_main_state : Option<MainState>,
         next_game_state : Option<GameState>,
+        next_sub_state : Option<SubState>,
         wait_timer_seconds : f32,
         commands: &mut Commands
     ) -> Entity {
@@ -69,7 +72,8 @@ pub fn spawn_text_button (
                             TimerMode::Once
                         ),
                         next_game_state,
-                        next_main_state
+                        next_main_state,
+                        next_sub_state
                     }))
                     .with_children(|parent| {
                         parent.spawn(TextBundle {
@@ -111,6 +115,7 @@ pub fn text_button_interaction(
     asset_server : Res<AssetServer>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_sub_state: ResMut<NextState<SubState>>,
     mut interaction_query: Query<
         (&Children, &Interaction, &TextButton),
         (Changed<Interaction>, With<Button>),
@@ -166,9 +171,16 @@ pub fn text_button_interaction(
                         },
                         None => {}
                     }
+
+                    match &button.next_sub_state {
+                        Some(_) => {
+                            next_sub_state.set(
+                                button.next_sub_state.clone().unwrap()
+                            )
+                        },
+                        None => {}
+                    }
                 }
-
-
 			}
 		}
 	}
@@ -177,6 +189,7 @@ pub fn text_button_interaction(
 pub fn check_if_enter_pressed(
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_sub_state: ResMut<NextState<SubState>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     button_query : Query<&mut TextButton>,
     asset_server : Res<AssetServer>,
@@ -206,6 +219,15 @@ pub fn check_if_enter_pressed(
             Some(_) => {
                 next_game_state.set(
                     button.next_game_state.clone().unwrap()
+                )
+            },
+            None => {}
+        }
+
+        match &button.next_sub_state {
+            Some(_) => {
+                next_sub_state.set(
+                    button.next_sub_state.clone().unwrap()
                 )
             },
             None => {}

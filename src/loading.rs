@@ -4,7 +4,7 @@ use rand::Rng;
 
 use crate::audio::{BackgroundAudio, play_sound_once};
 use crate::io_elements::spawn_text_button;
-use crate::game_states::{MainState, GameState};
+use crate::game_states::{MainState, GameState, SubState};
 use crate::narration::Narration;
 
 #[derive(Resource)]
@@ -243,6 +243,7 @@ pub fn setup_loading(
 		"[Click here or Press Enter to Begin]",
         Some(MainState::InGame),
 		Some(GameState::Dialogue),
+        Some(SubState::Intro),
         4.0,
         &mut commands
 	); 

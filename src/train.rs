@@ -591,8 +591,10 @@ impl Train {
 		mut button_query: Query<(&mut Style, &mut TrainEngine)>,
 		mut smoke_query: Query<(&mut Transform, &mut TrainSmoke)>
 	) {
+
+	let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
 	
-	let dx = 1.0;
+	let dx = 50.0*time_seconds;
 
 	for (mut style, mut train_part) in button_query.iter_mut() {
 		// Apply the calculated offsets to the child's position
@@ -600,7 +602,6 @@ impl Train {
 		style.left = Val::Px(train_part.translation.x as f32);
 	}
 
-	let _time_seconds = time.elapsed_seconds_f64() as f32; // Current time in seconds
 
 	for (mut transform, mut train_part) in transform_query.iter_mut() {
 		// Apply the calculated offsets to the child's position

@@ -1,13 +1,19 @@
 mod dialogue;
+use std::ops::Sub;
+
 use dialogue::{spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogue};
 
 pub mod game_states;
 pub mod audio;
+pub mod lever;
+use lever::check_level_pull;
+
 pub mod io_elements;
 
-use game_states::{MainState, GameState};
+use game_states::{MainState, GameState, SubState};
 
 pub mod train;
+
 use train::Train;
 
 mod menu;
@@ -22,8 +28,14 @@ use narration::start_narration;
 use io_elements::{show_text_button, text_button_interaction, check_if_enter_pressed};
 
 pub mod dilemma;
-use dilemma::{setup_dilemma, check_level_pull, lever_motion};
-
+use dilemma::{
+    setup_dilemma, 
+    setup_decision, 
+    lever_motion, 
+    person_check_danger, 
+    animate_person,
+    update_timer
+};
 
 use bevy::{prelude::*, window::close_on_esc};
 
@@ -36,6 +48,7 @@ fn main() {
     App::new()
     .insert_state(MainState::Menu)
     .insert_state(GameState::None)
+    .insert_state(SubState::None)
     .add_plugins(DefaultPlugins)
     .add_systems(Update, close_on_esc)
     .add_systems(Startup, setup)
@@ -55,11 +68,28 @@ fn main() {
     .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(GameState::Dialogue)))
     .add_systems(OnExit(GameState::Dialogue), cleanup_dialogue)
     .add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
+    .add_systems(Update,  (
+        start_narration, 
+        show_text_button, 
+        text_button_interaction,
+        check_if_enter_pressed
+    ).run_if(in_state(GameState::Dilemma))
+    .run_if(in_state(SubState::Intro)))
+    .add_systems(OnEnter(SubState::Decision), setup_decision.run_if(in_state(GameState::Dilemma)))
     .add_systems(Update, (
-        Train::wobble, Train::move_train, start_narration, check_level_pull, lever_motion
-    ).run_if(in_state(GameState::Dilemma)))
+        check_level_pull, 
+        person_check_danger, 
+        animate_person, 
+        lever_motion, 
+        update_timer,
+        Train::wobble, 
+        Train::move_train
+    ).run_if(in_state(GameState::Dilemma))
+    .run_if(in_state(SubState::Decision)))
     .run();
 }
+
+//
 
 /*
 
