@@ -16,4 +16,12 @@ pub enum GameState {
     Dilemma,
 }
 
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SubState {
+    None,
+    Intro,
+    Decision,
+    Results,
+}
+
 
