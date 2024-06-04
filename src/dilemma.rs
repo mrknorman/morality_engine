@@ -1,16 +1,15 @@
 
 use std::{fs::File, io::BufReader, path::PathBuf, time::Duration};
-use bevy::{prelude::*, render::{render_resource::VertexAttribute, texture::TranscodeFormat}, sprite::Anchor, text::{BreakLineOn, Text2dBounds}};
+use bevy::{prelude::*, text::{BreakLineOn, Text2dBounds}, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 use rand::Rng;
 
 use crate::{
-	audio::{play_sound_once, BackgroundAudio}		, 
-	train::{Train, TrainEntities, TrainText, TrainTrack}, 
-	lever::{LeverState, Lever}
+	audio::play_sound_once, lever::{Lever, LeverState}, train::{Train, TrainEntities, TrainText, TrainTrack}
 };
 
 use crate::narration::Narration;
+use crate::audio::BackgroundAudio;
 
 use crate::game_states::{SubState, MainState, GameState};
 use crate::io_elements::spawn_text_button;
@@ -21,6 +20,21 @@ const PERSON_IN_DANGER : &str= "\t\\@/\n\t | \n\t/ \\";
 const EXCLAIMATION : &str = "\t ! ";
 const NEUTRAL : &str = "\t   ";
 
+const SMALL_CACTUS : &str = "
+  |
+(_|_)
+  |";
+
+const LARGE_CACTUS: &str = "
+    _  _
+   | || | _
+  -| || || |
+   | || || |-
+    \\_  || |
+      |  _/
+     -| |
+      |_|-    
+";
 
 #[derive(Component)]
 pub struct LeverTrackTransform{
@@ -32,11 +46,234 @@ pub struct LeverTrackTransform{
 }
 
 #[derive(Resource)]
-pub struct DilemmaEntities{
+pub struct DilemmaHeader{
 	button_entity : Entity,
-	train_entity : Option<TrainEntities>,
 	dilemma_entity : Entity,
-	narration_audio_entity : Entity
+	narration_audio_entity : Entity,
+	train_entity : TrainEntities
+}
+
+#[derive(Resource)]
+pub struct TrainJunction{
+	train : TrainEntities,
+	track : Vec<Entity>
+}
+
+impl TrainJunction{
+
+	pub fn spawn(
+			mut commands : &mut Commands,
+			dilemma: &Res<Dilemma>
+		) {
+
+		let train_text: TrainText = TrainText::new(
+			false, 
+			0
+		);
+		let train: TrainEntities = Train::new(
+			None,
+			train_text.train_engine_text,
+			train_text.carridge_text_vector,
+			train_text.smoke_text_frames,
+			Vec3::new(-380.0 * (dilemma.countdown_duration_seconds as f32 / 10.0), -75.0, 1.0)
+		).spawn(commands);
+
+		let color = match dilemma.default_option {
+			None => Color::WHITE,
+			Some(ref option) if *option == 1 =>  Color::VIOLET,
+			Some(_) =>  Color::TURQUOISE,
+		};
+
+
+		let track_1_translation = Vec3{x : -800.0, y : 0.0, z: 0.0};
+		let track_1 = TrainTrack::new_from_length(
+			300, 
+			color,
+			track_1_translation.clone()
+		);
+	
+		let mut track_2_translation: Vec3 = Vec3{x : 1000.0, y : 100.0, z: 0.0};
+		let track_2 = TrainTrack::new_from_length(
+			300, 
+		    Color::TURQUOISE,
+			track_2_translation.clone()
+		);
+		track_2_translation.x += 110.0;
+		track_2_translation.y -= 40.0;
+	
+		let mut track_3_translation = Vec3{x : 1000.0, y : 0.0, z: 0.0};
+		let track_3 = TrainTrack::new_from_length(
+			300, 
+			Color::VIOLET,
+			track_3_translation.clone()
+		);
+		track_3_translation.x += 110.0;
+		track_3_translation.y -= 40.0;
+	
+		let id_1 : Entity = track_1.spawn(&mut commands);
+		let id_2: Entity = track_2.spawn(&mut commands);
+		let id_3 : Entity = track_3.spawn(&mut commands);
+		
+		commands.entity(id_2).insert(LeverTrackTransform{
+				index : 2,
+				initial : track_2_translation.clone(),
+				left : Vec3{x: 0.0, y: 0.0, z: 0.0},
+				right : Vec3{x: 0.0, y: -100.0, z: 0.0},
+				random : Vec3{x: 0.0, y: -50.0, z: 0.0}
+			}
+		);
+		commands.entity(id_3).insert(LeverTrackTransform{
+			index : 1, 
+			initial : track_3_translation.clone(),
+			left : Vec3{x: 0.0, y: 0.0, z: 0.0},
+			right : Vec3{x: 0.0, y: -100.0, z: 0.0},
+			random : Vec3{x: 0.0, y: -50.0, z: 0.0}
+			}
+		);
+	
+		let person = String::from(PERSON);
+	
+		for _ in 0..dilemma.options[0].consequences.total_fatalities {
+			commands.entity(id_3).with_children(|parent| {
+					parent.spawn(
+						Text2dBundle {
+							text : Text {
+								sections : vec![
+									TextSection::new(
+										person.clone(),
+										TextStyle {
+											font_size: 12.0,
+											..default()
+									})
+								],
+								justify : JustifyText::Left, 
+								linebreak_behavior: BreakLineOn::WordBoundary
+							},
+							transform: Transform::from_xyz(-600.0,0.0, 0.0),
+							text_anchor : Anchor::BottomCenter,
+							..default()
+						}
+					);	
+				}
+			);
+		}
+	
+		for _ in 0..dilemma.options[1].consequences.total_fatalities {
+	
+			let position: Vec3 = Vec3::new(-890.0, 0.0, 0.0);
+			commands.entity(id_2).with_children(|parent| {
+					parent.spawn(
+						(Text2dBundle {
+							text : Text {
+								sections : vec![
+									TextSection::new(
+										person.clone(),
+										TextStyle {
+											font_size: 12.0,
+											..default()
+									})
+								],
+								justify : JustifyText::Left, 
+								linebreak_behavior: BreakLineOn::WordBoundary
+							},
+							transform: Transform::from_translation(
+								position
+							),
+							text_anchor : Anchor::BottomCenter,
+							..default()
+						},
+						PersonSprite::new(),
+						BounceAnimation::new(40.0, 60.0)
+						)
+					).with_children(
+						|parent| {
+							EmoticonSprite::new().spawn_with_parent(parent);
+						}
+					);	
+				}
+			);
+		}
+		
+		let track = vec![id_1, id_2, id_3];
+		let junction: TrainJunction = TrainJunction{
+			train,
+			track
+		};
+
+		commands.insert_resource(junction);
+	}
+
+	pub fn despawn( 
+		&self,
+		commands: &mut Commands
+	) {
+		self.train.despawn(commands);
+		
+		for track in self.track.clone() {
+			commands.entity(track).despawn_recursive();
+		}
+	}
+}
+
+#[derive(Resource)]
+pub struct DilemmaDashboard{
+	timer : Entity,
+	info  : Vec<Entity>,
+	lever : Entity
+}
+
+impl DilemmaDashboard {
+
+	pub fn spawn(
+			mut commands : &mut Commands,
+			dilemma: &Res<Dilemma>
+		) {
+
+		let timer : Entity  = DilemmaTimer::spawn(
+			&mut commands, 
+			dilemma.countdown_duration_seconds as f32
+		);
+
+		let mut info : Vec<Entity> = vec![];
+		for (index, option) in dilemma.options.clone().into_iter().enumerate() {
+			info.push(
+				DilemmaOptionInfoPanel::spawn(&mut commands, &option, index)
+			);
+		}
+
+		let start_state = match dilemma.default_option {
+			None => LeverState::Random,
+			Some(ref option) if *option == 1 => LeverState::Left,
+			Some(_) => LeverState::Right,
+		};
+
+		let lever = Lever::spawn(
+			Vec3::new(0.0, -200.0, 0.0), 
+			start_state, 
+			&mut commands
+		);
+
+		let dashboard: DilemmaDashboard = DilemmaDashboard{
+			timer,
+			info,
+			lever
+		};
+		commands.insert_resource(dashboard);
+	}
+
+	fn despawn(
+		&self, 			
+		commands : &mut Commands
+	) {		
+		commands.entity(self.timer).despawn_recursive();
+
+		for entity in self.info.clone() {
+			commands.entity(entity).despawn_recursive();
+		}
+
+		commands.entity(self.lever).despawn_recursive();
+	}
+
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -197,13 +434,11 @@ impl DilemmaOption {
 		}		
 
 	}
-
 }
 
 
 #[derive(Component)]
 pub struct DilemmaTimer {
-	max_time_seconds : f32,
 	timer : Timer
 }
 
@@ -217,7 +452,6 @@ impl DilemmaTimer {
 		commands.spawn(
 			(
 			DilemmaTimer {
-				max_time_seconds,
 				timer : Timer::from_seconds(
 					max_time_seconds,
 					TimerMode::Once
@@ -362,9 +596,9 @@ impl DilemmaOptionInfoPanel {
 						TextSection::new(
 							format!(
 								"Option {}: {} [Press {} to select]\n", 
-								index, 
+								index + 1, 
 								option.name, 
-								index
+								index + 1
 							),
 							TextStyle {
 								font_size: 20.0,
@@ -422,15 +656,13 @@ impl BounceAnimation {
 #[derive(Component)]
 pub struct PersonSprite{
 	in_danger : bool,
-	position : Vec3,
 	animaton_interval_timer : Timer
 }
 
 impl PersonSprite {
-	fn new(position: Vec3) -> PersonSprite {
+	fn new() -> PersonSprite {
 		PersonSprite {
 			in_danger : false,
-			position,
 			animaton_interval_timer: Timer::from_seconds(
 				rand::random::<f32>() + 0.5,
 				TimerMode::Repeating
@@ -492,6 +724,52 @@ pub fn setup_dilemma(
 		asset_server: Res<AssetServer>
 	) {
 
+	commands.spawn(
+		(Text2dBundle {
+			text : Text {
+				sections : vec![
+					TextSection::new(
+						SMALL_CACTUS,
+						TextStyle {
+							font_size: 12.0,
+							..default()
+					})
+				],
+				justify : JustifyText::Left, 
+				linebreak_behavior: BreakLineOn::WordBoundary
+			},
+			transform: Transform::from_translation(
+				Vec3::new(100.0, 80.0, 0.0)
+			),
+			text_anchor : Anchor::BottomCenter,
+			..default()
+		}
+		)
+	);
+
+	commands.spawn(
+		(Text2dBundle {
+			text : Text {
+				sections : vec![
+					TextSection::new(
+						LARGE_CACTUS,
+						TextStyle {
+							font_size: 12.0,
+							..default()
+					})
+				],
+				justify : JustifyText::Left, 
+				linebreak_behavior: BreakLineOn::WordBoundary
+			},
+			transform: Transform::from_translation(
+				Vec3::new(-80.0, -250.0, 0.0)
+			),
+			text_anchor : Anchor::BottomCenter,
+			..default()
+		}
+		)
+	);
+
 	let dilemma : Dilemma = Dilemma::load(
 		PathBuf::from("./dilemmas/lab_1.json")
 	);
@@ -515,6 +793,36 @@ pub fn setup_dilemma(
 			}
 		})).id();
 
+	let train_audio: Entity = commands.spawn(AudioBundle {
+		source: asset_server.load(PathBuf::from("./sounds/train_loop.ogg")),
+		settings : PlaybackSettings {
+			paused : false,
+			volume : bevy::audio::Volume::new(0.1),
+			mode:  bevy::audio::PlaybackMode::Loop,
+			..default()
+	}}).id();
+
+	let train_1: TrainText = TrainText::new(false, 1000);
+	let train = Train::new(
+		train_1.train_track_text,
+		train_1.train_engine_text,
+		train_1.carridge_text_vector,
+		train_1.smoke_text_frames,
+		Vec3::new(100.0, -80.0, 1.0)
+	);
+	let train_entity: TrainEntities = train.spawn(&mut commands);
+
+	let music_audio: Entity = commands.spawn(AudioBundle {
+		source: asset_server.load(PathBuf::from("./sounds/tension_music.ogg")),
+		settings : PlaybackSettings {
+			paused : false,
+			volume : bevy::audio::Volume::new(0.7),
+			mode:  bevy::audio::PlaybackMode::Loop,
+			..default()
+	}}).id();
+
+	commands.insert_resource(BackgroundAudio{audio: vec![music_audio, train_audio]});	
+
 	let button_entity = spawn_text_button(
 		"[Click here or Press Enter to Begin]",
 		Some(MainState::InGame),
@@ -525,11 +833,11 @@ pub fn setup_dilemma(
 	);
 
 	commands.insert_resource(dilemma);
-	commands.insert_resource(DilemmaEntities{
+	commands.insert_resource(DilemmaHeader{
 		button_entity,
-		train_entity : None,
 		dilemma_entity,
-		narration_audio_entity
+		narration_audio_entity,
+		train_entity
 	});
 
 }
@@ -538,24 +846,21 @@ pub fn setup_decision(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
 		dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
-		entities : Res<DilemmaEntities>
+		mut background_audio : ResMut<BackgroundAudio>,
+		mut entities : ResMut<DilemmaHeader>
 	){
 
 	commands.entity(entities.button_entity).despawn_recursive();
 	commands.entity(entities.narration_audio_entity).despawn_recursive();
-
-	DilemmaTimer::spawn(
-		&mut commands, 
-		dilemma.countdown_duration_seconds as f32
-	);
-
+	entities.train_entity.despawn(&mut commands);
+	
 	let train_audio = commands.spawn(AudioBundle {
 		source: asset_server.load(
 			PathBuf::from("./sounds/train_aproaching.ogg")
 		),
 		settings : PlaybackSettings {
 			paused : false,
-			volume : bevy::audio::Volume::new(0.5),
+			volume : bevy::audio::Volume::new(1.0),
 			mode:  bevy::audio::PlaybackMode::Loop,
 			..default()
 	}}).id();
@@ -569,144 +874,31 @@ pub fn setup_decision(
 			..default()
 	}}).id();
 
-	let background_audio: Vec<Entity> = vec![train_audio, clock_audio];
+	background_audio.audio.push(train_audio);
+	background_audio.audio.push(clock_audio);
 
-    commands.insert_resource(BackgroundAudio{audio: background_audio});
+	DilemmaDashboard::spawn(&mut commands, &dilemma);
+	TrainJunction::spawn(&mut commands, &dilemma);
+}
 
-	let train_text = TrainText::new(false, 0);
-	let train: Train = Train::new(
-		None,
-		train_text.train_engine_text,
-		train_text.carridge_text_vector,
-		train_text.smoke_text_frames,
-		Vec3::new(-350.0, -75.0, 1.0)
-	);
-	let train_entity : crate::train::TrainEntities = train.spawn(&mut commands);
+pub fn cleanup_decision(
+	mut commands : Commands,
+	background_audio : Res<BackgroundAudio>,
+	dashboard : ResMut<DilemmaDashboard>,
+	junction : ResMut<TrainJunction>
+){
 
-	let start_state = match dilemma.default_option {
-		None => LeverState::Random,
-		Some(ref option) if *option == 1 => LeverState::Left,
-		Some(_) => LeverState::Right,
-	};
+	for i in 0..background_audio.audio.len(){
+        commands.entity(background_audio.audio[i]).despawn();
+    }
 
-	Lever::spawn(
-		Vec3::new(0.0, -200.0, 0.0), 
-		start_state, 
-		&mut commands
-	);
-	
-	let track_1_translation = Vec3{x : -800.0, y : 0.0, z: 0.0};
-	let track_1 = TrainTrack::new_from_length(
-		300, 
-		track_1_translation.clone()
-	);
-
-	let mut track_2_translation: Vec3 = Vec3{x : 1000.0, y : 100.0, z: 0.0};
-	let track_2 = TrainTrack::new_from_length(
-		300, 
-		track_2_translation.clone()
-	);
-	track_2_translation.x += 110.0;
-	track_2_translation.y -= 40.0;
-
-	let mut track_3_translation = Vec3{x : 1000.0, y : 0.0, z: 0.0};
-	let track_3 = TrainTrack::new_from_length(
-		300, 
-		track_3_translation.clone()
-	);
-	track_3_translation.x += 110.0;
-	track_3_translation.y -= 40.0;
-
-	track_1.spawn(&mut commands);
-	let id_1: Entity = track_2.spawn(&mut commands);
-	let id_2 : Entity = track_3.spawn(&mut commands);
-
-	commands.entity(id_1).insert(LeverTrackTransform{
-			index : 2,
-			initial : track_2_translation.clone(),
-			left : Vec3{x: 0.0, y: 0.0, z: 0.0},
-			right : Vec3{x: 0.0, y: -100.0, z: 0.0},
-			random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-		}
-	);
-	commands.entity(id_2).insert(LeverTrackTransform{
-		index : 1, 
-		initial : track_3_translation.clone(),
-		left : Vec3{x: 0.0, y: 0.0, z: 0.0},
-		right : Vec3{x: 0.0, y: -100.0, z: 0.0},
-		random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-		}
-	);
-
-	let person = String::from(PERSON);
-
-
-	for (index, option) in dilemma.options.clone().into_iter().enumerate() {
-		DilemmaOptionInfoPanel::spawn(&mut commands, &option, index);
-	}
-
-	for _ in 0..dilemma.options[0].consequences.total_fatalities {
-		commands.entity(id_2).with_children(|parent| {
-				parent.spawn(
-					Text2dBundle {
-						text : Text {
-							sections : vec![
-								TextSection::new(
-									person.clone(),
-									TextStyle {
-										font_size: 12.0,
-										..default()
-								})
-							],
-							justify : JustifyText::Left, 
-							linebreak_behavior: BreakLineOn::WordBoundary
-						},
-						transform: Transform::from_xyz(-600.0,0.0, 0.0),
-						text_anchor : Anchor::BottomCenter,
-						..default()
-					}
-				);	
-			}
-		);
-	}
-
-	for _ in 0..dilemma.options[1].consequences.total_fatalities {
-
-		let position: Vec3 = Vec3::new(-600.0, 0.0, 0.0);
-		commands.entity(id_1).with_children(|parent| {
-				parent.spawn(
-					(Text2dBundle {
-						text : Text {
-							sections : vec![
-								TextSection::new(
-									person.clone(),
-									TextStyle {
-										font_size: 12.0,
-										..default()
-								})
-							],
-							justify : JustifyText::Left, 
-							linebreak_behavior: BreakLineOn::WordBoundary
-						},
-						transform: Transform::from_translation(position),
-						text_anchor : Anchor::BottomCenter,
-						..default()
-					},
-					PersonSprite::new(position),
-					BounceAnimation::new(40.0, 60.0)
-					)
-				).with_children(
-					|parent| {
-						EmoticonSprite::new().spawn_with_parent(parent);
-					}
-				);	
-			}
-		);
-	}
+	dashboard.despawn(&mut commands);
+	junction.despawn(&mut commands);
 }
 
 pub fn lever_motion(
     mut movement_query: Query<(&mut LeverTrackTransform, &mut Transform)>,
+	mut track_query: Query<&mut Text, (With<TrainTrack>, Without<LeverTrackTransform>)>,
     lever: Option<Res<Lever>>,
     time: Res<Time>,  // Add time resource to manage frame delta time
 ) {
@@ -724,7 +916,10 @@ pub fn lever_motion(
 			let bounce_amplitude = 0.02; // Amplitude of the bounce effect
 			let bounce_frequency = 10.0; // Frequency of the bounce effect
 
+			let main_track = track_query.get_single_mut(); 
+
 			if unwrapped_lever.state == LeverState::Right {
+				main_track.unwrap().sections[0].style.color = Color::TURQUOISE;
 				let distance = (right_position - transform.translation).length();
 				if distance > distance_threshold {
 					let direction = (right_position - transform.translation).normalize();
@@ -735,6 +930,7 @@ pub fn lever_motion(
 					transform.translation = right_position + Vec3::new(bounce_offset, 0.0, 0.0);
 				}
 			} else if unwrapped_lever.state == LeverState::Left {
+				main_track.unwrap().sections[0].style.color = Color::VIOLET;
 				let distance = (left_position - transform.translation).length();
 				if distance > distance_threshold {
 					let direction = (left_position - transform.translation).normalize();
@@ -788,7 +984,9 @@ pub fn person_check_danger(
 pub fn animate_person(
     time: Res<Time>,
     mut query: Query<(&mut Children, &mut Text, &mut Transform, &mut PersonSprite, &mut BounceAnimation)>,
-	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text), Without<PersonSprite>>
+	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text), Without<PersonSprite>>,
+	mut commands : Commands,
+	asset_server: Res<AssetServer>
 ) {
     for (children, mut text, mut transform, mut person, mut animation) in query.iter_mut() {
 
@@ -841,7 +1039,7 @@ pub fn animate_person(
 					animation.current_velocity = 0.0;
 
 					person.animaton_interval_timer.set_duration(
-						Duration::from_secs_f32(rand::random::<f32>() / 2.0)
+						Duration::from_secs_f32(rand::random::<f32>() * 2.0 + 1.0)
 					);
 					person.animaton_interval_timer.reset();
 
@@ -904,6 +1102,8 @@ pub fn animate_person(
 					animation.playing = true;
 					transform.translation.y = animation.initial_position.y;
 					animation.current_velocity = rng.gen_range(animation.initial_velocity_min..animation.initial_velocity_max);
+
+					play_sound_once("./sounds/male_scream.ogg", &mut commands, &asset_server);
 				}
 			}
         }
@@ -944,7 +1144,8 @@ pub fn animate_person(
 
 pub fn update_timer(
 		time: Res<Time>,
-		mut timer_query: Query<(&mut DilemmaTimer, &mut Text)>
+		mut timer_query: Query<(&mut DilemmaTimer, &mut Text)>,
+		mut next_game_state: ResMut<NextState<SubState>>
 	) {
 	
 	for (mut timer, mut text) in timer_query.iter_mut() {
@@ -959,6 +1160,12 @@ pub fn update_timer(
 				font_size: 50.0,
 				..default()
 			}
-		)
+		);
+
+		if timer.timer.just_finished() {
+			next_game_state.set(
+				SubState::Results
+			)
+		}
 	}
 }

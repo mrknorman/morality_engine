@@ -18,6 +18,7 @@ pub fn play_sound_once(
 			settings : PlaybackSettings {
 				paused : false,
 				mode:  bevy::audio::PlaybackMode::Despawn,
+				volume :bevy::audio::Volume::new(0.5),
 				..default()
 			}
 		}

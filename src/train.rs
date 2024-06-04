@@ -102,33 +102,46 @@ pub struct TrainWhistle;
 #[derive(Component)]
 pub struct TrainTrack {
 	pub text: String,
+	pub color : Color,
 	pub translation : Vec3
 }
 
 impl TrainTrack {
 
-	pub fn new(text: String, mut translation : Vec3) -> TrainTrack {
+	pub fn new(
+		text: String, 
+		color : Color,
+		mut translation : Vec3
+	) -> TrainTrack {
 
 		translation.y -= 40.0;
 
 		TrainTrack {
 			text,
+			color,
 			translation
 		}
 	}
 
-	pub fn generate_train_track_text(length: usize) -> String {
+	pub fn generate_train_track_text(
+		length: usize
+	) -> String {
 		let tilde_section = std::iter::repeat('~').take(length).collect::<String>();
 		let train_track_text = format!("\n{}\n", tilde_section);
 		train_track_text
 	}
 
-	pub fn new_from_length(length: usize, mut translation : Vec3) -> TrainTrack {
+	pub fn new_from_length(
+			length: usize, 
+			color : Color, 
+			mut translation : Vec3
+		) -> TrainTrack {
 
 		translation.y -= 40.0;
 		
 		TrainTrack {
 			text: TrainTrack::generate_train_track_text(length),
+			color,
 			translation
 		}
 	}
@@ -163,7 +176,8 @@ impl TrainTrack {
 
 	pub fn spawn(self, commands : &mut Commands) -> Entity  {
 
-		let text = self.text.clone();
+		let text: String = self.text.clone();
+		let color: Color = self.color.clone();
 
 		let translation = self.translation;
 
@@ -174,6 +188,7 @@ impl TrainTrack {
 					sections : vec!(
 						TextSection::new(text, TextStyle {
 							font_size : 12.0,
+							color : color,
 							..default()
 						})
 					),
@@ -400,6 +415,20 @@ pub struct TrainEntities{
 	pub train : Entity
 }
 
+impl TrainEntities {
+
+	pub fn despawn(
+		&self, 			
+		commands: &mut Commands
+	) {
+		if self.engine.is_some() {
+			commands.entity(self.engine.unwrap()).despawn_recursive();
+		}
+
+		commands.entity(self.train).despawn_recursive();
+	}
+}
+
 #[derive(Component)]
 pub struct TrainNode;
 
@@ -437,7 +466,7 @@ impl Train {
 
 		translation.x += 70.0;
 
-		let engine : Option<TrainEngine> = if train_track_text.is_some() {
+		let engine : Option<TrainEngine> = if train_engine_text.is_some() {
 			Some(TrainEngine::new(
 				train_engine_text.unwrap(),
 				Vec3::new(0.0, 0.0, 1.0)
@@ -447,6 +476,7 @@ impl Train {
 		let track : Option<TrainTrack> = if train_track_text.is_some() {
 			Some(TrainTrack::new(
 				train_track_text.unwrap(), 
+				Color::WHITE,
 				translation
 			))
 		} else {None};
@@ -461,7 +491,7 @@ impl Train {
 
 	pub fn spawn(
 			self,
-			 commands: &mut Commands
+			commands: &mut Commands
 		) -> TrainEntities {
 		
 		let engine_entity = if self.engine.is_some() {
@@ -498,7 +528,7 @@ impl Train {
 			train : train_entity,
 		}
 	}
-
+	
 	pub fn wobble(
 			time: Res<Time>, // Inject the Time resource to access the game time
 			mut transform_query: Query<(&mut Transform, &mut TrainPart) >,
@@ -592,27 +622,27 @@ impl Train {
 		mut smoke_query: Query<(&mut Transform, &mut TrainSmoke)>
 	) {
 
-	let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
-	
-	let dx = 50.0*time_seconds;
+		let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
+		
+		let dx = 50.0*time_seconds;
 
-	for (mut style, mut train_part) in button_query.iter_mut() {
-		// Apply the calculated offsets to the child's position
-		train_part.translation.x += dx;
-		style.left = Val::Px(train_part.translation.x as f32);
+		for (mut style, mut train_part) in button_query.iter_mut() {
+			// Apply the calculated offsets to the child's position
+			train_part.translation.x += dx;
+			style.left = Val::Px(train_part.translation.x as f32);
+		}
+
+
+		for (mut transform, mut train_part) in transform_query.iter_mut() {
+			// Apply the calculated offsets to the child's position
+			train_part.translation.x += dx;
+			transform.translation.x = train_part.translation.x + dx as f32;
+		}
+
+		for (mut transformm, mut smoke_part) in smoke_query.iter_mut() {
+			smoke_part.translation.x += dx;
+			transformm.translation.x = smoke_part.translation.x + dx as f32;
+		}
 	}
-
-
-	for (mut transform, mut train_part) in transform_query.iter_mut() {
-		// Apply the calculated offsets to the child's position
-		train_part.translation.x += dx;
-		transform.translation.x = train_part.translation.x + dx as f32;
-	}
-
-	for (mut transformm, mut smoke_part) in smoke_query.iter_mut() {
-		smoke_part.translation.x += dx;
-		transformm.translation.x = smoke_part.translation.x + dx as f32;
-	}
-}
 
 }
