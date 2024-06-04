@@ -29,12 +29,7 @@ use io_elements::{show_text_button, text_button_interaction, check_if_enter_pres
 
 pub mod dilemma;
 use dilemma::{
-    setup_dilemma, 
-    setup_decision, 
-    lever_motion, 
-    person_check_danger, 
-    animate_person,
-    update_timer
+    animate_person, cleanup_decision, lever_motion, person_check_danger, setup_decision, setup_dilemma, update_timer
 };
 
 use bevy::{prelude::*, window::close_on_esc};
@@ -72,6 +67,7 @@ fn main() {
         start_narration, 
         show_text_button, 
         text_button_interaction,
+        Train::wobble, 
         check_if_enter_pressed
     ).run_if(in_state(GameState::Dilemma))
     .run_if(in_state(SubState::Intro)))
@@ -86,6 +82,7 @@ fn main() {
         Train::move_train
     ).run_if(in_state(GameState::Dilemma))
     .run_if(in_state(SubState::Decision)))
+    .add_systems(OnExit(SubState::Decision), cleanup_decision)
     .run();
 }
 

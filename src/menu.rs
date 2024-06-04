@@ -62,7 +62,7 @@ pub fn setup_menu(
 		})
     ).id();
 
-	let train_audio = commands.spawn(AudioBundle {
+	let train_audio: Entity = commands.spawn(AudioBundle {
 		source: asset_server.load(PathBuf::from("./sounds/train_loop.ogg")),
 		settings : PlaybackSettings {
 			paused : false,
@@ -71,7 +71,7 @@ pub fn setup_menu(
 			..default()
 	}}).id();
 
-	let train_1 = TrainText::new(true, 50);
+	let train_1: TrainText = TrainText::new(true, 50);
 
 	let train = Train::new(
 		train_1.train_track_text,
@@ -81,7 +81,7 @@ pub fn setup_menu(
 		Vec3::new(100.0, 0.0, 1.0)
 	);
 
-	let train_entity = train.spawn(&mut commands);
+	let train_entity: TrainEntities = train.spawn(&mut commands);
 
 	let signature_entity = commands.spawn(
         (Text2dBundle {
