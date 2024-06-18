@@ -1,4 +1,3 @@
-use bevy::log::tracing_subscriber::FmtSubscriber;
 use bevy::{prelude::*, time::Timer};
 
 use crate::audio::play_sound_once;

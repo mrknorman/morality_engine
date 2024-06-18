@@ -1,5 +1,4 @@
 mod dialogue;
-use std::ops::Sub;
 
 use dialogue::{spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogue};
 
@@ -14,7 +13,7 @@ use game_states::{MainState, GameState, SubState};
 
 pub mod train;
 
-use train::Train;
+use train::{Train, TrainTrack};
 
 mod menu;
 use menu::{setup_menu, menu, cleanup_menu};
@@ -29,7 +28,16 @@ use io_elements::{show_text_button, text_button_interaction, check_if_enter_pres
 
 pub mod dilemma;
 use dilemma::{
-    animate_person, cleanup_decision, lever_motion, person_check_danger, setup_decision, setup_dilemma, update_timer
+    BackgroundSprite, 
+    animate_person, 
+    cleanup_decision, 
+    lever_motion, 
+    person_check_danger, 
+    setup_decision, 
+    setup_transition,
+    setup_dilemma, 
+    update_timer,
+    end_transition
 };
 
 use bevy::{prelude::*, window::close_on_esc};
@@ -63,23 +71,31 @@ fn main() {
     .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(GameState::Dialogue)))
     .add_systems(OnExit(GameState::Dialogue), cleanup_dialogue)
     .add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
+    .add_systems(Update,  (        
+        check_if_enter_pressed,
+        Train::wobble,
+    ).run_if(in_state(GameState::Dilemma)).run_if(in_state(SubState::Intro)))
     .add_systems(Update,  (
         start_narration, 
         show_text_button, 
         text_button_interaction,
-        Train::wobble, 
-        check_if_enter_pressed
-    ).run_if(in_state(GameState::Dilemma))
-    .run_if(in_state(SubState::Intro)))
-    .add_systems(OnEnter(SubState::Decision), setup_decision.run_if(in_state(GameState::Dilemma)))
+        Train::move_train,
+        BackgroundSprite::move_background_spites,
+    ).run_if(in_state(GameState::Dilemma)))
+    .add_systems(OnEnter(SubState::IntroDecisionTransition), setup_transition)
+    .add_systems(Update, (TrainTrack::move_track, end_transition)
+    .run_if(in_state(GameState::Dilemma))
+    .run_if(in_state(SubState::IntroDecisionTransition)))
+    .add_systems(OnEnter(SubState::Decision), 
+    setup_decision
+    .run_if(in_state(GameState::Dilemma)))
     .add_systems(Update, (
         check_level_pull, 
         person_check_danger, 
         animate_person, 
         lever_motion, 
         update_timer,
-        Train::wobble, 
-        Train::move_train
+        Train::wobble
     ).run_if(in_state(GameState::Dilemma))
     .run_if(in_state(SubState::Decision)))
     .add_systems(OnExit(SubState::Decision), cleanup_decision)

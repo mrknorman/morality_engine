@@ -131,7 +131,7 @@ pub fn play_dialogue (
                         &asset_server
                     );
 
-                    text.as_mut().sections[line.index].value += &character.name.as_str();
+                    text.as_mut().sections[line.index].value += character.name.as_str();
                     text.as_mut().sections[line.index].value += ":\n    ";
                 
                     audio.play();
@@ -150,7 +150,7 @@ pub fn play_dialogue (
                 );
                 audio.set_speed(4.0);
             } else if line.playing && line.skip_count > 0 {
-                text.as_mut().sections[line.index].value = character.name.clone();
+                text.as_mut().sections[line.index].value.clone_from(&character.name);
                 text.as_mut().sections[line.index].value += ":\n    ";
                 text.as_mut().sections[line.index].value += line.raw_text.as_str();
 
@@ -176,25 +176,22 @@ pub fn typewriter_effect(
     // For each character in the dialogue, update all texts in the query
     for (mut line, audio) in query_line.iter_mut() {
 
-        if line.playing {
+        if line.playing && (line.timer.tick(time.delta()).finished() || line.skip_count > 1) && line.index == dialogue.current_line_index {
+            let char: Option<char> = line.raw_text.chars().nth(line.current_index);
 
-            if (line.timer.tick(time.delta()).finished() || line.skip_count > 1) && line.index == dialogue.current_line_index {
-                let char: Option<char> = line.raw_text.chars().nth(line.current_index);
-
-                match char {
-                    Some(_) => text.as_mut().sections[line.index].value.push(char.unwrap()), // Push character directly to each text,
-                    None => {
-                        audio.stop();
-                        line.playing = false;
-                        text.sections[line.index].value += "\n    [";
-                        text.sections[line.index].value += line.instructon_text.as_str();
-                        text.sections[line.index].value += "]\n";
-                        dialogue.current_line_index += 1;
-                    }
+            match char {
+                Some(_) => text.as_mut().sections[line.index].value.push(char.unwrap()), // Push character directly to each text,
+                None => {
+                    audio.stop();
+                    line.playing = false;
+                    text.sections[line.index].value += "\n    [";
+                    text.sections[line.index].value += line.instructon_text.as_str();
+                    text.sections[line.index].value += "]\n";
+                    dialogue.current_line_index += 1;
                 }
-
-                line.current_index += 1; 
             }
+
+            line.current_index += 1; 
         }
     }
 }

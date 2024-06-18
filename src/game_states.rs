@@ -20,6 +20,7 @@ pub enum GameState {
 pub enum SubState {
     None,
     Intro,
+    IntroDecisionTransition,
     Decision,
     Results,
 }
