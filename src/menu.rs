@@ -78,7 +78,8 @@ pub fn setup_menu(
 		train_1.train_engine_text,
 		train_1.carridge_text_vector,
 		train_1.smoke_text_frames,
-		Vec3::new(100.0, 0.0, 1.0)
+		Vec3::new(100.0, 0.0, 1.0),
+		50.0
 	);
 
 	let train_entity: TrainEntities = train.spawn(&mut commands);

@@ -126,7 +126,7 @@ impl TrainTrack {
 	pub fn generate_train_track_text(
 		length: usize
 	) -> String {
-		let tilde_section = std::iter::repeat('~').take(length).collect::<String>();
+		let tilde_section = "~".repeat(length);
 		let train_track_text = format!("\n{}\n", tilde_section);
 		train_track_text
 	}
@@ -177,7 +177,7 @@ impl TrainTrack {
 	pub fn spawn(self, commands : &mut Commands) -> Entity  {
 
 		let text: String = self.text.clone();
-		let color: Color = self.color.clone();
+		let color: Color = self.color;
 
 		let translation = self.translation;
 
@@ -188,7 +188,7 @@ impl TrainTrack {
 					sections : vec!(
 						TextSection::new(text, TextStyle {
 							font_size : 12.0,
-							color : color,
+							color,
 							..default()
 						})
 					),
@@ -204,6 +204,20 @@ impl TrainTrack {
 			})).id()
 	}
 
+	pub fn move_track(
+		time : Res<Time>,
+		mut track_query: Query<&mut Transform, With<TrainTrack>>
+	) {
+
+		let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
+		for mut transform in track_query.iter_mut() {
+			// Apply the calculated offsets to the child's position
+
+			let dx = 2.0*-400.0*time_seconds;
+			transform.translation.x += dx;
+		}
+	}
+
 }
 
 #[derive(Component)]
@@ -211,14 +225,16 @@ pub struct TrainSmoke {
 	pub frame_index : usize,
 	pub text_frames : Vec<String>,
 	pub translation : Vec3,
-	pub timer: Timer
+	pub timer: Timer,
+	pub speed : f32
 }
 
 impl TrainSmoke {
 
 	pub fn new(
 		smoke_text_frames : Vec<String>, 
-		translation : Vec3
+		translation : Vec3,
+		speed : f32
 		) -> TrainSmoke{
 
 		TrainSmoke{
@@ -232,7 +248,8 @@ impl TrainSmoke {
 			timer: Timer::new(
 				Duration::from_millis(100), 
 				TimerMode::Repeating
-			)
+			),
+			speed
 		}
 	}
 
@@ -264,14 +281,16 @@ impl TrainSmoke {
 pub struct TrainPart{
 	pub text : String,
 	pub translation : Vec3,
-	pub timer: Timer
+	pub timer: Timer,
+	pub speed : f32
 }
 
 impl TrainPart {
 
 	pub fn new(
 			text : String,
-			translation : Vec3
+			translation : Vec3,
+			speed : f32
 		) -> TrainPart {
 
 		TrainPart{
@@ -280,7 +299,8 @@ impl TrainPart {
 			timer : Timer::new(
 				Duration::from_millis(100), 
 				TimerMode::Repeating
-			)
+			),
+			speed
 		}
 	}
 	
@@ -318,14 +338,16 @@ impl TrainPart {
 pub struct TrainEngine{
 	pub text : String,
 	pub translation : Vec3,
-	pub timer: Timer
+	pub timer: Timer,
+	pub speed : f32
 }
 
 impl TrainEngine {
 
 	pub fn new(
 		text : String,
-		translation : Vec3
+		translation : Vec3,
+		speed : f32
 	) -> TrainEngine {
 		TrainEngine {
 			text,
@@ -333,7 +355,8 @@ impl TrainEngine {
 			timer :  Timer::new(
 				Duration::from_millis(100), 
 				TimerMode::Repeating
-			)
+			),
+			speed
 		}
 	}
 
@@ -439,13 +462,15 @@ impl Train {
 			train_engine_text : Option<String>,
 			carridge_text_vector : Vec<String>,
 			smoke_text_frames : Vec<String>,
-			mut translation : Vec3
+			mut translation : Vec3,
+			speed : f32
 		) -> Train {
 		
 		let mut carridges : Vec<TrainPart> = vec![];
 		let smoke = TrainSmoke::new(
 			smoke_text_frames,
-			translation
+			translation,
+			speed
 		);
 
 		if train_engine_text.is_some() {
@@ -458,28 +483,25 @@ impl Train {
 			carridges.push(
 				TrainPart::new(
 					carridge_text,
-					translation
+					translation,
+					speed
 				)
 			);
 			translation.x -= 70.0;
 		}
-
 		translation.x += 70.0;
 
-		let engine : Option<TrainEngine> = if train_engine_text.is_some() {
-			Some(TrainEngine::new(
-				train_engine_text.unwrap(),
-				Vec3::new(0.0, 0.0, 1.0)
-			))
-		} else {None};
+		let engine : Option<TrainEngine> = train_engine_text.map(|text| TrainEngine::new(
+			text, 
+			Vec3::new(0.0, 0.0, 1.0),
+			speed
+		));
 
-		let track : Option<TrainTrack> = if train_track_text.is_some() {
-			Some(TrainTrack::new(
-				train_track_text.unwrap(), 
-				Color::WHITE,
-				translation
-			))
-		} else {None};
+		let track : Option<TrainTrack> = train_track_text.map(|text| TrainTrack::new(
+			text, 
+			Color::WHITE,
+			translation
+		));
 
 		Train {
 			track,
@@ -570,7 +592,9 @@ impl Train {
 			if smoke_part.timer.tick(time.delta()).finished() {
 				smoke_part.frame_index += 1;
 
-				text.sections[0].value = smoke_part.text_frames[smoke_part.frame_index % smoke_part.text_frames.len() ].clone();
+				text.sections[0].value.clone_from(
+					&smoke_part.text_frames[smoke_part.frame_index % smoke_part.text_frames.len()]
+				);
 			}
 		}
 
@@ -624,24 +648,46 @@ impl Train {
 
 		let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
 		
-		let dx = 50.0*time_seconds;
-
 		for (mut style, mut train_part) in button_query.iter_mut() {
 			// Apply the calculated offsets to the child's position
-			train_part.translation.x += dx;
-			style.left = Val::Px(train_part.translation.x as f32);
-		}
 
+			let dx = train_part.speed*time_seconds;
+			train_part.translation.x += dx;
+			style.left = Val::Px(train_part.translation.x);
+		}
 
 		for (mut transform, mut train_part) in transform_query.iter_mut() {
 			// Apply the calculated offsets to the child's position
+			let dx = train_part.speed*time_seconds;
 			train_part.translation.x += dx;
-			transform.translation.x = train_part.translation.x + dx as f32;
+			transform.translation.x = train_part.translation.x + dx;
 		}
 
 		for (mut transformm, mut smoke_part) in smoke_query.iter_mut() {
+			let dx = smoke_part.speed*time_seconds;
 			smoke_part.translation.x += dx;
-			transformm.translation.x = smoke_part.translation.x + dx as f32;
+			transformm.translation.x = smoke_part.translation.x + dx;
+		}
+	}
+
+	pub fn update_speed(
+		mut transform_query: Query<&mut TrainPart, Without<TrainSmoke>>,
+		mut button_query: Query<&mut TrainEngine>,
+		mut smoke_query: Query<&mut TrainSmoke>,
+		new_speed :f32
+	) {
+
+		for mut train_part in button_query.iter_mut() {
+			// Apply the calculated offsets to the child's position
+			train_part.speed = new_speed;
+		}
+
+		for mut train_part in transform_query.iter_mut() {
+			train_part.speed = new_speed;
+		}
+
+		for mut smoke_part in smoke_query.iter_mut() {
+			smoke_part.speed = new_speed;
 		}
 	}
 

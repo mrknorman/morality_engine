@@ -198,12 +198,12 @@ impl LoadingBar {
                     let new_index = (loading_bar.index + 1) % loading_bar.text_vector.len();
 
                     for mut text in text_query.iter_mut() {
-                        text.sections[0].value = loading_bar.text_vector[new_index].clone();
+                        text.sections[0].value.clone_from(&loading_bar.text_vector[new_index]);
                     }
 
                 } else {
                     for mut text in text_query.iter_mut() {
-                        text.sections[0].value = loading_bar.text_vector.last().unwrap().clone();
+                        text.sections[0].value.clone_from(loading_bar.text_vector.last().unwrap());
                     }
                 }
             }
