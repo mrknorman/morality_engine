@@ -100,7 +100,9 @@ fn setup_line(
 }
 
 pub fn play_dialogue (
-        mut query_line: Query<(&Character, &mut DialogueLine, &mut AudioSink), Without<DialogueText>>,
+        mut query_line: Query<(
+            &Character, &mut DialogueLine, &mut AudioSink
+        ), Without<DialogueText>>,
         mut query_text: Query<(&mut Text, &DialogueText), Without<DialogueLine>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut commands: Commands, 
@@ -112,7 +114,8 @@ pub fn play_dialogue (
     let (mut text, dialogue) = query_text.single_mut(); 
 
     if dialogue.current_line_index == 0 {
-        for (character, line, audio) in query_line.iter_mut() {
+        for (
+            character, line, audio) in query_line.iter_mut() {
             if line.index == 0 && !line.started {
                 setup_line(&mut text, audio, character, line);
             }
@@ -293,9 +296,6 @@ impl Dialogue {
 }
 
 #[derive(Component)]
-pub struct ButtonClick;
-
-#[derive(Component)]
 pub struct DialogueText {
     current_line_index : usize,
     total_num_lines : usize
@@ -398,6 +398,3 @@ pub fn cleanup_dialogue(
         commands.entity(background_audio.audio[i]).despawn()
     }
 }
-
-
-
