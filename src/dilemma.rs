@@ -19,7 +19,21 @@ use crate::{
 			TrainEngine,
 			TrainPart, 
 			TrainSmoke
-		}
+		},
+	person::{
+		PERSON,
+		PERSON_IN_DANGER,
+		PersonSprite,
+		BounceAnimation,
+		EmoticonSprite,
+		EXCLAIMATION,
+		NEUTRAL
+	},
+	background::{
+		BackgroundSprite,
+		LARGE_CACTUS,
+		SMALL_CACTUS
+	}
 };
 
 use crate::narration::Narration;
@@ -27,158 +41,6 @@ use crate::audio::BackgroundAudio;
 
 use crate::game_states::{SubState, MainState, GameState};
 use crate::io_elements::spawn_text_button;
-
-
-const PERSON : &str = "\t @ \n\t/|\\\n\t/ \\";
-const PERSON_IN_DANGER : &str= "\t\\@/\n\t | \n\t/ \\";
-
-const EXCLAIMATION : &str = "\t ! ";
-const NEUTRAL : &str = "\t   ";
-
-const SMALL_CACTUS : &str = "
-  |
-(_|_)
-  |";
-
-const LARGE_CACTUS: &str = "
-    _  _
-   | || | _
-  -| || || |
-   | || || |-
-    \\_  || |
-      |  _/
-     -| |
-      |_|-    
-";
-
-#[derive(Component)]
-pub struct BackgroundSprite {
-	speed : f32
-}
-
-impl BackgroundSprite {
-
-	pub fn move_background_spites(
-		state : Res<State<SubState>>,
-		time: Res<Time>, // Inject the Time resource to access the game time
-		mut background_query : Query<(&mut Transform, &BackgroundSprite)>
-	) {
-
-		let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
-		let mut rng = rand::thread_rng();
-
-		for (mut transform, sprite) in background_query.iter_mut() {
-			let y : f32 = transform.translation.y;
-
-			transform.translation.x -= (500.0 - y ) * sprite.speed*time_seconds;
-
-			if transform.translation.x < -1000.0 && (*state.get() == SubState::Intro || (rng.gen::<f64>() > 0.8)) {
-				transform.translation.x = 1000.0;
-			}
-		}
-	}
-
-	pub fn update_speed( 
-		mut background_query : Query<&mut BackgroundSprite>,
-		new_speed : f32
-	) {
-		for mut sprite in background_query.iter_mut() {
-			sprite.speed = new_speed;
-		}
-	}
-
-	pub fn spawn(
-		commands : &mut Commands,
-		text : &str,
-		speed : f32,
-		translation: Vec3
-	) {
-		commands.spawn(
-			(Text2dBundle {
-				text : Text {
-					sections : vec![
-						TextSection::new(
-							text,
-							TextStyle {
-								font_size: 12.0,
-								..default()
-						})
-					],
-					justify : JustifyText::Left, 
-					linebreak_behavior: BreakLineOn::WordBoundary
-				},
-				transform: Transform::from_translation(
-					translation
-				),
-				text_anchor : Anchor::BottomCenter,
-				..default()
-			},
-			BackgroundSprite{
-				speed
-			}
-			)
-		);
-	}
-
-	fn spawn_multi(
-		commands: &mut Commands, 
-		small_text : &str, 
-		large_text : &str,
-		ground_cover : &str,
-		speed : f32,
-		n : i32
-	) {
-		let mut rng = rand::thread_rng();
-	
-		for _ in 0..n*2 {
-			let x_small = rng.gen_range(-1000.0..1000.0);
-			let y_small = rng.gen_range(-100.0..350.0);
-	
-			BackgroundSprite::spawn(
-			    commands,
-				small_text,
-				speed,
-				Vec3::new(x_small, y_small, 0.0),
-			);
-		}
-	
-		for _ in 0..n {
-			let x_large = rng.gen_range(-1000.0..1000.0);
-			let y_large = rng.gen_range(-500.0..-100.0);
-	
-			BackgroundSprite::spawn(
-				commands,
-				large_text,
-				speed,
-				Vec3::new(x_large, y_large, 0.0),
-			);
-		}
-
-		for _ in 0..n*70 {
-			let x_large: f32 = rng.gen_range(-1000.0..1000.0);
-			let y_large: f32 = rng.gen_range(-500.0..400.0);
-	
-			BackgroundSprite::spawn(
-				commands,
-				ground_cover,
-				speed,
-				Vec3::new(x_large, y_large, 0.0),
-			);
-		}
-
-		for _ in 0..n*10 {
-			let x_large = rng.gen_range(-1000.0..1000.0);
-			let y_large = rng.gen_range(-500.0..0.0);
-	
-			BackgroundSprite::spawn(
-				commands,
-				"\\|/",
-				speed,
-				Vec3::new(x_large, y_large, 0.0),
-			);
-		}
-	}
-}
 
 #[derive(Component)]
 pub struct LeverTrackTransform{
@@ -283,7 +145,6 @@ impl TrainJunction{
 		);
 	
 		let person = String::from(PERSON);
-	
 		for _ in 0..dilemma.options[0].consequences.total_fatalities {
 			commands.entity(id_3).with_children(|parent| {
 					parent.spawn(
@@ -776,97 +637,6 @@ impl DilemmaOptionInfoPanel {
 				..default()
 			})
 		).id()
-	}
-}
-
-#[derive(Component)]
-pub struct BounceAnimation {
-	playing : bool,
-	initial_position : Vec3,
-	initial_velocity_min : f32,
-	initial_velocity_max : f32,
-	current_velocity : f32
-}
-
-impl BounceAnimation {
-	fn new(
-		initial_velocity_min : f32,
-		initial_velocity_max : f32
-	) -> BounceAnimation {
-
-		BounceAnimation {
-			playing : false,
-			initial_position : Vec3::new(0.0, 0.0, 0.0),
-			initial_velocity_min,
-			initial_velocity_max,
-			current_velocity : 0.0 
-		}
-	}
-}
-
-#[derive(Component)]
-pub struct PersonSprite{
-	in_danger : bool,
-	animaton_interval_timer : Timer
-}
-
-impl PersonSprite {
-	fn new() -> PersonSprite {
-		PersonSprite {
-			in_danger : false,
-			animaton_interval_timer: Timer::from_seconds(
-				rand::random::<f32>() + 0.5,
-				TimerMode::Repeating
-			) 
-		}
-	}
-}
-
-pub enum EmotionState{
-	Neutral,
-	Afraid
-}
-
-#[derive(Component)]
-pub struct EmoticonSprite{
-	state : EmotionState,
-	initial_size : f32,
-	current_size : f32,
-	translation : Vec3
-}
-
-impl EmoticonSprite {
-
-	fn new() -> EmoticonSprite {
-		EmoticonSprite{
-			state : EmotionState::Neutral,
-			initial_size : 12.0,
-			current_size : 12.0,
-			translation : Vec3{x: 0.0, y: 42.0, z:0.0}
-		}
-	}
-
-	fn spawn_with_parent(self, parent: &mut ChildBuilder<'_>) -> Entity {
-		let text: &str = NEUTRAL;
-
-		let translation = self.translation;
-
-		parent.spawn((
-			self,
-			Text2dBundle {
-				text : Text {
-					sections : vec!(
-						TextSection::new(text, TextStyle {
-							font_size : 12.0,
-							..default()
-						})
-					),
-					justify : JustifyText::Center, 
-					..default()
-				},
-				transform: Transform::from_translation(translation),
-				..default()
-			})).id()
 	}
 }
 

@@ -11,8 +11,12 @@ pub mod io_elements;
 
 use game_states::{MainState, GameState, SubState};
 
-pub mod train;
+pub mod person;
+pub mod background;
 
+use background::BackgroundSprite; 
+
+pub mod train;
 use train::{Train, TrainTrack};
 
 mod menu;
@@ -28,7 +32,6 @@ use io_elements::{show_text_button, text_button_interaction, check_if_enter_pres
 
 pub mod dilemma;
 use dilemma::{
-    BackgroundSprite, 
     animate_person, 
     cleanup_decision, 
     lever_motion, 
