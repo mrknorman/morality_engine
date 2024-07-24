@@ -4,6 +4,9 @@ use bevy::{prelude::*, sprite::Anchor, text::{BreakLineOn, Text2dBounds}};
 use serde::{Deserialize, Serialize};
 use rand::Rng;
 
+use bevy::color::palettes::css::RED;
+
+
 use crate::{
 	audio::play_sound_once, 
 	lever::{
@@ -959,7 +962,7 @@ pub fn animate_person(
 							String::from(EXCLAIMATION),
 							TextStyle {
 								font_size: sprite.current_size,
-								color : Color::RED,
+								color : Color::from(RED),
 								..default()
 							}
 						);
@@ -970,7 +973,7 @@ pub fn animate_person(
 					String::from(PERSON_IN_DANGER),
 					TextStyle {
 						font_size: 12.0,
-						color : Color::RED,
+						color : Color::from(RED),
 						..default()
 					}
 				);

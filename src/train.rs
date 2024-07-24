@@ -397,7 +397,7 @@ impl TrainEngine {
 							..default()
 						},
 						background_color : bevy::prelude::BackgroundColor(
-							Color::Rgba{red: 0.0, green: 0.0, blue: 0.0, alpha: 0.0}
+							Color::srgb(0.0, 0.0, 0.0)
 						),
 						..default()
 					}, TrainWhistle
@@ -409,7 +409,7 @@ impl TrainEngine {
 								sections : vec![
 									TextSection::new(text, TextStyle {
 										font_size: 12.0,
-										color: Color::rgb(0.9, 0.9, 0.9),
+										color: Color::srgb(0.9, 0.9, 0.9),
 										..default()
 									})
 								],

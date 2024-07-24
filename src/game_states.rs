@@ -2,22 +2,25 @@ use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MainState {
+    #[default]
     Menu,
     InGame,
 }
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GameState {
+    #[default]
     None,
     Loading,
     Dialogue,
     Dilemma,
 }
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SubState {
+    #[default]
     None,
     Intro,
     IntroDecisionTransition,
