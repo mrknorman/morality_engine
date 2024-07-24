@@ -1,6 +1,8 @@
 mod dialogue;
 
-use dialogue::{spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogue};
+use dialogue::{
+    spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogue
+};
 
 pub mod game_states;
 pub mod audio;
@@ -28,7 +30,9 @@ use loading::{setup_loading, cleanup_loading, LoadingBar};
 pub mod narration;
 use narration::start_narration;
 
-use io_elements::{show_text_button, text_button_interaction, check_if_enter_pressed};
+use io_elements::{
+    show_text_button, text_button_interaction, check_if_enter_pressed
+};
 
 pub mod dilemma;
 use dilemma::{
@@ -40,7 +44,10 @@ use dilemma::{
     setup_transition,
     setup_dilemma, 
     update_timer,
-    end_transition
+    end_transition,
+    setup_consequence_animaton,
+    consequence_animation_tick_up,
+    consequence_animation_tick_down
 };
 
 use bevy::{prelude::*, window::close_on_esc};
@@ -58,8 +65,14 @@ fn main() {
     .add_plugins(DefaultPlugins)
     .add_systems(Update, close_on_esc)
     .add_systems(Startup, setup)
-    .add_systems(OnEnter(MainState::Menu), setup_menu)
-    .add_systems(Update, (menu, Train::whistle, Train::wobble).run_if(in_state(MainState::Menu)))
+    .add_systems(
+        OnEnter(MainState::Menu), setup_menu
+    )
+    .add_systems(
+        Update, 
+        (menu, Train::whistle, Train::wobble)
+        .run_if(in_state(MainState::Menu))
+    )
     .add_systems(OnExit(MainState::Menu), cleanup_menu)
     .add_systems(OnEnter(GameState::Loading), setup_loading)
     .add_systems(OnExit(GameState::Loading), cleanup_loading)
@@ -102,6 +115,12 @@ fn main() {
     ).run_if(in_state(GameState::Dilemma))
     .run_if(in_state(SubState::Decision)))
     .add_systems(OnExit(SubState::Decision), cleanup_decision)
+    .add_systems(OnEnter(SubState::ConsequenceAnimation), setup_consequence_animaton)
+    .add_systems(Update, (
+        consequence_animation_tick_up, consequence_animation_tick_down
+    ).run_if(in_state(GameState::Dilemma)).run_if(
+
+        in_state(SubState::ConsequenceAnimation)))
     .run();
 }
 

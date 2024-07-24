@@ -6,9 +6,13 @@ use crate::train::{
 	Train, 
 	TrainWhistle,
 	TrainText
-
 };
-use crate::io_elements::{spawn_text_button, NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
+use crate::io_elements::{
+	spawn_text_button, 
+	NORMAL_BUTTON, 
+	HOVERED_BUTTON, 
+	PRESSED_BUTTON
+};
 
 use crate::game_states::{MainState, GameState, SubState};
 use crate::audio::play_sound_once;

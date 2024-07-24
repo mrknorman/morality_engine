@@ -22,6 +22,7 @@ pub enum SubState {
     Intro,
     IntroDecisionTransition,
     Decision,
+    ConsequenceAnimation,
     Results,
 }
 
