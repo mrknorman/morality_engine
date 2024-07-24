@@ -1,6 +1,6 @@
 use rand::Rng;
-use bevy::{prelude::*, sprite::Anchor, text::{BreakLineOn, Text2dBounds}};
-use crate::game_states::{MainState, GameState, SubState};
+use bevy::{prelude::*, sprite::Anchor, text::{BreakLineOn}};
+use crate::game_states::{SubState};
 
 pub const SMALL_CACTUS : &str = "
   |
