@@ -16,11 +16,6 @@ mod shortcuts;
 
 use crate::game_states::{GameState, MainState, SubState};
 
-const MAIN_MENU: MainState = MainState::Menu;
-const LOADING: GameState = GameState::Loading;
-const DIALOGUE: GameState = GameState::Dialogue;
-const DILEMMA: GameState = GameState::Dilemma;
-
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -29,7 +24,6 @@ fn main() {
 }
 
 struct GamePlugin;
-
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<MainState>()
@@ -37,129 +31,15 @@ impl Plugin for GamePlugin {
             .init_state::<SubState>()
             .add_systems(Startup, setup)
             .add_systems(Update, shortcuts::close_on_esc)
-            .add_plugins(MenuPlugin)
-            .add_plugins(LoadingPlugin)
-            .add_plugins(DialoguePlugin)
-            .add_plugins(DilemmaPlugin);
+            .add_plugins(menu::MenuPlugin)
+            .add_plugins(loading::LoadingPlugin)
+            .add_plugins(dialogue::DialoguePlugin)
+            .add_plugins(dilemma::DilemmaPlugin);
     }
 }
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
-}
-
-struct MenuPlugin;
-
-impl Plugin for MenuPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(MAIN_MENU), menu::setup_menu)
-            .add_systems(
-                Update,
-                (menu::menu, train::Train::whistle, train::Train::wobble)
-                    .run_if(in_state(MAIN_MENU)),
-            )
-            .add_systems(OnExit(MAIN_MENU), menu::cleanup_menu);
-    }
-}
-
-struct LoadingPlugin;
-
-impl Plugin for LoadingPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(LOADING), loading::setup_loading)
-            .add_systems(
-                Update,
-                (
-                    narration::start_narration,
-                    io_elements::show_text_button,
-                    io_elements::text_button_interaction,
-                    loading::LoadingBar::fill_loading_bar,
-                    io_elements::check_if_enter_pressed,
-                )
-                    .run_if(in_state(LOADING)),
-            )
-            .add_systems(OnExit(LOADING), loading::cleanup_loading);
-    }
-}
-
-struct DialoguePlugin;
-
-impl Plugin for DialoguePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(DIALOGUE), dialogue::spawn_dialogue)
-            .add_systems(
-                Update,
-                (dialogue::play_dialogue, dialogue::typewriter_effect)
-                    .run_if(in_state(DIALOGUE)),
-            )
-            .add_systems(OnExit(DIALOGUE), dialogue::cleanup_dialogue);
-    }
-}
-
-struct DilemmaPlugin;
-
-impl Plugin for DilemmaPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(DILEMMA), dilemma::setup_dilemma)
-            .add_systems(
-                Update,
-                (
-                    io_elements::check_if_enter_pressed,
-                    train::Train::wobble,
-                )
-                    .run_if(in_state(DILEMMA))
-                    .run_if(in_state(SubState::Intro)),
-            )
-            .add_systems(
-                Update,
-                (
-                    narration::start_narration,
-                    io_elements::show_text_button,
-                    io_elements::text_button_interaction,
-                    train::Train::move_train,
-                    background::BackgroundSprite::move_background_spites,
-                )
-                    .run_if(in_state(DILEMMA)),
-            )
-            .add_systems(OnEnter(SubState::IntroDecisionTransition), dilemma::setup_transition)
-            .add_systems(
-                Update,
-                (train::TrainTrack::move_track, dilemma::end_transition)
-                    .run_if(in_state(DILEMMA))
-                    .run_if(in_state(SubState::IntroDecisionTransition)),
-            )
-            .add_systems(
-                OnEnter(SubState::Decision),
-                dilemma::setup_decision.run_if(in_state(DILEMMA)),
-            )
-            .add_systems(
-                Update,
-                (
-                    lever::check_level_pull,
-                    dilemma::person_check_danger,
-                    dilemma::animate_person,
-                    dilemma::lever_motion,
-                    dilemma::update_timer,
-                    train::Train::wobble,
-                )
-                    .run_if(in_state(DILEMMA))
-                    .run_if(in_state(SubState::Decision)),
-            )
-            .add_systems(OnExit(SubState::Decision), dilemma::cleanup_decision)
-            .add_systems(
-                OnEnter(SubState::ConsequenceAnimation),
-                dilemma::setup_consequence_animaton,
-            )
-            .add_systems(
-                Update,
-                (
-                    dilemma::consequence_animation_tick_up,
-                    dilemma::consequence_animation_tick_down,
-                )
-                    .run_if(in_state(DILEMMA))
-                    .run_if(in_state(SubState::ConsequenceAnimation)),
-            );
-    }
 }
 
 //
