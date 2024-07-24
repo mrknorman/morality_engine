@@ -26,7 +26,8 @@ fn main() {
 struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<MainState>()
+        app
+            .init_state::<MainState>()
             .init_state::<GameState>()
             .init_state::<SubState>()
             .add_systems(Startup, setup)
