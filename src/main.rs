@@ -1,127 +1,165 @@
+use bevy::prelude::*;
+
+mod audio;
+mod background;
 mod dialogue;
-
-use dialogue::{
-    spawn_dialogue, play_dialogue, typewriter_effect, cleanup_dialogue
-};
-
-pub mod game_states;
-pub mod audio;
-pub mod lever;
-use lever::check_level_pull;
-
-pub mod io_elements;
-
-use game_states::{MainState, GameState, SubState};
-
-pub mod person;
-pub mod background;
-
-use background::BackgroundSprite; 
-
-pub mod train;
-use train::{Train, TrainTrack};
-
-mod menu;
-use menu::{setup_menu, menu, cleanup_menu};
-
+mod dilemma;
+mod game_states;
+mod io_elements;
+mod lever;
 mod loading;
-use loading::{setup_loading, cleanup_loading, LoadingBar};
+mod menu;
+mod narration;
+mod person;
+mod train;
+mod shortcuts;
 
-pub mod narration;
-use narration::start_narration;
+use crate::game_states::{GameState, MainState, SubState};
 
-use io_elements::{
-    show_text_button, text_button_interaction, check_if_enter_pressed
-};
+const MAIN_MENU: MainState = MainState::Menu;
+const LOADING: GameState = GameState::Loading;
+const DIALOGUE: GameState = GameState::Dialogue;
+const DILEMMA: GameState = GameState::Dilemma;
 
-pub mod dilemma;
-use dilemma::{
-    animate_person, 
-    cleanup_decision, 
-    lever_motion, 
-    person_check_danger, 
-    setup_decision, 
-    setup_transition,
-    setup_dilemma, 
-    update_timer,
-    end_transition,
-    setup_consequence_animaton,
-    consequence_animation_tick_up,
-    consequence_animation_tick_down
-};
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugins(GamePlugin)
+        .run();
+}
 
-use bevy::{prelude::*, window::close_on_esc};
+struct GamePlugin;
+
+impl Plugin for GamePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_state::<MainState>()
+            .init_state::<GameState>()
+            .init_state::<SubState>()
+            .add_systems(Startup, setup)
+            .add_systems(Update, shortcuts::close_on_esc)
+            .add_plugins(MenuPlugin)
+            .add_plugins(LoadingPlugin)
+            .add_plugins(DialoguePlugin)
+            .add_plugins(DilemmaPlugin);
+    }
+}
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-fn main() {     
+struct MenuPlugin;
 
-    App::new()
-    .insert_state(MainState::Menu)
-    .insert_state(GameState::None)
-    .insert_state(SubState::None)
-    .add_plugins(DefaultPlugins)
-    .add_systems(Update, close_on_esc)
-    .add_systems(Startup, setup)
-    .add_systems(
-        OnEnter(MainState::Menu), setup_menu
-    )
-    .add_systems(
-        Update, 
-        (menu, Train::whistle, Train::wobble)
-        .run_if(in_state(MainState::Menu))
-    )
-    .add_systems(OnExit(MainState::Menu), cleanup_menu)
-    .add_systems(OnEnter(GameState::Loading), setup_loading)
-    .add_systems(OnExit(GameState::Loading), cleanup_loading)
-    .add_systems(Update,  (
-        start_narration, 
-        show_text_button, 
-        text_button_interaction,
-        LoadingBar::fill_loading_bar,
-        check_if_enter_pressed
-    ).run_if(in_state(GameState::Loading)))
-    .add_systems(OnEnter(GameState::Dialogue), spawn_dialogue)
-    .add_systems(Update, (play_dialogue, typewriter_effect).run_if(in_state(GameState::Dialogue)))
-    .add_systems(OnExit(GameState::Dialogue), cleanup_dialogue)
-    .add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
-    .add_systems(Update,  (        
-        check_if_enter_pressed,
-        Train::wobble,
-    ).run_if(in_state(GameState::Dilemma)).run_if(in_state(SubState::Intro)))
-    .add_systems(Update,  (
-        start_narration, 
-        show_text_button, 
-        text_button_interaction,
-        Train::move_train,
-        BackgroundSprite::move_background_spites,
-    ).run_if(in_state(GameState::Dilemma)))
-    .add_systems(OnEnter(SubState::IntroDecisionTransition), setup_transition)
-    .add_systems(Update, (TrainTrack::move_track, end_transition)
-    .run_if(in_state(GameState::Dilemma))
-    .run_if(in_state(SubState::IntroDecisionTransition)))
-    .add_systems(OnEnter(SubState::Decision), 
-    setup_decision
-    .run_if(in_state(GameState::Dilemma)))
-    .add_systems(Update, (
-        check_level_pull, 
-        person_check_danger, 
-        animate_person, 
-        lever_motion, 
-        update_timer,
-        Train::wobble
-    ).run_if(in_state(GameState::Dilemma))
-    .run_if(in_state(SubState::Decision)))
-    .add_systems(OnExit(SubState::Decision), cleanup_decision)
-    .add_systems(OnEnter(SubState::ConsequenceAnimation), setup_consequence_animaton)
-    .add_systems(Update, (
-        consequence_animation_tick_up, consequence_animation_tick_down
-    ).run_if(in_state(GameState::Dilemma)).run_if(
+impl Plugin for MenuPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(MAIN_MENU), menu::setup_menu)
+            .add_systems(
+                Update,
+                (menu::menu, train::Train::whistle, train::Train::wobble)
+                    .run_if(in_state(MAIN_MENU)),
+            )
+            .add_systems(OnExit(MAIN_MENU), menu::cleanup_menu);
+    }
+}
 
-        in_state(SubState::ConsequenceAnimation)))
-    .run();
+struct LoadingPlugin;
+
+impl Plugin for LoadingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(LOADING), loading::setup_loading)
+            .add_systems(
+                Update,
+                (
+                    narration::start_narration,
+                    io_elements::show_text_button,
+                    io_elements::text_button_interaction,
+                    loading::LoadingBar::fill_loading_bar,
+                    io_elements::check_if_enter_pressed,
+                )
+                    .run_if(in_state(LOADING)),
+            )
+            .add_systems(OnExit(LOADING), loading::cleanup_loading);
+    }
+}
+
+struct DialoguePlugin;
+
+impl Plugin for DialoguePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(DIALOGUE), dialogue::spawn_dialogue)
+            .add_systems(
+                Update,
+                (dialogue::play_dialogue, dialogue::typewriter_effect)
+                    .run_if(in_state(DIALOGUE)),
+            )
+            .add_systems(OnExit(DIALOGUE), dialogue::cleanup_dialogue);
+    }
+}
+
+struct DilemmaPlugin;
+
+impl Plugin for DilemmaPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(DILEMMA), dilemma::setup_dilemma)
+            .add_systems(
+                Update,
+                (
+                    io_elements::check_if_enter_pressed,
+                    train::Train::wobble,
+                )
+                    .run_if(in_state(DILEMMA))
+                    .run_if(in_state(SubState::Intro)),
+            )
+            .add_systems(
+                Update,
+                (
+                    narration::start_narration,
+                    io_elements::show_text_button,
+                    io_elements::text_button_interaction,
+                    train::Train::move_train,
+                    background::BackgroundSprite::move_background_spites,
+                )
+                    .run_if(in_state(DILEMMA)),
+            )
+            .add_systems(OnEnter(SubState::IntroDecisionTransition), dilemma::setup_transition)
+            .add_systems(
+                Update,
+                (train::TrainTrack::move_track, dilemma::end_transition)
+                    .run_if(in_state(DILEMMA))
+                    .run_if(in_state(SubState::IntroDecisionTransition)),
+            )
+            .add_systems(
+                OnEnter(SubState::Decision),
+                dilemma::setup_decision.run_if(in_state(DILEMMA)),
+            )
+            .add_systems(
+                Update,
+                (
+                    lever::check_level_pull,
+                    dilemma::person_check_danger,
+                    dilemma::animate_person,
+                    dilemma::lever_motion,
+                    dilemma::update_timer,
+                    train::Train::wobble,
+                )
+                    .run_if(in_state(DILEMMA))
+                    .run_if(in_state(SubState::Decision)),
+            )
+            .add_systems(OnExit(SubState::Decision), dilemma::cleanup_decision)
+            .add_systems(
+                OnEnter(SubState::ConsequenceAnimation),
+                dilemma::setup_consequence_animaton,
+            )
+            .add_systems(
+                Update,
+                (
+                    dilemma::consequence_animation_tick_up,
+                    dilemma::consequence_animation_tick_down,
+                )
+                    .run_if(in_state(DILEMMA))
+                    .run_if(in_state(SubState::ConsequenceAnimation)),
+            );
+    }
 }
 
 //

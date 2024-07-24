@@ -4,9 +4,9 @@ use crate::audio::play_sound_once;
 
 use crate::game_states::{GameState, MainState, SubState};
 
-pub const NORMAL_BUTTON: Color = Color::rgb(1.0, 1.0, 1.0);
-pub const HOVERED_BUTTON: Color = Color::rgb(0.0, 1.0, 1.0);
-pub const PRESSED_BUTTON: Color = Color::rgb(1.0, 1.0, 0.0);
+pub const NORMAL_BUTTON: Color = Color::srgb(1.0, 1.0, 1.0);
+pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 1.0, 1.0);
+pub const PRESSED_BUTTON: Color = Color::srgb(1.0, 1.0, 0.0);
 
 #[derive(Component)]
 pub struct TextButton{
@@ -61,7 +61,7 @@ pub fn spawn_text_button (
                         },
                         visibility,
                         background_color : bevy::prelude::BackgroundColor(
-                            Color::Rgba{red: 0.0, green: 0.0, blue: 0.0, alpha: 0.0}
+                            Color::srgb(0.0, 0.0, 0.0)
                         ),
                         ..default()
                     },
@@ -82,7 +82,7 @@ pub fn spawn_text_button (
                                         text, 
                                         TextStyle {
                                             font_size: 15.0,
-                                            color: Color::rgb(0.9, 0.9, 0.9),
+                                            color: Color::srgb(0.9, 0.9, 0.9),
                                             ..default()
                                         }
                                     )
