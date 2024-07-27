@@ -5,97 +5,61 @@ use rand::Rng;
 use crate::io_elements::{NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
 use crate::audio::play_sound_once;
 
-const SMOKE_TEXT_FRAMES: [&str; 13] = [
-		". . . . . o o o o o\n                    o",
-		". . . . o o o o o o\n                    .",
-		". . . o o o o o o .\n                    .",
-		". . . o o o o o o .\n                    .",
-		". . o o o o o o . .\n                    .",
-		". o o o o o o . . .\n                    .",
-		"o o o o o o . . . .\n                    .",
-		"o o o o o . . . . .\n                    o",
-		"o o o o . . . . . o\n                    o",
-		"o o o . . . . . o o\n                    o",
-		"o o . . . . . o o o\n                    o",
-		"o . . . . . o o o o\n                    o",
-		". . . . . o o o o o\n                    o",
-	];
+static SMOKE_TEXT_FRAMES: [&str; 13] = [
+    ". . . . . o o o o o\n                    o",
+    ". . . . o o o o o o\n                    .",
+    ". . . o o o o o o .\n                    .",
+    ". . . o o o o o o .\n                    .",
+    ". . o o o o o o . .\n                    .",
+    ". o o o o o o . . .\n                    .",
+    "o o o o o o . . . .\n                    .",
+    "o o o o o . . . . .\n                    o",
+    "o o o o . . . . . o\n                    o",
+    "o o o . . . . . o o\n                    o",
+    "o o . . . . . o o o\n                    o",
+    "o . . . . . o o o o\n                    o",
+    ". . . . . o o o o o\n                    o",
+];
 
-const BACK_CARRIDGE_TEXT : &str = "\n
+static BACK_CARRIAGE: &str = "\n
       _____    
   __|[_]|__
  |[] [] []|
 _|________|
   oo    oo \n";
 
-const MIDDLE_CARRIDGE_TEXT : &str = "\n
+static MIDDLE_CARRIAGE: &str = "\n
              
  ___________ 
  [] [] [] [] 
 _[_________]
 'oo      oo '\n";
 
-const COAL_TRUCK_TEXT : &str = "\n
+static COAL_TRUCK: &str = "\n
                                                      
  _______  
  [_____(__  
 _[_________]_
   oo    oo ' \n";
 
-const TRAIN_ENGINE_TEXT : &str = "\n
+static STEAM_TRAIN_ENGINE: &str = "\n
                    
 ____      
  ][]]_n_n__][.
 _|__|________)<
 oo 0000---oo\\_\n";
 
-pub struct TrainText{
-	pub train_track_text : Option<String>,
-	pub train_engine_text : Option<String>,
-	pub carridge_text_vector : Vec<String>,
-	pub smoke_text_frames : Vec<String>
+pub struct TrainSprite<'a> {
+    pub engine: &'a str,
+    pub carriages: &'a [&'a str],
+    pub smoke: Option<&'a [&'a str]>,
 }
+pub static STEAM_TRAIN: TrainSprite = TrainSprite {
+    engine: STEAM_TRAIN_ENGINE,
+    carriages: &[COAL_TRUCK, MIDDLE_CARRIAGE, BACK_CARRIAGE],
+    smoke: Some(&SMOKE_TEXT_FRAMES),
+};
 
-impl TrainText {
-
-	pub fn new(
-		button_engine : bool,
-		track_length : usize
-	) -> TrainText {
-
-		let train_track_text : Option<String> = if track_length > 0 {
-			Some(TrainTrack::generate_train_track_text(track_length))} else {None};
-		
-		if button_engine {
-			TrainText{
-				train_track_text,
-				train_engine_text : Some(String::from(TRAIN_ENGINE_TEXT)),
-				carridge_text_vector : vec![
-					String::from(COAL_TRUCK_TEXT),
-					String::from(MIDDLE_CARRIDGE_TEXT),
-					String::from(BACK_CARRIDGE_TEXT)
-				],
-				smoke_text_frames : SMOKE_TEXT_FRAMES.iter().map(
-					|&s| String::from(s)
-				).collect()
-			}
-		} else {
-			TrainText{
-				train_track_text,
-				train_engine_text : None,
-				carridge_text_vector : vec![
-					String::from(TRAIN_ENGINE_TEXT),
-					String::from(COAL_TRUCK_TEXT),
-					String::from(MIDDLE_CARRIDGE_TEXT),
-					String::from(BACK_CARRIDGE_TEXT)
-				],
-				smoke_text_frames : SMOKE_TEXT_FRAMES.iter().map(
-					|&s| String::from(s)
-				).collect()
-			}
-		}
-	}
-}
 
 #[derive(Component)]
 pub struct TrainWhistle;
@@ -109,96 +73,51 @@ pub struct TrainTrack {
 
 impl TrainTrack {
 
-	pub fn new(
-		text: String, 
-		color : Color,
-		translation : Vec3
-	) -> TrainTrack {
-
-		TrainTrack {
-			text,
-			color,
-			translation
-		}
-	}
-
-	pub fn generate_train_track_text(
+	pub fn generate_track(
 		length: usize
 	) -> String {
-		let tilde_section = "~".repeat(length);
-		let train_track_text = format!("\n{}\n", tilde_section);
-		train_track_text
+		"~".repeat(length)
 	}
-
-	pub fn new_from_length(
+	
+	pub fn new(
 			length: usize, 
 			color : Color, 
 			translation : Vec3
 		) -> TrainTrack {
 		
 		TrainTrack {
-			text: TrainTrack::generate_train_track_text(length),
+			text: TrainTrack::generate_track(length),
 			color,
 			translation
 		}
 	}
-
-	pub fn spawn_with_parent(self, parent: &mut ChildBuilder<'_>) -> Entity  {
-
-		let text = self.text.clone();
-
-		let translation = self.translation;
-
-		parent.spawn((
-			self,
-			Text2dBundle {
-				text : Text {
-					sections : vec!(
-						TextSection::new(text, TextStyle {
-							font_size : 12.0,
-							..default()
-						})
-					),
-					justify : JustifyText::Center, 
-					..default()
-				},
-				transform: Transform::from_xyz(
-					translation.x,
-					translation.y, 
-					translation.z
-				),
-				..default()
-			})).id()
-	}
-
-	pub fn spawn(self, commands : &mut Commands) -> Entity  {
+	pub fn bundle(self) -> impl Bundle {
 
 		let text: String = self.text.clone();
-		let color: Color = self.color;
-
-		let translation = self.translation;
-
-		commands.spawn((
+		let translation: Vec3 = self.translation.clone();
+		(
 			self,
 			Text2dBundle {
 				text : Text {
 					sections : vec!(
 						TextSection::new(text, TextStyle {
 							font_size : 12.0,
-							color,
 							..default()
 						})
 					),
 					justify : JustifyText::Center, 
 					..default()
 				},
-				transform: Transform::from_xyz(
-					translation.x,
-					translation.y, 
-					translation.z
-				),
+				transform: Transform::from_translation(translation),
 				..default()
-			})).id()
+			}
+		)
+	}
+	pub fn spawn_with_parent(self, parent: &mut ChildBuilder<'_>) -> Entity{
+		parent.spawn(self.bundle()).id()
+	}
+	pub fn spawn(self, commands : &mut Commands) -> Entity  {
+		commands.spawn(self.bundle()).id()
 	}
 }
 
@@ -438,7 +357,6 @@ pub struct TrainNode;
 
 impl Train {
 	pub fn new (
-			train_track_text : Option<String>,
 			train_engine_text : Option<String>,
 			carridge_text_vector : Vec<String>,
 			smoke_text_frames : Vec<String>,
@@ -476,17 +394,9 @@ impl Train {
 			Vec3::new(0.0, 0.0, 1.0),
 			speed
 		));
-		
-		// Move track below train:
-		let track_displacement: Vec3 = Vec3::new(110.0, -40.0, 0.0);
-		let track : Option<TrainTrack> = train_track_text.map(|text| TrainTrack::new(
-			text, 
-			Color::WHITE,
-			translation + track_displacement
-		));
 
 		Train {
-			track,
+			track: None,
 			engine,
 			carridges,
 			smoke
