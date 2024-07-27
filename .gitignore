@@ -1,5 +1,8 @@
 # Prerequisites
+*.DS_store
 *.d
+assets/
+audacity_files/
 
 # Object files
 *.o
