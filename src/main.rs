@@ -32,7 +32,10 @@ impl Plugin for GamePlugin {
             .init_state::<GameState>()
             .init_state::<SubState>()
             .add_systems(Startup, setup)
-            .add_systems(Update, (shortcuts::close_on_esc, motion::discrete_motion))
+            .add_systems(Update, (
+                shortcuts::close_on_esc, 
+                motion::point_to_point_translations
+            ))
             .add_plugins(menu::MenuPlugin)
             .add_plugins(loading::LoadingPlugin)
             .add_plugins(dialogue::DialoguePlugin)
