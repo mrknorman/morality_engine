@@ -30,7 +30,7 @@ use crate::{
 	}, 
 	train::{
 		Train, 
-		TrainTrack,
+		Track,
 		TrainEngine,
 		TrainPart, 
 		TrainSmoke
@@ -596,7 +596,7 @@ pub fn setup_transition(
 	train_part: Query<&mut TrainPart, Without<TrainSmoke>>,
 	train_engine: Query<&mut TrainEngine>,
 	smoke_query: Query<&mut TrainSmoke>,
-	mut track_query: Query<&mut PointToPointTranslation, With<TrainTrack>>
+	mut track_query: Query<&mut PointToPointTranslation, With<Track>>
 ) {
 
 	commands.entity(entities.button_entity).despawn_recursive();
@@ -681,7 +681,7 @@ pub fn cleanup_decision(
 
 pub fn lever_motion(
     mut movement_query: Query<(&mut LeverTrackTransform, &mut Transform)>,
-	mut track_query: Query<&mut Text, (With<TrainTrack>, Without<LeverTrackTransform>)>,
+	mut track_query: Query<&mut Text, (With<Track>, Without<LeverTrackTransform>)>,
     lever: Option<Res<Lever>>,
     time: Res<Time>,  // Add time resource to manage frame delta time
 	

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::path::PathBuf;
 
-use crate::train::{TrainEntities, Train, TrainWhistle, STEAM_TRAIN};
+use crate::train::{TrainEntities, Train, TrainWhistle, STEAM_TRAIN, Track};
 use crate::io_elements::{spawn_text_button, NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
 use crate::game_states::{GameState, MainState, SubState};
 use crate::audio::play_sound_once;
@@ -94,11 +94,18 @@ fn spawn_train_audio(commands: &mut Commands, asset_server: &Res<AssetServer>) -
 
 fn spawn_train(commands: &mut Commands) -> TrainEntities {
 
+    let train_translation: Vec3 = Vec3::new(100.0, 0.0, 1.0);
+    let track_displacement: Vec3 = Vec3::new(-95.0, 24.0, 1.0);
+    let track_translation = train_translation + track_displacement;
+
+    let track : Track = Track::new( 50, Color::WHITE, track_translation);
+    track.spawn(commands);
+
     let train = Train::new(
         Some(STEAM_TRAIN.engine.to_string()),
 		STEAM_TRAIN.carriages.iter().map(|&s| s.to_string()).collect(),
 		STEAM_TRAIN.smoke.as_ref().map(|sm| sm.iter().map(|&s| s.to_string()).collect()).unwrap(),
-        Vec3::new(100.0, 0.0, 1.0),
+        train_translation,
         50.0,
     );
     train.spawn(commands)
