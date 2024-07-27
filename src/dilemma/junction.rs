@@ -4,8 +4,8 @@ use crate::{
     train::{
 		Train, 
 		TrainEntities, 
-		TrainText, 
-		TrainTrack
+		TrainTrack,
+		STEAM_TRAIN
 	},
     lever::{
 		OPTION_1_COLOR, 
@@ -48,17 +48,10 @@ impl TrainJunction{
 			0.0
 		);
 
-		println!("Position: {} \n", final_position);
-
-		let train_text: TrainText = TrainText::new(
-			false, 
-			0
-		);
 		let train: TrainEntities = Train::new(
-			None,
-			train_text.train_engine_text,
-			train_text.carridge_text_vector,
-			train_text.smoke_text_frames,
+			Some(STEAM_TRAIN.engine.to_string()),
+			STEAM_TRAIN.carriages.iter().map(|&s| s.to_string()).collect(),
+			STEAM_TRAIN.smoke.as_ref().map(|sm| sm.iter().map(|&s| s.to_string()).collect()).unwrap(),
 			Vec3::new(100.0, -75.0, 1.0),
 			0.0
 		).spawn(commands);
@@ -74,7 +67,7 @@ impl TrainJunction{
 
 		let main_track_translation_end: Vec3 = Vec3::new(-1700.0, lower_track_y, 0.0);
 		let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-		let main_track: TrainTrack = TrainTrack::new_from_length(
+		let main_track: TrainTrack = TrainTrack::new(
 			600, 
 			color,
 			main_track_translation_start
@@ -82,7 +75,7 @@ impl TrainJunction{
 
 		let track_1_translation_end: Vec3 = Vec3{x : 1000.0 , y : lower_track_y, z: 0.0};
 		let track_1_translation_start: Vec3= track_1_translation_end + final_position;
-		let track_1: TrainTrack = TrainTrack::new_from_length(
+		let track_1: TrainTrack = TrainTrack::new(
 			300, 
 			OPTION_1_COLOR,
 			track_1_translation_start
@@ -90,7 +83,7 @@ impl TrainJunction{
 
 		let track_2_translation_end: Vec3 = Vec3{x : 1000.0 , y : upper_track_y, z: 0.0};
 		let track_2_translation_start: Vec3 = track_2_translation_end + final_position;
-		let track_2: TrainTrack = TrainTrack::new_from_length(
+		let track_2: TrainTrack = TrainTrack::new(
 			300, 
 		    OPTION_2_COLOR,
 			track_2_translation_start
