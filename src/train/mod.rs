@@ -65,13 +65,13 @@ pub static STEAM_TRAIN: TrainSprite = TrainSprite {
 pub struct TrainWhistle;
 
 #[derive(Component)]
-pub struct TrainTrack {
+pub struct Track {
 	pub text: String,
 	pub color : Color,
 	pub translation : Vec3
 }
 
-impl TrainTrack {
+impl Track {
 
 	pub fn generate_track(
 		length: usize
@@ -83,10 +83,10 @@ impl TrainTrack {
 			length: usize, 
 			color : Color, 
 			translation : Vec3
-		) -> TrainTrack {
+		) -> Track {
 		
-		TrainTrack {
-			text: TrainTrack::generate_track(length),
+		Track {
+			text: Track::generate_track(length),
 			color,
 			translation
 		}
@@ -328,7 +328,7 @@ impl TrainEngine {
 
 #[derive(Component)]
 pub struct Train{
-	pub track : Option<TrainTrack>,
+	pub track : Option<Track>,
 	pub engine : Option<TrainEngine>,
 	pub carridges : Vec<TrainPart>,
 	pub smoke : TrainSmoke

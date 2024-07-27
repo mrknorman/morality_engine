@@ -4,7 +4,7 @@ use crate::{
     train::{
 		Train, 
 		TrainEntities, 
-		TrainTrack,
+		Track,
 		STEAM_TRAIN
 	},
     lever::{
@@ -67,7 +67,7 @@ impl TrainJunction{
 
 		let main_track_translation_end: Vec3 = Vec3::new(-1700.0, lower_track_y, 0.0);
 		let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-		let main_track: TrainTrack = TrainTrack::new(
+		let main_track: Track = Track::new(
 			600, 
 			color,
 			main_track_translation_start
@@ -75,7 +75,7 @@ impl TrainJunction{
 
 		let track_1_translation_end: Vec3 = Vec3{x : 1000.0 , y : lower_track_y, z: 0.0};
 		let track_1_translation_start: Vec3= track_1_translation_end + final_position;
-		let track_1: TrainTrack = TrainTrack::new(
+		let track_1: Track = Track::new(
 			300, 
 			OPTION_1_COLOR,
 			track_1_translation_start
@@ -83,7 +83,7 @@ impl TrainJunction{
 
 		let track_2_translation_end: Vec3 = Vec3{x : 1000.0 , y : upper_track_y, z: 0.0};
 		let track_2_translation_start: Vec3 = track_2_translation_end + final_position;
-		let track_2: TrainTrack = TrainTrack::new(
+		let track_2: Track = Track::new(
 			300, 
 		    OPTION_2_COLOR,
 			track_2_translation_start
