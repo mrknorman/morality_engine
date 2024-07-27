@@ -13,6 +13,7 @@ mod narration;
 mod person;
 mod train;
 mod shortcuts;
+mod motion;
 
 use crate::game_states::{GameState, MainState, SubState};
 
@@ -31,7 +32,7 @@ impl Plugin for GamePlugin {
             .init_state::<GameState>()
             .init_state::<SubState>()
             .add_systems(Startup, setup)
-            .add_systems(Update, shortcuts::close_on_esc)
+            .add_systems(Update, (shortcuts::close_on_esc, motion::discrete_motion))
             .add_plugins(menu::MenuPlugin)
             .add_plugins(loading::LoadingPlugin)
             .add_plugins(dialogue::DialoguePlugin)
