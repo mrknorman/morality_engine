@@ -3,10 +3,9 @@ use crate::dilemma::Dilemma;
 use crate::{
     train::{
 		Train, 
-		TrainEntities, 
-		Track,
 		STEAM_TRAIN
 	},
+	track::Track,
     lever::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR,
@@ -31,7 +30,7 @@ pub struct LeverTrackTransform{
 
 #[derive(Resource)]
 pub struct TrainJunction{
-	train : TrainEntities,
+	train : Entity,
 	track : Vec<Entity>
 }
 
@@ -48,10 +47,8 @@ impl TrainJunction{
 			0.0
 		);
 
-		let train: TrainEntities = Train::new(
-			Some(STEAM_TRAIN.engine.to_string()),
-			STEAM_TRAIN.carriages.iter().map(|&s| s.to_string()).collect(),
-			STEAM_TRAIN.smoke.as_ref().map(|sm| sm.iter().map(|&s| s.to_string()).collect()).unwrap(),
+		let train: Entity = Train::new(
+			STEAM_TRAIN.clone(),
 			Vec3::new(100.0, -75.0, 1.0),
 			0.0
 		).spawn(commands);

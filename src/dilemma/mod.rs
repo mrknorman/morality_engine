@@ -30,11 +30,9 @@ use crate::{
 	}, 
 	train::{
 		Train, 
-		Track,
-		TrainEngine,
-		TrainPart, 
-		TrainSmoke
+		Wobble
 	},
+	track::Track,
 	person::{
 		PERSON,
 		PERSON_IN_DANGER,
@@ -567,9 +565,7 @@ pub fn end_transition(
 	time : Res<Time>,
 	mut counter: ResMut<TransitionCounter>,
 	mut next_sub_state: ResMut<NextState<SubState>>,
-	train_part: Query<&mut TrainPart, Without<TrainSmoke>>,
-	train_engine: Query<&mut TrainEngine>,
-	smoke_query: Query<&mut TrainSmoke>,
+	train_query : Query<&mut Train>,
 	background_query : Query<&mut BackgroundSprite>
 ) {
 
@@ -579,9 +575,7 @@ pub fn end_transition(
 		);
 
 		Train::update_speed(
-			train_part, 
-			train_engine, 
-			smoke_query,
+			train_query, 
 			50.0
 		);
 		BackgroundSprite::update_speed(background_query,0.0);
@@ -593,9 +587,7 @@ pub fn setup_transition(
 	background_query : Query<&mut BackgroundSprite>,
 	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
 	entities : ResMut<DilemmaHeader>,
-	train_part: Query<&mut TrainPart, Without<TrainSmoke>>,
-	train_engine: Query<&mut TrainEngine>,
-	smoke_query: Query<&mut TrainSmoke>,
+	train_query : Query<&mut Train>,
 	mut track_query: Query<&mut PointToPointTranslation, With<Track>>
 ) {
 
@@ -608,9 +600,7 @@ pub fn setup_transition(
 
 	BackgroundSprite::update_speed(background_query,2.0);
 	Train::update_speed(
-		train_part, 
-		train_engine, 
-		smoke_query,
+		train_query,
 		speed
 	);
 
@@ -979,9 +969,7 @@ pub fn consequence_animation_tick_down(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
 		mut timer: ResMut<DramaticPauseTimer>,
-		train_part: Query<&mut TrainPart, Without<TrainSmoke>>,
-		train_engine: Query<&mut TrainEngine>,
-		smoke_query: Query<&mut TrainSmoke>,
+		train_query : Query<&mut Train>,
 		lever: Option<Res<Lever>>,
 	) {
 
@@ -1019,9 +1007,7 @@ pub fn consequence_animation_tick_down(
 		let current_speed: f32 = initial_speed - fraction*speed_reduction;
 
 		Train::update_speed(
-			train_part, 
-			train_engine, 
-			smoke_query,
+			train_query, 
 			current_speed
 		);
 	}
@@ -1031,9 +1017,7 @@ pub fn consequence_animation_tick_down(
 pub fn consequence_animation_tick_up(
 	time: Res<Time>,
 	mut timer: ResMut<DramaticPauseTimer>,
-	train_part: Query<&mut TrainPart, Without<TrainSmoke>>,
-	train_engine: Query<&mut TrainEngine>,
-	smoke_query: Query<&mut TrainSmoke>,
+	train_query : Query<&mut Train>,
 	mut audio : Query<&mut AudioSink, With<LongScream>>
 ) {
 	timer.scream_timer.tick(time.delta());
@@ -1051,9 +1035,7 @@ pub fn consequence_animation_tick_up(
 		let current_speed: f32 = initial_speed - fraction*speed_reduction;
 
 		Train::update_speed(
-			train_part, 
-			train_engine, 
-			smoke_query,
+			train_query,
 			current_speed
 		);
 
@@ -1076,7 +1058,8 @@ impl Plugin for DilemmaPlugin {
                 Update,
                 (
                     check_if_enter_pressed,
-                    Train::wobble,
+                    Wobble::wobble,
+					Train::animate_smoke
                 )
                     .run_if(in_state(DILEMMA))
                     .run_if(in_state(SubState::Intro)),
@@ -1111,7 +1094,8 @@ impl Plugin for DilemmaPlugin {
                     animate_person,
                     lever_motion,
                     update_timer,
-                    Train::wobble,
+                    Wobble::wobble,
+					Train::animate_smoke
                 )
                     .run_if(in_state(DILEMMA))
                     .run_if(in_state(SubState::Decision)),

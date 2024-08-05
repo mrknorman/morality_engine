@@ -1,30 +1,33 @@
 use bevy::prelude::*;
 use std::path::PathBuf;
 
-use crate::train::{TrainEntities, Train, TrainWhistle, STEAM_TRAIN, Track};
+use crate::train::{Train, Wobble, TrainWhistle, STEAM_TRAIN};
+use crate::track::Track;
 use crate::io_elements::{spawn_text_button, NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
 use crate::game_states::{GameState, MainState, SubState};
 use crate::audio::play_sound_once;
+
+use crate::text::TextTitle;
+use crate::text::TextComponent;
 
 const MAIN_MENU: MainState = MainState::Menu;
 
 #[derive(Resource)]
 pub struct MenuData {
     title_entity: Entity,
-    train_entity: TrainEntities,
+    train_entity: Entity,
     train_audio: Entity,
     signature_entity: Entity,
     button_entity: Entity,
 }
 
 pub struct MenuPlugin;
-
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MAIN_MENU), setup_menu)
             .add_systems(
                 Update,
-                (menu, Train::whistle, Train::wobble).run_if(in_state(MAIN_MENU)),
+                (menu, Train::whistle, Train::animate_smoke, Wobble::wobble).run_if(in_state(MAIN_MENU)),
             )
             .add_systems(OnExit(MAIN_MENU), cleanup_menu);
     }
@@ -47,7 +50,15 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn spawn_title(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
-    let ascii_art = include_str!("main_menu.txt");
+    let text = include_str!("main_menu.txt");
+
+    TextTitle::spawn(
+        text,
+        Vec3::new(0.0, 150.0, 1.0), 
+        commands
+    )
+
+    /* 
     commands
         .spawn((
             Text2dBundle {
@@ -76,6 +87,7 @@ fn spawn_title(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Enti
             },
         ))
         .id()
+    */
 }
 
 fn spawn_train_audio(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
@@ -92,19 +104,17 @@ fn spawn_train_audio(commands: &mut Commands, asset_server: &Res<AssetServer>) -
         .id()
 }
 
-fn spawn_train(commands: &mut Commands) -> TrainEntities {
+fn spawn_train(commands: &mut Commands) -> Entity {
 
-    let train_translation: Vec3 = Vec3::new(100.0, 0.0, 1.0);
+    let train_translation: Vec3 = Vec3::new(150.0, 35.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-95.0, 24.0, 1.0);
-    let track_translation = train_translation + track_displacement;
+    let track_translation: Vec3 = train_translation + track_displacement;
 
-    let track : Track = Track::new( 50, Color::WHITE, track_translation);
-    track.spawn(commands);
+    let track : Track = Track::new(50, Color::WHITE, track_translation);
+    //track.spawn(commands);
 
     let train = Train::new(
-        Some(STEAM_TRAIN.engine.to_string()),
-		STEAM_TRAIN.carriages.iter().map(|&s| s.to_string()).collect(),
-		STEAM_TRAIN.smoke.as_ref().map(|sm| sm.iter().map(|&s| s.to_string()).collect()).unwrap(),
+		STEAM_TRAIN.clone(),
         train_translation,
         50.0,
     );
@@ -210,10 +220,6 @@ fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
     commands.entity(menu_data.button_entity).despawn_recursive();
     commands.entity(menu_data.title_entity).despawn_recursive();
     commands.entity(menu_data.signature_entity).despawn_recursive();
-    commands.entity(menu_data.train_entity.train).despawn_recursive();
+    commands.entity(menu_data.train_entity).despawn_recursive();
     commands.entity(menu_data.train_audio).despawn_recursive();
-
-    if let Some(engine) = menu_data.train_entity.engine {
-        commands.entity(engine).despawn_recursive();
-    }
 }
