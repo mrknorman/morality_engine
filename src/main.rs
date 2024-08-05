@@ -14,6 +14,8 @@ mod person;
 mod train;
 mod shortcuts;
 mod motion;
+mod text;
+mod track;
 
 use crate::game_states::{GameState, MainState, SubState};
 
