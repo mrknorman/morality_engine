@@ -30,7 +30,8 @@ use crate::{
 	}, 
 	train::{
 		Train, 
-		Wobble
+		Wobble,
+		Locamotion
 	},
 	track::Track,
 	person::{
@@ -565,7 +566,7 @@ pub fn end_transition(
 	time : Res<Time>,
 	mut counter: ResMut<TransitionCounter>,
 	mut next_sub_state: ResMut<NextState<SubState>>,
-	train_query : Query<&mut Train>,
+	locamotion_query : Query<&mut Locamotion, With<Train>>,
 	background_query : Query<&mut BackgroundSprite>
 ) {
 
@@ -575,7 +576,7 @@ pub fn end_transition(
 		);
 
 		Train::update_speed(
-			train_query, 
+			locamotion_query, 
 			50.0
 		);
 		BackgroundSprite::update_speed(background_query,0.0);
@@ -587,7 +588,7 @@ pub fn setup_transition(
 	background_query : Query<&mut BackgroundSprite>,
 	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
 	entities : ResMut<DilemmaHeader>,
-	train_query : Query<&mut Train>,
+	locamotion_query : Query<&mut Locamotion, With<Train>>,
 	mut track_query: Query<&mut PointToPointTranslation, With<Track>>
 ) {
 
@@ -600,7 +601,7 @@ pub fn setup_transition(
 
 	BackgroundSprite::update_speed(background_query,2.0);
 	Train::update_speed(
-		train_query,
+		locamotion_query,
 		speed
 	);
 
@@ -969,7 +970,7 @@ pub fn consequence_animation_tick_down(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
 		mut timer: ResMut<DramaticPauseTimer>,
-		train_query : Query<&mut Train>,
+		locamotion_query : Query<&mut Locamotion, With<Train>>,
 		lever: Option<Res<Lever>>,
 	) {
 
@@ -1007,7 +1008,7 @@ pub fn consequence_animation_tick_down(
 		let current_speed: f32 = initial_speed - fraction*speed_reduction;
 
 		Train::update_speed(
-			train_query, 
+			locamotion_query, 
 			current_speed
 		);
 	}
@@ -1017,7 +1018,7 @@ pub fn consequence_animation_tick_down(
 pub fn consequence_animation_tick_up(
 	time: Res<Time>,
 	mut timer: ResMut<DramaticPauseTimer>,
-	train_query : Query<&mut Train>,
+	locamotion_query : Query<&mut Locamotion, With<Train>>,
 	mut audio : Query<&mut AudioSink, With<LongScream>>
 ) {
 	timer.scream_timer.tick(time.delta());
@@ -1035,7 +1036,7 @@ pub fn consequence_animation_tick_up(
 		let current_speed: f32 = initial_speed - fraction*speed_reduction;
 
 		Train::update_speed(
-			train_query,
+			locamotion_query,
 			current_speed
 		);
 
@@ -1070,7 +1071,7 @@ impl Plugin for DilemmaPlugin {
                     start_narration,
                     show_text_button,
                     text_button_interaction,
-                    Train::move_train,
+                    Locamotion::locamote,
                     BackgroundSprite::move_background_spites,
                 )
                     .run_if(in_state(DILEMMA)),
