@@ -120,6 +120,32 @@ impl Wobble {
 }
 
 #[derive(Component, Clone)]
+pub struct Locamotion{
+	pub speed: f32
+} 
+
+impl Locamotion{
+
+	pub fn new(speed: f32) -> Locamotion  {
+		Locamotion{
+			speed
+		}
+	}
+
+	pub fn locamote(
+		time: Res<Time>,
+		mut locomotion_query: Query<(&Locamotion, &mut Transform)>
+	) {
+		let time_seconds: f32 = time.delta().as_secs_f32(); // Current time in seconds
+
+		for (locomotion, mut transform) in locomotion_query.iter_mut() {
+			let dx = locomotion.speed*time_seconds;
+			transform.translation.x += dx;
+		}
+	}
+}
+
+#[derive(Component, Clone)]
 pub struct TrainCarridge{
 	pub text : String,
 	pub translation : Vec3,
@@ -167,8 +193,7 @@ pub struct TrainSmoke {
 	pub frame_index : usize,
 	pub text_frames : Vec<String>,
 	pub translation : Vec3,
-	pub timer: Timer,
-	pub speed : f32
+	pub timer: Timer
 }
 
 impl TrainSmoke {
@@ -190,8 +215,7 @@ impl TrainSmoke {
 			timer: Timer::new(
 				Duration::from_millis(100), 
 				TimerMode::Repeating
-			),
-			speed
+			)
 		}
 	}
 
@@ -286,11 +310,14 @@ impl Train {
 		*/
 
 		let translation: Vec3 = self.translation.clone();
+		let speed = self.speed;
 		let train_entity : Entity = commands.spawn((
 			self.clone(),
+			Locamotion::new(self.speed),
 			TransformBundle::from_transform(
 				Transform::from_translation(translation)
-			)
+			),
+			VisibilityBundle::default()
 		)).with_children(
 			|parent : &mut ChildBuilder<'_>| {
 				for part in self.carridges {
@@ -357,26 +384,13 @@ impl Train {
 			}
 		}
 	}
-
-	pub fn move_train(
-		time: Res<Time>, // Inject the Time resource to access the game time
-		mut train_query: Query<(&Train, &mut Transform)>
-	) {
-		let time_seconds: f32 = time.delta().as_millis() as f32 / 1000.0; // Current time in seconds
-
-		for (train, mut transform) in train_query.iter_mut() {
-			// Apply the calculated offsets to the child's position
-			let dx = train.speed*time_seconds;
-			transform.translation.x += dx;
-		}
-	}
 	
 	pub fn update_speed(
-		mut train_query : Query<&mut Train>,
+		mut locamotion_query : Query<&mut Locamotion, With<Train>>,
 		new_speed :f32
 	) {
-		for mut train in train_query.iter_mut() {
-			train.speed = new_speed;
+		for mut locamotion in locamotion_query.iter_mut() {
+			locamotion.speed = new_speed;
 		}
 	}
 }
