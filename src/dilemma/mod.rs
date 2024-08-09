@@ -28,11 +28,7 @@ use crate::{
 		OPTION_2_COLOR,
 		check_level_pull
 	}, 
-	train::{
-		Train, 
-		Wobble,
-		Locamotion
-	},
+	train::{TrainPlugin, Train},
 	track::Track,
 	person::{
 		PERSON,
@@ -49,14 +45,16 @@ use crate::{
 		SMALL_CACTUS
 	},
 	narration::start_narration,
-	motion::PointToPointTranslation
+	motion::{
+		PointToPointTranslation,
+		Locomotion
+	}
 };
 
 use crate::narration::Narration;
 use crate::audio::BackgroundAudio;
 
 use crate::game_states::{SubState, MainState};
-
 
 #[derive(Resource)]
 pub struct DilemmaHeader{
@@ -566,7 +564,7 @@ pub fn end_transition(
 	time : Res<Time>,
 	mut counter: ResMut<TransitionCounter>,
 	mut next_sub_state: ResMut<NextState<SubState>>,
-	locamotion_query : Query<&mut Locamotion, With<Train>>,
+	locomotion_query : Query<&mut Locomotion, With<Train>>,
 	background_query : Query<&mut BackgroundSprite>
 ) {
 
@@ -576,7 +574,7 @@ pub fn end_transition(
 		);
 
 		Train::update_speed(
-			locamotion_query, 
+			locomotion_query, 
 			50.0
 		);
 		BackgroundSprite::update_speed(background_query,0.0);
@@ -588,7 +586,7 @@ pub fn setup_transition(
 	background_query : Query<&mut BackgroundSprite>,
 	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
 	entities : ResMut<DilemmaHeader>,
-	locamotion_query : Query<&mut Locamotion, With<Train>>,
+	locomotion_query : Query<&mut Locomotion, With<Train>>,
 	mut track_query: Query<&mut PointToPointTranslation, With<Track>>
 ) {
 
@@ -601,7 +599,7 @@ pub fn setup_transition(
 
 	BackgroundSprite::update_speed(background_query,2.0);
 	Train::update_speed(
-		locamotion_query,
+		locomotion_query,
 		speed
 	);
 
@@ -970,7 +968,7 @@ pub fn consequence_animation_tick_down(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
 		mut timer: ResMut<DramaticPauseTimer>,
-		locamotion_query : Query<&mut Locamotion, With<Train>>,
+		locomotion_query : Query<&mut Locomotion, With<Train>>,
 		lever: Option<Res<Lever>>,
 	) {
 
@@ -1008,7 +1006,7 @@ pub fn consequence_animation_tick_down(
 		let current_speed: f32 = initial_speed - fraction*speed_reduction;
 
 		Train::update_speed(
-			locamotion_query, 
+			locomotion_query, 
 			current_speed
 		);
 	}
@@ -1018,7 +1016,7 @@ pub fn consequence_animation_tick_down(
 pub fn consequence_animation_tick_up(
 	time: Res<Time>,
 	mut timer: ResMut<DramaticPauseTimer>,
-	locamotion_query : Query<&mut Locamotion, With<Train>>,
+	locomotion_query : Query<&mut Locomotion, With<Train>>,
 	mut audio : Query<&mut AudioSink, With<LongScream>>
 ) {
 	timer.scream_timer.tick(time.delta());
@@ -1036,7 +1034,7 @@ pub fn consequence_animation_tick_up(
 		let current_speed: f32 = initial_speed - fraction*speed_reduction;
 
 		Train::update_speed(
-			locamotion_query,
+			locomotion_query,
 			current_speed
 		);
 
@@ -1058,9 +1056,7 @@ impl Plugin for DilemmaPlugin {
             .add_systems(
                 Update,
                 (
-                    check_if_enter_pressed,
-                    Wobble::wobble,
-					Train::animate_smoke
+                    check_if_enter_pressed
                 )
                     .run_if(in_state(DILEMMA))
                     .run_if(in_state(SubState::Intro)),
@@ -1071,10 +1067,9 @@ impl Plugin for DilemmaPlugin {
                     start_narration,
                     show_text_button,
                     text_button_interaction,
-                    Locamotion::locamote,
                     BackgroundSprite::move_background_spites,
                 )
-                    .run_if(in_state(DILEMMA)),
+                .run_if(in_state(DILEMMA)),
             )
             .add_systems(OnEnter(SubState::IntroDecisionTransition), setup_transition)
             .add_systems(
@@ -1094,9 +1089,7 @@ impl Plugin for DilemmaPlugin {
                     person_check_danger,
                     animate_person,
                     lever_motion,
-                    update_timer,
-                    Wobble::wobble,
-					Train::animate_smoke
+                    update_timer
                 )
                     .run_if(in_state(DILEMMA))
                     .run_if(in_state(SubState::Decision)),
@@ -1114,6 +1107,6 @@ impl Plugin for DilemmaPlugin {
                 )
                     .run_if(in_state(DILEMMA))
                     .run_if(in_state(SubState::ConsequenceAnimation)),
-            );
+            ).add_plugins(TrainPlugin::new(DILEMMA));
     }
 }

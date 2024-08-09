@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::path::PathBuf;
 
-use crate::train::{Train, Wobble, TrainWhistle, STEAM_TRAIN};
+use crate::train::{TrainPlugin, Train, STEAM_TRAIN};
 use crate::track::Track;
 use crate::io_elements::{spawn_text_button, NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
 use crate::game_states::{GameState, MainState, SubState};
@@ -27,14 +27,15 @@ impl Plugin for MenuPlugin {
         app.add_systems(OnEnter(MAIN_MENU), setup_menu)
             .add_systems(
                 Update,
-                (menu, Train::whistle, Train::animate_smoke, Wobble::wobble).run_if(in_state(MAIN_MENU)),
+                menu.run_if(in_state(MAIN_MENU)),
             )
-            .add_systems(OnExit(MAIN_MENU), cleanup_menu);
+            .add_systems(OnExit(MAIN_MENU), cleanup_menu)
+            .add_plugins(TrainPlugin::new(MAIN_MENU));
     }
 }
 
 fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let title_entity = spawn_title(&mut commands, &asset_server);
+    let title_entity = spawn_title(&mut commands);
     let train_audio = spawn_train_audio(&mut commands, &asset_server);
     let train_entity = spawn_train(&mut commands);
     let signature_entity = spawn_signature(&mut commands, &asset_server);
@@ -49,7 +50,10 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
-fn spawn_title(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
+fn spawn_title(
+        commands: &mut Commands
+    ) -> Entity {
+    
     let text = include_str!("main_menu.txt");
 
     TextTitle::spawn(
@@ -58,39 +62,14 @@ fn spawn_title(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Enti
         commands
     )
 
-    /* 
-    commands
-        .spawn((
-            Text2dBundle {
-                text: Text {
-                    sections: vec![TextSection::new(
-                        ascii_art,
-                        TextStyle {
-                            font_size: 12.0,
-                            ..default()
-                        },
-                    )],
-                    justify: JustifyText::Center,
-                    ..default()
-                },
-                transform: Transform::from_xyz(0.0, 150.0, 1.0),
-                ..default()
-            },
-            AudioBundle {
-                source: asset_server.load(PathBuf::from("./sounds/static.ogg")),
-                settings: PlaybackSettings {
-                    paused: false,
-                    volume: bevy::audio::Volume::new(0.06),
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    ..default()
-                },
-            },
-        ))
-        .id()
-    */
+    // TO DO BACKGROUND NOISE: PathBuf::from("./sounds/static.ogg")
 }
 
-fn spawn_train_audio(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
+fn spawn_train_audio(
+        commands: &mut Commands, 
+        asset_server: &Res<AssetServer>
+    ) -> Entity {
+
     commands
         .spawn(AudioBundle {
             source: asset_server.load(PathBuf::from("./sounds/train_loop.ogg")),
@@ -116,7 +95,7 @@ fn spawn_train(commands: &mut Commands) -> Entity {
     let train = Train::new(
 		STEAM_TRAIN.clone(),
         train_translation,
-        50.0,
+        10.0,
     );
     train.spawn(commands)
 }
@@ -179,7 +158,7 @@ fn menu(
     mut next_game_state: ResMut<NextState<GameState>>,
     mut interaction_query: Query<
         (&Children, &Interaction),
-        (Changed<Interaction>, With<Button>, Without<TrainWhistle>),
+        (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
