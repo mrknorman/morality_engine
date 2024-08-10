@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 use std::time::Duration;
 use crate::{
-    audio::play_sound_once,
-    io_elements::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON},
     text::{TextComponent, TextSprite},
 	motion::{TranslationAnchor, Wobble, Locomotion},
 	interaction::{Clickable, ClickAction, clickable_system}
@@ -68,7 +66,6 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
         app.add_systems(
             Update,
             (
-                Train::whistle,
                 Train::animate_smoke,
                 Wobble::wobble,
 				Locomotion::locomote,
@@ -288,6 +285,4 @@ impl Train {
 			locomotion.speed = new_speed;
 		}
 	}
-
-	pub fn whistle() {}
 }
