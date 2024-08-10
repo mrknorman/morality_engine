@@ -1,6 +1,12 @@
-use bevy::prelude::*;
-use crate::audio::play_sound_once;
-use bevy::window::PrimaryWindow;
+use bevy::{
+    prelude::*,
+    window::PrimaryWindow,
+    text::Text,
+};
+use crate::{
+    audio::play_sound_once,
+    io_elements::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON},
+};
 
 #[derive(Component)]
 pub struct Clickable {
@@ -8,8 +14,8 @@ pub struct Clickable {
     pub size: Vec2, // Width and height of the clickable area
 }
 
-impl Clickable{
-    pub fn new(action : ClickAction, size: Vec2) -> Clickable {
+impl Clickable {
+    pub fn new(action: ClickAction, size: Vec2) -> Clickable {
         Clickable {
             action,
             size
@@ -27,18 +33,37 @@ pub fn clickable_system(
     windows: Query<&Window, With<PrimaryWindow>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
-    clickable_q: Query<(Entity, &GlobalTransform, &Clickable)>,
+    mut clickable_q: Query<(Entity, &GlobalTransform, &Clickable, Option<&mut Text>)>,
     asset_server: Res<AssetServer>,
 ) {
     let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
 
-    if mouse_input.just_pressed(MouseButton::Left) {
-        for (entity, transform, clickable) in clickable_q.iter() {
-            if is_cursor_within_bounds(cursor_position, transform, clickable.size) {
+    for (entity, transform, clickable, mut text) in clickable_q.iter_mut() {
+        if is_cursor_within_bounds(cursor_position, transform, clickable.size) {
+            if mouse_input.just_pressed(MouseButton::Left) {
                 trigger_click_action(&clickable.action, entity, &mut commands, &asset_server);
-                break;
+            } 
+            
+            if mouse_input.pressed(MouseButton::Left) {
+                if let Some(text) = text.as_mut() {
+                    update_text_color(text, PRESSED_BUTTON);
+                }
+            } else {
+                if let Some(text) = text.as_mut() {
+                    update_text_color(text, HOVERED_BUTTON);
+                }
+            }
+        } else {
+            if let Some(text) = text.as_mut() {
+                update_text_color(text, NORMAL_BUTTON);
             }
         }
+    }
+}
+
+fn update_text_color(text: &mut Text, color: Color) {
+    for section in text.sections.iter_mut() {
+        section.style.color = color;
     }
 }
 
