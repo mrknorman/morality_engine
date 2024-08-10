@@ -95,7 +95,7 @@ fn spawn_train(commands: &mut Commands) -> Entity {
     let train = Train::new(
 		STEAM_TRAIN.clone(),
         train_translation,
-        10.0,
+        0.0,
     );
     train.spawn(commands)
 }
