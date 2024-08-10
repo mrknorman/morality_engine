@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::time::Duration;
 use crate::{
-    text::{TextComponent, TextSprite},
+    text::{TextComponent, TextSprite, AnimatedTextSprite},
 	motion::{TranslationAnchor, Wobble, Locomotion},
 	interaction::{Clickable, ClickAction, clickable_system}
 };
@@ -66,10 +66,10 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
         app.add_systems(
             Update,
             (
-                Train::animate_smoke,
+				AnimatedTextSprite::animate_text_sprites,
                 Wobble::wobble,
 				Locomotion::locomote,
-				clickable_system
+				clickable_system,
             )
             .run_if(in_state(self.active_state.clone()))
         );
@@ -135,30 +135,23 @@ impl TrainCarriage {
 
 #[derive(Component, Clone)]
 pub struct TrainSmoke {
-	pub frame_index : usize,
-	pub text_frames : Vec<String>,
-	pub translation : Vec3,
-	pub timer: Timer
+	pub frames : Vec<String>,
+	pub translation : Vec3
 }
 
 impl TrainSmoke {
 
 	pub fn new(
-			smoke_text_frames : Vec<String>, 
+			smoke_frames : Vec<String>, 
 			translation : Vec3
 		) -> TrainSmoke{
 
 		TrainSmoke{
-			frame_index : 0,
-			text_frames : smoke_text_frames,
+			frames : smoke_frames,
 			translation : Vec3::new(
 				translation.x - 25.0,
-				translation.y + 10.0,
+				translation.y + 20.0,
 				translation.z,
-			),
-			timer: Timer::new(
-				Duration::from_millis(100), 
-				TimerMode::Repeating
 			)
 		}
 	}
@@ -166,16 +159,15 @@ impl TrainSmoke {
 	pub fn spawn(self, parent: &mut ChildBuilder<'_>) -> Entity {
 
 		let translation: Vec3 = self.translation.clone();
-		let text: String  = self.text_frames[0].clone();
-
 		parent.spawn((
-			self,
+			self.clone(),
 			TrainComponent,
-			TextSprite::new(
-				text,
+			AnimatedTextSprite::from_vec(
+				self.frames.iter().map(|s| s.to_string()).collect(),
+				0.1,
 				translation
-			))
-		).id()
+			)
+		)).id()
 	}
 }
 
@@ -197,13 +189,13 @@ impl Train {
 		let carriage_text_vector: Vec<String> = train_sprite.carriages.iter().map(
 				|&s| s.to_string()
 			).collect();
-		let smoke_text_frames: Vec<String> = train_sprite.smoke.as_ref().map(
+		let smoke_frames: Vec<String> = train_sprite.smoke.as_ref().map(
 				|sm| sm.iter().map(|&s| s.to_string()).collect()
 			).unwrap();
 		
 		let mut carriages : Vec<TrainCarriage> = vec![];
 		let smoke = TrainSmoke::new(
-			smoke_text_frames,
+			smoke_frames,
 			translation
 		);
 
@@ -254,27 +246,11 @@ impl Train {
 		commands.entity(carriage_entities[0]).insert(
 			Clickable::new(
 				ClickAction::PlaySound("sounds/horn.ogg"),
-				Vec2::new(105.0, 50.0)
+				Vec2::new(110.0, 60.0)
 			)
 		);
 
 		train_entity
-	}
-
-	pub fn animate_smoke(
-		time: Res<Time>, // Inject the Time resource to access the game time
-		mut smoke_query: Query<(&mut Text, &mut TrainSmoke)>
-	) {
-		for (mut text, mut smoke_part) in smoke_query.iter_mut() {
-
-			if smoke_part.timer.tick(time.delta()).finished() {
-				smoke_part.frame_index += 1;
-
-				text.sections[0].value.clone_from(
-					&smoke_part.text_frames[smoke_part.frame_index % smoke_part.text_frames.len()]
-				);
-			}
-		}
 	}
 	
 	pub fn update_speed(
