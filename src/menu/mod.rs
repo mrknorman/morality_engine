@@ -16,7 +16,6 @@ const MAIN_MENU: MainState = MainState::Menu;
 pub struct MenuData {
     title_entity: Entity,
     train_entity: Entity,
-    train_audio: Entity,
     signature_entity: Entity,
     button_entity: Entity,
 }
@@ -36,15 +35,13 @@ impl Plugin for MenuPlugin {
 
 fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let title_entity = spawn_title(&mut commands);
-    let train_audio = spawn_train_audio(&mut commands, &asset_server);
-    let train_entity = spawn_train(&mut commands);
+    let train_entity = spawn_train(&mut commands, &asset_server);
     let signature_entity = spawn_signature(&mut commands, &asset_server);
     let button_entity = spawn_button(&mut commands);
 
     commands.insert_resource(MenuData {
         title_entity,
         train_entity,
-        train_audio,
         signature_entity,
         button_entity,
     });
@@ -65,25 +62,11 @@ fn spawn_title(
     // TO DO BACKGROUND NOISE: PathBuf::from("./sounds/static.ogg")
 }
 
-fn spawn_train_audio(
-        commands: &mut Commands, 
+
+fn spawn_train(
+        commands: &mut Commands,  
         asset_server: &Res<AssetServer>
     ) -> Entity {
-
-    commands
-        .spawn(AudioBundle {
-            source: asset_server.load(PathBuf::from("./sounds/train_loop.ogg")),
-            settings: PlaybackSettings {
-                paused: false,
-                volume: bevy::audio::Volume::new(0.1),
-                mode: bevy::audio::PlaybackMode::Loop,
-                ..default()
-            },
-        })
-        .id()
-}
-
-fn spawn_train(commands: &mut Commands) -> Entity {
 
     let train_translation: Vec3 = Vec3::new(150.0, 35.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-95.0, 24.0, 1.0);
@@ -97,7 +80,7 @@ fn spawn_train(commands: &mut Commands) -> Entity {
         train_translation,
         0.0,
     );
-    train.spawn(commands)
+    train.spawn(commands, asset_server)
 }
 
 fn spawn_signature(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
@@ -200,5 +183,4 @@ fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
     commands.entity(menu_data.title_entity).despawn_recursive();
     commands.entity(menu_data.signature_entity).despawn_recursive();
     commands.entity(menu_data.train_entity).despawn_recursive();
-    commands.entity(menu_data.train_audio).despawn_recursive();
 }

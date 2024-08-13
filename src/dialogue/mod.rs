@@ -374,7 +374,10 @@ pub fn spawn_dialogue(
 			..default()
 	}}).id();
 
-    let background_audio: Vec<Entity> = vec![hum_audio, office_audio];
+    let background_audio: HashMap<String, Entity> = HashMap::from([
+        ("hum".to_string(), hum_audio), 
+        ("office".to_string(), office_audio)]
+    );
 
     commands.insert_resource(BackgroundAudio{audio: background_audio});
 
@@ -395,8 +398,10 @@ pub fn cleanup_dialogue(
         commands.entity(entity).despawn()
     }
 
-    for i in 0..background_audio.audio.len(){
-        commands.entity(background_audio.audio[i]).despawn()
+    let audio = background_audio.audio.clone();
+
+    for (_, value) in audio {
+        commands.entity(value).despawn()
     }
 }
 

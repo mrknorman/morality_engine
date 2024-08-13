@@ -4,7 +4,7 @@ use bevy::{
     text::Text,
 };
 use crate::{
-    audio::play_sound_once,
+    audio::{TransientAudio, TransientAudioPallet},
     io_elements::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON},
 };
 
@@ -12,36 +12,38 @@ use crate::{
 pub struct Clickable {
     pub action: ClickAction,
     pub size: Vec2, // Width and height of the clickable area
+    pub clicked : bool
 }
 
 impl Clickable {
     pub fn new(action: ClickAction, size: Vec2) -> Clickable {
         Clickable {
             action,
-            size
+            size,
+            clicked : false
         }
     }
 }
 
+#[derive(Clone)]
+
 pub enum ClickAction {
-    PlaySound(&'static str),
+    PlaySound(String),
     Custom(fn(&mut Commands, Entity)),
 }
 
 pub fn clickable_system(
-    mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
-    mut clickable_q: Query<(Entity, &GlobalTransform, &Clickable, Option<&mut Text>)>,
-    asset_server: Res<AssetServer>,
+    mut clickable_q: Query<(&GlobalTransform, &mut Clickable, Option<&mut Text>)>,
 ) {
     let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
 
-    for (entity, transform, clickable, mut text) in clickable_q.iter_mut() {
+    for (transform, mut clickable, mut text) in clickable_q.iter_mut() {
         if is_cursor_within_bounds(cursor_position, transform, clickable.size) {
             if mouse_input.just_pressed(MouseButton::Left) {
-                trigger_click_action(&clickable.action, entity, &mut commands, &asset_server);
+                clickable.clicked = true;
             } 
             
             if mouse_input.pressed(MouseButton::Left) {
@@ -90,16 +92,59 @@ fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, size: Vec2
     cursor.x >= bounds.0 && cursor.x <= bounds.1 && cursor.y >= bounds.2 && cursor.y <= bounds.3
 }
 
-fn trigger_click_action(
-    action: &ClickAction,
-    entity: Entity,
-    commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
+fn trigger_clicked_audio(
+    mut commands: Commands,
+    mut pallet_query: Query<(Entity, &mut Clickable, &TransientAudioPallet)>,
+    audio_query: Query<&TransientAudio>
 ) {
-    match action {
-        ClickAction::PlaySound(sound_path) => {
-            play_sound_once(sound_path, commands, asset_server);
+
+    for (entity, mut clickable, pallet) in pallet_query.iter_mut() {
+        
+        let action = clickable.action.clone();
+        if clickable.clicked {
+            match action {
+                ClickAction::PlaySound(key) => {
+
+                    if let Some(&audio_entity) = pallet.entities.get(&key) {
+                        // Retrieve the TransientAudio component associated with the found entity
+                        if let Ok(transient_audio) = audio_query.get(audio_entity) {
+
+                            TransientAudioPallet::play_transient_audio(
+                                &mut commands,
+                                entity,
+                                transient_audio
+                            );
+                        }
+                    }
+                },
+                _ => {}
+            }
+
+            clickable.clicked = false;
         }
-        ClickAction::Custom(func) => func(commands, entity),
+    }
+}
+
+pub struct InteractionPlugin<T: States + Clone + Eq + Default> {
+    active_state: T,
+}
+
+
+impl<T: States + Clone + Eq + Default> InteractionPlugin<T> {
+    pub fn new(active_state: T) -> Self {
+        Self { active_state }
+    }
+}
+
+impl<T: States + Clone + Eq + Default + 'static> Plugin for InteractionPlugin<T> {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                clickable_system,
+                trigger_clicked_audio
+            )
+            .run_if(in_state(self.active_state.clone()))
+        );
     }
 }

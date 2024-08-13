@@ -1,9 +1,26 @@
 use bevy::prelude::*;
 use std::time::Duration;
 use crate::{
-    text::{TextComponent, TextSprite, AnimatedTextSprite},
-	motion::{TranslationAnchor, Wobble, Locomotion},
-	interaction::{Clickable, ClickAction, clickable_system}
+    audio::{
+		ContinuousAudio, 
+		ContinuousAudioPallet,
+		TransientAudio,
+		TransientAudioPallet
+	}, 
+	interaction::{
+		InteractionPlugin, 
+		ClickAction, 
+		Clickable
+	}, motion::{
+		Locomotion, 
+		TranslationAnchor, 
+		Wobble
+	}, 
+	text::{
+		AnimatedTextSprite, 
+		TextComponent, 
+		TextSprite
+	}
 };
 
 // Strings:
@@ -69,10 +86,11 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
 				AnimatedTextSprite::animate_text_sprites,
                 Wobble::wobble,
 				Locomotion::locomote,
-				clickable_system,
             )
             .run_if(in_state(self.active_state.clone()))
-        );
+        ).add_plugins(InteractionPlugin::new(
+			self.active_state.clone())
+		);
     }
 }
 
@@ -220,7 +238,8 @@ impl Train {
 
 	pub fn spawn(
 			self,
-			commands: &mut Commands
+			commands: &mut Commands,
+			asset_server : &Res<AssetServer>
 		) -> Entity {
 
 		let translation: Vec3 = self.translation.clone();
@@ -232,22 +251,49 @@ impl Train {
 			TransformBundle::from_transform(
 				Transform::from_translation(translation)
 			),
-			VisibilityBundle::default()
+			VisibilityBundle::default(),
 		)).with_children(
 			|parent : &mut ChildBuilder<'_>| {
 				for part in self.carriages {
 					carriage_entities.push(part.spawn(parent));
 				}
 				self.smoke.spawn(parent);
+
+				ContinuousAudioPallet::spawn(
+					vec![(
+						"tracks".to_string(),
+						ContinuousAudio::new(
+							"./sounds/train_loop.ogg", 
+							asset_server, 
+							0.1
+						))
+					],
+					parent
+				);
 			}
 		).id();
 
+		let mut entity = commands.entity(carriage_entities[0]);
+
+		let audio_bundle = TransientAudioPallet::spawn(
+			vec![(
+				"horn".to_string(),
+				TransientAudio::new(
+					"./sounds/horn.ogg", 
+					asset_server, 
+					0.1
+				)
+			)],
+			&mut entity
+		);
 		// Insert clickable element onto train engine only:
-		commands.entity(carriage_entities[0]).insert(
+		entity.insert((
 			Clickable::new(
-				ClickAction::PlaySound("sounds/horn.ogg"),
+				ClickAction::PlaySound("horn".to_string()),
 				Vec2::new(110.0, 60.0)
-			)
+			),
+			audio_bundle
+			),
 		);
 
 		train_entity
