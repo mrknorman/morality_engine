@@ -4,7 +4,7 @@ use bevy::{
     text::Text,
 };
 use crate::{
-    audio::{TransientAudio, TransientAudioPallet},
+    audio::{TransientAudio, TransientAudioPallet, AudioPlugin},
     io_elements::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON},
 };
 
@@ -97,7 +97,7 @@ fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, size: Vec2
 fn trigger_clicked_audio(
     mut commands: Commands,
     mut pallet_query: Query<(Entity, &mut Clickable, &TransientAudioPallet)>,
-    audio_query: Query<&TransientAudio>
+    mut audio_query: Query<&mut TransientAudio>
 ) {
 
     for (entity, mut clickable, pallet) in pallet_query.iter_mut() {
@@ -109,12 +109,12 @@ fn trigger_clicked_audio(
 
                     if let Some(&audio_entity) = pallet.entities.get(&key) {
                         // Retrieve the TransientAudio component associated with the found entity
-                        if let Ok(transient_audio) = audio_query.get(audio_entity) {
+                        if let Ok(mut transient_audio) = audio_query.get_mut(audio_entity) {
 
                             TransientAudioPallet::play_transient_audio(
                                 &mut commands,
                                 entity,
-                                transient_audio
+                                &mut transient_audio
                             );
                         }
                     }
@@ -147,6 +147,10 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for InteractionPlugin<T>
                 trigger_clicked_audio
             )
             .run_if(in_state(self.active_state.clone()))
+        ).add_plugins(
+            AudioPlugin::new(
+                self.active_state.clone()
+            )
         );
     }
 }

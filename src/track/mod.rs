@@ -1,6 +1,9 @@
 
 use bevy::prelude::*;
-use crate::text::{TextComponent, TextSprite};
+use crate::text::{
+	TextComponent, 
+	TextSprite
+};
 
 #[derive(Component)]
 pub struct Track {

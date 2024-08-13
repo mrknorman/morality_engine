@@ -4,7 +4,7 @@ use bevy::{
     ecs::system::EntityCommands,
     prelude::*,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 #[derive(Component)]
 struct SingleSound;
@@ -60,18 +60,31 @@ impl ContinuousAudio {
 #[derive(Component)]
 pub struct TransientAudio {
     source: Handle<AudioSource>,
-    volume: f32,
+    cooldown_timer: Timer,
+    volume: f32
 }
 
 impl TransientAudio {
     pub fn new(
         audio_path: impl Into<AssetPath<'static>>,
         asset_server: &Res<AssetServer>,
+        cooldown_time_seconds: f32,
         volume: f32,
     ) -> Self {
+
+        let mut cooldown_timer = Timer::from_seconds(
+            cooldown_time_seconds,
+            TimerMode::Once
+        );
+        cooldown_timer.tick(
+            Duration::from_secs_f32(
+                cooldown_time_seconds
+            )
+        );
         Self {
             source: asset_server.load(audio_path),
-            volume,
+            cooldown_timer,
+            volume
         }
     }
 
@@ -83,6 +96,16 @@ impl TransientAudio {
                 volume: Volume::new(self.volume),
                 ..default()
             },
+        }
+    }
+
+    pub fn tick(
+        time : Res<Time>,
+        mut audio_query : Query<&mut TransientAudio>
+    ) {
+
+        for mut audio in audio_query.iter_mut() {
+            audio.cooldown_timer.tick(time.delta());
         }
     }
 }
@@ -116,11 +139,16 @@ impl TransientAudioPallet {
     pub fn play_transient_audio(
         commands: &mut Commands,
         entity: Entity,
-        transient_audio: &TransientAudio,
+        transient_audio: &mut TransientAudio
     ) {
-        commands.entity(entity).with_children(|parent| {
-            parent.spawn(transient_audio.bundle());
-        });
+
+        if transient_audio.cooldown_timer.finished() {
+            commands.entity(entity).with_children(|parent| {
+                parent.spawn(transient_audio.bundle());
+            });
+
+            transient_audio.cooldown_timer.reset();
+        }
     }
 }
 
@@ -142,3 +170,26 @@ trait AudioPalletSpawner {
 
 impl AudioPalletSpawner for ContinuousAudioPallet {}
 impl AudioPalletSpawner for TransientAudioPallet {}
+
+pub struct AudioPlugin<T: States + Clone + Eq + Default> {
+    active_state: T,
+}
+
+
+impl<T: States + Clone + Eq + Default> AudioPlugin<T> {
+    pub fn new(active_state: T) -> Self {
+        Self { active_state }
+    }
+}
+
+impl<T: States + Clone + Eq + Default + 'static> Plugin for AudioPlugin<T> {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            (
+                TransientAudio::tick
+            )
+            .run_if(in_state(self.active_state.clone()))
+        );
+    }
+}

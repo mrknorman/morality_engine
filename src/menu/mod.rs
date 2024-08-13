@@ -1,23 +1,36 @@
 use bevy::prelude::*;
 use std::path::PathBuf;
 
-use crate::train::{TrainPlugin, Train, STEAM_TRAIN};
-use crate::track::Track;
-use crate::io_elements::{spawn_text_button, NORMAL_BUTTON, HOVERED_BUTTON, PRESSED_BUTTON};
-use crate::game_states::{GameState, MainState, SubState};
-use crate::audio::play_sound_once;
-
-use crate::text::TextTitle;
-use crate::text::TextComponent;
+use crate::{
+    train::{TrainPlugin, Train, STEAM_TRAIN},
+    track::Track,
+    io_elements::{
+        spawn_text_button, 
+        NORMAL_BUTTON, 
+        HOVERED_BUTTON, 
+        PRESSED_BUTTON
+    },
+    game_states::{
+        GameState, 
+        MainState, 
+        SubState
+    },
+    audio::play_sound_once,
+    text::{
+        TextTitle,
+        TextComponent,
+        TextRaw
+    }
+};
 
 const MAIN_MENU: MainState = MainState::Menu;
 
+#[derive(Component, Resource)]
+pub struct MainMenu;
+
 #[derive(Resource)]
 pub struct MenuData {
-    title_entity: Entity,
-    train_entity: Entity,
-    signature_entity: Entity,
-    button_entity: Entity,
+    button_entity: Entity
 }
 
 pub struct MenuPlugin;
@@ -33,85 +46,65 @@ impl Plugin for MenuPlugin {
     }
 }
 
+
 fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let title_entity = spawn_title(&mut commands);
-    let train_entity = spawn_train(&mut commands, &asset_server);
-    let signature_entity = spawn_signature(&mut commands, &asset_server);
+
+    let text = include_str!("main_menu.txt");
+
+    let menu_entity = commands.spawn(
+        (
+            MainMenu,
+            TransformBundle::from_transform(
+                Transform::from_xyz(0.0, 0.0, 0.0)
+            ),
+            VisibilityBundle::default()
+        )
+    ).with_children(
+        |parent| {
+
+            parent.spawn(
+        TextTitle::new(
+                    text,
+                    Vec3::new(0.0, 150.0, 1.0), 
+                )
+            );
+            parent.spawn(
+                TextRaw::new(
+                    "A game by Michael Norman",
+                    Vec3::new(0.0, 10.0, 1.0)
+                )
+            );
+        }
+    ).id();
+    // TO DO BACKGROUND NOISE: PathBuf::from("./sounds/static.ogg") and ./sounds/office.ogg
+
+    spawn_train(&mut commands, &asset_server, menu_entity);
     let button_entity = spawn_button(&mut commands);
 
     commands.insert_resource(MenuData {
-        title_entity,
-        train_entity,
-        signature_entity,
-        button_entity,
+        button_entity
     });
 }
 
-fn spawn_title(
-        commands: &mut Commands
-    ) -> Entity {
-    
-    let text = include_str!("main_menu.txt");
-
-    TextTitle::spawn(
-        text,
-        Vec3::new(0.0, 150.0, 1.0), 
-        commands
-    )
-
-    // TO DO BACKGROUND NOISE: PathBuf::from("./sounds/static.ogg")
-}
-
-
 fn spawn_train(
         commands: &mut Commands,  
-        asset_server: &Res<AssetServer>
-    ) -> Entity {
+        asset_server: &Res<AssetServer>,
+        parent : Entity
+    ) {
 
     let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
-    let track_displacement: Vec3 = Vec3::new(-95.0, 24.0, 1.0);
+    let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
 
     let track : Track = Track::new(50, Color::WHITE, track_translation);
-    //track.spawn(commands);
+    track.spawn(commands);
 
     let train = Train::new(
-		STEAM_TRAIN.clone(),
+		STEAM_TRAIN,
         train_translation,
         0.0,
     );
-    train.spawn(commands, asset_server)
-}
-
-fn spawn_signature(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
-    commands
-        .spawn((
-            Text2dBundle {
-                text: Text {
-                    sections: vec![TextSection::new(
-                        "A game by Michael Norman",
-                        TextStyle {
-                            font_size: 12.0,
-                            ..default()
-                        },
-                    )],
-                    justify: JustifyText::Center,
-                    ..default()
-                },
-                transform: Transform::from_xyz(0.0, 10.0, 1.0),
-                ..default()
-            },
-            AudioBundle {
-                source: asset_server.load(PathBuf::from("./sounds/office.ogg")),
-                settings: PlaybackSettings {
-                    paused: false,
-                    volume: bevy::audio::Volume::new(1.0),
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    ..default()
-                },
-            },
-        ))
-        .id()
+    train.spawn(commands, asset_server, Some(parent));
 }
 
 fn spawn_button(commands: &mut Commands) -> Entity {
@@ -137,17 +130,18 @@ fn startup_effects(
 }
 
 fn menu(
-    mut next_main_state: ResMut<NextState<MainState>>,
-    mut next_game_state: ResMut<NextState<GameState>>,
-    mut interaction_query: Query<
-        (&Children, &Interaction),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut text_query: Query<&mut Text>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut interaction_query: Query<
+            (&Children, &Interaction),
+            (Changed<Interaction>, With<Button>),
+        >,
+        mut text_query: Query<&mut Text>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+    ) {
+    
     for (children, interaction) in &mut interaction_query {
         if let Some(&text_entity) = children.first() {
             if let Ok(mut text) = text_query.get_mut(text_entity) {
@@ -180,7 +174,4 @@ fn menu(
 
 fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
     commands.entity(menu_data.button_entity).despawn_recursive();
-    commands.entity(menu_data.title_entity).despawn_recursive();
-    commands.entity(menu_data.signature_entity).despawn_recursive();
-    commands.entity(menu_data.train_entity).despawn_recursive();
 }

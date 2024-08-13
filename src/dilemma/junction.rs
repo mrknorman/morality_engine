@@ -49,10 +49,10 @@ impl TrainJunction{
 		);
 
 		let train: Entity = Train::new(
-			STEAM_TRAIN.clone(),
+			STEAM_TRAIN,
 			Vec3::new(100.0, -75.0, 1.0),
 			0.0
-		).spawn(commands, asset_server);
+		).spawn(commands, asset_server, None);
 
 		let color = match dilemma.default_option {
 			None => Color::WHITE,
