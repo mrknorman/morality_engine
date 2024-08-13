@@ -2,6 +2,9 @@ use bevy::{
 	prelude::*,
 	ecs::system::EntityCommands 
 };
+use serde::Deserialize;
+use std::fs::File;
+use std::io::BufReader;
 use crate::{
     audio::{
 		ContinuousAudio, 
@@ -25,50 +28,7 @@ use crate::{
 	}
 };
 
-// Strings:
-static SMOKE_TEXT_FRAMES: [&str; 13] = [
-    ". . . . . o o o o o\n                    o",
-    ". . . . o o o o o o\n                    .",
-    ". . . o o o o o o .\n                    .",
-    ". . . o o o o o o .\n                    .",
-    ". . o o o o o o . .\n                    .",
-    ". o o o o o o . . .\n                    .",
-    "o o o o o o . . . .\n                    .",
-    "o o o o o . . . . .\n                    o",
-    "o o o o . . . . . o\n                    o",
-    "o o o . . . . . o o\n                    o",
-    "o o . . . . . o o o\n                    o",
-    "o . . . . . o o o o\n                    o",
-    ". . . . . o o o o o\n                    o",
-];
-
-static BACK_CARRIAGE: &str = 
-"      _____    
-  __|[_]|__
- |[] [] []|
-_|________|
-  oo    oo \n\n";
-
-static MIDDLE_CARRIAGE: &str = 
-"     
- ___________ 
- [] [] [] [] 
-_[_________]
-'oo      oo '\n\n";
-
-static COAL_TRUCK: &str = 
-"                                                 
-_______  
- [_____(__  
-_[_________]_
-  oo    oo ' \n\n";
-
-static ENGINE: &str = 
-"          
-____      
-   ][]]_n_n__][.
-  _ |__|________)<
-  oo 0000---oo\\_\n\n";
+pub static STEAM_TRAIN: &str = "./steam_train.json";
 
 pub struct TrainPlugin<T: States + Clone + Eq + Default> {
     active_state: T,
@@ -96,20 +56,35 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
     }
 }
 
-// Train Sprites:
-#[derive(Clone)]
-pub struct TrainType<'a> {
-    pub carriages: &'a [&'a str],
-    pub smoke: Option<&'a [&'a str]>,
-	pub track_audio_path: &'a str,
-	pub horn_audio_path: Option<&'a str>
+#[derive(Deserialize)]
+pub struct TrainType{
+    pub carriages: Vec<String>,
+    pub smoke: Option<Vec<String>>,
+	pub track_audio_path: String,
+	pub horn_audio_path: Option<String>
 }
-pub static STEAM_TRAIN: TrainType = TrainType {
-    carriages: &[ENGINE, COAL_TRUCK, MIDDLE_CARRIAGE, BACK_CARRIAGE],
-    smoke: Some(&SMOKE_TEXT_FRAMES),
-	track_audio_path : "./sounds/train_loop.ogg",
-	horn_audio_path : Some("./sounds/horn.ogg")
-};
+
+impl TrainType {
+    pub fn load_from_json(file_path: String) -> TrainType {
+        let file = File::open(&file_path).unwrap_or_else(|err| {
+            panic!("Failed to open file {}: {}", file_path, err);
+        });
+
+        let reader = BufReader::new(file);
+        let train_type: TrainType = serde_json::from_reader(
+			reader
+		).unwrap_or_else(|err| {
+            panic!("Failed to parse JSON from file {}: {}", file_path, err);
+        });
+
+        // Additional validation
+        if train_type.carriages.is_empty() {
+            panic!("TrainType must have at least one carriage");
+        }
+
+        train_type
+    }
+}
 
 // Train Component:
 #[derive(Component)]
@@ -187,7 +162,9 @@ impl TrainSmoke {
 			self.clone(),
 			TrainComponent,
 			AnimatedTextSprite::from_vec(
-				self.frames.iter().map(|s| s.to_string()).collect(),
+				self.frames.iter().map(
+					|s| s.to_string()
+				).collect(),
 				0.1,
 				translation
 			)
@@ -207,22 +184,19 @@ pub struct Train{
 
 impl Train {
 	pub fn new (
-			train_type : TrainType,
+			train_file_path : &str,
 			translation : Vec3,
 			speed : f32
 		) -> Train {
-		
-		let carriage_text_vector: Vec<String> = train_type.carriages.iter().map(
-				|&s| s.to_string()
-			).collect();
-		let smoke_frames: Vec<String> = train_type.smoke.map_or(Vec::new(), |sm| {
-			sm.iter().map(|&s| s.to_string()).collect()
-		});
 
-		let track_audio_path = train_type.track_audio_path.to_string();
-		let horn_audio_path = train_type.horn_audio_path.map(
-			|s| s.to_string()
+		let train_type = TrainType::load_from_json(
+			train_file_path.to_string()
 		);
+		
+		let carriage_text_vector: Vec<String> = train_type.carriages;
+		let smoke_frames: Vec<String> = train_type.smoke.unwrap_or(vec![]);
+		let track_audio_path = train_type.track_audio_path;
+		let horn_audio_path = train_type.horn_audio_path;
 		
 		let mut carriages : Vec<TrainCarriage> = vec![];
 		let smoke = TrainSmoke::new(
@@ -293,7 +267,9 @@ impl Train {
 
 		// Add transient audio:
 		if self.horn_audio_path.is_some() {
-			let mut engine: EntityCommands = commands.entity(carriage_entities[0]);
+			let mut engine: EntityCommands = commands.entity(
+				carriage_entities[0]
+			);
 
 			engine.insert( 			
 			Clickable::new(
