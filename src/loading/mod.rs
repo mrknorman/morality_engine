@@ -1,4 +1,5 @@
 use bevy::{prelude::*, time::Timer, sprite::Anchor};
+use std::collections::HashMap;
 use std::{path::PathBuf, vec, time::Duration};
 use rand::Rng;
 
@@ -301,7 +302,11 @@ pub fn setup_loading(
 			..default()
 	}}).id();
 
-    let background_audio: Vec<Entity> = vec![hum_audio, office_audio, office_startup];
+    let background_audio:HashMap<String, Entity>  = HashMap::from([
+        ("hum".to_string(), hum_audio), 
+        ("office".to_string(), office_audio), 
+        ("startup".to_string(), office_startup)
+    ]);
 
     commands.insert_resource(BackgroundAudio{audio: background_audio});
 
@@ -318,8 +323,10 @@ pub fn cleanup_loading(
     background_audio : Res<BackgroundAudio>
     ) {
 
-    for i in 0..background_audio.audio.len(){
-        commands.entity(background_audio.audio[i]).despawn();
+    let audio = background_audio.audio.clone();
+
+    for (_, value) in audio {
+        commands.entity(value).despawn();
     }
 
     loading_data.despawn(commands);

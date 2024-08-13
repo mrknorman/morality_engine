@@ -2,6 +2,8 @@
 use std::{fs::File, io::BufReader, path::PathBuf, time::Duration};
 use bevy::{prelude::*, sprite::Anchor, text::{BreakLineOn, Text2dBounds}};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
 
 mod junction;
 use junction::{TrainJunction, LeverTrackTransform};
@@ -515,16 +517,7 @@ pub fn setup_dilemma(
 			}
 		})).id();
 
-	let train_audio: Entity = commands.spawn(AudioBundle {
-		source: asset_server.load(PathBuf::from("./sounds/train_loop.ogg")),
-		settings : PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(0.1),
-			mode:  bevy::audio::PlaybackMode::Loop,
-			..default()
-	}}).id();
-
-	TrainJunction::spawn(&mut commands, &dilemma);
+	TrainJunction::spawn(&mut commands, &asset_server, &dilemma);
 	
 	let music_audio: Entity = commands.spawn(AudioBundle {
 		source: asset_server.load(PathBuf::from("./sounds/tension_music.ogg")),
@@ -535,7 +528,11 @@ pub fn setup_dilemma(
 			..default()
 	}}).id();
 
-	commands.insert_resource(BackgroundAudio{audio: vec![music_audio, train_audio]});	
+	let audio = HashMap::from([
+		("music".to_string(), music_audio)
+	]);
+
+	commands.insert_resource(BackgroundAudio{audio});	
 
 	let button_entity = spawn_text_button(
 		"[Click here or Press Enter to Begin]",
@@ -642,8 +639,8 @@ pub fn setup_decision(
 			..default()
 	}}).id();
 
-	background_audio.audio.push(train_audio);
-	background_audio.audio.push(clock_audio);
+	background_audio.audio.insert("train".to_string(), train_audio);
+	background_audio.audio.insert("clock".to_string(), clock_audio);
 
 	DilemmaDashboard::spawn(&mut commands, &dilemma);
 }
@@ -656,8 +653,9 @@ pub fn cleanup_decision(
 		background_query : Query<Entity, With<BackgroundSprite>>
 	){
 
-	for i in 0..background_audio.audio.len(){
-        commands.entity(background_audio.audio[i]).despawn();
+	let audio: std::collections::HashMap<String, Entity> = background_audio.audio.clone();
+	for (_, value) in audio {
+        commands.entity(value).despawn();
     }
 
 	for entity in background_query.iter() {

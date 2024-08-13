@@ -38,6 +38,7 @@ impl TrainJunction{
 
 	pub fn spawn(
 			commands : &mut Commands,
+			asset_server: &Res<AssetServer>,
 			dilemma: &Dilemma
 		) {
 
@@ -51,7 +52,7 @@ impl TrainJunction{
 			STEAM_TRAIN.clone(),
 			Vec3::new(100.0, -75.0, 1.0),
 			0.0
-		).spawn(commands);
+		).spawn(commands, asset_server);
 
 		let color = match dilemma.default_option {
 			None => Color::WHITE,
