@@ -226,72 +226,76 @@ impl Train {
 	}
 
 	pub fn spawn(
-			self,
-			commands: &mut Commands,
-			asset_server : &Res<AssetServer>
-		) -> Entity {
-
+		self,
+		commands: &mut Commands,
+		asset_server: &Res<AssetServer>,
+		parent_entity: Option<Entity> // New parameter to specify an optional parent entity
+	) -> Entity {
 		let translation: Vec3 = self.translation.clone();
-
+	
 		let mut carriage_entities: Vec<Entity> = vec![];
-		let train_entity : Entity = commands.spawn((
-			self.clone(),
-			Locomotion::new(self.speed),
-			TransformBundle::from_transform(
-				Transform::from_translation(translation)
-			),
-			VisibilityBundle::default(),
-		)).with_children(
-			|parent : &mut ChildBuilder<'_>| {
+		let train_entity = if let Some(parent) = parent_entity {
+			// If a parent entity is provided, spawn the train as a child of the parent
+			commands.entity(parent).with_children(|parent| {
+				parent.spawn((
+					self.clone(),
+					Locomotion::new(self.speed),
+					TransformBundle::from_transform(Transform::from_translation(translation)),
+					VisibilityBundle::default(),
+				))
+				.with_children(|parent| {
+					for part in &self.carriages {
+						carriage_entities.push(part.clone().spawn(parent));
+					}
+					self.smoke.clone().spawn(parent);
+				});
+			}).id()
+		} else {
+			// Otherwise, spawn the train as a top-level entity
+			commands.spawn((
+				self.clone(),
+				Locomotion::new(self.speed),
+				TransformBundle::from_transform(Transform::from_translation(translation)),
+				VisibilityBundle::default(),
+			))
+			.with_children(|parent| {
 				for part in self.carriages {
 					carriage_entities.push(part.spawn(parent));
 				}
 				self.smoke.spawn(parent);
-			}
-		).id();
-
-
-		// Add continious audio:
-		let mut train: EntityCommands = commands.entity(train_entity);
+			})
+			.id()
+		};
+	
+		// Add continuous audio:
+		let mut train = commands.entity(train_entity);
 		ContinuousAudioPallet::insert(
 			vec![(
 				"tracks".to_string(),
-				ContinuousAudio::new(
-					self.track_audio_path, 
-					asset_server, 
-					0.1
-				))
-			],
-			&mut train
+				ContinuousAudio::new(self.track_audio_path, asset_server, 0.1),
+			)],
+			&mut train,
 		);
-
+	
 		// Add transient audio:
-		if self.horn_audio_path.is_some() {
-			let mut engine: EntityCommands = commands.entity(
-				carriage_entities[0]
-			);
-
-			engine.insert( 			
-			Clickable::new(
+		if let Some(horn_path) = &self.horn_audio_path {
+			let mut engine = commands.entity(carriage_entities[0]);
+	
+			engine.insert(Clickable::new(
 				ClickAction::PlaySound("horn".to_string()),
-				Vec2::new(110.0, 60.0)
-				)
-			);
+				Vec2::new(110.0, 60.0),
+			));
 			TransientAudioPallet::insert(
 				vec![(
 					"horn".to_string(),
-					TransientAudio::new(
-						self.horn_audio_path.unwrap(), 
-						asset_server, 
-						1.0
-					)
+					TransientAudio::new(horn_path.clone(), asset_server, 2.0, 1.0),
 				)],
-				&mut engine
+				&mut engine,
 			);
 		};
-
+	
 		train_entity
-	}
+	}	
 	
 	pub fn update_speed(
 		mut locomotion_query : Query<&mut Locomotion, With<Train>>,

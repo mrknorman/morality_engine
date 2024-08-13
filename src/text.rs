@@ -2,13 +2,6 @@ use bevy::prelude::*;
 
 pub trait TextComponent: Component {
     fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle;
-
-    fn spawn(
-            text: impl Into<String>, translation: Vec3, commands: &mut Commands
-        ) -> Entity {
-
-        commands.spawn(Self::new(text, translation)).id()
-    }
 }
 
 fn create_text_bundle(text: impl Into<String>, translation: Vec3) -> Text2dBundle {
@@ -26,6 +19,14 @@ fn create_text_bundle(text: impl Into<String>, translation: Vec3) -> Text2dBundl
         },
         transform: Transform::from_translation(translation),
         ..default()
+    }
+}
+
+#[derive(Component)]
+pub struct TextRaw;
+impl TextComponent for TextRaw {
+    fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
+        (TextRaw, create_text_bundle(text, translation))
     }
 }
 
