@@ -38,7 +38,9 @@ pub fn clickable_system(
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut clickable_q: Query<(&GlobalTransform, &mut Clickable, Option<&mut Text>)>,
 ) {
-    let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
+    let Some(cursor_position) = get_cursor_world_position(
+        &windows, &camera_q
+    ) else { return };
 
     for (transform, mut clickable, mut text) in clickable_q.iter_mut() {
         if is_cursor_within_bounds(cursor_position, transform, clickable.size) {
