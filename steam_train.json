@@ -1,0 +1,26 @@
+{
+	"carriages" : [
+		"          \n____      \n   ][]]_n_n__][.\n  _ |__|________)<\n  oo 0000---oo\\_\n\n",
+		"                                                 \n_______  \n [_____(__  \n_[_________]_\n  oo    oo ' \n\n",
+		"     \n ___________ \n [] [] [] [] \n_[_________]\n'oo      oo '\n\n",
+		"      _____    \n  __|[_]|__\n |[] [] []|\n_|________|\n  oo    oo \n\n"
+	],
+	"smoke" : [
+		". . . . . o o o o o\n                    o",
+		". . . . o o o o o o\n                    .",
+		". . . o o o o o o .\n                    .",
+		". . . o o o o o o .\n                    .",
+		". . o o o o o o . .\n                    .",
+		". o o o o o o . . .\n                    .",
+		"o o o o o o . . . .\n                    .",
+		"o o o o o . . . . .\n                    o",
+		"o o o o . . . . . o\n                    o",
+		"o o o . . . . . o o\n                    o",
+		"o o . . . . . o o o\n                    o",
+		"o . . . . . o o o o\n                    o",
+		". . . . . o o o o o\n                    o"
+	],
+	"track_audio_path": "./sounds/train_loop.ogg",
+  	"horn_audio_path": "./sounds/horn.ogg"
+}
+
