@@ -68,7 +68,7 @@ fn spawn_train(
         asset_server: &Res<AssetServer>
     ) -> Entity {
 
-    let train_translation: Vec3 = Vec3::new(150.0, 35.0, 1.0);
+    let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-95.0, 24.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
 

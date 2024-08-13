@@ -1,5 +1,7 @@
-use bevy::prelude::*;
-use std::time::Duration;
+use bevy::{
+	prelude::*,
+	ecs::system::EntityCommands 
+};
 use crate::{
     audio::{
 		ContinuousAudio, 
@@ -96,13 +98,17 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
 
 // Train Sprites:
 #[derive(Clone)]
-pub struct TrainSprite<'a> {
+pub struct TrainType<'a> {
     pub carriages: &'a [&'a str],
     pub smoke: Option<&'a [&'a str]>,
+	pub track_audio_path: &'a str,
+	pub horn_audio_path: Option<&'a str>
 }
-pub static STEAM_TRAIN: TrainSprite = TrainSprite {
+pub static STEAM_TRAIN: TrainType = TrainType {
     carriages: &[ENGINE, COAL_TRUCK, MIDDLE_CARRIAGE, BACK_CARRIAGE],
     smoke: Some(&SMOKE_TEXT_FRAMES),
+	track_audio_path : "./sounds/train_loop.ogg",
+	horn_audio_path : Some("./sounds/horn.ogg")
 };
 
 // Train Component:
@@ -194,22 +200,29 @@ pub struct Train{
 	pub carriages : Vec<TrainCarriage>,
 	pub smoke : TrainSmoke,
 	pub translation : Vec3,
+	pub track_audio_path : String,
+	pub horn_audio_path : Option<String>,
 	pub speed : f32
 }
 
 impl Train {
 	pub fn new (
-			train_sprite : TrainSprite,
-			mut translation : Vec3,
+			train_type : TrainType,
+			translation : Vec3,
 			speed : f32
 		) -> Train {
 		
-		let carriage_text_vector: Vec<String> = train_sprite.carriages.iter().map(
+		let carriage_text_vector: Vec<String> = train_type.carriages.iter().map(
 				|&s| s.to_string()
 			).collect();
-		let smoke_frames: Vec<String> = train_sprite.smoke.as_ref().map(
-				|sm| sm.iter().map(|&s| s.to_string()).collect()
-			).unwrap();
+		let smoke_frames: Vec<String> = train_type.smoke.map_or(Vec::new(), |sm| {
+			sm.iter().map(|&s| s.to_string()).collect()
+		});
+
+		let track_audio_path = train_type.track_audio_path.to_string();
+		let horn_audio_path = train_type.horn_audio_path.map(
+			|s| s.to_string()
+		);
 		
 		let mut carriages : Vec<TrainCarriage> = vec![];
 		let smoke = TrainSmoke::new(
@@ -217,21 +230,23 @@ impl Train {
 			translation
 		);
 
+		let mut carriage_translation = translation.clone();
 		for carriage_text in carriage_text_vector {
 			carriages.push(
 				TrainCarriage::new(
 					carriage_text,
-					translation
+					carriage_translation
 				)
 			);
-			translation.x -= 70.0;
+			carriage_translation.x -= 70.0;
 		}
-		translation.x += 70.0;
-
+		
 		Train {
 			carriages,
 			smoke,
 			translation,
+			track_audio_path,
+			horn_audio_path,
 			speed
 		}
 	}
@@ -258,43 +273,46 @@ impl Train {
 					carriage_entities.push(part.spawn(parent));
 				}
 				self.smoke.spawn(parent);
-
-				ContinuousAudioPallet::spawn(
-					vec![(
-						"tracks".to_string(),
-						ContinuousAudio::new(
-							"./sounds/train_loop.ogg", 
-							asset_server, 
-							0.1
-						))
-					],
-					parent
-				);
 			}
 		).id();
 
-		let mut entity = commands.entity(carriage_entities[0]);
 
-		let audio_bundle = TransientAudioPallet::spawn(
+		// Add continious audio:
+		let mut train: EntityCommands = commands.entity(train_entity);
+		ContinuousAudioPallet::insert(
 			vec![(
-				"horn".to_string(),
-				TransientAudio::new(
-					"./sounds/horn.ogg", 
+				"tracks".to_string(),
+				ContinuousAudio::new(
+					self.track_audio_path, 
 					asset_server, 
 					0.1
-				)
-			)],
-			&mut entity
+				))
+			],
+			&mut train
 		);
-		// Insert clickable element onto train engine only:
-		entity.insert((
+
+		// Add transient audio:
+		if self.horn_audio_path.is_some() {
+			let mut engine: EntityCommands = commands.entity(carriage_entities[0]);
+
+			engine.insert( 			
 			Clickable::new(
 				ClickAction::PlaySound("horn".to_string()),
 				Vec2::new(110.0, 60.0)
-			),
-			audio_bundle
-			),
-		);
+				)
+			);
+			TransientAudioPallet::insert(
+				vec![(
+					"horn".to_string(),
+					TransientAudio::new(
+						self.horn_audio_path.unwrap(), 
+						asset_server, 
+						1.0
+					)
+				)],
+				&mut engine
+			);
+		};
 
 		train_entity
 	}
