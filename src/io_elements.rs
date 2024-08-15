@@ -1,12 +1,19 @@
 use bevy::{prelude::*, time::Timer};
 
-use crate::audio::play_sound_once;
-
-use crate::game_states::{GameState, MainState, SubState};
-
-pub const NORMAL_BUTTON: Color = Color::srgb(1.0, 1.0, 1.0);
-pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 1.0, 1.0);
-pub const PRESSED_BUTTON: Color = Color::srgb(1.0, 1.0, 0.0);
+use crate::{
+    audio::play_sound_once,
+    game_states::{
+        GameState, 
+        MainState, 
+        SubState,
+        StateVector
+    },
+    interaction::{
+        NORMAL_BUTTON,
+        HOVERED_BUTTON,
+        PRESSED_BUTTON
+    }
+};
 
 #[derive(Component)]
 pub struct TextButton{
@@ -111,7 +118,7 @@ pub fn show_text_button(
 }
 
 pub fn text_button_interaction(
-    asset_server : Res<AssetServer>,
+    asset_server: Res<AssetServer>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_sub_state: ResMut<NextState<SubState>>,
@@ -119,70 +126,47 @@ pub fn text_button_interaction(
         (&Children, &Interaction, &TextButton),
         (Changed<Interaction>, With<Button>),
     >,
-	mut text_query: Query<&mut Text>,
+    mut text_query: Query<&mut Text>,
     mut commands: Commands
-	) {
-		
-	for (children, interaction, button) in interaction_query.iter_mut() {
-
-		let text_entity: Option<_> = children.iter().next();
-		if let Some(text_entity) = text_entity {
-
-			if let Ok(mut text) = text_query.get_mut(*text_entity) {
-
-                let mut pressed : bool = false;
-				match *interaction {
-					Interaction::Pressed => {
-						text.sections[0].style.color = PRESSED_BUTTON;
-                        
+) {
+    for (children, interaction, button) in interaction_query.iter_mut() {
+        let text_entity: Option<_> = children.iter().next();
+        if let Some(text_entity) = text_entity {
+            if let Ok(mut text) = text_query.get_mut(*text_entity) {
+                let mut pressed: bool = false;
+                match *interaction {
+                    Interaction::Pressed => {
+                        text.sections[0].style.color = PRESSED_BUTTON;
                         pressed = true;
-    				}
-					Interaction::Hovered => {
-						text.sections[0].style.color = HOVERED_BUTTON;
-					}
-					Interaction::None => {
-						text.sections[0].style.color = NORMAL_BUTTON;
-					}
-				}
+                    }
+                    Interaction::Hovered => {
+                        text.sections[0].style.color = HOVERED_BUTTON;
+                    }
+                    Interaction::None => {
+                        text.sections[0].style.color = NORMAL_BUTTON;
+                    }
+                }
 
                 if pressed {
-
                     play_sound_once(
                         "sounds/mech_click.ogg", 
                         &mut commands, 
                         &asset_server
                     );
 
-                    match &button.next_main_state {
-                        Some(_) => {
-                            next_main_state.set(
-                                button.next_main_state.clone().unwrap()
-                            )
-                        },
-                        None => {}
-                    }
-            
-                    match &button.next_game_state {
-                        Some(_) => {
-                            next_game_state.set(
-                                button.next_game_state.clone().unwrap()
-                            )
-                        },
-                        None => {}
-                    }
-
-                    match &button.next_sub_state {
-                        Some(_) => {
-                            next_sub_state.set(
-                                button.next_sub_state.clone().unwrap()
-                            )
-                        },
-                        None => {}
-                    }
+                    StateVector::new(
+                        button.next_main_state.clone(),
+                        button.next_game_state.clone(),
+                        button.next_sub_state.clone()
+                    ).set_state(
+                        &mut next_main_state, 
+                        &mut next_game_state, 
+                        &mut next_sub_state
+                    );
                 }
-			}
-		}
-	}
+            }
+        }
+    }
 }
 
 pub fn check_if_enter_pressed(
@@ -204,32 +188,15 @@ pub fn check_if_enter_pressed(
             &mut commands, 
             &asset_server
         );
-
-        match &button.next_main_state {
-            Some(_) => {
-                next_main_state.set(
-                    button.next_main_state.clone().unwrap()
-                )
-            },
-            None => {}
-        }
-    
-        match &button.next_game_state {
-            Some(_) => {
-                next_game_state.set(
-                    button.next_game_state.clone().unwrap()
-                )
-            },
-            None => {}
-        }
-
-        match &button.next_sub_state {
-            Some(_) => {
-                next_sub_state.set(
-                    button.next_sub_state.clone().unwrap()
-                )
-            },
-            None => {}
-        }
+        
+        StateVector::new(
+            button.next_main_state.clone(),
+            button.next_game_state.clone(),
+            button.next_sub_state.clone()
+        ).set_state(
+            &mut next_main_state, 
+            &mut next_game_state, 
+            &mut next_sub_state
+        );
     }
 }

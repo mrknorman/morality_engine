@@ -1,6 +1,5 @@
 use bevy::{
-	prelude::*,
-	ecs::system::EntityCommands 
+	prelude::* 
 };
 use serde::Deserialize;
 use std::fs::File;
@@ -14,7 +13,7 @@ use crate::{
 	}, 
 	interaction::{
 		InteractionPlugin, 
-		ClickAction, 
+		InputAction, 
 		Clickable
 	}, motion::{
 		Locomotion, 
@@ -233,32 +232,31 @@ impl Train {
 	) -> Entity {
 		let translation: Vec3 = self.translation.clone();
 	
+		let bundle = (
+			self.clone(),
+			Locomotion::new(self.speed),
+			TransformBundle::from_transform(Transform::from_translation(translation)),
+			VisibilityBundle::default()
+		);
+
 		let mut carriage_entities: Vec<Entity> = vec![];
 		let train_entity = if let Some(parent) = parent_entity {
 			// If a parent entity is provided, spawn the train as a child of the parent
+			let mut train_entity :Option<Entity> = None;
 			commands.entity(parent).with_children(|parent| {
-				parent.spawn((
-					self.clone(),
-					Locomotion::new(self.speed),
-					TransformBundle::from_transform(Transform::from_translation(translation)),
-					VisibilityBundle::default(),
-				))
+				train_entity = Some(parent.spawn(bundle)
 				.with_children(|parent| {
 					for part in &self.carriages {
 						carriage_entities.push(part.clone().spawn(parent));
 					}
 					self.smoke.clone().spawn(parent);
-				});
-			}).id()
+				}).id());
+			});
+
+			train_entity.unwrap()
 		} else {
 			// Otherwise, spawn the train as a top-level entity
-			commands.spawn((
-				self.clone(),
-				Locomotion::new(self.speed),
-				TransformBundle::from_transform(Transform::from_translation(translation)),
-				VisibilityBundle::default(),
-			))
-			.with_children(|parent| {
+			commands.spawn(bundle).with_children(|parent| {
 				for part in self.carriages {
 					carriage_entities.push(part.spawn(parent));
 				}
@@ -282,13 +280,15 @@ impl Train {
 			let mut engine = commands.entity(carriage_entities[0]);
 	
 			engine.insert(Clickable::new(
-				ClickAction::PlaySound("horn".to_string()),
+				vec![InputAction::PlaySound("horn".to_string())],
 				Vec2::new(110.0, 60.0),
 			));
 			TransientAudioPallet::insert(
 				vec![(
 					"horn".to_string(),
-					TransientAudio::new(horn_path.clone(), asset_server, 2.0, 1.0),
+					TransientAudio::new(
+						horn_path.clone(), asset_server, 2.0, false, 1.0
+					),
 				)],
 				&mut engine,
 			);

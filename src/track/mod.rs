@@ -44,10 +44,19 @@ impl Track {
 			)
 		)
 	}
-	pub fn spawn_with_parent(self, parent: &mut ChildBuilder<'_>) -> Entity {
-		parent.spawn(self.bundle()).id()
-	}
-	pub fn spawn(self, commands : &mut Commands) -> Entity  {
-		commands.spawn(self.bundle()).id()
-	}
+
+	pub fn spawn(
+		self, commands: &mut Commands, parent_entity: Option<Entity>
+	) -> Entity {
+		
+        if let Some(parent) = parent_entity {
+            // Spawn the track as a child of the parent entity
+            commands.entity(parent).with_children(|parent| {
+                parent.spawn(self.bundle());
+            }).id()
+        } else {
+            // Spawn the track as a top-level entity
+            commands.spawn(self.bundle()).id()
+        }
+    }
 }
