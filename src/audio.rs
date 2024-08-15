@@ -61,6 +61,7 @@ impl ContinuousAudio {
 pub struct TransientAudio {
     source: Handle<AudioSource>,
     cooldown_timer: Timer,
+    persistant : bool,
     volume: f32
 }
 
@@ -69,6 +70,7 @@ impl TransientAudio {
         audio_path: impl Into<AssetPath<'static>>,
         asset_server: &Res<AssetServer>,
         cooldown_time_seconds: f32,
+        persistant : bool,
         volume: f32,
     ) -> Self {
 
@@ -84,6 +86,7 @@ impl TransientAudio {
         Self {
             source: asset_server.load(audio_path),
             cooldown_timer,
+            persistant,
             volume
         }
     }
@@ -119,8 +122,14 @@ pub struct ContinuousAudioPallet {
 }
 
 impl ContinuousAudioPallet {
-    pub fn insert(components: Vec<(String, impl Bundle)>, parent_entity: &mut EntityCommands) {
-        let entities = Self::spawn_children(components, parent_entity);
+    pub fn insert(
+            components: Vec<(String, impl Bundle)>, 
+            parent_entity: &mut EntityCommands
+        ) {
+        
+        let entities: HashMap<String, Entity> = Self::spawn_children(
+            components, parent_entity
+        );
         parent_entity.insert((AudioPallet, Self { entities }));
     }
 }
@@ -131,8 +140,14 @@ pub struct TransientAudioPallet {
 }
 
 impl TransientAudioPallet {
-    pub fn insert(components: Vec<(String, impl Bundle)>, parent_entity: &mut EntityCommands) {
-        let entities = Self::spawn_children(components, parent_entity);
+    pub fn insert(
+            components: Vec<(String, impl Bundle)>, 
+            parent_entity: &mut EntityCommands
+        ) {
+        
+        let entities: HashMap<String, Entity> = Self::spawn_children(
+            components, parent_entity
+        );
         parent_entity.insert((AudioPallet, Self { entities }));
     }
 
@@ -143,9 +158,14 @@ impl TransientAudioPallet {
     ) {
 
         if transient_audio.cooldown_timer.finished() {
-            commands.entity(entity).with_children(|parent| {
-                parent.spawn(transient_audio.bundle());
-            });
+
+            if !transient_audio.persistant {
+                commands.entity(entity).with_children(|parent| {
+                    parent.spawn(transient_audio.bundle());
+                });
+            } else {
+                commands.spawn(transient_audio.bundle());
+            }
 
             transient_audio.cooldown_timer.reset();
         }

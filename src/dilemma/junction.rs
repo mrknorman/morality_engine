@@ -87,9 +87,9 @@ impl TrainJunction{
 			track_2_translation_start
 		);
 	
-		let main_track : Entity = main_track.spawn(commands);
-		let track_1 : Entity = track_1.spawn(commands);
-		let track_2: Entity = track_2.spawn(commands);
+		let main_track : Entity = main_track.spawn(commands, None);
+		let track_1 : Entity = track_1.spawn(commands, None);
+		let track_2: Entity = track_2.spawn(commands, None);
 
 		commands.entity(main_track).insert(
 			PointToPointTranslation::new(

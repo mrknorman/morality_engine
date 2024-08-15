@@ -1,16 +1,21 @@
 use bevy::prelude::*;
 
+use crate::{
+    interaction::{InputAction, Clickable, Pressable},
+    audio::{TransientAudioPallet, TransientAudio}
+};
+
 pub trait TextComponent: Component {
     fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle;
 }
 
-fn create_text_bundle(text: impl Into<String>, translation: Vec3) -> Text2dBundle {
+fn create_text_bundle(text: impl Into<String>, translation: Vec3, font_size: f32) -> Text2dBundle {
     Text2dBundle {
         text: Text {
             sections: vec![TextSection::new(
                 text.into(),
                 TextStyle {
-                    font_size: 12.0,
+                    font_size,
                     ..default()
                 },
             )],
@@ -26,7 +31,7 @@ fn create_text_bundle(text: impl Into<String>, translation: Vec3) -> Text2dBundl
 pub struct TextRaw;
 impl TextComponent for TextRaw {
     fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
-        (TextRaw, create_text_bundle(text, translation))
+        (TextRaw, create_text_bundle(text, translation, 12.0))
     }
 }
 
@@ -34,7 +39,7 @@ impl TextComponent for TextRaw {
 pub struct TextSprite;
 impl TextComponent for TextSprite {
     fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
-        (TextSprite, create_text_bundle(text, translation))
+        (TextSprite, create_text_bundle(text, translation, 12.0))
     }
 }
 
@@ -42,7 +47,7 @@ impl TextComponent for TextSprite {
 pub struct TextTitle;
 impl TextComponent for TextTitle {
     fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
-        (TextTitle, create_text_bundle(text, translation))
+        (TextTitle, create_text_bundle(text, translation, 12.0))
     }
 }
 
@@ -50,7 +55,6 @@ impl TextComponent for TextTitle {
 pub struct AnimatedTextSprite {
     pub frames: Vec<String>,
     pub current_frame: usize,
-    pub frame_time_seconds: f32,
     pub timer: Timer,
 }
 
@@ -65,13 +69,12 @@ impl AnimatedTextSprite {
             AnimatedTextSprite {
                 frames : frames.clone(),
                 current_frame: 0,
-                frame_time_seconds,
                 timer: Timer::from_seconds(
                     frame_time_seconds, 
                     TimerMode::Repeating
                 )
             },
-            create_text_bundle(frames[0].clone(), translation),
+            create_text_bundle(frames[0].clone(), translation, 12.0),
         )
     }
 
@@ -95,4 +98,58 @@ impl AnimatedTextSprite {
 
 }
 
+
+#[derive(Component)]
+pub struct TextButton;
+impl TextButton {
+    pub fn new(
+            commands: &mut Commands,
+            asset_server: &Res<AssetServer>,
+		    parent_entity: Option<Entity>,
+            actions : Vec<InputAction>,
+            keys : Vec<KeyCode>,
+            text: impl Into<String>, 
+            translation: Vec3
+        ) {
+
+        let bundle = (
+            TextButton, 
+            Clickable::new(actions.clone(), Vec2::new(285.0,20.0)),
+            create_text_bundle(text, translation, 16.0)
+        );
+
+        let button_entity = if let Some(parent) = parent_entity {
+
+            let mut button_entity : Option<Entity> = None;
+            commands.entity(parent).with_children(|parent| {
+                button_entity = Some(parent.spawn(bundle).id());
+            });
+
+            button_entity.unwrap()
+        } else {
+            commands.spawn(bundle).id()
+        };
+
+        if keys.len() > 0 {
+            commands.entity(button_entity).insert(Pressable::new(
+                keys,
+                actions
+            ));
+        }
+
+        TransientAudioPallet::insert(
+            vec![(
+                "click".to_string(),
+                TransientAudio::new(
+                    "sounds/mech_click.ogg", 
+                    asset_server, 
+                    0.1, 
+                    true,
+                    1.0
+                ),
+            )],
+            &mut commands.entity(button_entity)
+        );
+    }
+}
 
