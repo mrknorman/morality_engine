@@ -9,7 +9,12 @@ pub trait TextComponent: Component {
     fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle;
 }
 
-fn create_text_bundle(text: impl Into<String>, translation: Vec3, font_size: f32) -> Text2dBundle {
+fn create_text_bundle(
+        text: impl Into<String>, 
+        translation: Vec3, 
+        font_size: f32
+    ) -> Text2dBundle {
+    
     Text2dBundle {
         text: Text {
             sections: vec![TextSection::new(
@@ -74,7 +79,11 @@ impl AnimatedTextSprite {
                     TimerMode::Repeating
                 )
             },
-            create_text_bundle(frames[0].clone(), translation, 12.0),
+            create_text_bundle(
+                frames[0].clone(), 
+                translation, 
+                12.0
+            ),
         )
     }
 
