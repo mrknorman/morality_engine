@@ -1,11 +1,31 @@
 use bevy::prelude::*;
 
 use crate::{
-    audio::play_sound_once, game_states::{
-        GameState, MainState, StateVector, SubState
-    }, interaction::{InputAction, InteractionPlugin}, text::{
-        TextButton, TextComponent, TextRaw, TextTitle
-    }, track::Track, train::{Train, TrainPlugin, STEAM_TRAIN}
+    audio::{
+        ContinuousAudio,
+        ContinuousAudioPallet
+    }, 
+    game_states::{
+        GameState, 
+        MainState, 
+        StateVector
+    }, 
+    interaction::{
+        InputAction, 
+        InteractionPlugin
+    }, 
+    text::{
+        TextButton, 
+        TextComponent, 
+        TextRaw, 
+        TextTitle
+    }, 
+    track::Track, 
+    train::{
+        Train, 
+        TrainPlugin,
+        STEAM_TRAIN
+    }
 };
 
 const MAIN_MENU: MainState = MainState::Menu;
@@ -60,7 +80,6 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             );
         }
     ).id();
-    // TO DO BACKGROUND NOISE: PathBuf::from("./sounds/static.ogg") and ./sounds/office.ogg
 
     let state_vector = StateVector::new(
         Some(MainState::InGame),
@@ -80,6 +99,26 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
         vec![KeyCode::Enter],
         "[Click here or Press Enter to Begin]".to_string(),
         Vec3::new(0.0,-150.0,1.0)
+    );
+
+    // Add background audio:
+    let mut entity_commands = commands.entity(entity);
+    ContinuousAudioPallet::insert(
+        vec![
+            (
+                "static".to_string(),
+                ContinuousAudio::new("./sounds/static.ogg", &asset_server, 0.1),
+            ),
+            (
+                "office".to_string(),
+                ContinuousAudio::new("./sounds/office.ogg", &asset_server, 0.1),
+            ),
+            (
+                "danse".to_string(),
+                ContinuousAudio::new("./music/danse.ogg", &asset_server, 0.3),
+            )
+        ],
+        &mut entity_commands,
     );
 
     //let button_entity = spawn_button(&mut commands);

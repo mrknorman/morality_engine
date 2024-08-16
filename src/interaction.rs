@@ -210,7 +210,9 @@ fn trigger_audio(
     }
 
     for (entity, mut clickable, pallet) in pallet_query_mouse.iter_mut() {
-        handle_actions(entity, &mut *clickable, pallet, &mut commands, &mut audio_query);
+        handle_actions(
+            entity, &mut *clickable, pallet, &mut commands, &mut audio_query
+        );
     }
 
     for (entity, mut pressable, pallet) in pallet_query_keys.iter_mut() {

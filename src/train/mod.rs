@@ -228,7 +228,7 @@ impl Train {
 		self,
 		commands: &mut Commands,
 		asset_server: &Res<AssetServer>,
-		parent_entity: Option<Entity> // New parameter to specify an optional parent entity
+		parent_entity: Option<Entity> 
 	) -> Entity {
 		let translation: Vec3 = self.translation.clone();
 	
@@ -241,7 +241,7 @@ impl Train {
 
 		let mut carriage_entities: Vec<Entity> = vec![];
 		let train_entity = if let Some(parent) = parent_entity {
-			// If a parent entity is provided, spawn the train as a child of the parent
+
 			let mut train_entity :Option<Entity> = None;
 			commands.entity(parent).with_children(|parent| {
 				train_entity = Some(parent.spawn(bundle)

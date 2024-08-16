@@ -269,7 +269,7 @@ pub fn setup_loading(
             String::from("INFO: Trol-E: Scrubbing Logical Paradoxes..."),
             String::from("INFO: Trol-E: Experiencing Qualia Integration Protocols..."),
             String::from("INFO: Trol-E: Solving the Fermi Paradox..."),
-            String::from("INFO: Trol-E: Finalising Fomrulation of the First Cause..."),
+            String::from("INFO: Trol-E: Finalising Formulation of the First Cause..."),
             String::from("INFO: Trol-E: Complete.")
         ],
         &mut commands
