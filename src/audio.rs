@@ -1,7 +1,10 @@
 use bevy::{
     asset::AssetPath,
     audio::{PlaybackMode, Volume},
-    ecs::system::EntityCommands,
+    ecs::{
+        system::EntityCommands,
+        component::StorageType
+    },
     prelude::*,
 };
 use std::{collections::HashMap, time::Duration};
@@ -35,33 +38,44 @@ pub struct BackgroundAudio {
 }
 
 #[derive(Component, Clone)]
-pub struct ContinuousAudio;
+pub struct ContinuousAudio {
+    source: Handle<AudioSource>,
+    volume: f32,
+}
 
 impl ContinuousAudio {
     pub fn new(
-        audio_path: impl Into<AssetPath<'static>>,
         asset_server: &Res<AssetServer>,
+        audio_path: impl Into<AssetPath<'static>>,
         volume: f32,
-    ) -> impl Bundle {
-        (
-            ContinuousAudio,
+    ) -> ContinuousAudio {
+
+        ContinuousAudio {
+            source: asset_server.load(audio_path),
+            volume
+        }
+    }
+
+    pub fn bundle(self) -> impl Bundle {
+        (        
+            self.clone(),
             AudioBundle {
-                source: asset_server.load(audio_path),
+                source: self.source,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Loop,
-                    volume: Volume::new(volume),
+                    volume: Volume::new(self.volume),
                     ..default()
                 },
-            },
+            }
         )
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct TransientAudio {
     source: Handle<AudioSource>,
     cooldown_timer: Timer,
-    persistant : bool,
+    persistent : bool,
     volume: f32
 }
 
@@ -70,9 +84,9 @@ impl TransientAudio {
         audio_path: impl Into<AssetPath<'static>>,
         asset_server: &Res<AssetServer>,
         cooldown_time_seconds: f32,
-        persistant : bool,
+        persistent : bool,
         volume: f32,
-    ) -> Self {
+    ) -> TransientAudio {
 
         let mut cooldown_timer = Timer::from_seconds(
             cooldown_time_seconds,
@@ -83,10 +97,10 @@ impl TransientAudio {
                 cooldown_time_seconds
             )
         );
-        Self {
+        TransientAudio {
             source: asset_server.load(audio_path),
             cooldown_timer,
-            persistant,
+            persistent,
             volume
         }
     }
@@ -116,39 +130,114 @@ impl TransientAudio {
 #[derive(Component, Clone)]
 pub struct AudioPallet;
 
-#[derive(Component, Clone)]
+#[derive(Clone)]
 pub struct ContinuousAudioPallet {
     pub entities: HashMap<String, Entity>,
+    pub components: Vec<(String, ContinuousAudio)>
 }
 
 impl ContinuousAudioPallet {
-    pub fn insert(
-            components: Vec<(String, impl Bundle)>, 
-            parent_entity: &mut EntityCommands
-        ) {
-        
-        let entities: HashMap<String, Entity> = Self::spawn_children(
-            components, parent_entity
-        );
-        parent_entity.insert((AudioPallet, Self { entities }));
+    pub fn new(
+        components : Vec<(String, ContinuousAudio)>
+    ) -> ContinuousAudioPallet {
+        ContinuousAudioPallet {
+            entities : HashMap::new(),
+            components
+        }
+    }
+    
+    fn spawn_children(
+        mut self,
+        commands: &mut Commands,
+        entity: Entity
+    ) {
+        let mut entities = HashMap::new();
+        let mut entity_commands = commands.entity(entity);
+        entity_commands.with_children(|parent| {
+            for (name, audio_component) in self.components.iter() {
+                let child_entity = parent.spawn((self.clone(), audio_component.clone())).id();
+                entities.insert(name.clone(), child_entity);
+            }
+        });
+        self.entities = entities;
     }
 }
 
-#[derive(Component, Clone)]
+impl Component for ContinuousAudioPallet {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+        
+                // Step 1: Extract components from the pallet
+                let components = {
+                    let mut entity_mut = world.entity_mut(entity);
+                    entity_mut.get_mut::<ContinuousAudioPallet>()
+                        .map(|pallet| pallet.components.clone())
+                };
+        
+                // Step 2: Spawn child entities and collect their IDs
+                let mut commands = world.commands();
+                let mut entities = HashMap::new();
+                
+                if let Some(components) = components {
+                    commands.entity(entity).with_children(|parent| {
+                        for (name, audio_component) in components.iter() {
+                            let child_entity = parent.spawn(
+                                audio_component.clone().bundle()
+                            ).id();
+                            entities.insert(name.clone(), child_entity);
+                        }
+                    });
+                }
+        
+                // Step 3: Update the pallet with the new entity map
+                if let Some(mut pallet) = world.entity_mut(entity).get_mut::<ContinuousAudioPallet>() {
+                    pallet.entities = entities;
+                }
+            }
+        );
+        hooks.on_remove(
+            |mut world, entity, _component_id| {
+                // Step 1: Extract the entity map from the pallet
+                let entities = {
+                    let mut entity_mut = world.entity_mut(entity);
+                    entity_mut.get_mut::<ContinuousAudioPallet>()
+                        .map(|pallet| pallet.entities.clone())
+                };
+        
+                // Step 2: Attempt to despawn each child entity
+                if let Some(entities) = entities {
+                    let mut commands = world.commands();
+                    for (_name, child_entity) in entities {
+                        // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
+                        if commands.get_entity(child_entity).is_some() {
+                            commands.entity(child_entity).despawn_recursive();
+                        }
+                    }
+                }
+            }
+        );
+    }
+}
+
+#[derive(Clone)]
 pub struct TransientAudioPallet {
     pub entities: HashMap<String, Entity>,
+    pub components: Vec<(String, TransientAudio)>
 }
 
 impl TransientAudioPallet {
-    pub fn insert(
-            components: Vec<(String, impl Bundle)>, 
-            parent_entity: &mut EntityCommands
-        ) {
-        
-        let entities: HashMap<String, Entity> = Self::spawn_children(
-            components, parent_entity
-        );
-        parent_entity.insert((AudioPallet, Self { entities }));
+    pub fn new(
+        components : Vec<(String, TransientAudio)>
+    ) -> TransientAudioPallet {
+        TransientAudioPallet {
+            entities : HashMap::new(),
+            components
+        }
     }
 
     pub fn play_transient_audio(
@@ -156,10 +245,9 @@ impl TransientAudioPallet {
         entity: Entity,
         transient_audio: &mut TransientAudio
     ) {
-
         if transient_audio.cooldown_timer.finished() {
 
-            if !transient_audio.persistant {
+            if !transient_audio.persistent {
                 commands.entity(entity).with_children(|parent| {
                     parent.spawn(transient_audio.bundle());
                 });
@@ -170,31 +258,71 @@ impl TransientAudioPallet {
             transient_audio.cooldown_timer.reset();
         }
     }
+
 }
 
-trait AudioPalletSpawner {
-    fn spawn_children(
-        components: Vec<(String, impl Bundle)>,
-        parent_entity: &mut EntityCommands,
-    ) -> HashMap<String, Entity> {
-        let mut entities = HashMap::new();
-        parent_entity.with_children(|parent| {
-            for (name, audio_component) in components {
-                let entity = parent.spawn(audio_component).id();
-                entities.insert(name, entity);
+impl Component for TransientAudioPallet {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+        
+                // Step 1: Extract components from the pallet
+                let components = {
+                    let mut entity_mut = world.entity_mut(entity);
+                    entity_mut.get_mut::<TransientAudioPallet>()
+                        .map(|pallet| pallet.components.clone())
+                };
+        
+                // Step 2: Spawn child entities and collect their IDs
+                let mut commands = world.commands();
+                let mut entities = HashMap::new();
+                
+                if let Some(components) = components {
+                    commands.entity(entity).with_children(|parent| {
+                        for (name, audio_component) in components.iter() {
+                            let child_entity = parent.spawn(audio_component.clone()).id();
+                            entities.insert(name.clone(), child_entity);
+                        }
+                    });
+                }
+        
+                // Step 3: Update the pallet with the new entity map
+                if let Some(mut pallet) = world.entity_mut(entity).get_mut::<TransientAudioPallet>() {
+                    pallet.entities = entities;
+                }
             }
-        });
-        entities
+        );
+        hooks.on_remove(
+            |mut world, entity, _component_id| {
+                // Step 1: Extract the entity map from the pallet
+                let entities = {
+                    let mut entity_mut = world.entity_mut(entity);
+                    entity_mut.get_mut::<TransientAudioPallet>()
+                        .map(|pallet| pallet.entities.clone())
+                };
+        
+                // Step 2: Attempt to despawn each child entity
+                if let Some(entities) = entities {
+                    let mut commands = world.commands();
+                    for (_name, child_entity) in entities {
+                        // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
+                        if commands.get_entity(child_entity).is_some() {
+                            commands.entity(child_entity).despawn_recursive();
+                        }
+                    }
+                }
+            }
+        );
     }
 }
-
-impl AudioPalletSpawner for ContinuousAudioPallet {}
-impl AudioPalletSpawner for TransientAudioPallet {}
 
 pub struct AudioPlugin<T: States + Clone + Eq + Default> {
     active_state: T,
 }
-
 
 impl<T: States + Clone + Eq + Default> AudioPlugin<T> {
     pub fn new(active_state: T) -> Self {

@@ -61,7 +61,35 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             TransformBundle::from_transform(
                 Transform::from_xyz(0.0, 0.0, 0.0)
             ),
-            VisibilityBundle::default()
+            VisibilityBundle::default(),
+            ContinuousAudioPallet::new(
+                vec![
+                    (
+                        "static".to_string(),
+                        ContinuousAudio::new(
+                            &asset_server, 
+                            "./sounds/static.ogg", 
+                            0.05
+                        ),
+                    ),
+                    (
+                        "office".to_string(),
+                        ContinuousAudio::new(
+                            &asset_server, 
+                            "./sounds/office.ogg", 
+                            1.0
+                        ),
+                    ),
+                    (
+                        "danse".to_string(),
+                        ContinuousAudio::new(
+                            &asset_server, 
+                            "./music/danse.ogg", 
+                            0.3
+                        ),
+                    )
+                ]
+            )
         )
     ).with_children(
         |parent| {
@@ -88,6 +116,7 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     );
 
     spawn_train(&mut commands, &asset_server, entity);
+    
     TextButton::new(
         &mut commands, 
         &asset_server, 
@@ -103,24 +132,7 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // Add background audio:
     let mut entity_commands = commands.entity(entity);
-    ContinuousAudioPallet::insert(
-        vec![
-            (
-                "static".to_string(),
-                ContinuousAudio::new("./sounds/static.ogg", &asset_server, 0.1),
-            ),
-            (
-                "office".to_string(),
-                ContinuousAudio::new("./sounds/office.ogg", &asset_server, 0.1),
-            ),
-            (
-                "danse".to_string(),
-                ContinuousAudio::new("./music/danse.ogg", &asset_server, 0.3),
-            )
-        ],
-        &mut entity_commands,
-    );
-
+    
     //let button_entity = spawn_button(&mut commands);
     commands.insert_resource(MenuData{entity});
 }
