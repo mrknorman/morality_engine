@@ -186,6 +186,7 @@ fn trigger_audio(
         mut commands: &mut Commands,
         audio_query: &mut Query<&mut TransientAudio>,
     ) {
+
         if handler.is_triggered() {
             let actions = handler.clone_actions();
             for action in actions {

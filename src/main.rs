@@ -30,6 +30,7 @@ fn main() {
 struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
+
         app
             .init_state::<MainState>()
             .init_state::<GameState>()

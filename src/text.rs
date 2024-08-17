@@ -124,7 +124,19 @@ impl TextButton {
         let bundle = (
             TextButton, 
             Clickable::new(actions.clone(), Vec2::new(285.0,20.0)),
-            create_text_bundle(text, translation, 16.0)
+            create_text_bundle(text, translation, 16.0),
+            TransientAudioPallet::new(
+                vec![(
+                    "click".to_string(),
+                    TransientAudio::new(
+                        "sounds/mech_click.ogg", 
+                        asset_server, 
+                        0.1, 
+                        true,
+                        1.0
+                    ),
+                )]
+            )
         );
 
         let button_entity = if let Some(parent) = parent_entity {
@@ -145,20 +157,6 @@ impl TextButton {
                 actions
             ));
         }
-
-        TransientAudioPallet::insert(
-            vec![(
-                "click".to_string(),
-                TransientAudio::new(
-                    "sounds/mech_click.ogg", 
-                    asset_server, 
-                    0.1, 
-                    true,
-                    1.0
-                ),
-            )],
-            &mut commands.entity(button_entity)
-        );
     }
 }
 

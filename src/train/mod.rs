@@ -171,7 +171,7 @@ impl TrainSmoke {
 	}
 }
 
-#[derive(Component, Clone)]
+#[derive(Clone)]
 pub struct Train{
 	pub carriages : Vec<TrainCarriage>,
 	pub smoke : TrainSmoke,
@@ -236,7 +236,17 @@ impl Train {
 			self.clone(),
 			Locomotion::new(self.speed),
 			TransformBundle::from_transform(Transform::from_translation(translation)),
-			VisibilityBundle::default()
+			VisibilityBundle::default(),
+			ContinuousAudioPallet::new(
+				vec![(
+					"tracks".to_string(),
+					ContinuousAudio::new(
+						asset_server, 
+						self.track_audio_path, 
+						0.1
+					)
+				)]
+			)
 		);
 
 		let mut carriage_entities: Vec<Entity> = vec![];
@@ -264,33 +274,24 @@ impl Train {
 			})
 			.id()
 		};
-	
-		// Add continuous audio:
-		let mut train = commands.entity(train_entity);
-		ContinuousAudioPallet::insert(
-			vec![(
-				"tracks".to_string(),
-				ContinuousAudio::new(self.track_audio_path, asset_server, 0.1),
-			)],
-			&mut train,
-		);
-	
+
 		// Add transient audio:
 		if let Some(horn_path) = &self.horn_audio_path {
 			let mut engine = commands.entity(carriage_entities[0]);
 	
-			engine.insert(Clickable::new(
-				vec![InputAction::PlaySound("horn".to_string())],
-				Vec2::new(110.0, 60.0),
-			));
-			TransientAudioPallet::insert(
-				vec![(
-					"horn".to_string(),
-					TransientAudio::new(
-						horn_path.clone(), asset_server, 2.0, false, 1.0
-					),
-				)],
-				&mut engine,
+			engine.insert((
+				Clickable::new(
+					vec![InputAction::PlaySound("horn".to_string())],
+					Vec2::new(110.0, 60.0),
+				), 
+				TransientAudioPallet::new(
+					vec![(
+						"horn".to_string(),
+						TransientAudio::new(
+							horn_path.clone(), asset_server, 2.0, false, 1.0
+						),
+					)]
+				))
 			);
 		};
 	
@@ -305,4 +306,23 @@ impl Train {
 			locomotion.speed = new_speed;
 		}
 	}
+}
+
+impl Component for Train {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+				println!("Added Train");
+            }
+        );
+        hooks.on_remove(
+            |mut world, entity, _component_id| {
+				println!("Removed Train");
+            }
+        );
+    }
 }
