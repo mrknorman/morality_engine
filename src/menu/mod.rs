@@ -15,7 +15,7 @@ use crate::{
         InteractionPlugin
     }, 
     text::{
-        TextButton, 
+        TextButtonBundle, 
         TextRawBundle, 
         TextTitleBundle
     }, 
@@ -57,6 +57,12 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
+    
+    let state_vector = StateVector::new(
+        Some(MainState::InGame),
+        Some(GameState::Loading),
+        None
+    );
 
     let entity = commands.spawn(
         (
@@ -122,32 +128,21 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                     track_translation
                 )
             );
+            parent.spawn(
+                TextButtonBundle::new(
+                    &asset_server, 
+                    vec![
+                        InputAction::PlaySound("click".to_string()),
+                        InputAction::ChangeState(state_vector)
+                    ],
+                    vec![KeyCode::Enter],
+                    "[Click here or Press Enter to Begin]".to_string(),
+                    Vec3::new(0.0,-150.0,1.0)
+                )
+            );
         }
     ).id();
-
-    let state_vector = StateVector::new(
-        Some(MainState::InGame),
-        Some(GameState::Loading),
-        None
-    );
-
-    
-    TextButton::new(
-        &mut commands, 
-        &asset_server, 
-        Some(entity),  
-        vec![
-            InputAction::PlaySound("click".to_string()),
-            InputAction::ChangeState(state_vector)
-        ],
-        vec![KeyCode::Enter],
-        "[Click here or Press Enter to Begin]".to_string(),
-        Vec3::new(0.0,-150.0,1.0)
-    );
-
-    // Add background audio:
-    let mut entity_commands = commands.entity(entity);
-    
+        
     //let button_entity = spawn_button(&mut commands);
     commands.insert_resource(MenuData{entity});
 }

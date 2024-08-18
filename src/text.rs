@@ -140,22 +140,31 @@ impl AnimatedTextSpriteBundle {
 
 #[derive(Component)]
 pub struct TextButton;
-impl TextButton {
-    pub fn new(
-            commands: &mut Commands,
-            asset_server: &Res<AssetServer>,
-		    parent_entity: Option<Entity>,
-            actions : Vec<InputAction>,
-            keys : Vec<KeyCode>,
-            text: impl Into<String>, 
-            translation: Vec3
-        ) {
 
-        let bundle = (
-            TextButton, 
-            Clickable::new(actions.clone(), Vec2::new(285.0,20.0)),
-            create_text_bundle(text, translation, 16.0),
-            TransientAudioPallet::new(
+#[derive(Bundle)]
+pub struct TextButtonBundle {
+    marker : TextButton,
+    clickable : Clickable,
+    text : Text2dBundle,
+    audio : TransientAudioPallet,
+    pressable : Pressable
+}
+
+impl TextButtonBundle {
+
+    pub fn new( 
+        asset_server: &Res<AssetServer>,
+        actions : Vec<InputAction>,
+        keys : Vec<KeyCode>,
+        text: impl Into<String>, 
+        translation: Vec3
+    ) -> Self {
+        
+        Self {
+            marker : TextButton, 
+            clickable : Clickable::new(actions.clone(), Vec2::new(285.0,20.0)),
+            text : create_text_bundle(text, translation, 16.0),
+            audio : TransientAudioPallet::new(
                 vec![(
                     "click".to_string(),
                     TransientAudio::new(
@@ -166,27 +175,12 @@ impl TextButton {
                         1.0
                     ),
                 )]
-            )
-        );
-
-        let button_entity = if let Some(parent) = parent_entity {
-
-            let mut button_entity : Option<Entity> = None;
-            commands.entity(parent).with_children(|parent| {
-                button_entity = Some(parent.spawn(bundle).id());
-            });
-
-            button_entity.unwrap()
-        } else {
-            commands.spawn(bundle).id()
-        };
-
-        if keys.len() > 0 {
-            commands.entity(button_entity).insert(Pressable::new(
+            ),
+            pressable : Pressable::new(
                 keys,
                 actions
-            ));
+            )
         }
     }
-}
 
+}
