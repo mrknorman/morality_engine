@@ -5,10 +5,6 @@ use crate::{
     audio::{TransientAudioPallet, TransientAudio}
 };
 
-pub trait TextComponent: Component {
-    fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle;
-}
-
 fn create_text_bundle(
         text: impl Into<String>, 
         translation: Vec3, 
@@ -31,63 +27,98 @@ fn create_text_bundle(
         ..default()
     }
 }
-
-#[derive(Component)]
+// Existing components
+#[derive(Component, Clone)]
 pub struct TextRaw;
-impl TextComponent for TextRaw {
-    fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
-        (TextRaw, create_text_bundle(text, translation, 12.0))
-    }
-}
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct TextSprite;
-impl TextComponent for TextSprite {
-    fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
-        (TextSprite, create_text_bundle(text, translation, 12.0))
-    }
-}
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct TextTitle;
-impl TextComponent for TextTitle {
-    fn new(text: impl Into<String>, translation: Vec3) -> impl Bundle {
-        (TextTitle, create_text_bundle(text, translation, 12.0))
+
+// Bundle struct for TextRaw
+#[derive(Bundle, Clone)]
+pub struct TextRawBundle {
+    marker: TextRaw,
+    text: Text2dBundle,
+}
+
+impl TextRawBundle {
+    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
+        Self {
+            marker: TextRaw,
+            text: create_text_bundle(text, translation, 12.0),
+        }
     }
 }
 
-#[derive(Component)]
+// Bundle struct for TextSprite
+#[derive(Bundle, Clone)]
+pub struct TextSpriteBundle {
+    marker: TextSprite,
+    text: Text2dBundle,
+}
+
+impl TextSpriteBundle {
+    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
+        Self {
+            marker: TextSprite,
+            text: create_text_bundle(text, translation, 12.0),
+        }
+    }
+}
+
+// Bundle struct for TextTitle
+#[derive(Bundle, Clone)]
+pub struct TextTitleBundle {
+    marker: TextTitle,
+    text: Text2dBundle,
+}
+
+impl TextTitleBundle {
+    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
+        Self {
+            marker: TextTitle,
+            text: create_text_bundle(text, translation, 12.0),
+        }
+    }
+}
+
+#[derive(Component, Clone)]
 pub struct AnimatedTextSprite {
     pub frames: Vec<String>,
     pub current_frame: usize,
-    pub timer: Timer,
+    pub timer: Timer
 }
 
-impl AnimatedTextSprite {
+#[derive(Bundle, Clone)]
+pub struct AnimatedTextSpriteBundle {
+    text_sprite_bundle: TextSpriteBundle,
+    animation : AnimatedTextSprite
+}
 
+impl AnimatedTextSpriteBundle {
     pub fn from_vec(
-            frames: Vec<String>, frame_time_seconds : f32, translation: Vec3
-        ) -> impl Bundle {
+        frames: Vec<String>, 
+        frame_time_seconds : f32, 
+        translation : Vec3
+    ) -> Self {
 
-        (
-            TextSprite,
-            AnimatedTextSprite {
+        Self {
+            text_sprite_bundle : TextSpriteBundle::new(frames[0].clone(), translation),
+            animation : AnimatedTextSprite {
                 frames : frames.clone(),
                 current_frame: 0,
                 timer: Timer::from_seconds(
                     frame_time_seconds, 
                     TimerMode::Repeating
                 )
-            },
-            create_text_bundle(
-                frames[0].clone(), 
-                translation, 
-                12.0
-            ),
-        )
+            }
+        }
     }
 
-    pub fn animate_text_sprites(
+    pub fn animate(
         time: Res<Time>,
         mut query: Query<(&mut AnimatedTextSprite, &mut Text)>,
     ) {
@@ -106,7 +137,6 @@ impl AnimatedTextSprite {
     }
 
 }
-
 
 #[derive(Component)]
 pub struct TextButton;

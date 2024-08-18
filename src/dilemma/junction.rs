@@ -2,10 +2,10 @@ use bevy::{prelude::*, sprite::Anchor, text::BreakLineOn};
 use crate::dilemma::Dilemma;
 use crate::{
     train::{
-		Train, 
+		TrainBundle, 
 		STEAM_TRAIN
 	},
-	track::Track,
+	track::TrackBundle,
     lever::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR,
@@ -48,11 +48,14 @@ impl TrainJunction{
 			0.0
 		);
 
-		let train: Entity = Train::new(
-			STEAM_TRAIN,
-			Vec3::new(100.0, -75.0, 1.0),
-			0.0
-		).spawn(commands, asset_server, None);
+		let train: Entity = commands.spawn(
+			TrainBundle::new(
+				asset_server,
+				STEAM_TRAIN,
+				Vec3::new(100.0, -75.0, 1.0),
+				0.0
+			)
+		).id();
 
 		let color = match dilemma.default_option {
 			None => Color::WHITE,
@@ -65,31 +68,28 @@ impl TrainJunction{
 
 		let main_track_translation_end: Vec3 = Vec3::new(-1700.0, lower_track_y, 0.0);
 		let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-		let main_track: Track = Track::new(
+		let main_track: TrackBundle = TrackBundle::new(
 			600, 
-			color,
 			main_track_translation_start
 		);
 
 		let track_1_translation_end: Vec3 = Vec3{x : 1000.0 , y : lower_track_y, z: 0.0};
 		let track_1_translation_start: Vec3= track_1_translation_end + final_position;
-		let track_1: Track = Track::new(
+		let track_1: TrackBundle = TrackBundle::new(
 			300, 
-			OPTION_1_COLOR,
 			track_1_translation_start
 		);
 
 		let track_2_translation_end: Vec3 = Vec3{x : 1000.0 , y : upper_track_y, z: 0.0};
 		let track_2_translation_start: Vec3 = track_2_translation_end + final_position;
-		let track_2: Track = Track::new(
+		let track_2: TrackBundle = TrackBundle::new(
 			300, 
-		    OPTION_2_COLOR,
 			track_2_translation_start
 		);
 	
-		let main_track : Entity = main_track.spawn(commands, None);
-		let track_1 : Entity = track_1.spawn(commands, None);
-		let track_2: Entity = track_2.spawn(commands, None);
+		let main_track : Entity = commands.spawn(main_track).id();
+		let track_1 : Entity = commands.spawn(track_1).id();
+		let track_2: Entity = commands.spawn(track_2).id();
 
 		commands.entity(main_track).insert(
 			PointToPointTranslation::new(

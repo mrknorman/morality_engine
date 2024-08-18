@@ -71,7 +71,7 @@ pub fn point_to_point_translations(
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct TranslationAnchor{
 	pub translation : Vec3
 }

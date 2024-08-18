@@ -1,10 +1,7 @@
 use bevy::{
     asset::AssetPath,
     audio::{PlaybackMode, Volume},
-    ecs::{
-        system::EntityCommands,
-        component::StorageType
-    },
+    ecs::component::StorageType,
     prelude::*,
 };
 use std::{collections::HashMap, time::Duration};
@@ -55,21 +52,35 @@ impl ContinuousAudio {
             volume
         }
     }
+}
 
-    pub fn bundle(self) -> impl Bundle {
-        (        
-            self.clone(),
-            AudioBundle {
-                source: self.source,
+#[derive(Bundle)]
+struct ContinuousAudioBundle {
+    audio : AudioBundle,
+    continuous_audio : ContinuousAudio
+}
+
+impl ContinuousAudioBundle {
+
+    fn from_continuous_audio(
+        continuous_audio : ContinuousAudio
+    ) -> Self {
+
+        Self {
+            audio : AudioBundle {
+                source: continuous_audio.clone().source,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Loop,
-                    volume: Volume::new(self.volume),
+                    volume: Volume::new(continuous_audio.clone().volume),
                     ..default()
                 },
-            }
-        )
+            },
+            continuous_audio
+        }
     }
 }
+
+
 
 #[derive(Component, Clone)]
 pub struct TransientAudio {
@@ -105,7 +116,7 @@ impl TransientAudio {
         }
     }
 
-    pub fn bundle(&self) -> AudioBundle {
+    pub fn play(&self) -> AudioBundle {
         AudioBundle {
             source: self.source.clone(),
             settings: PlaybackSettings {
@@ -127,9 +138,6 @@ impl TransientAudio {
     }
 }
 
-#[derive(Component, Clone)]
-pub struct AudioPallet;
-
 #[derive(Clone)]
 pub struct ContinuousAudioPallet {
     pub entities: HashMap<String, Entity>,
@@ -144,22 +152,6 @@ impl ContinuousAudioPallet {
             entities : HashMap::new(),
             components
         }
-    }
-    
-    fn spawn_children(
-        mut self,
-        commands: &mut Commands,
-        entity: Entity
-    ) {
-        let mut entities = HashMap::new();
-        let mut entity_commands = commands.entity(entity);
-        entity_commands.with_children(|parent| {
-            for (name, audio_component) in self.components.iter() {
-                let child_entity = parent.spawn((self.clone(), audio_component.clone())).id();
-                entities.insert(name.clone(), child_entity);
-            }
-        });
-        self.entities = entities;
     }
 }
 
@@ -187,7 +179,7 @@ impl Component for ContinuousAudioPallet {
                     commands.entity(entity).with_children(|parent| {
                         for (name, audio_component) in components.iter() {
                             let child_entity = parent.spawn(
-                                audio_component.clone().bundle()
+                                ContinuousAudioBundle::from_continuous_audio(audio_component.clone())
                             ).id();
                             entities.insert(name.clone(), child_entity);
                         }
@@ -249,10 +241,10 @@ impl TransientAudioPallet {
 
             if !transient_audio.persistent {
                 commands.entity(entity).with_children(|parent| {
-                    parent.spawn(transient_audio.bundle());
+                    parent.spawn(transient_audio.play());
                 });
             } else {
-                commands.spawn(transient_audio.bundle());
+                commands.spawn(transient_audio.play());
             }
 
             transient_audio.cooldown_timer.reset();
