@@ -1,9 +1,14 @@
+use std::{
+	fs::File,
+	io::BufReader
+};
+
 use bevy::{
-	prelude::* 
+	prelude::*,
+	ecs::component::StorageType
 };
 use serde::Deserialize;
-use std::fs::File;
-use std::io::BufReader;
+
 use crate::{
     audio::{
 		ContinuousAudio, 
@@ -21,9 +26,8 @@ use crate::{
 		Wobble
 	}, 
 	text::{
-		AnimatedTextSprite, 
-		TextComponent, 
-		TextSprite
+		AnimatedTextSpriteBundle, 
+		TextSpriteBundle
 	}
 };
 
@@ -44,7 +48,7 @@ impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
         app.add_systems(
             Update,
             (
-				AnimatedTextSprite::animate_text_sprites,
+				AnimatedTextSpriteBundle::animate,
                 Wobble::wobble,
 				Locomotion::locomote,
             )
@@ -85,107 +89,130 @@ impl TrainType {
     }
 }
 
-// Train Component:
-#[derive(Component)]
-pub struct TrainComponent;
-
 #[derive(Component, Clone)]
-pub struct TrainCarriage{
-	pub text : String,
-	pub translation : Vec3
+pub struct TrainCarriage;
+
+#[derive(Bundle, Clone)]
+pub struct TrainCarriageBundle{
+	marker : TrainCarriage,
+	anchor : TranslationAnchor,
+	wobble : Wobble,
+	sprite : TextSpriteBundle
 }
 
-impl TrainCarriage {
+impl TrainCarriageBundle{
 
 	pub fn new(
-			text : String,
-			translation : Vec3
-		) -> TrainCarriage {
+		text : String,
+		translation : Vec3
+	) -> Self {
 
-		TrainCarriage{
-			text,
-			translation
-		}
-	}
-	
-	pub fn spawn(
-			self,
-			parent: &mut ChildBuilder<'_>
-		) -> Entity {
-
-		let translation: Vec3 = self.translation.clone();
-		let text: String  = self.text.clone();
-		
-		parent.spawn((
-			self,
-			TrainComponent,
-			TranslationAnchor::new(
+		Self {
+			marker : TrainCarriage,
+			anchor : TranslationAnchor::new(
 				translation
 			),
-			Wobble::new(),
-			TextSprite::new(
+			wobble : Wobble::new(),
+			sprite : TextSpriteBundle::new(
 				text,
 				translation
-			))
-		).id()
-	}
-}
-
-#[derive(Component, Clone)]
-pub struct TrainSmoke {
-	pub frames : Vec<String>,
-	pub translation : Vec3
-}
-
-impl TrainSmoke {
-
-	pub fn new(
-			smoke_frames : Vec<String>, 
-			translation : Vec3
-		) -> TrainSmoke{
-
-		TrainSmoke{
-			frames : smoke_frames,
-			translation : Vec3::new(
-				translation.x - 25.0,
-				translation.y + 20.0,
-				translation.z,
 			)
 		}
 	}
+}
 
-	pub fn spawn(self, parent: &mut ChildBuilder<'_>) -> Entity {
+#[derive(Component, Clone)]
+pub struct TrainSmoke;
 
-		let translation: Vec3 = self.translation.clone();
-		parent.spawn((
-			self.clone(),
-			TrainComponent,
-			AnimatedTextSprite::from_vec(
-				self.frames.iter().map(
+
+#[derive(Bundle, Clone)]
+pub struct TrainSmokeBundle{
+	marker : TrainSmoke,
+	animation_sprite : AnimatedTextSpriteBundle
+}
+
+impl TrainSmokeBundle {
+
+	pub fn new(
+			frames : Vec<String>, 
+			translation : Vec3
+		) -> Self {
+
+		Self {
+			marker : TrainSmoke,
+			animation_sprite : AnimatedTextSpriteBundle::from_vec(
+				frames.iter().map(
 					|s| s.to_string()
 				).collect(),
 				0.1,
-				translation
+				Vec3::new(
+					translation.x - 25.0,
+					translation.y + 20.0,
+					translation.z,
+				)
 			)
-		)).id()
+		}
 	}
 }
 
 #[derive(Clone)]
-pub struct Train{
-	pub carriages : Vec<TrainCarriage>,
-	pub smoke : TrainSmoke,
+pub struct Train {
+	pub carriages : Vec<TrainCarriageBundle>,
+	pub smoke : TrainSmokeBundle,
 	pub translation : Vec3,
-	pub track_audio_path : String,
-	pub horn_audio_path : Option<String>,
-	pub speed : f32
+	pub horn_audio : Option<TransientAudio>
+}
+
+#[derive(Clone, Bundle)]
+pub struct TrainBundle {
+	train : Train,
+	locomotion : Locomotion,
+	transform : TransformBundle,
+	visibility : VisibilityBundle,
+	audio : ContinuousAudioPallet
+}
+
+impl TrainBundle {
+
+	pub fn new(
+		asset_server: &Res<AssetServer>,
+		train_file_path : &str,
+		translation : Vec3,
+		speed : f32
+	) -> Self {
+
+		let train_type = TrainType::load_from_json(
+			train_file_path.to_string()
+		);
+
+		let track_audio_path = train_type.track_audio_path;
+
+		Self { 
+			train: Train::new(asset_server, train_file_path, translation), 
+			locomotion: Locomotion::new(speed), 
+			transform: TransformBundle::from_transform(
+				Transform::from_translation(translation)
+			), 
+			visibility: VisibilityBundle::default(), 
+			audio:ContinuousAudioPallet::new(
+				vec![(
+					"tracks".to_string(),
+					ContinuousAudio::new(
+						asset_server, 
+						track_audio_path, 
+						0.1
+					)
+				)]
+			)
+		}
+	}
 }
 
 impl Train {
 	pub fn new (
+			asset_server: &Res<AssetServer>,
 			train_file_path : &str,
-			translation : Vec3,
-			speed : f32
+			translation : Vec3
 		) -> Train {
 
 		let train_type = TrainType::load_from_json(
@@ -194,11 +221,19 @@ impl Train {
 		
 		let carriage_text_vector: Vec<String> = train_type.carriages;
 		let smoke_frames: Vec<String> = train_type.smoke.unwrap_or(vec![]);
-		let track_audio_path = train_type.track_audio_path;
-		let horn_audio_path = train_type.horn_audio_path;
+		let horn_audio: Option<TransientAudio> = train_type.horn_audio_path.map(
+			|path| {
+				TransientAudio::new(
+					path, 
+					asset_server, 
+					2.0, 
+					false, 
+					1.0
+				)
+		});
 		
-		let mut carriages : Vec<TrainCarriage> = vec![];
-		let smoke = TrainSmoke::new(
+		let mut carriages : Vec<TrainCarriageBundle> = vec![];
+		let smoke = TrainSmokeBundle::new(
 			smoke_frames,
 			translation
 		);
@@ -206,7 +241,7 @@ impl Train {
 		let mut carriage_translation = translation.clone();
 		for carriage_text in carriage_text_vector {
 			carriages.push(
-				TrainCarriage::new(
+				TrainCarriageBundle::new(
 					carriage_text,
 					carriage_translation
 				)
@@ -218,86 +253,10 @@ impl Train {
 			carriages,
 			smoke,
 			translation,
-			track_audio_path,
-			horn_audio_path,
-			speed
+			horn_audio,
 		}
 	}
 
-	pub fn spawn(
-		self,
-		commands: &mut Commands,
-		asset_server: &Res<AssetServer>,
-		parent_entity: Option<Entity> 
-	) -> Entity {
-		let translation: Vec3 = self.translation.clone();
-	
-		let bundle = (
-			self.clone(),
-			Locomotion::new(self.speed),
-			TransformBundle::from_transform(Transform::from_translation(translation)),
-			VisibilityBundle::default(),
-			ContinuousAudioPallet::new(
-				vec![(
-					"tracks".to_string(),
-					ContinuousAudio::new(
-						asset_server, 
-						self.track_audio_path, 
-						0.1
-					)
-				)]
-			)
-		);
-
-		let mut carriage_entities: Vec<Entity> = vec![];
-		let train_entity = if let Some(parent) = parent_entity {
-
-			let mut train_entity :Option<Entity> = None;
-			commands.entity(parent).with_children(|parent| {
-				train_entity = Some(parent.spawn(bundle)
-				.with_children(|parent| {
-					for part in &self.carriages {
-						carriage_entities.push(part.clone().spawn(parent));
-					}
-					self.smoke.clone().spawn(parent);
-				}).id());
-			});
-
-			train_entity.unwrap()
-		} else {
-			// Otherwise, spawn the train as a top-level entity
-			commands.spawn(bundle).with_children(|parent| {
-				for part in self.carriages {
-					carriage_entities.push(part.spawn(parent));
-				}
-				self.smoke.spawn(parent);
-			})
-			.id()
-		};
-
-		// Add transient audio:
-		if let Some(horn_path) = &self.horn_audio_path {
-			let mut engine = commands.entity(carriage_entities[0]);
-	
-			engine.insert((
-				Clickable::new(
-					vec![InputAction::PlaySound("horn".to_string())],
-					Vec2::new(110.0, 60.0),
-				), 
-				TransientAudioPallet::new(
-					vec![(
-						"horn".to_string(),
-						TransientAudio::new(
-							horn_path.clone(), asset_server, 2.0, false, 1.0
-						),
-					)]
-				))
-			);
-		};
-	
-		train_entity
-	}	
-	
 	pub fn update_speed(
 		mut locomotion_query : Query<&mut Locomotion, With<Train>>,
 		new_speed :f32
@@ -316,12 +275,51 @@ impl Component for Train {
     ) {
         hooks.on_insert(
             |mut world, entity, _component_id| {
-				println!("Added Train");
-            }
-        );
-        hooks.on_remove(
-            |mut world, entity, _component_id| {
-				println!("Removed Train");
+				// Step 1: Extract components from the pallet
+				let train: Option<Train> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Train>()
+                        .map(|train: &Train| train.clone())
+                };
+
+				// Step 2: Spawn child entities and collect their IDs
+                let mut commands = world.commands();
+                let mut carriage_entities: Vec<Entity> = vec![];
+                
+                if let Some(train) = train {
+                    commands.entity(entity).with_children(
+						|parent| {
+                        for carriage in train.carriages {
+							carriage_entities.push(
+								parent.spawn(carriage).id()
+							);
+						}
+						parent.spawn(train.smoke);
+                    });
+
+					if let Some(horn_audio) = train.horn_audio{
+						let mut engine = commands.entity(
+							carriage_entities[0]
+						);
+				
+						engine.insert((
+							Clickable::new(
+								vec![
+									InputAction::PlaySound(
+										"horn".to_string()
+									)
+								],
+								Vec2::new(110.0, 60.0),
+							), 
+							TransientAudioPallet::new(
+								vec![(
+									"horn".to_string(),
+									horn_audio,
+								)]
+							))
+						);
+					};
+                }
             }
         );
     }

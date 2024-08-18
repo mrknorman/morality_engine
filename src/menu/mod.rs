@@ -16,13 +16,12 @@ use crate::{
     }, 
     text::{
         TextButton, 
-        TextComponent, 
-        TextRaw, 
-        TextTitle
+        TextRawBundle, 
+        TextTitleBundle
     }, 
-    track::Track, 
+    track::TrackBundle, 
     train::{
-        Train, 
+        TrainBundle, 
         TrainPlugin,
         STEAM_TRAIN
     }
@@ -54,6 +53,10 @@ impl Plugin for MenuPlugin {
 fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let text = include_str!("main_menu.txt");
+
+    let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
+    let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
+    let track_translation: Vec3 = train_translation + track_displacement;
 
     let entity = commands.spawn(
         (
@@ -93,17 +96,30 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
         )
     ).with_children(
         |parent| {
-
             parent.spawn(
-        TextTitle::new(
+                TextTitleBundle::new(
                     text,
                     Vec3::new(0.0, 150.0, 1.0), 
                 )
             );
             parent.spawn(
-                TextRaw::new(
+                TextRawBundle::new(
                     "A game by Michael Norman",
                     Vec3::new(0.0, 10.0, 1.0)
+                )
+            );
+            parent.spawn(
+                TrainBundle::new(
+                    &asset_server,
+                    STEAM_TRAIN,
+                    train_translation,
+                    0.0
+                )
+            );
+            parent.spawn(
+                TrackBundle::new(
+                    50, 
+                    track_translation
                 )
             );
         }
@@ -115,7 +131,6 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
         None
     );
 
-    spawn_train(&mut commands, &asset_server, entity);
     
     TextButton::new(
         &mut commands, 
@@ -137,26 +152,6 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(MenuData{entity});
 }
 
-fn spawn_train(
-        commands: &mut Commands,  
-        asset_server: &Res<AssetServer>,
-        parent : Entity
-    ) {
-
-    let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
-    let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
-    let track_translation: Vec3 = train_translation + track_displacement;
-
-    let track : Track = Track::new(50, Color::WHITE, track_translation);
-    track.spawn(commands, Some(parent));
-
-    let train = Train::new(
-		STEAM_TRAIN,
-        train_translation,
-        0.0,
-    );
-    train.spawn(commands, asset_server, Some(parent));
-}
 
 fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
     commands.entity(menu_data.entity).despawn_recursive();
