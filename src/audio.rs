@@ -10,6 +10,45 @@ use bevy::{
     prelude::*,
 };
 
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AudioSystemsActive {
+    #[default]
+    False,
+    True
+}
+
+pub struct AudioPlugin;
+impl Plugin for AudioPlugin {
+    fn build(&self, app: &mut App) {
+        app
+        .init_state::<AudioSystemsActive>()
+        .add_systems(
+            Update,
+            activate_systems
+        ).add_systems(
+            Update,
+            (
+                TransientAudio::tick
+            )
+            .run_if(
+                in_state(AudioSystemsActive::True)
+            )
+        );
+    }
+}
+
+fn activate_systems(
+	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
+	transient_query: Query<&TransientAudio>,
+    continious_query: Query<&ContinuousAudio>
+) {
+	if !transient_query.is_empty() || !continious_query.is_empty(){
+		audio_state.set(AudioSystemsActive::True)
+	} else {
+		audio_state.set(AudioSystemsActive::False)
+	}
+}
+
 #[derive(Component)]
 struct SingleSound;
 
@@ -318,28 +357,6 @@ impl Component for TransientAudioPallet {
                     }
                 }
             }
-        );
-    }
-}
-
-pub struct AudioPlugin<T: States + Clone + Eq + Default> {
-    active_state: T,
-}
-
-impl<T: States + Clone + Eq + Default> AudioPlugin<T> {
-    pub fn new(active_state: T) -> Self {
-        Self { active_state }
-    }
-}
-
-impl<T: States + Clone + Eq + Default + 'static> Plugin for AudioPlugin<T> {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                TransientAudio::tick
-            )
-            .run_if(in_state(self.active_state.clone()))
         );
     }
 }

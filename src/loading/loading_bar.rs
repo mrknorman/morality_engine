@@ -1,10 +1,12 @@
 use std::time::Duration;
 use rand::Rng;
 
-use crate::text::{TextFrames, TextRaw};
+use crate::text::{TextFrames};
 
 use bevy::{
-    asset::{processor::LoadAndSaveSettings, LoadedUntypedAsset}, ecs::component::StorageType, prelude::*, sprite::Anchor
+    prelude::*, 
+    ecs::component::StorageType, 
+    sprite::Anchor
 };
 
 #[derive(Component)]
@@ -12,22 +14,38 @@ pub struct LoadingText;
 
 #[derive(Component)]
 pub struct ProgressIndicator;
-
 pub struct LoadingBar{
+    prefix : String,
     timer : Timer,
     index : usize
 }
 
 impl LoadingBar {
 
-    fn create_text_bundle(text: &str, font_size: f32, position: Vec3) -> Text2dBundle {
+    fn create_text_bundle(
+        prefix : String,
+        text: String, 
+        font_size: f32, 
+        position: Vec3
+    ) -> Text2dBundle {
+
         Text2dBundle {
             text: Text {
                 sections: vec![
-                    TextSection::new(text, TextStyle {
-                        font_size,
-                        ..default()
-                    })
+                    TextSection::new(
+                        prefix, 
+                        TextStyle {
+                            font_size,
+                            ..default()
+                        }
+                    ),
+                    TextSection::new(
+                        text, 
+                        TextStyle {
+                            font_size,
+                            ..default()
+                        }
+                    )
                 ],
                 justify: JustifyText::Center,
                 ..default()
@@ -59,7 +77,7 @@ pub struct LoadingBarBundle{
 }
 
 impl LoadingBarBundle {
-    pub fn new(messages : Vec<String>) -> Self {
+    pub fn new(prefix : impl Into<String>, messages : Vec<String>) -> Self {
 
         let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
 
@@ -69,6 +87,7 @@ impl LoadingBarBundle {
         
         Self {
             bar : LoadingBar {
+                prefix : prefix.into(),
                 timer : Timer::new(
                     timer_duration, 
                 TimerMode::Once
@@ -107,7 +126,6 @@ impl LoadingBarBundle {
                 let mut loading_finished = false;
                 // Update sprite (progress indicator)
                 for &child in children.iter() {
-
                     if let Ok(mut sprite) = sprite_query.get_mut(child) {
                         if let Some(custom_size) = &mut sprite.custom_size {
                             let bar_size_increase = rng.gen_range(0.0..=100.0);
@@ -115,14 +133,16 @@ impl LoadingBarBundle {
                             loading_finished = custom_size.x >= 494.0;
                         }
                     }   
-                    
+                }
+                
+                for &child in children.iter() {
                     if let Ok(mut text) = text_query.get_mut(child) {
                         if !frames.frames.is_empty() {
                             if !loading_finished {
                                 let new_index = bar.index % frames.frames.len();
-                                text.sections[0].value = frames.frames[new_index].clone();
+                                text.sections[1].value = frames.frames[new_index].clone();
                             } else {
-                                text.sections[0].value = frames.frames[frames.frames.len() - 1].clone();
+                                text.sections[1].value = frames.frames[frames.frames.len() - 1].clone();
                             }
                         }
                     }
@@ -141,15 +161,16 @@ impl Component for LoadingBar {
         hooks.on_insert(
             |mut world, entity, _component_id| {
 
-                let messages: Option<Vec<String>> = {
-                    let mut entity_mut = world.entity_mut(entity);
-                    entity_mut.get_mut::<TextFrames>()
-                        .map(
-                            |frames| 
-                            frames.frames.clone()
-                        )
+                let (messages, prefix) = {
+                    let entity_ref = world.entity(entity);
+                    let messages = entity_ref
+                        .get::<TextFrames>()
+                        .map(|frames| frames.frames.clone());
+                    let prefix = entity_ref
+                        .get::<LoadingBar>()
+                        .map(|bar| bar.prefix.clone());
+                    (messages, prefix)
                 };
-                
         
                 // Step 2: Spawn child entities and collect their IDs
                 let mut commands: Commands = world.commands();
@@ -172,7 +193,8 @@ impl Component for LoadingBar {
                         parent.spawn((
                             LoadingText,
                             Self::create_text_bundle(
-                                messages[0].as_str(), 
+                                prefix.unwrap_or_default(),
+                                messages[0].clone(), 
                                 12.0, 
                                 Vec3::new(-250.0, 20.0, 0.0)
                             ),
@@ -192,8 +214,13 @@ impl Component for LoadingBar {
                             Vec3::new(250.0, 0.0, 0.0),
                         ];
                             
-                        for (size, position) in sprite_sizes.iter().zip(sprite_positions.iter()) {
-                            parent.spawn(Self::create_sprite_bundle(*size, *position));
+                        for (size, position) in sprite_sizes.iter().zip(
+                            sprite_positions.iter()
+                        ) {
+                            parent.spawn(Self::create_sprite_bundle(
+                                *size, 
+                                *position
+                            ));
                         }
                             
                         parent.spawn((
@@ -204,7 +231,9 @@ impl Component for LoadingBar {
                                     anchor: Anchor::CenterLeft,
                                     ..default()
                                 },
-                                transform: Transform::from_xyz(-247.0, 0.0, 0.0),
+                                transform: Transform::from_xyz(
+                                    -247.0, 0.0, 0.0
+                                ),
                                 ..default()
                             },
                         ));
