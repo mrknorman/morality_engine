@@ -35,6 +35,7 @@ impl Plugin for GamePlugin {
             .init_state::<MainState>()
             .init_state::<GameState>()
             .init_state::<SubState>()
+            .enable_state_scoped_entities::<MainState>()
             .add_systems(Startup, setup)
             .add_systems(Update, (
                 shortcuts::close_on_esc, 

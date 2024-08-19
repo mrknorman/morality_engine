@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
-
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MainState {
     #[default]

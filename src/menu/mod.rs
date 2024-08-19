@@ -11,8 +11,8 @@ use crate::{
         StateVector
     }, 
     interaction::{
-        InputAction, 
-        InteractionPlugin
+        InteractionPlugin,
+        InputAction
     }, 
     text::{
         TextButtonBundle, 
@@ -21,31 +21,29 @@ use crate::{
     }, 
     track::TrackBundle, 
     train::{
-        TrainBundle, 
         TrainPlugin,
+        TrainBundle, 
         STEAM_TRAIN
     }
 };
-
-const MAIN_MENU: MainState = MainState::Menu;
-
 #[derive(Component)]
 pub struct MainMenu;
-
-#[derive(Resource)]
-pub struct MenuData {
-    entity: Entity
-}
 
 pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(MAIN_MENU), setup_menu)
-            .add_systems(OnExit(MAIN_MENU), cleanup_menu)
-            .add_plugins(TrainPlugin::new(MAIN_MENU));
-
+        app.add_systems(
+            OnEnter(MainState::Menu), setup_menu
+        );
         if !app.is_plugin_added::<InteractionPlugin<MainState>>() {
-            app.add_plugins(InteractionPlugin::new(MAIN_MENU));
+            app.add_plugins(
+                TrainPlugin::new(MainState::Menu)
+            );
+        }
+        if !app.is_plugin_added::<InteractionPlugin<MainState>>() {
+            app.add_plugins(
+                InteractionPlugin::new(MainState::Menu)
+            );
         }
     }
 }
@@ -54,22 +52,26 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let text = include_str!("main_menu.txt");
 
+    let menu_translation : Transform = Transform::from_xyz(0.0, 0.0, 0.0);
+    let title_translation : Vec3 = Vec3::new(0.0, 150.0, 1.0);
     let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
+    let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
+    let button_translation: Vec3 = Vec3::new(0.0,-150.0, 1.0);
+
     
-    let state_vector = StateVector::new(
+    let next_state_vector = StateVector::new(
         Some(MainState::InGame),
         Some(GameState::Loading),
         None
     );
 
-    let entity = commands.spawn(
+    commands.spawn(
         (
+            StateScoped(MainState::Menu),
             MainMenu,
-            TransformBundle::from_transform(
-                Transform::from_xyz(0.0, 0.0, 0.0)
-            ),
+            TransformBundle::from_transform(menu_translation),
             VisibilityBundle::default(),
             ContinuousAudioPallet::new(
                 vec![
@@ -105,13 +107,7 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             parent.spawn(
                 TextTitleBundle::new(
                     text,
-                    Vec3::new(0.0, 150.0, 1.0), 
-                )
-            );
-            parent.spawn(
-                TextRawBundle::new(
-                    "A game by Michael Norman",
-                    Vec3::new(0.0, 10.0, 1.0)
+                    title_translation, 
                 )
             );
             parent.spawn(
@@ -129,25 +125,23 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
                 )
             );
             parent.spawn(
+                TextRawBundle::new(
+                    "A game by Michael Norman",
+                    signature_translation
+                )
+            );
+            parent.spawn(
                 TextButtonBundle::new(
                     &asset_server, 
                     vec![
-                        InputAction::PlaySound("click".to_string()),
-                        InputAction::ChangeState(state_vector)
+                        InputAction::PlaySound(String::from("click")),
+                        InputAction::ChangeState(next_state_vector)
                     ],
                     vec![KeyCode::Enter],
-                    "[Click here or Press Enter to Begin]".to_string(),
-                    Vec3::new(0.0,-150.0,1.0)
+                    "[Click here or Press Enter to Begin]",
+                    button_translation
                 )
             );
         }
-    ).id();
-        
-    //let button_entity = spawn_button(&mut commands);
-    commands.insert_resource(MenuData{entity});
-}
-
-
-fn cleanup_menu(mut commands: Commands, menu_data: Res<MenuData>) {
-    commands.entity(menu_data.entity).despawn_recursive();
+    );
 }

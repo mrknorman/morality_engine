@@ -86,16 +86,30 @@ impl TextTitleBundle {
 }
 
 #[derive(Component, Clone)]
-pub struct AnimatedTextSprite {
-    pub frames: Vec<String>,
+pub struct TextFrames {
+    pub frames: Vec<String>
+}
+
+impl TextFrames {
+    pub fn new(frames: Vec<String>) -> Self {
+        Self {
+            frames 
+        }
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct Animated{
     pub current_frame: usize,
     pub timer: Timer
 }
 
+
 #[derive(Bundle, Clone)]
 pub struct AnimatedTextSpriteBundle {
     text_sprite_bundle: TextSpriteBundle,
-    animation : AnimatedTextSprite
+    animation : Animated,
+    frames : TextFrames
 }
 
 impl AnimatedTextSpriteBundle {
@@ -106,36 +120,38 @@ impl AnimatedTextSpriteBundle {
     ) -> Self {
 
         Self {
-            text_sprite_bundle : TextSpriteBundle::new(frames[0].clone(), translation),
-            animation : AnimatedTextSprite {
-                frames : frames.clone(),
+            text_sprite_bundle : TextSpriteBundle::new(
+                frames[0].clone(), 
+                translation
+            ),
+            animation : Animated {
                 current_frame: 0,
                 timer: Timer::from_seconds(
                     frame_time_seconds, 
                     TimerMode::Repeating
                 )
-            }
+            },
+            frames : TextFrames::new(frames.clone())
         }
     }
 
     pub fn animate(
         time: Res<Time>,
-        mut query: Query<(&mut AnimatedTextSprite, &mut Text)>,
+        mut query: Query<(&mut Animated, &TextFrames, &mut Text)>,
     ) {
         for (
-                mut animated_sprite, mut text
+                mut animation, frames, mut text
             ) in query.iter_mut() {
                 
-            animated_sprite.timer.tick(time.delta());
-            if animated_sprite.timer.just_finished() {
-                animated_sprite.current_frame = 
-                    (animated_sprite.current_frame + 1) % animated_sprite.frames.len();
+                animation.timer.tick(time.delta());
+            if animation.timer.just_finished() {
+                animation.current_frame = 
+                    (animation.current_frame + 1) % frames.frames.len();
                 text.sections[0].value = 
-                    animated_sprite.frames[animated_sprite.current_frame].clone();
+                    frames.frames[animation.current_frame].clone();
             }
         }
     }
-
 }
 
 #[derive(Component)]
