@@ -1,25 +1,66 @@
-use bevy::{prelude::*, time::Timer, sprite::Anchor};
-use std::collections::HashMap;
-use std::{path::PathBuf, vec, time::Duration};
-use rand::Rng;
-
-use crate::audio::{BackgroundAudio, play_sound_once};
-use crate::io_elements::{
-    show_text_button, 
-    text_button_interaction, 
-    spawn_text_button, 
-    check_if_enter_pressed
+use bevy::{
+    prelude::*, 
+    time::Timer
 };
-use crate::game_states::{MainState, GameState, SubState};
-use crate::narration::{start_narration, Narration};
+use std::{
+    collections::HashMap,
+    path::PathBuf, 
+    vec, 
+};
+use crate::{
+    io_elements::{
+        show_text_button, 
+        text_button_interaction, 
+        spawn_text_button, 
+        check_if_enter_pressed
+    },
+    audio::{
+        BackgroundAudio, 
+        play_sound_once
+    },
+    game_states::{
+        MainState, 
+        GameState, 
+        SubState
+    },
+    narration::{
+        start_narration, 
+        Narration
+    }
+};
 
-const LOADING: GameState = GameState::Loading;
+mod loading_bar;
+
+use loading_bar::LoadingBarBundle;
+
+pub struct LoadingPlugin;
+impl Plugin for LoadingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            OnEnter(GameState::Loading), setup_loading
+        )
+        .add_systems(
+            Update,
+            (
+                start_narration,
+                show_text_button,
+                text_button_interaction,
+                LoadingBarBundle::fill,
+                check_if_enter_pressed,
+            )
+                .run_if(in_state(GameState::Loading)),
+        )
+        .add_systems(
+            OnExit(GameState::Loading), 
+            cleanup_loading
+        );
+    }
+}
 
 #[derive(Resource)]
 pub struct LoadingData {
 	narration_audio_entity : Entity,
-    text_button_entity : Entity,
-    loading_bar_entity : Entity,
+    text_button_entity : Entity
 }
 
 impl LoadingData {
@@ -30,194 +71,6 @@ impl LoadingData {
     ) {
         commands.entity(self.narration_audio_entity).despawn_recursive();
         commands.entity(self.text_button_entity).despawn_recursive();
-        commands.entity(self.loading_bar_entity).despawn_recursive();
-    }
-}
-
-#[derive(Component)]
-pub struct LoadingBar{
-    text_vector : Vec<String>,
-    timer : Timer,
-    index : usize
-}
-
-#[derive(Component)]
-pub struct LoadingText;
-
-
-impl LoadingBar {
-
-    pub fn new(text_vector : Vec<String>, index : usize) -> LoadingBar {
-
-        let mut rng = rand::thread_rng();
-
-        let timer_duration_millis : u64 = rng.gen_range(100..=2000) as u64;
-        
-        LoadingBar {
-            text_vector,
-            timer : Timer::new(Duration::from_millis(
-                timer_duration_millis
-            ), TimerMode::Once),
-            index
-        }
-    }
-
-    pub fn spawn_loading_bar  (
-        text_vector : Vec<String>,
-        commands: &mut Commands
-    ) -> Entity {
-        commands.spawn(
-            SpriteBundle { 
-                sprite : Sprite {
-                    custom_size : Some(Vec2 {
-                        x : 0.0,
-                        y : 0.0
-                    }),
-                    ..default()
-                },
-                ..default()
-            }
-        ).with_children( |parent| {
-
-            parent.spawn((
-                LoadingText,
-                Text2dBundle {
-                text : Text {
-                    sections : vec!(
-                        TextSection::new(text_vector[0].as_str(), TextStyle {
-                            font_size : 12.0,
-                            ..default()
-                        })
-                    ),
-                    justify : JustifyText::Center, 
-                    ..default()
-                },
-                text_anchor : Anchor::CenterLeft,
-                transform : Transform::from_xyz(-250.0, 20.0 ,0.0),
-                ..default()
-            }));
-            parent.spawn(SpriteBundle { 
-                sprite : Sprite {
-                    custom_size : Some(Vec2 {
-                        x : 500.0,
-                        y : 2.0
-                    }),
-                    ..default()
-                },
-                transform : Transform::from_xyz(0.0, -7.5 ,0.0),
-                ..default()
-            });
-            parent.spawn(SpriteBundle { 
-                sprite : Sprite {
-                    custom_size : Some(Vec2 {
-                        x : 500.0,
-                        y : 2.0
-                    }),
-                    ..default()
-                },
-                transform : Transform::from_xyz(0.0, 7.5 ,0.0),
-                ..default()
-            });
-            parent.spawn(SpriteBundle { 
-                sprite : Sprite {
-                    custom_size : Some(Vec2 {
-                        x : 2.0,
-                        y : 15.0
-                    }),
-                    ..default()
-                },
-                transform : Transform::from_xyz(-250.0, 0.0 ,0.0),
-                ..default()
-            });
-            parent.spawn(SpriteBundle { 
-                sprite : Sprite {
-                    custom_size : Some(Vec2 {
-                        x : 2.0,
-                        y : 15.0
-                    }),
-                    ..default()
-                },
-                transform : Transform::from_xyz(250.0, 0.0, 0.0),
-                ..default()
-            });
-
-            parent.spawn((
-                LoadingBar::new(text_vector, 0),
-                SpriteBundle {
-                sprite : Sprite {
-                    custom_size : Some(Vec2 {
-                        x : 0.0,
-                        y : 10.0
-                    }),
-                    anchor: Anchor::CenterLeft,
-                    ..default()
-                },
-                transform : Transform::from_xyz(-247.0, 0.0 ,0.0),
-                ..default()
-
-            }));
-
-        } ).id()
-    }
-
-    pub fn fill_loading_bar(
-        time: Res<Time>,
-        mut commands: Commands,
-        mut loading_query : Query<(&Parent, &mut Sprite, &mut LoadingBar)>,
-        mut text_query : Query<&mut Text, With<LoadingText>>
-    ) {
-
-        let mut rng = rand::thread_rng();
-
-        let mut current_size : f32 = 0.0;
-
-        for (parent, sprite, mut loading_bar) in loading_query.iter_mut() {
-
-            if sprite.custom_size.is_some() {
-                current_size = sprite.custom_size.unwrap().x;
-            }            
-
-            let bar_size_increase = rng.gen_range(0..=100) as f32;
-            let mut new_size = current_size + bar_size_increase;
-            new_size = if new_size < 494.0 {new_size} else {494.0};
-
-            if loading_bar.timer.tick(time.delta()).just_finished() {
-
-                if current_size < 494.0 {
-            
-                    commands.entity(**parent).with_children(|parent: &mut ChildBuilder<'_>| {
-                        parent.spawn((
-                            LoadingBar::new(loading_bar.text_vector.clone(), loading_bar.index + 1),
-                            SpriteBundle {
-                            sprite : Sprite {
-                                custom_size : Some(Vec2 {
-                                    x : new_size,
-                                    y : 10.0
-                                }),
-                                anchor: Anchor::CenterLeft,
-                                ..default()
-                            },
-                            transform : Transform::from_xyz(-247.0, 0.0 ,0.0),
-                            ..default()
-
-                        }));
-                    });
-
-                    let new_index = (loading_bar.index + 1) % loading_bar.text_vector.len();
-
-                    for mut text in text_query.iter_mut() {
-                        text.sections[0].value.clone_from(&loading_bar.text_vector[new_index]);
-                    }
-
-                } else {
-                    for mut text in text_query.iter_mut() {
-                        text.sections[0].value.clone_from(loading_bar.text_vector.last().unwrap());
-                    }
-                }
-            }
-
-        }
-
     }
 }
 
@@ -256,7 +109,7 @@ pub fn setup_loading(
         &mut commands
 	); 
 
-    let loading_bar_entity : Entity = LoadingBar::spawn_loading_bar(
+    commands.spawn(LoadingBarBundle::new(
         vec![
             String::from("INFO: Trol-E: Initilising boot up proceedure..."),
             String::from("INFO: Trol-E: Spooling Morality Cores..."),
@@ -271,9 +124,8 @@ pub fn setup_loading(
             String::from("INFO: Trol-E: Solving the Fermi Paradox..."),
             String::from("INFO: Trol-E: Finalising Formulation of the First Cause..."),
             String::from("INFO: Trol-E: Complete.")
-        ],
-        &mut commands
-    );
+        ]
+    ));
 
     let hum_audio = commands.spawn(AudioBundle {
 		source: asset_server.load(PathBuf::from("./sounds/hum.ogg")),
@@ -312,8 +164,7 @@ pub fn setup_loading(
 
     commands.insert_resource(LoadingData {
         narration_audio_entity,
-        text_button_entity,
-        loading_bar_entity
+        text_button_entity
     });
 }
 
@@ -330,23 +181,4 @@ pub fn cleanup_loading(
     }
 
     loading_data.despawn(commands);
-}
-
-pub struct LoadingPlugin;
-impl Plugin for LoadingPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(LOADING), setup_loading)
-            .add_systems(
-                Update,
-                (
-                    start_narration,
-                    show_text_button,
-                    text_button_interaction,
-                    LoadingBar::fill_loading_bar,
-                    check_if_enter_pressed,
-                )
-                    .run_if(in_state(LOADING)),
-            )
-            .add_systems(OnExit(LOADING), cleanup_loading);
-    }
 }

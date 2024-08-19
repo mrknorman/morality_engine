@@ -1,10 +1,14 @@
+use std::{
+    collections::HashMap, 
+    time::Duration
+};
+
 use bevy::{
     asset::AssetPath,
     audio::{PlaybackMode, Volume},
     ecs::component::StorageType,
     prelude::*,
 };
-use std::{collections::HashMap, time::Duration};
 
 #[derive(Component)]
 struct SingleSound;
@@ -79,8 +83,6 @@ impl ContinuousAudioBundle {
         }
     }
 }
-
-
 
 #[derive(Component, Clone)]
 pub struct TransientAudio {
@@ -168,7 +170,10 @@ impl Component for ContinuousAudioPallet {
                 let components = {
                     let mut entity_mut = world.entity_mut(entity);
                     entity_mut.get_mut::<ContinuousAudioPallet>()
-                        .map(|pallet| pallet.components.clone())
+                        .map(
+                            |pallet| 
+                            pallet.components.clone()
+                        )
                 };
         
                 // Step 2: Spawn child entities and collect their IDs
@@ -177,9 +182,14 @@ impl Component for ContinuousAudioPallet {
                 
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent| {
-                        for (name, audio_component) in components.iter() {
+                        for (
+                            name, audio_component
+                        ) in components.iter() {
+                            
                             let child_entity = parent.spawn(
-                                ContinuousAudioBundle::from_continuous_audio(audio_component.clone())
+                                ContinuousAudioBundle::from_continuous_audio(
+                                    audio_component.clone()
+                                )
                             ).id();
                             entities.insert(name.clone(), child_entity);
                         }

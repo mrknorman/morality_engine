@@ -1,4 +1,7 @@
-use bevy::{prelude::*, time::Timer};
+use bevy::{
+    prelude::*, 
+    time::Timer
+};
 
 #[derive(Component)]
 pub struct Narration {

@@ -159,7 +159,6 @@ impl TrainSmokeBundle {
 pub struct Train {
 	pub carriages : Vec<TrainCarriageBundle>,
 	pub smoke : TrainSmokeBundle,
-	pub translation : Vec3,
 	pub horn_audio : Option<TransientAudio>
 }
 
@@ -252,8 +251,7 @@ impl Train {
 		Train {
 			carriages,
 			smoke,
-			translation,
-			horn_audio,
+			horn_audio
 		}
 	}
 
