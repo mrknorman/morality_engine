@@ -1105,6 +1105,6 @@ impl Plugin for DilemmaPlugin {
                 )
                     .run_if(in_state(DILEMMA))
                     .run_if(in_state(SubState::ConsequenceAnimation)),
-            ).add_plugins(TrainPlugin::new(DILEMMA));
+            );//.add_plugins(TrainPlugin::new(DILEMMA));
     }
 }

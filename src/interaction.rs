@@ -1,13 +1,14 @@
 use bevy::{
     prelude::*,
     window::PrimaryWindow,
-    text::Text,
+    text::Text
 };
 use crate::{
     audio::{
         TransientAudio, 
         TransientAudioPallet, 
-        AudioPlugin
+        AudioPlugin,
+        AudioSystemsActive
     },
     game_states::{
         StateVector,
@@ -16,6 +17,60 @@ use crate::{
         SubState
     }
 };
+
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InteractionSystemsActive {
+    #[default]
+    False,
+    True
+}
+
+pub struct InteractionPlugin;
+
+impl Plugin for InteractionPlugin {
+    fn build(&self, app: &mut App) {
+
+        if !app.is_plugin_added::<AudioPlugin>() {
+            app.add_plugins(AudioPlugin);
+        };
+        app
+        .init_state::<InteractionSystemsActive>()
+        .add_systems(
+            Update,
+            activate_systems
+        ).add_systems(
+            Update,
+            (
+                clickable_system,
+                pressable_system,
+                trigger_audio,
+                trigger_state_change
+            )
+            .run_if(in_state(InteractionSystemsActive::True))
+        ).add_systems(
+			Startup, (activate_prequisite_states)
+		.run_if(in_state(InteractionSystemsActive::True)));
+    }
+}
+
+fn activate_prequisite_states(        
+	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
+) {
+	audio_state.set(AudioSystemsActive::True);
+}
+
+fn activate_systems(
+	mut interaction_state: ResMut<NextState<InteractionSystemsActive>>,
+	pressable_query: Query<&Pressable>,
+    clickable_query: Query<&Clickable>
+) {
+
+	if !pressable_query.is_empty() || !clickable_query.is_empty(){
+		interaction_state.set(InteractionSystemsActive::True)
+	} else {
+		interaction_state.set(InteractionSystemsActive::False)
+	}
+}
 
 pub const NORMAL_BUTTON: Color = Color::srgb(1.0, 1.0, 1.0);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 1.0, 1.0);
@@ -175,8 +230,12 @@ fn is_cursor_within_bounds(
 
 fn trigger_audio(
     mut commands: Commands,
-    mut pallet_query_mouse: Query<(Entity, &mut Clickable, &TransientAudioPallet)>,
-    mut pallet_query_keys: Query<(Entity, &mut Pressable, &TransientAudioPallet)>,
+    mut pallet_query_mouse: Query<(
+        Entity, &mut Clickable, &TransientAudioPallet
+    )>,
+    mut pallet_query_keys: Query<(
+        Entity, &mut Pressable, &TransientAudioPallet
+    )>,
     mut audio_query: Query<&mut TransientAudio>
 ) {
     fn handle_actions<T: InputActionHandler>(
@@ -191,8 +250,12 @@ fn trigger_audio(
             let actions = handler.clone_actions();
             for action in actions {
                 if let InputAction::PlaySound(key) = action {
-                    if let Some(&audio_entity) = pallet.entities.get(&key) {
-                        if let Ok(mut transient_audio) = audio_query.get_mut(audio_entity) {
+                    if let Some(
+                        &audio_entity
+                    ) = pallet.entities.get(&key) {
+                        if let Ok(
+                            mut transient_audio
+                        ) = audio_query.get_mut(audio_entity) {
                             TransientAudioPallet::play_transient_audio(
                                 &mut commands,
                                 entity,
@@ -210,14 +273,28 @@ fn trigger_audio(
         }
     }
 
-    for (entity, mut clickable, pallet) in pallet_query_mouse.iter_mut() {
+    for (
+        entity, mut clickable, pallet
+    ) in pallet_query_mouse.iter_mut() {
         handle_actions(
-            entity, &mut *clickable, pallet, &mut commands, &mut audio_query
+            entity, 
+            &mut *clickable, 
+            pallet, 
+            &mut commands, 
+            &mut audio_query
         );
     }
 
-    for (entity, mut pressable, pallet) in pallet_query_keys.iter_mut() {
-        handle_actions(entity, &mut *pressable, pallet, &mut commands, &mut audio_query);
+    for (
+        entity, mut pressable, pallet
+    ) in pallet_query_keys.iter_mut() {
+        handle_actions(
+            entity, 
+            &mut *pressable, 
+            pallet, 
+            &mut commands, 
+            &mut audio_query
+        );
     }
 }
 
@@ -291,7 +368,9 @@ fn trigger_state_change(
         if handler.is_triggered() {
             let actions = handler.clone_actions();
             for action in actions {
-                if let InputAction::ChangeState(state_vector) = action {
+                if let InputAction::ChangeState(
+                    state_vector
+                ) = action {
                     state_vector.set_state(
                         &mut next_main_state,
                         &mut next_game_state,
@@ -320,36 +399,6 @@ fn trigger_state_change(
             &mut next_main_state,
             &mut next_game_state,
             &mut next_sub_state,
-        );
-    }
-}
-
-pub struct InteractionPlugin<T: States + Clone + Eq + Default> {
-    active_state: T,
-}
-
-
-impl<T: States + Clone + Eq + Default> InteractionPlugin<T> {
-    pub fn new(active_state: T) -> Self {
-        Self { active_state }
-    }
-}
-
-impl<T: States + Clone + Eq + Default + 'static> Plugin for InteractionPlugin<T> {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                clickable_system,
-                pressable_system,
-                trigger_audio,
-                trigger_state_change
-            )
-            .run_if(in_state(self.active_state.clone()))
-        ).add_plugins(
-            AudioPlugin::new(
-                self.active_state.clone()
-            )
         );
     }
 }

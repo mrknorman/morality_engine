@@ -8,7 +8,8 @@ pub enum MainState {
     InGame,
 }
 
-#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash, Serialize, 
+    Deserialize)]
 pub enum GameState {
     #[default]
     None,

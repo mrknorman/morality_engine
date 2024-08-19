@@ -11,15 +11,10 @@ use serde::Deserialize;
 
 use crate::{
     audio::{
-		ContinuousAudio, 
-		ContinuousAudioPallet,
-		TransientAudio,
-		TransientAudioPallet
+		AudioPlugin, AudioSystemsActive, ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
 	}, 
 	interaction::{
-		InteractionPlugin, 
-		InputAction, 
-		Clickable
+		Clickable, InputAction, InteractionPlugin, InteractionSystemsActive
 	}, motion::{
 		Locomotion, 
 		TranslationAnchor, 
@@ -33,30 +28,62 @@ use crate::{
 
 pub static STEAM_TRAIN: &str = "./steam_train.json";
 
-pub struct TrainPlugin<T: States + Clone + Eq + Default> {
-    active_state: T,
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TrainSystemsActive {
+    #[default]
+	False,
+    True
 }
 
-impl<T: States + Clone + Eq + Default> TrainPlugin<T> {
-    pub fn new(active_state: T) -> Self {
-        Self { active_state }
-    }
-}
+pub struct TrainPlugin;
 
-impl<T: States + Clone + Eq + Default + 'static> Plugin for TrainPlugin<T> {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
+impl Plugin for TrainPlugin {
+    fn build(&self, app: &mut App) {	
+		if !app.is_plugin_added::<InteractionPlugin>() {
+			app.add_plugins(InteractionPlugin);
+		};
+
+		if !app.is_plugin_added::<AudioPlugin>() {
+			app.add_plugins(AudioPlugin);
+		};
+
+		app
+		.init_state::<TrainSystemsActive>()
+		.add_systems(
+			Update,
+			activate_systems
+		).add_systems(
             Update,
             (
 				AnimatedTextSpriteBundle::animate,
                 Wobble::wobble,
 				Locomotion::locomote,
             )
-            .run_if(in_state(self.active_state.clone()))
-        ).add_plugins(InteractionPlugin::new(
-			self.active_state.clone())
+            .run_if(in_state(TrainSystemsActive::True))
+        ).add_systems(
+			OnEnter(TrainSystemsActive::True), 
+			activate_prequisite_states
 		);
     }
+}
+
+fn activate_prequisite_states(        
+	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
+	mut interaction_state: ResMut<NextState<InteractionSystemsActive>>,
+) {
+	audio_state.set(AudioSystemsActive::True);
+	interaction_state.set(InteractionSystemsActive::True);
+}
+
+fn activate_systems(
+	mut interaction_state: ResMut<NextState<TrainSystemsActive>>,
+	train_query: Query<&Train>
+) {
+	if !train_query.is_empty() {
+		interaction_state.set(TrainSystemsActive::True)
+	} else {
+		interaction_state.set(TrainSystemsActive::False)
+	}
 }
 
 #[derive(Deserialize)]

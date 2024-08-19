@@ -26,8 +26,6 @@ use crate::{
         STEAM_TRAIN
     }
 };
-#[derive(Component)]
-pub struct MainMenu;
 
 pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
@@ -35,20 +33,19 @@ impl Plugin for MenuPlugin {
         app.add_systems(
             OnEnter(MainState::Menu), setup_menu
         );
-        if !app.is_plugin_added::<InteractionPlugin<MainState>>() {
-            app.add_plugins(
-                TrainPlugin::new(MainState::Menu)
-            );
+        if !app.is_plugin_added::<TrainPlugin>() {
+            app.add_plugins(TrainPlugin);
         }
-        if !app.is_plugin_added::<InteractionPlugin<MainState>>() {
-            app.add_plugins(
-                InteractionPlugin::new(MainState::Menu)
-            );
+        if !app.is_plugin_added::<InteractionPlugin>() {
+            app.add_plugins(InteractionPlugin);
         }
     }
 }
 
-fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup_menu(
+        mut commands: Commands, 
+        asset_server: Res<AssetServer>
+    ) {
 
     let text = include_str!("main_menu.txt");
 
@@ -59,7 +56,6 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let track_translation: Vec3 = train_translation + track_displacement;
     let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
     let button_translation: Vec3 = Vec3::new(0.0,-150.0, 1.0);
-
     
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),
@@ -70,7 +66,6 @@ fn setup_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(
         (
             StateScoped(MainState::Menu),
-            MainMenu,
             TransformBundle::from_transform(menu_translation),
             VisibilityBundle::default(),
             ContinuousAudioPallet::new(
