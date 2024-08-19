@@ -104,22 +104,26 @@ impl LoadingBarBundle {
                     TimerMode::Once
                 );
 
+                let mut loading_finished = false;
                 // Update sprite (progress indicator)
                 for &child in children.iter() {
+
                     if let Ok(mut sprite) = sprite_query.get_mut(child) {
                         if let Some(custom_size) = &mut sprite.custom_size {
-                            let bar_size_increase = rng.gen_range(0..=100) as f32;
+                            let bar_size_increase = rng.gen_range(0.0..=100.0);
                             custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
+                            loading_finished = custom_size.x >= 494.0;
                         }
-                    }
-                }
-
-                // Update text
-                for &child in children.iter() {
+                    }   
+                    
                     if let Ok(mut text) = text_query.get_mut(child) {
                         if !frames.frames.is_empty() {
-                            let new_index = bar.index % frames.frames.len();
-                            text.sections[0].value = frames.frames[new_index].clone();
+                            if !loading_finished {
+                                let new_index = bar.index % frames.frames.len();
+                                text.sections[0].value = frames.frames[new_index].clone();
+                            } else {
+                                text.sections[0].value = frames.frames[frames.frames.len() - 1].clone();
+                            }
                         }
                     }
                 }
