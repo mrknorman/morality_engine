@@ -175,10 +175,14 @@ impl TextButtonBundle {
         text: impl Into<String>, 
         translation: Vec3
     ) -> Self {
+    
+        let text = text.into();
+        let text_length = text.clone().len();
+        let button_width = text_length as f32 * 7.92;
         
         Self {
             marker : TextButton, 
-            clickable : Clickable::new(actions.clone(), Vec2::new(285.0,20.0)),
+            clickable : Clickable::new(actions.clone(), Vec2::new(button_width, 20.0)),
             text : create_text_bundle(text, translation, 16.0),
             audio : TransientAudioPallet::new(
                 vec![(

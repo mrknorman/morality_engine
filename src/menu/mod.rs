@@ -55,7 +55,7 @@ fn setup_menu(
     let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
     let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
-    let button_translation: Vec3 = Vec3::new(0.0,-150.0, 1.0);
+    let button_translation: Vec3 = Vec3::new(0.0,-250.0, 1.0);
     
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),
@@ -133,7 +133,7 @@ fn setup_menu(
                         InputAction::ChangeState(next_state_vector)
                     ],
                     vec![KeyCode::Enter],
-                    "[Click here or Press Enter to Begin]",
+                    "[Click Here or Press Enter to Begin]",
                     button_translation
                 )
             );
