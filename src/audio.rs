@@ -360,3 +360,122 @@ impl Component for TransientAudioPallet {
         );
     }
 }
+
+#[derive(Component, Clone)]
+pub struct OneShotAudio {
+    source: Handle<AudioSource>,
+    persistent : bool,
+    volume: f32
+}
+
+impl OneShotAudio {
+    pub fn new(
+        asset_server: &Res<AssetServer>,
+        audio_path: impl Into<AssetPath<'static>>,
+        persistent : bool,
+        volume: f32,
+    ) -> Self {
+
+        OneShotAudio {
+            source: asset_server.load(audio_path),
+            persistent,
+            volume
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct OneShotAudioPallet {
+    pub components: Vec<OneShotAudio>
+}
+
+impl OneShotAudioPallet {
+    pub fn new(
+        components : Vec<OneShotAudio>
+    ) -> Self {
+        Self {
+            components
+        }
+    }
+}
+
+impl Component for OneShotAudioPallet {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+        
+                // Step 1: Extract components from the pallet
+                let components = {
+                    let mut entity_mut = world.entity_mut(entity);
+                    entity_mut.get_mut::<OneShotAudioPallet>()
+                        .map(|pallet| pallet.components.clone())
+                };
+                // Step 2: Spawn child entities and collect their IDs
+                let mut commands = world.commands();
+                if let Some(components) = components {
+                    
+                    for audio_component in components.iter() {
+
+                        if !audio_component.persistent {
+                            commands.entity(entity).with_children(
+                                |parent| {
+                                    parent.spawn(
+                                        AudioBundle {
+                                            source: audio_component.source.clone(),
+                                            settings: PlaybackSettings {
+                                                paused : false,
+                                                mode: PlaybackMode::Despawn,
+                                                volume: Volume::new(
+                                                    audio_component.volume
+                                                ),
+                                            ..default()
+                                            },
+                                        }
+                                    );
+                                }
+                            );
+                        } else {
+                            commands.spawn(
+                                AudioBundle {
+                                    source: audio_component.source.clone(),
+                                    settings: PlaybackSettings {
+                                        paused : false,
+                                        mode: PlaybackMode::Despawn,
+                                        volume: Volume::new(
+                                            audio_component.volume
+                                        ),
+                                    ..default()
+                                    },
+                            });
+                        }
+                    } 
+                }
+            }
+        );
+        hooks.on_remove(
+            |mut world, entity, _component_id| {
+                // Step 1: Extract the entity map from the pallet
+                let entities = {
+                    let mut entity_mut = world.entity_mut(entity);
+                    entity_mut.get_mut::<TransientAudioPallet>()
+                        .map(|pallet| pallet.entities.clone())
+                };
+        
+                // Step 2: Attempt to despawn each child entity
+                if let Some(entities) = entities {
+                    let mut commands = world.commands();
+                    for (_name, child_entity) in entities {
+                        // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
+                        if commands.get_entity(child_entity).is_some() {
+                            commands.entity(child_entity).despawn_recursive();
+                        }
+                    }
+                }
+            }
+        );
+    }
+}

@@ -17,6 +17,7 @@ mod motion;
 mod text;
 mod track;
 mod interaction;
+mod timing;
 
 use crate::game_states::{GameState, MainState, SubState};
 
@@ -36,6 +37,8 @@ impl Plugin for GamePlugin {
             .init_state::<GameState>()
             .init_state::<SubState>()
             .enable_state_scoped_entities::<MainState>()
+            .enable_state_scoped_entities::<GameState>()
+            .enable_state_scoped_entities::<SubState>()
             .add_systems(Startup, setup)
             .add_systems(Update, (
                 shortcuts::close_on_esc, 

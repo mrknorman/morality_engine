@@ -1,5 +1,11 @@
-use std::time::Duration;
+use std::{
+    time::Duration,
+    fs::File,
+    io::BufReader,
+    path::Path
+};
 use rand::Rng;
+use serde::Deserialize;
 
 use crate::text::{TextFrames};
 
@@ -16,6 +22,7 @@ pub struct LoadingText;
 pub struct ProgressIndicator;
 pub struct LoadingBar{
     prefix : String,
+    final_message : String,
     timer : Timer,
     index : usize
 }
@@ -68,6 +75,21 @@ impl LoadingBar {
     }
 }
 
+#[derive(Deserialize)]
+struct LoadingBarConfig {
+    prefix: String,
+    final_message: String,
+    messages: Vec<String>,
+}
+
+impl LoadingBarConfig {
+    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, serde_json::Error> {
+        let file = File::open(path).expect("Could not open JSON file");
+        let reader = BufReader::new(file);
+        serde_json::from_reader(reader)
+    }
+}
+
 #[derive(Bundle)]
 pub struct LoadingBarBundle{
     bar : LoadingBar,
@@ -77,27 +99,32 @@ pub struct LoadingBarBundle{
 }
 
 impl LoadingBarBundle {
-    pub fn new(prefix : impl Into<String>, messages : Vec<String>) -> Self {
+    pub fn new(path: impl AsRef<Path>) -> Self {
+        let config = LoadingBarConfig::from_file(path).expect(
+            "Error reading Loading Bar configuration file!"
+        );
 
         let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
 
-        let timer_duration : Duration = Duration::from_secs_f32(
+        let timer_duration: Duration = Duration::from_secs_f32(
             rng.gen_range(1.0..=2.0)
         );
-        
+
         Self {
-            bar : LoadingBar {
-                prefix : prefix.into(),
-                timer : Timer::new(
-                    timer_duration, 
-                TimerMode::Once
+            bar: LoadingBar {
+                prefix: config.prefix,
+                final_message: config.final_message,
+                timer: Timer::new(
+                    timer_duration,
+                    TimerMode::Once,
                 ),
-                index : 0
+                index: 0,
             },
-            messages : TextFrames::new(messages),
-            visibility : VisibilityBundle::default(),
-            transform : TransformBundle::from_transform(
-                Transform::from_xyz(0.0, 0.0, 0.0))
+            messages: TextFrames::new(config.messages),
+            visibility: VisibilityBundle::default(),
+            transform: TransformBundle::from_transform(
+                Transform::from_xyz(0.0, 0.0, 0.0),
+            ),
         }
     }
 
@@ -114,7 +141,7 @@ impl LoadingBarBundle {
             children, mut bar, frames
         ) in loading_query.iter_mut() {
 
-            if bar.timer.tick(time.delta()).just_finished() && bar.index < (frames.frames.len() - 1) {
+            if bar.timer.tick(time.delta()).just_finished() {
                 bar.index += 1;
 
                 let secs = rng.gen_range(0.5..=2.0) as f32;
@@ -142,7 +169,7 @@ impl LoadingBarBundle {
                                 let new_index = bar.index % frames.frames.len();
                                 text.sections[1].value = frames.frames[new_index].clone();
                             } else {
-                                text.sections[1].value = frames.frames[frames.frames.len() - 1].clone();
+                                text.sections[1].value = bar.final_message.clone();
                             }
                         }
                     }

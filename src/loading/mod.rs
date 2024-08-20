@@ -1,32 +1,17 @@
-use bevy::{
-    prelude::*, 
-    time::Timer
-};
-use std::{
-    ops::Sub, path::PathBuf, vec 
-};
+use std::vec;
+use bevy::prelude::*;
 use crate::{
     audio::{
-        ContinuousAudioPallet,
-        ContinuousAudio,
-        BackgroundAudio, 
-        play_sound_once
-    },
-    game_states::{
-        MainState, 
-        GameState, 
-        SubState,
-        StateVector
-    },
-    narration::{
-        start_narration, 
-        Narration
-    },
-    text::TextButtonBundle,
-    interaction::{
-        InteractionPlugin,
-        InputAction
-    }
+        ContinuousAudio, 
+        ContinuousAudioPallet, 
+        OneShotAudio, 
+        OneShotAudioPallet
+    }, game_states::{
+        GameState, MainState, StateVector, SubState
+    }, interaction::{
+        InputAction, InteractionPlugin
+    }, text::TextButtonBundle,
+    timing::{TimingPlugin, TimerPallet}
 };
 
 mod loading_bar;
@@ -41,7 +26,7 @@ impl Plugin for LoadingPlugin {
         .add_systems(
             Update,
             (
-                start_narration,
+                spawn_delayed_children,
                 LoadingBarBundle::fill,
             )
                 .run_if(in_state(GameState::Loading)),
@@ -50,24 +35,29 @@ impl Plugin for LoadingPlugin {
         if !app.is_plugin_added::<InteractionPlugin>() {
             app.add_plugins(InteractionPlugin);
         }
+
+        if !app.is_plugin_added::<TimingPlugin>() {
+            app.add_plugins(TimingPlugin);
+        }
     }
 }
+
+#[derive(Component)]
+pub struct LoadingRoot;
 
 pub fn setup_loading(
     mut commands: Commands,
     asset_server: Res<AssetServer>
-) {
-
-    let button_translation = Vec3::new(0.0, -50.0, 0.0);
-
-    let next_state_vector = StateVector::new(
-        Some(MainState::InGame),
-        Some(GameState::Dialogue),
-        Some(SubState::Intro)
-    );
-    
+) {    
     commands.spawn((
-        StateScoped(MainState::Menu),
+        LoadingRoot,
+        StateScoped(GameState::Loading),
+        TimerPallet::new(
+            vec![
+                ("narration".to_string(), 2.0),
+                ("button".to_string(), 5.0)
+            ]
+        ),
         TransformBundle::from_transform(
             Transform::from_xyz(0.0, 0.0, 0.0)
         ),
@@ -91,71 +81,79 @@ pub fn setup_loading(
                     ),
                 )
             ]
+        ),
+        OneShotAudioPallet::new(
+            vec![
+                (
+                    OneShotAudio::new(
+                        &asset_server, 
+                        "./sounds/startup_beep.ogg",
+                        true,
+                        0.1
+                    )
+                )
+            ]
         )
     )).with_children(
         |parent| {
-            parent.spawn(
-                // Add wait timer.
-                TextButtonBundle::new(
-                    &asset_server, 
-                    vec![
-                        InputAction::PlaySound(String::from("click")),
-                        InputAction::ChangeState(next_state_vector)
-                    ],
-                    vec![KeyCode::Enter],
-                    "[Click here or Press Enter to Begin]",
-                    button_translation
-                )
-            );
+            parent.spawn(LoadingBarBundle::new(
+                "text/loading_messages/loading.json"
+            ));
         }
     );
+}
 
-    play_sound_once(
-        "sounds/startup_beep.ogg", 
-        &mut commands,
-        &asset_server
-    );
+pub fn spawn_delayed_children(
+    mut commands: Commands,
+    loading_query: Query<(Entity, &TimerPallet), With<LoadingRoot>>,
+    asset_server: Res<AssetServer>,
+) {
+    for (entity, timers) in loading_query.iter() {
+        // Handle narration timer
+        if let Some(narration_timer) = timers.timers.get("narration") {
+            if narration_timer.just_finished() {
+                commands.entity(entity).with_children(
+                    |parent| {
+                    parent.spawn(OneShotAudioPallet::new(vec![
+                        OneShotAudio::new(
+                            &asset_server,
+                            "./sounds/intro_lilly_elvenlabs.ogg",
+                            false,
+                            1.0,
+                        ),
+                    ]));
+                });
+            }
+        } else {
+            warn!("Entity {:?} is missing the 'narration' timer", entity);
+        }
 
-    commands.spawn((
-        Narration {
-            timer: Timer::from_seconds(2.0, TimerMode::Once)
-        },
-        AudioBundle {
-			source: asset_server.load(PathBuf::from("./sounds/intro_lilly_elvenlabs.ogg")),
-			settings : PlaybackSettings {
-				paused : true,
-				volume : bevy::audio::Volume::new(1.0),
-				mode:  bevy::audio::PlaybackMode::Remove,
-				..default()
-			}
-		}
-    ));
+        // Handle button timer
+        if let Some(button_timer) = timers.timers.get("button") {
+            if button_timer.just_finished() {
+                let button_translation = Vec3::new(0.0, -150.0, 0.0);
+                let next_state_vector = StateVector::new(
+                    Some(MainState::InGame),
+                    Some(GameState::Dialogue),
+                    Some(SubState::Intro),
+                );
 
-    commands.spawn(LoadingBarBundle::new(
-        "INFO::Trol-E: ",
-        vec![
-            String::from("Initilising boot up proceedure..."),
-            String::from("Spooling Morality Cores..."),
-            String::from("Thinking Therefore Existing..."),
-            String::from("Performing Theseus Reconstitution..."),
-            String::from("Pondering God's Existance..."),
-            String::from("Evaluating Cavernous Shadow Conjecture..."),
-            String::from("Determining Freedom Of Action Potential..."),
-            String::from("Avoiding Regression Traps..."),
-            String::from("Scrubbing Logical Paradoxes..."),
-            String::from("Experiencing Qualia Integration Protocols..."),
-            String::from("Solving the Fermi Paradox..."),
-            String::from("Finalising Formulation of the First Cause..."),
-            String::from("Complete.")
-        ]
-    ));
-
-    commands.spawn(AudioBundle {
-		source: asset_server.load(PathBuf::from("./sounds/startup.ogg")),
-		settings : PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(0.1),
-			mode:  bevy::audio::PlaybackMode::Once,
-			..default()
-	}});
+                commands.entity(entity).with_children(
+                    |parent| {
+                    parent.spawn(TextButtonBundle::new(
+                        &asset_server,
+                        vec![
+                            InputAction::PlaySound(String::from("click")),
+                            InputAction::ChangeState(next_state_vector),
+                        ],
+                        vec![KeyCode::Enter],
+                        "[Click here or Press Enter to Continue]",
+                        button_translation,
+                    ));
+                });
+            }
+        } else {
+            warn!("Entity {:?} is missing the 'button' timer", entity);
+        }
+    }
 }

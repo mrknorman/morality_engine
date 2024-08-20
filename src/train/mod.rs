@@ -26,7 +26,7 @@ use crate::{
 	}
 };
 
-pub static STEAM_TRAIN: &str = "./steam_train.json";
+pub static STEAM_TRAIN: &str = "text/trains/steam_train.json";
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TrainSystemsActive {
@@ -60,19 +60,8 @@ impl Plugin for TrainPlugin {
 				Locomotion::locomote,
             )
             .run_if(in_state(TrainSystemsActive::True))
-        ).add_systems(
-			OnEnter(TrainSystemsActive::True), 
-			activate_prequisite_states
-		);
+        );
     }
-}
-
-fn activate_prequisite_states(        
-	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
-	mut interaction_state: ResMut<NextState<InteractionSystemsActive>>,
-) {
-	audio_state.set(AudioSystemsActive::True);
-	interaction_state.set(InteractionSystemsActive::True);
 }
 
 fn activate_systems(
