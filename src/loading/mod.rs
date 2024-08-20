@@ -131,7 +131,7 @@ pub fn spawn_delayed_children(
         // Handle button timer
         if let Some(button_timer) = timers.timers.get("button") {
             if button_timer.just_finished() {
-                let button_translation = Vec3::new(0.0, -150.0, 0.0);
+                let button_translation = Vec3::new(0.0, -250.0, 0.0);
                 let next_state_vector = StateVector::new(
                     Some(MainState::InGame),
                     Some(GameState::Dialogue),
@@ -147,7 +147,7 @@ pub fn spawn_delayed_children(
                             InputAction::ChangeState(next_state_vector),
                         ],
                         vec![KeyCode::Enter],
-                        "[Click here or Press Enter to Continue]",
+                        "[Click Here or Press Enter to Ignore Your Inner Dialogue]",
                         button_translation,
                     ));
                 });
