@@ -154,7 +154,7 @@ impl AnimatedTextSpriteBundle {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct TextButton;
 
 #[derive(Bundle)]
