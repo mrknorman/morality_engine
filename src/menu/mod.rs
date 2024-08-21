@@ -42,6 +42,9 @@ impl Plugin for MenuPlugin {
     }
 }
 
+#[derive(Component)]
+pub struct MenuRoot;
+
 fn setup_menu(
         mut commands: Commands, 
         asset_server: Res<AssetServer>
@@ -65,6 +68,7 @@ fn setup_menu(
 
     commands.spawn(
         (
+            MenuRoot,
             StateScoped(MainState::Menu),
             TransformBundle::from_transform(menu_translation),
             VisibilityBundle::default(),
