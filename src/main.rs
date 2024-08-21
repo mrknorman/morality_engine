@@ -18,6 +18,7 @@ mod text;
 mod track;
 mod interaction;
 mod timing;
+mod character;
 
 use crate::game_states::{GameState, MainState, SubState};
 

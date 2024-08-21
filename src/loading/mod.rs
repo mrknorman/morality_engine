@@ -69,7 +69,7 @@ pub fn setup_loading(
                     ContinuousAudio::new(
                         &asset_server, 
                         "./sounds/hum.ogg", 
-                        0.05
+                        0.1
                     ),
                 ),
                 (
@@ -77,7 +77,7 @@ pub fn setup_loading(
                     ContinuousAudio::new(
                         &asset_server, 
                         "./sounds/office.ogg", 
-                        1.0
+                        0.5
                     ),
                 )
             ]
