@@ -7,21 +7,8 @@ use crate::audio::{play_sound_once, BackgroundAudio};
 use crate::game_states::{MainState, GameState};
 const DIALOGUE: GameState = GameState::Dialogue;
 
-#[derive(Component, Clone)]
-pub struct Character {
-    name : String,
-    audio_source_file_path : PathBuf
-}
-
-impl Character {
-    fn new(name : &str, audio_source_file_path : &str) -> Character {
-    
-        Character {
-            name: String::from(name),
-            audio_source_file_path: PathBuf::from(audio_source_file_path)
-        }
-    }
-}
+mod character;
+use character::Character;
 
 #[derive(Component)]
 pub struct DialogueLine {
