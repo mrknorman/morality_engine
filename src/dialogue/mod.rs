@@ -42,9 +42,9 @@ pub fn setup_dialogue(
 
     let character_map = HashMap::from([
         (
-            String::from("The Creator"),  
+            String::from("creator"),  
             Character::new(
-                "The Creator", 
+                "creator", 
                 "sounds/typing.ogg"
             )
         )
@@ -56,7 +56,7 @@ pub fn setup_dialogue(
         character_map
     );
 
-    let num_lines = dialogue.lines.len();
+    let num_lines: usize = dialogue.lines.len();
 
     let text_section = TextSection::new(
         "",
@@ -104,6 +104,14 @@ pub fn setup_dialogue(
                             "./sounds/hum.ogg", 
                             0.1
                         ),
+                    ),
+                    (
+                        "music".to_string(), 
+                        ContinuousAudio::new(
+                            &asset_server,
+                            "./music/trolley_wires.ogg",
+                            0.3,
+                        )
                     ),
                     (
                         "office".to_string(),

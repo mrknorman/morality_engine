@@ -54,7 +54,6 @@ use crate::{
 };
 
 use crate::narration::Narration;
-use crate::audio::BackgroundAudio;
 
 use crate::game_states::{SubState, MainState};
 
@@ -520,19 +519,13 @@ pub fn setup_dilemma(
 	TrainJunction::spawn(&mut commands, &asset_server, &dilemma);
 	
 	let music_audio: Entity = commands.spawn(AudioBundle {
-		source: asset_server.load(PathBuf::from("./sounds/tension_music.ogg")),
+		source: asset_server.load(PathBuf::from("./music/algorithm_of_fate.ogg")),
 		settings : PlaybackSettings {
 			paused : false,
-			volume : bevy::audio::Volume::new(0.7),
+			volume : bevy::audio::Volume::new(0.3),
 			mode:  bevy::audio::PlaybackMode::Loop,
 			..default()
 	}}).id();
-
-	let audio = HashMap::from([
-		("music".to_string(), music_audio)
-	]);
-
-	commands.insert_resource(BackgroundAudio{audio});	
 
 	let button_entity = spawn_text_button(
 		"[Click here or Press Enter to Begin]",
@@ -616,7 +609,6 @@ pub fn setup_decision(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
 		dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
-		mut background_audio : ResMut<BackgroundAudio>,
 	) {
 	
 	let train_audio = commands.spawn(AudioBundle {
@@ -639,24 +631,17 @@ pub fn setup_decision(
 			..default()
 	}}).id();
 
-	background_audio.audio.insert("train".to_string(), train_audio);
-	background_audio.audio.insert("clock".to_string(), clock_audio);
 
 	DilemmaDashboard::spawn(&mut commands, &dilemma);
 }
 
 pub fn cleanup_decision(
 		mut commands : Commands,
-		background_audio : Res<BackgroundAudio>,
 		dashboard : ResMut<DilemmaDashboard>,
 		junction : ResMut<TrainJunction>,
 		background_query : Query<Entity, With<BackgroundSprite>>
 	){
-
-	let audio: std::collections::HashMap<String, Entity> = background_audio.audio.clone();
-	for (_, value) in audio {
-        commands.entity(value).despawn();
-    }
+	
 
 	for entity in background_query.iter() {
 		commands.entity(entity).despawn();

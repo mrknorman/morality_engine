@@ -22,12 +22,19 @@ impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
         app
         .init_state::<AudioSystemsActive>()
+        .insert_resource(
+            MusicAudioConfig::new(1.0)
+        )
+        .insert_resource(
+            NarrationAudioConfig::new(1.0)
+        )
         .add_systems(
             Update,
             activate_systems
         ).add_systems(
             Update,
             (
+                NarrationAudio::check_if_finished,
                 TransientAudio::tick
             )
             .run_if(
@@ -72,11 +79,6 @@ pub fn play_sound_once(
         .id()
 }
 
-#[derive(Resource)]
-pub struct BackgroundAudio {
-    pub audio: HashMap<String, Entity>,
-}
-
 #[derive(Component, Clone)]
 pub struct ContinuousAudio {
     source: Handle<AudioSource>,
@@ -98,12 +100,39 @@ impl ContinuousAudio {
 }
 
 #[derive(Bundle)]
-struct ContinuousAudioBundle {
+pub struct ContinuousAudioBundle {
     audio : AudioBundle,
     continuous_audio : ContinuousAudio
 }
 
 impl ContinuousAudioBundle {
+
+    pub fn new(
+        asset_server: &Res<AssetServer>,
+        audio_path: impl Into<AssetPath<'static>>,
+        volume: f32
+    ) -> Self {
+
+        let continuous_audio = ContinuousAudio::new(
+            asset_server,
+            audio_path,
+            volume,
+        );
+
+        Self {
+            audio : AudioBundle {
+                source: continuous_audio.clone().source,
+                settings: PlaybackSettings {
+                    mode: PlaybackMode::Loop,
+                    volume: Volume::new(continuous_audio.clone().volume),
+                    ..default()
+                },
+            },
+            continuous_audio
+        }
+
+
+    }
 
     fn from_continuous_audio(
         continuous_audio : ContinuousAudio
@@ -384,6 +413,44 @@ impl OneShotAudio {
     }
 }
 
+#[derive(Bundle)]
+pub struct OneShotAudioBundle{
+    audio : AudioBundle,
+    one_shot_audio : OneShotAudio
+}
+
+impl OneShotAudioBundle {
+
+    pub fn new(
+        asset_server: &Res<AssetServer>,
+        audio_path: impl Into<AssetPath<'static>>,
+        persistent : bool,
+        volume: f32,
+    ) -> Self {
+
+        let one_shot_audio = OneShotAudio {
+            source: asset_server.load(audio_path),
+            persistent,
+            volume
+        };
+
+        Self {
+            audio : AudioBundle {
+                source: one_shot_audio.source.clone(),
+                settings: PlaybackSettings {
+                    paused : false,
+                    mode: PlaybackMode::Despawn,
+                    volume: Volume::new(
+                        one_shot_audio.volume
+                    ),
+                ..default()
+                },
+            },
+            one_shot_audio
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct OneShotAudioPallet {
     pub components: Vec<OneShotAudio>
@@ -477,5 +544,205 @@ impl Component for OneShotAudioPallet {
                 }
             }
         );
+    }
+}
+
+// Define the AudioLayer trait with a volume field
+trait AudioLayer {
+    fn volume(&self) -> f32;
+    fn set_volume(&mut self, volume: f32);
+}
+
+pub struct MusicAudio;
+
+impl Component for MusicAudio {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {            
+
+                // Get an immutable reference to the resource
+                let mut previous_entity : Option<Entity> = None;
+                if let Some(audio_config) = world.get_resource::<MusicAudioConfig>() {
+                    if let Some(entity) = audio_config.entity {
+                        if world.get_entity(entity).is_some() {
+                            previous_entity = Some(entity);
+                        }
+                    }
+                }
+
+                let mut commands = world.commands();
+                if let Some(entity) = previous_entity {
+                    commands.entity(entity).despawn_recursive();
+                }
+                
+                if let Some(mut audio_config) = world.get_resource_mut::<MusicAudioConfig>() {
+                    audio_config.entity = Some(entity);
+                }
+            }
+        );
+    }
+}
+
+#[derive(Resource)]
+struct MusicAudioConfig {
+    volume: f32,
+    entity : Option<Entity>
+}
+
+impl MusicAudioConfig {
+    fn new(volume: f32) -> Self {
+        Self { 
+            volume,
+            entity : None
+        }
+    }
+}
+
+impl AudioLayer for MusicAudioConfig {
+    fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    fn set_volume(&mut self, volume: f32) {
+        self.volume = volume;
+    }
+}
+
+pub struct NarrationAudio;
+
+impl NarrationAudio {
+
+    fn check_if_finished(  
+        narration_query : Query<&AudioSink, With<NarrationAudio>>,
+        mut narration_config : ResMut<NarrationAudioConfig>
+    ) {
+
+        for audio in narration_query.iter() {
+            if audio.empty() {
+                narration_config.finished = true;
+            }
+        }
+    }
+}
+
+impl Component for NarrationAudio {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {            
+
+                // Get an immutable reference to the resource
+                let mut previous_entity : Option<Entity> = None;
+                if let Some(audio_config) = world.get_resource::<NarrationAudioConfig>() {
+                    if let Some(entity) = audio_config.entity {
+                        if world.get_entity(entity).is_some() {
+                            previous_entity = Some(entity);
+                        }
+                    }
+                }
+
+                let mut commands = world.commands();
+                if let Some(entity) = previous_entity {
+                    commands.entity(entity).despawn_recursive();
+                }
+                
+                if let Some(mut audio_config) = world.get_resource_mut::<NarrationAudioConfig>() {
+                    audio_config.entity = Some(entity);
+                    audio_config.finished = false;
+                }
+            }
+        );
+    }
+}
+
+// Define the Narration component
+#[derive(Resource)]
+pub struct NarrationAudioConfig {
+    volume: f32,
+    entity : Option<Entity>,
+    finished : bool
+}
+
+impl NarrationAudioConfig {
+    fn new(volume: f32) -> Self {
+        Self {             
+            volume,
+            entity : None ,
+            finished : false
+        }
+    }
+    
+    pub fn finished(&self) -> bool {
+        self.finished
+    }
+}
+
+impl AudioLayer for NarrationAudioConfig {
+    fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    fn set_volume(&mut self, volume: f32) {
+        self.volume = volume;
+    }
+}
+
+#[derive(Component)]
+pub struct BackgroundAudio;
+
+// Define the Background component
+#[derive(Component)]
+struct BackgroundAudioConfig {
+    volume: f32
+}
+
+impl BackgroundAudioConfig {
+    fn new(volume: f32) -> Self {
+        Self { 
+            volume
+        }
+    }
+}
+
+impl AudioLayer for BackgroundAudioConfig {
+    fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    fn set_volume(&mut self, volume: f32) {
+        self.volume = volume;
+    }
+}
+
+#[derive(Component)]
+pub struct EffectAudio;
+
+#[derive(Component)]
+struct EffectAudioConfig {
+    volume: f32
+}
+
+impl EffectAudioConfig {
+    fn new(volume: f32) -> Self {
+        Self { 
+            volume
+        }
+    }
+}
+
+impl AudioLayer for EffectAudioConfig {
+    fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    fn set_volume(&mut self, volume: f32) {
+        self.volume = volume;
     }
 }

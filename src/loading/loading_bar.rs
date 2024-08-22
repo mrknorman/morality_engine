@@ -155,7 +155,7 @@ impl LoadingBarBundle {
                 for &child in children.iter() {
                     if let Ok(mut sprite) = sprite_query.get_mut(child) {
                         if let Some(custom_size) = &mut sprite.custom_size {
-                            let bar_size_increase = rng.gen_range(0.0..=100.0);
+                            let bar_size_increase = rng.gen_range(0.0..=30.0);
                             custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
                             loading_finished = custom_size.x >= 494.0;
                         }
