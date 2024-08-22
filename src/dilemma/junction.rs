@@ -52,7 +52,7 @@ impl TrainJunction{
 			TrainBundle::new(
 				asset_server,
 				STEAM_TRAIN,
-				Vec3::new(100.0, -75.0, 1.0),
+				Vec3::new(50.0, -5.0, 1.0),
 				0.0
 			)
 		).id();

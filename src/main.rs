@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+#[forbid(unsafe_code)]
+
 mod audio;
 mod background;
 mod dialogue;
@@ -19,6 +21,7 @@ mod track;
 mod interaction;
 mod timing;
 mod character;
+mod io;
 
 use crate::game_states::{GameState, MainState, SubState};
 
@@ -56,10 +59,17 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
+
+
+
 //
 
 /*
 
+    Todo:
+    Timer Events
+    Narrarion Finished Should Reset on Scene Change, or another way to handle this without a boolean
+    
     let correct = Sound::new(
         PathBuf::from("./sounds/correct.mp3"),
         2000
@@ -502,6 +512,10 @@ fn setup(mut commands: Commands) {
     // Restarting Ability
     // Speedy Ending
     // Coloured CHaracter text
+
+    // Bomb if no selection
+    // Deontological Nightmare to question single killers
+    // 4 vs 5 to question utilitarians
 
     // Active vs Passive Culpability:
     // 1 or None (Random Default)

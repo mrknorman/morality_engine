@@ -202,4 +202,19 @@ impl TextButtonBundle {
             )
         }
     }
+
+    pub fn change_text( 
+        new_text : impl Into<String>,
+        mut text : Mut<Text>,
+        mut clickable : Mut<Clickable>
+    ){
+        let new_text = new_text.into();
+        let text_length = new_text.clone().len();
+        let button_width = text_length as f32 * 7.92;
+
+        text.sections[0].value = new_text;
+
+        let old_size =  clickable.size;
+        clickable.size = Vec2::new(old_size.x, button_width);
+    }
 }

@@ -3,7 +3,10 @@ use bevy::prelude::*;
 use crate::{
     audio::{
         ContinuousAudio,
-        ContinuousAudioPallet
+        ContinuousAudioBundle,
+        ContinuousAudioPallet,
+        MusicAudio,
+        BackgroundAudio
     }, 
     game_states::{
         GameState, 
@@ -24,6 +27,10 @@ use crate::{
         TrainPlugin,
         TrainBundle, 
         STEAM_TRAIN
+    },
+    io::{
+        IOPlugin,
+        BottomAnchor
     }
 };
 
@@ -39,6 +46,9 @@ impl Plugin for MenuPlugin {
         if !app.is_plugin_added::<InteractionPlugin>() {
             app.add_plugins(InteractionPlugin);
         }
+        if !app.is_plugin_added::<IOPlugin>() {
+            app.add_plugins(IOPlugin);
+        }
     }
 }
 
@@ -47,7 +57,8 @@ pub struct MenuRoot;
 
 fn setup_menu(
         mut commands: Commands, 
-        asset_server: Res<AssetServer>
+        asset_server: Res<AssetServer>,
+        windows: Query<&Window>
     ) {
 
     let text = include_str!("main_menu.txt");
@@ -58,8 +69,13 @@ fn setup_menu(
     let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
     let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
-    let button_translation: Vec3 = Vec3::new(0.0,-250.0, 1.0);
-    
+
+    let button_distance = 100.0;
+    let window = windows.get_single().unwrap();
+    let screen_height = window.height();
+    let button_y = -screen_height / 2.0 + button_distance; 
+    let button_translation: Vec3 = Vec3::new(0.0, button_y, 1.0);
+
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),
         Some(GameState::Loading),
@@ -71,38 +87,44 @@ fn setup_menu(
             MenuRoot,
             StateScoped(MainState::Menu),
             TransformBundle::from_transform(menu_translation),
-            VisibilityBundle::default(),
-            ContinuousAudioPallet::new(
-                vec![
-                    (
-                        "static".to_string(),
-                        ContinuousAudio::new(
-                            &asset_server, 
-                            "./sounds/static.ogg", 
-                            0.05
-                        ),
-                    ),
-                    (
-                        "office".to_string(),
-                        ContinuousAudio::new(
-                            &asset_server, 
-                            "./sounds/office.ogg", 
-                            1.0
-                        ),
-                    ),
-                    (
-                        "danse".to_string(),
-                        ContinuousAudio::new(
-                            &asset_server, 
-                            "./music/danse.ogg", 
-                            0.3
-                        ),
-                    )
-                ]
-            )
+            VisibilityBundle::default()
         )
     ).with_children(
         |parent| {
+
+            parent.spawn((
+                BackgroundAudio,
+                ContinuousAudioPallet::new(
+                    vec![
+                        (
+                            "static".to_string(),
+                            ContinuousAudio::new(
+                                &asset_server, 
+                                "./sounds/static.ogg", 
+                                0.1
+                            ),
+                        ),
+                        (
+                            "office".to_string(),
+                            ContinuousAudio::new(
+                                &asset_server, 
+                                "./sounds/office.ogg", 
+                                1.0
+                            ),
+                        )
+                    ]
+                )
+            ));
+
+            parent.spawn((
+                MusicAudio,
+                ContinuousAudioBundle::new(
+                    &asset_server, 
+                    "./music/the_last_decision.ogg", 
+                    0.3
+                )
+            ));
+
             parent.spawn(
                 TextTitleBundle::new(
                     text,
@@ -130,15 +152,18 @@ fn setup_menu(
                 )
             );
             parent.spawn(
-                TextButtonBundle::new(
-                    &asset_server, 
-                    vec![
-                        InputAction::PlaySound(String::from("click")),
-                        InputAction::ChangeState(next_state_vector)
-                    ],
-                    vec![KeyCode::Enter],
-                    "[Click Here or Press Enter to Begin]",
-                    button_translation
+                (
+                    BottomAnchor::new(button_distance),
+                    TextButtonBundle::new(
+                        &asset_server, 
+                        vec![
+                            InputAction::PlaySound(String::from("click")),
+                            InputAction::ChangeState(next_state_vector)
+                        ],
+                        vec![KeyCode::Enter],
+                        "[Click Here or Press Enter to Begin]",
+                        button_translation
+                    )
                 )
             );
         }
