@@ -59,9 +59,6 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-
-
-
 //
 
 /*
