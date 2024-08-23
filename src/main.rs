@@ -62,11 +62,32 @@ fn setup(mut commands: Commands) {
 //
 
 /*
-
     Todo:
-    Timer Events
-    Narrarion Finished Should Reset on Scene Change, or another way to handle this without a boolean
-    
+
+    Loading:
+        - Change Text Button Messages to Text Frames and load from JSON,
+    Dialogue:
+        - Implement Line End Event and Update Text Button
+        - Refactor Dialouge
+        - Dialgue Border, Text Colours, AI lines, Animated Logo
+        - First Impementation of Time Dilation
+        - System Startup Text
+        - Simulation Loading Text and Bar in small window
+    Dillema:
+        - Refactor States to include substates
+        - Physics bodypart destruction
+        - Train painted red
+
+    Long Term:
+    - Pause Menu
+    - Options Menu -> Volume Controls
+    - Save Game -> Update Menu Train Based on Next Train
+    - Achivements
+
+    - Act 1 : The Lab - Title Screen after escaping the Maze
+    - Implement Trust and Systemic Failure
+    - Upgrades Shop - Part 2
+
     let correct = Sound::new(
         PathBuf::from("./sounds/correct.mp3"),
         2000

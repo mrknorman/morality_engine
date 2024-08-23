@@ -58,7 +58,10 @@ impl BottomAnchor {
 		let window = windows.get_single().unwrap();
 		let screen_height = window.height();
 	
-		for (bottom_anchor, mut transform) in query.iter_mut() {
+		for (
+			bottom_anchor, 
+			mut transform
+		) in query.iter_mut() {
 			if screen_height >= 3.0 * bottom_anchor.distance {
 				let button_y = -screen_height / 2.0 + bottom_anchor.distance;
 				transform.translation.y = button_y;

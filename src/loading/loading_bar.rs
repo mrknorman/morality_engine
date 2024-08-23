@@ -84,7 +84,9 @@ struct LoadingBarConfig {
 
 impl LoadingBarConfig {
     fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, serde_json::Error> {
-        let file = File::open(path).expect("Could not open JSON file");
+        let file = File::open(path).expect(
+            "Could not open JSON file"
+        );
         let reader = BufReader::new(file);
         serde_json::from_reader(reader)
     }
@@ -155,7 +157,7 @@ impl LoadingBarBundle {
                 for &child in children.iter() {
                     if let Ok(mut sprite) = sprite_query.get_mut(child) {
                         if let Some(custom_size) = &mut sprite.custom_size {
-                            let bar_size_increase = rng.gen_range(0.0..=30.0);
+                            let bar_size_increase = rng.gen_range(5.0..=50.0);
                             custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
                             loading_finished = custom_size.x >= 494.0;
                         }

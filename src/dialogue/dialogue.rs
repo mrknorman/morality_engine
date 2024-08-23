@@ -101,7 +101,9 @@ impl DialogueLine {
 	
 		if dialogue.current_line_index == 0 {
 			for (
-				character, line, audio) in query_line.iter_mut() {
+				character, 
+				line, 
+				audio) in query_line.iter_mut() {
 				if line.index == 0 && !line.started {
 					Self::setup(&mut text, audio, character, line);
 				}

@@ -9,8 +9,7 @@ use crate::{
         NarrationAudio, 
         OneShotAudio, 
         OneShotAudioBundle,
-        OneShotAudioPallet,
-        NarrationAudioConfig
+        OneShotAudioPallet
     }, game_states::{
         GameState, 
         MainState,
@@ -21,9 +20,17 @@ use crate::{
         InteractionPlugin, 
         Clickable
     }, io::{
-        BottomAnchor, IOPlugin
-    }, text::TextButtonBundle, timing::{
-        TimerPallet, TimingPlugin
+        BottomAnchor, 
+        IOPlugin
+    }, 
+    text::{
+        TextButtonBundle,
+        TextFrames 
+    }, timing::{
+        TimerPallet, 
+        TimingPlugin, 
+        TimerConfig,
+        TimerStartCondition
     }
 };
 
@@ -33,8 +40,12 @@ use loading_bar::LoadingBarBundle;
 pub struct LoadingPlugin;
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
+
         app.add_systems(
-            OnEnter(GameState::Loading), setup_loading
+            OnEnter(
+                GameState::Loading
+            ), 
+            setup_loading
         ).insert_resource(
             NextStateButton::empty()
         )
@@ -86,10 +97,38 @@ pub fn setup_loading(
         StateScoped(GameState::Loading),
         TimerPallet::new(
             vec![
-                ("music".to_string(), 2.0),
-                ("narration".to_string(), 3.0),
-                ("post_narration".to_string(), 10.0),
-                ("button".to_string(), 5.0)
+                (
+                    "music".to_string(),
+                    TimerConfig::new(
+                        TimerStartCondition::Immediate, 
+                        2.0,
+                        None
+                    )
+                ),
+                (
+                    "narration".to_string(),
+                    TimerConfig::new(
+                        TimerStartCondition::Immediate, 
+                        3.0,
+                        None
+                    )
+                ),
+                (
+                    "button".to_string(),
+                    TimerConfig::new(
+                        TimerStartCondition::Immediate, 
+                        5.0,
+                        None
+                    )
+                ),
+                (
+                    "update_button".to_string(),
+                    TimerConfig::new(
+                        TimerStartCondition::OnNarrationEnd, 
+                        0.5,
+                        Some(20.0)
+                    )
+                )
             ]
         ),
         TransformBundle::from_transform(
@@ -129,7 +168,7 @@ pub fn setup_loading(
     )).with_children(
         |parent| {
             parent.spawn(LoadingBarBundle::new(
-                "text/loading_messages/loading.json"
+                "text/loading_messages/bar.json"
             ));
         }
     );
@@ -144,7 +183,9 @@ pub fn spawn_delayed_children(
 
     for (entity, timers) in loading_query.iter() {
         // Handle narration timer
-        if let Some(narration_timer) = timers.timers.get("narration") {
+        if let Some(narration_timer) = timers.timers.get(
+            "narration"
+        ) {
             if narration_timer.just_finished() {
                 commands.entity(entity).with_children(
                     |parent| {
@@ -163,7 +204,9 @@ pub fn spawn_delayed_children(
             warn!("Entity {:?} is missing the 'narration' timer", entity);
         }
 
-        if let Some(music_timer) = timers.timers.get("music") {
+        if let Some(music_timer) = timers.timers.get(
+            "music"
+        ) {
             if music_timer.just_finished() {
                 commands.entity(entity).with_children(
                     |parent| {
@@ -182,12 +225,19 @@ pub fn spawn_delayed_children(
         }
 
         // Handle button timer
-        if let Some(button_timer) = timers.timers.get("button") {
+        if let Some(button_timer) = timers.timers.get(
+            "button"
+        ) {
+            
             if button_timer.just_finished() {
                 let next_state_vector = StateVector::new(
                     Some(MainState::InGame),
                     Some(GameState::Dialogue),
                     Some(SubState::Intro),
+                );
+
+                let button_messages = TextFrames::load(
+                    "text/loading_messages/button.json"
                 );
 
                 let button_distance = 100.0;
@@ -197,29 +247,35 @@ pub fn spawn_delayed_children(
                 let button_translation: Vec3 = Vec3::new(0.0, button_y, 1.0);
 
                 let mut child_entity_id = None;
-                commands.entity(entity).with_children(|parent| {
-                    let child_entity = parent.spawn((
-                        BottomAnchor::new(button_distance),
-                        TextButtonBundle::new(
-                            &asset_server,
-                            vec![
-                                InputAction::PlaySound(String::from("click")),
-                                InputAction::ChangeState(next_state_vector),
-                            ],
-                            vec![KeyCode::Enter],
-                            "[Click Here or Press Enter to Ignore Your Inner Dialogue]",
-                            button_translation,
-                        ),
-                    ))
-                    .id(); // Capture the entity ID of the spawned child
 
-                    // Assign the child entity ID to the mutable variable
-                    child_entity_id = Some(child_entity);
-                });
+                if let Ok(button_messages) = button_messages {
+                    commands.entity(entity).with_children(|parent| {
 
-                // Insert the child entity ID as a resource outside the closure
-                if let Some(child_entity) = child_entity_id {
-                    commands.insert_resource(NextStateButton{entity : Some(child_entity)});
+                        let first_message = button_messages.frames[0].clone();
+                        let child_entity = parent.spawn((
+                            BottomAnchor::new(button_distance),
+                            button_messages,
+                            TextButtonBundle::new(
+                                &asset_server,
+                                vec![
+                                    InputAction::PlaySound(String::from("click")),
+                                    InputAction::ChangeState(next_state_vector),
+                                ],
+                                vec![KeyCode::Enter],
+                                first_message,
+                                button_translation,
+                            ),
+                        ))
+                        .id(); // Capture the entity ID of the spawned child
+
+                        // Assign the child entity ID to the mutable variable
+                        child_entity_id = Some(child_entity);
+                    });
+
+                    // Insert the child entity ID as a resource outside the closure
+                    if let Some(child_entity) = child_entity_id {
+                        commands.insert_resource(NextStateButton{entity : Some(child_entity)});
+                    }
                 }
             }
         } else {
@@ -228,30 +284,32 @@ pub fn spawn_delayed_children(
     }
 }
 
+
 fn update_button_text(
-    next_state_button : Res<NextStateButton>,
-    narration_audio_config : Res<NarrationAudioConfig>,
-    mut loading_query: Query<(&mut TimerPallet), With<LoadingRoot>>,
-    mut text_query : Query<(&mut Text, &mut Clickable)>
+    next_state_button: Res<NextStateButton>,
+    loading_query: Query<(&TimerPallet, &LoadingRoot)>,
+    mut text_query: Query<(&mut Text, &TextFrames, &mut Clickable)>,
 ) {
+    let Some(button_entity) = next_state_button.entity else {
+        return;
+    };
 
-    if let Some(entity) = next_state_button.entity {
-        if let Ok((text, clickable)) = text_query.get_mut(entity) {
-            if narration_audio_config.finished() {
+    let (text, frames, clickable) = match text_query.get_mut(button_entity) {
+        Ok(components) => components,
+        Err(_) => return,
+    };
 
-                TextButtonBundle::change_text(
-                    "[Click to Continue After Patiently Absorbing the Dialogue]",
-                    text,
-                    clickable
-                );
+    let (timers, _) = loading_query
+        .iter()
+        .next()
+        .expect("Expected at least one entity with TimerPallet and LoadingRoot");
+
+    if let Some(update_button_timer) = timers.timers.get("update_button") {
+        if update_button_timer.just_finished() {
+            let index = update_button_timer.times_finished() as usize;
+            if let Some(message) = frames.frames.get(index) {
+                TextButtonBundle::change_text(message, text, clickable);
             }
-        }
-    }
-
-    for timers in loading_query.iter_mut() {
-        // Handle narration timer
-        if let Some(narration_timer) = timers.timers.get("post_narration") {
-
         }
     }
 }

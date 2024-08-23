@@ -1,11 +1,13 @@
 use std::{
-    collections::HashMap, 
-    time::Duration
+	collections::HashMap,
+	time::Duration
 };
 use bevy::{
     prelude::*, 
     time::Timer
 };
+
+use crate::audio::NarrationAudioFinished;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TimingSystemsActive {
@@ -25,7 +27,8 @@ impl Plugin for TimingPlugin {
         ).add_systems(
             Update,
             (
-                TimerPallet::tick
+                TimerPallet::tick,
+				TimerPallet::check_start_conditions
             )
             .run_if(
                 in_state(TimingSystemsActive::True)
@@ -45,22 +48,105 @@ fn activate_systems(
 	}
 }
 
+#[derive(PartialEq)]
+pub enum TimerStartCondition{
+    Immediate,
+    OnNarrationEnd
+}
+
+pub struct ConditionalTimer{
+	start_condition : TimerStartCondition,
+	timer : Timer,
+	repeat_duration_seconds : Option<f32>,
+	times_finished : u32
+}
+
+impl ConditionalTimer {
+	
+	fn new(
+		config : TimerConfig
+	) -> Self {
+
+		let mut timer = Timer::from_seconds(config.duration_seconds, TimerMode::Once);
+
+		if config.start_condition != TimerStartCondition::Immediate {
+			timer.pause();
+		}
+		
+		Self {
+			start_condition : config.start_condition,
+			timer,
+			repeat_duration_seconds : config.repeat_duration_seconds,
+			times_finished : 0
+		}
+	}
+
+	pub fn just_finished(&self) -> bool {
+		self.timer.just_finished()
+	}
+
+	pub fn times_finished(&self) -> u32 {
+		self.times_finished
+	}
+
+	fn start_repeat_timer(&mut self) {
+		if let Some(repeat_duration_seconds) = self.repeat_duration_seconds {
+			if self.just_finished() && self.times_finished == 1 {
+				self.timer.set_duration(
+					Duration::from_secs_f32(repeat_duration_seconds)
+				);
+				self.timer.set_mode(TimerMode::Repeating);
+			};
+		}
+	}
+
+	fn count_completions(&mut self) {
+		if self.just_finished() {
+			self.times_finished += 1;
+		};
+	}
+}
+
+pub struct TimerConfig{
+	start_condition : TimerStartCondition,
+	duration_seconds : f32,
+	repeat_duration_seconds : Option<f32>
+}
+
+impl TimerConfig {
+	pub fn new(
+		start_condition : TimerStartCondition,
+		duration_seconds : f32,
+		repeat_duration_seconds : Option<f32>
+	) -> Self {
+
+		Self {
+			start_condition,
+			duration_seconds,
+			repeat_duration_seconds
+		}
+	}
+}
 
 #[derive(Component)]
 pub struct TimerPallet{
-	pub timers : HashMap<String, Timer>
+	pub timers : HashMap<String, ConditionalTimer>
 }
 
 impl TimerPallet {
 	pub fn new(
-		timer_vector : Vec<(String, f32)>		
-	) -> Self{
+		timer_vector : Vec<(String, TimerConfig)>		
+	) -> Self {
 
-		let mut timers: HashMap<String, Timer> = HashMap::new();
+		let mut timers: HashMap<String, ConditionalTimer> = HashMap::new();
 
-		for (name, duration_seconds) in timer_vector {
+		for (
+			name, 
+			config
+		) in timer_vector {
+
 			timers.insert(
-				name, Timer::from_seconds(duration_seconds, TimerMode::Once)
+				name, ConditionalTimer::new(config)
 			);
 		}
 
@@ -71,14 +157,35 @@ impl TimerPallet {
 
 	pub fn tick(
 		time : Res<Time>,
-		mut delay_query : Query<&mut TimerPallet>
+		mut timer_query : Query<&mut TimerPallet>
 	) {
-		for mut delay in delay_query.iter_mut() {
+		for mut pallet in timer_query.iter_mut() {
 
-			let timers = &mut delay.timers;
+			let timers = &mut pallet.timers;
 			for (_, timer) in timers {
-				timer.tick(time.delta());
+				timer.timer.tick(time.delta());
+				timer.count_completions();
+				timer.start_repeat_timer();
 			}
         }
+	}
+
+	pub fn check_start_conditions(
+		mut ev_narration_finished: EventReader<NarrationAudioFinished>,
+		mut timer_query : Query<&mut TimerPallet>
+	) {
+
+		for _ in ev_narration_finished.read() {
+			for mut pallet in timer_query.iter_mut() {
+				let timers = &mut pallet.timers;
+				for (_, timer) in timers {
+					if timer.start_condition == TimerStartCondition::OnNarrationEnd {
+						if timer.timer.paused() {
+							timer.timer.unpause();
+						}
+					}
+				}
+			}
+		}
 	}
 }
