@@ -1,3 +1,10 @@
+use std::{
+    fs::File,
+    io::BufReader,
+    path::Path
+};
+use serde::Deserialize;
+
 use bevy::prelude::*;
 
 use crate::{
@@ -85,7 +92,7 @@ impl TextTitleBundle {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Deserialize)]
 pub struct TextFrames {
     pub frames: Vec<String>
 }
@@ -94,6 +101,25 @@ impl TextFrames {
     pub fn new(frames: Vec<String>) -> Self {
         Self {
             frames 
+        }
+    }
+
+    pub fn load<P: AsRef<Path>>(file_path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        match File::open(&file_path) {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                match serde_json::from_reader(reader) {
+                    Ok(frames) => Ok(Self::new(frames)),
+                    Err(e) => {
+                        eprintln!("Failed to deserialize JSON from file: {:?}", e);
+                        Err(Box::new(e))
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to open file: {:?}", e);
+                Err(Box::new(e))
+            }
         }
     }
 }
@@ -215,6 +241,6 @@ impl TextButtonBundle {
         text.sections[0].value = new_text;
 
         let old_size =  clickable.size;
-        clickable.size = Vec2::new(old_size.x, button_width);
+        clickable.size = Vec2::new(button_width, old_size.y);
     }
 }

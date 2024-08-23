@@ -22,6 +22,7 @@ impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
         app
         .init_state::<AudioSystemsActive>()
+        .add_event::<NarrationAudioFinished>()
         .insert_resource(
             MusicAudioConfig::new(1.0)
         )
@@ -612,18 +613,20 @@ impl AudioLayer for MusicAudioConfig {
     }
 }
 
+#[derive(Event)]
+pub struct NarrationAudioFinished;
+
 pub struct NarrationAudio;
 
 impl NarrationAudio {
-
     fn check_if_finished(  
-        narration_query : Query<&AudioSink, With<NarrationAudio>>,
-        mut narration_config : ResMut<NarrationAudioConfig>
+        mut narration_query : Query<&AudioSink, With<NarrationAudio>>,
+        mut ev_narration_finished: EventWriter<NarrationAudioFinished>,
     ) {
 
-        for audio in narration_query.iter() {
+        for audio in narration_query.iter_mut() {
             if audio.empty() {
-                narration_config.finished = true;
+                ev_narration_finished.send(NarrationAudioFinished);
             }
         }
     }
@@ -655,7 +658,6 @@ impl Component for NarrationAudio {
                 
                 if let Some(mut audio_config) = world.get_resource_mut::<NarrationAudioConfig>() {
                     audio_config.entity = Some(entity);
-                    audio_config.finished = false;
                 }
             }
         );
@@ -667,20 +669,14 @@ impl Component for NarrationAudio {
 pub struct NarrationAudioConfig {
     volume: f32,
     entity : Option<Entity>,
-    finished : bool
 }
 
 impl NarrationAudioConfig {
     fn new(volume: f32) -> Self {
         Self {             
             volume,
-            entity : None ,
-            finished : false
+            entity : None
         }
-    }
-    
-    pub fn finished(&self) -> bool {
-        self.finished
     }
 }
 

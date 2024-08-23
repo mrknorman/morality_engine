@@ -76,7 +76,7 @@ pub const NORMAL_BUTTON: Color = Color::srgb(1.0, 1.0, 1.0);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 1.0, 1.0);
 pub const PRESSED_BUTTON: Color = Color::srgb(1.0, 1.0, 0.0);
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Clickable {
     pub actions: Vec<InputAction>,
     pub size: Vec2, // Width and height of the clickable area

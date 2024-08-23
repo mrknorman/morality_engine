@@ -1,14 +1,50 @@
 
-use std::{path::PathBuf, collections::HashMap};
-use bevy::{asset::AssetServer, text::{BreakLineOn, Text2dBounds}, sprite::Anchor, prelude::*};
+use std::{
+    path::PathBuf, 
+    collections::
+    HashMap
+};
 
-use crate::audio::{ContinuousAudioPallet, ContinuousAudio};
-use crate::game_states::GameState;
+use bevy::{
+    asset::AssetServer, 
+    text::{
+        BreakLineOn, 
+        Text2dBounds
+    }, 
+    sprite::Anchor, 
+    prelude::*
+};
 
-use crate::character::Character;
+use crate::{
+    audio::{
+        ContinuousAudioPallet, 
+        ContinuousAudio
+    },
+    game_states::GameState,
+    character::Character,
+    io::{
+        BottomAnchor, 
+        IOPlugin
+    }, 
+    text::TextButtonBundle, 
+    interaction::{
+        InteractionPlugin,
+        InputAction
+    },
+    timing::{
+        TimerPallet, 
+        TimingPlugin, 
+        TimerStartCondition
+    }
+};
 
 mod dialogue;
-use dialogue::{DialogueLine, DialogueText, Dialogue};
+use dialogue::{
+    DialogueLine,
+    DialogueText, 
+    Dialogue
+};
+
 pub struct DialoguePlugin;
 impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
@@ -29,6 +65,16 @@ impl Plugin for DialoguePlugin {
                 )
             ),
         );
+
+        if !app.is_plugin_added::<InteractionPlugin>() {
+            app.add_plugins(InteractionPlugin);
+        }
+        if !app.is_plugin_added::<TimingPlugin>() {
+            app.add_plugins(TimingPlugin);
+        }
+        if !app.is_plugin_added::<IOPlugin>() {
+            app.add_plugins(IOPlugin);
+        }
     }
 }
 
@@ -37,7 +83,8 @@ pub struct DialogueRoot;
 
 pub fn setup_dialogue(
         mut commands: Commands, 
-        asset_server : Res<AssetServer>
+        asset_server : Res<AssetServer>,
+        windows: Query<&Window>
     ) {
 
     let character_map = HashMap::from([
@@ -73,6 +120,12 @@ pub fn setup_dialogue(
     }
 
     let box_size = Vec2::new(500.0, 2000.0);
+
+    let button_distance = 100.0;
+    let window = windows.get_single().unwrap();
+    let screen_height = window.height();
+    let button_y = -screen_height / 2.0 + button_distance; 
+    let button_translation: Vec3 = Vec3::new(500.0, button_y, 1.0);
 
     commands.spawn(
         (
@@ -124,5 +177,20 @@ pub fn setup_dialogue(
                 ]
             )
         )
+    ).with_children(
+        |parent| {
+            parent.spawn((
+                BottomAnchor::new(button_distance),
+                TextButtonBundle::new(
+                    &asset_server,
+                    vec![
+                        InputAction::PlaySound(String::from("click"))
+                    ],
+                    vec![KeyCode::Enter],
+                    "[Click Here or Press Enter to Ignore Your Inner Dialogue]",
+                    button_translation,
+                ),
+            )); 
+        }
     );
 }
