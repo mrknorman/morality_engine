@@ -6,8 +6,14 @@ use std::{
 	io::BufReader
 };
 use bevy::{
+	ecs::component::StorageType,
 	asset::AssetServer, 
-	prelude::*
+	prelude::*,
+	text::{
+        BreakLineOn, 
+        Text2dBounds
+    },
+    sprite::Anchor
 };
 use serde::{
 	Serialize, 
@@ -45,7 +51,8 @@ impl Plugin for DialoguePlugin {
         ).add_systems(
             Update,
             (
-				DialogueLine::advance_dialogue
+				DialogueLine::advance_dialogue,
+				DialogueLine::play
 			)
             .run_if(
                 in_state(DialogueSystemsActive::True)
@@ -68,7 +75,7 @@ fn activate_systems(
 #[derive(Event)]
 pub struct DialogueLineFinished(String);
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct DialogueLine {
     pub index : usize,
     pub raw_text : String,
@@ -129,9 +136,20 @@ impl DialogueLine {
 		character : &Character,
 		mut line : Mut<'_, DialogueLine>
 	) {
-	
+		
+		/* 
+		text.as_mut().sections.push(
+			TextSection::new(
+				format!("{}@pan_box:\n", character.name.as_str()),
+				TextStyle {
+					font_size: 15.0,
+					..default()
+				}
+			)
+		);
+		*/
 		text.as_mut().sections[line.index].value += character.name.as_str();
-		text.as_mut().sections[line.index].value += "@pan_box: ";
+		text.as_mut().sections[line.index].value += "@pan_box:\n";
 	
 		audio.play();
 		line.playing = true;
@@ -154,60 +172,60 @@ impl DialogueLine {
 			mut next_game_state: ResMut<NextState<GameState>>
 		) {
 	
-		let (mut text, dialogue) = query_text.single_mut(); 
-	
-		if dialogue.current_line_index == 0 {
-			for (
-				character, 
-				line, 
-				audio) in query_line.iter_mut() {
-				if line.index == 0 && !line.started {
-					Self::setup(&mut text, audio, character, line);
+		for (mut text, dialogue) in query_text.iter_mut() { 
+			if dialogue.current_line_index == 0 {
+				for (
+					character, 
+					line, 
+					audio) in query_line.iter_mut() {
+					if line.index == 0 && !line.started {
+						Self::setup(&mut text, audio, character, line);
+					}
 				}
 			}
-		}
+			
+			if keyboard_input.just_pressed(KeyCode::Enter) {
 		
-		if keyboard_input.just_pressed(KeyCode::Enter) {
-	
-			for (character, mut line, audio) in query_line.iter_mut() {
-				if !line.started {
-					if line.index == dialogue.current_line_index {
-	
-						let _ = play_sound_once(
-							"sounds/mech_click.ogg", 
-							&mut commands, 
-							&asset_server
-						);
-	
-						text.as_mut().sections[line.index].value += character.name.as_str();
-						text.as_mut().sections[line.index].value += "@pan_box: ";
-					
-						audio.play();
-						line.playing = true;
+				for (character, mut line, audio) in query_line.iter_mut() {
+					if !line.started {
+						if line.index == dialogue.current_line_index {
+		
+							let _ = play_sound_once(
+								"sounds/mech_click.ogg", 
+								&mut commands, 
+								&asset_server
+							);
+			
+							text.as_mut().sections[line.index].value += character.name.as_str();
+							text.as_mut().sections[line.index].value += "@pan_box:\n";
+						
+							audio.play();
+							line.playing = true;
+							line.timer = Timer::new(
+								Duration::from_millis(line.char_duration_milis), 
+								TimerMode::Repeating
+							);
+							line.started = true;
+						} 
+					} else if line.playing && line.skip_count == 0 {
+						line.skip_count += 1;
 						line.timer = Timer::new(
-							Duration::from_millis(line.char_duration_milis), 
+							Duration::from_millis(line.char_duration_milis / 4), 
 							TimerMode::Repeating
 						);
-						line.started = true;
-					} 
-				} else if line.playing && line.skip_count == 0 {
-					line.skip_count += 1;
-					line.timer = Timer::new(
-						Duration::from_millis(line.char_duration_milis / 4), 
-						TimerMode::Repeating
-					);
-					audio.set_speed(4.0);
-				} else if line.playing && line.skip_count > 0 {
-					text.as_mut().sections[line.index].value.clone_from(&character.name);
-					text.as_mut().sections[line.index].value += "@pan_box: ";
-					text.as_mut().sections[line.index].value += line.raw_text.as_str();
-	
-					line.current_index = line.raw_text.len() + 1;
-	 
-					line.skip_count += 1;
-				} else if dialogue.current_line_index >= dialogue.total_num_lines {
-					next_main_state.set(MainState::InGame);
-					next_game_state.set(GameState::Dilemma);
+						audio.set_speed(4.0);
+					} else if line.playing && line.skip_count > 0 {
+						text.as_mut().sections[line.index].value.clone_from(&character.name);
+						text.as_mut().sections[line.index].value += "@pan_box:\n";
+						text.as_mut().sections[line.index].value += line.raw_text.as_str();
+		
+						line.current_index = line.raw_text.len() + 1;
+		
+						line.skip_count += 1;
+					} else if dialogue.current_line_index >= dialogue.total_num_lines {
+						next_main_state.set(MainState::InGame);
+						next_game_state.set(GameState::Dilemma);
+					}
 				}
 			}
 		}
@@ -232,13 +250,17 @@ impl DialogueLine {
 					let char: Option<char> = line.raw_text.chars().nth(line.current_index);
 		
 					match char {
-						Some(_) => text.as_mut().sections[line.index].value.push(char.unwrap()), // Push character directly to each text,
+						Some(_) => text.as_mut().sections[line.index].value.push(
+							char.unwrap()
+						), // Push character directly to each text,
 						None => {
 							audio.stop();
 							line.playing = false;
 							text.sections[line.index].value += "\n";
 							
-							ev_line_finished.send(DialogueLineFinished("placeholder".to_string()));
+							ev_line_finished.send(DialogueLineFinished(
+								"placeholder".to_string())
+							);
 
 							commands.spawn((
 								NextButtonBundle::new(),
@@ -265,7 +287,7 @@ impl DialogueLine {
 	}
 }
 
-#[derive(Bundle)]
+#[derive(Bundle, Clone)]
 pub struct DialogueLineBundle {
 	character : Character,
 	audio : AudioBundle,
@@ -317,7 +339,7 @@ struct DialogueLoader {
     possible_exit_states : Vec<NextStateOptionLoader>
 }
 
-#[derive(Component)]
+#[derive(Clone)]
 pub struct Dialogue {
 	pub lines : Vec<DialogueLineBundle>,
 }
@@ -367,6 +389,7 @@ impl Dialogue {
 pub struct DialogueBundle{
 	marker : DialogueText,
 	dialogue : Dialogue,
+	text : Text2dBundle
 }
 
 impl DialogueBundle {
@@ -382,12 +405,67 @@ impl DialogueBundle {
 			&asset_server,
 			character_map
 		);
-
 		let num_lines: u32 = dialogue.lines.len() as u32;	
+
+		let line_vector: Vec<TextSection> = dialogue.lines.iter().map(|_| {
+			TextSection::new(
+				"",
+				TextStyle {
+					font_size: 15.0,
+					..default()
+				}
+			)
+		}).collect();
+
+		let text = Text2dBundle {
+			text : Text {
+				sections : line_vector, //vec![],
+				justify : JustifyText::Left, 
+				linebreak_behavior: BreakLineOn::WordBoundary
+			},
+			text_2d_bounds : Text2dBounds {
+				size: Vec2::new(500.0, 2000.0),
+			},
+			transform: Transform::from_xyz(-500.0,0.0, 1.0),
+			text_anchor : Anchor::CenterLeft,
+			..default()
+		};
 
 		DialogueBundle{
 			marker : DialogueText::new(num_lines),
-			dialogue
+			dialogue,
+			text
 		}
 	}
+}
+
+impl Component for Dialogue {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+
+				let dialogue: Option<Dialogue> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Dialogue>()
+                        .map(|dialouge: &Dialogue| dialouge.clone())
+                };
+
+				// Step 2: Spawn child entities and collect their IDs
+				let mut commands = world.commands();
+
+				if let Some(dialogue) = dialogue {
+                    commands.entity(entity).with_children(
+						|parent| {
+                        for line in dialogue.lines {
+							parent.spawn(line);
+						}
+                    });
+				}
+            }
+        );
+    }
 }

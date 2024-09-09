@@ -140,7 +140,6 @@ impl TrainCarriageBundle{
 #[derive(Component, Clone)]
 pub struct TrainSmoke;
 
-
 #[derive(Bundle, Clone)]
 pub struct TrainSmokeBundle{
 	marker : TrainSmoke,
