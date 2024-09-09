@@ -31,22 +31,19 @@ use crate::{
         InteractionPlugin,
         InputAction
     },
-    timing::{
-        TimerPallet, 
-        TimingPlugin, 
-        TimerStartCondition
-    }
+    common_ui::NextButtonBundle
 };
 
 mod dialogue;
 use dialogue::{
     DialogueLine,
-    DialogueText, 
-    Dialogue
+    DialoguePlugin,
+    Dialogue,
+    DialogueBundle
 };
 
-pub struct DialoguePlugin;
-impl Plugin for DialoguePlugin {
+pub struct DialogueScreenPlugin;
+impl Plugin for DialogueScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(
@@ -56,8 +53,7 @@ impl Plugin for DialoguePlugin {
         ).add_systems(
             Update,
             (
-                DialogueLine::play, 
-                DialogueLine::typewriter_effect
+                DialogueLine::play
             )
             .run_if(
                 in_state(
@@ -69,11 +65,11 @@ impl Plugin for DialoguePlugin {
         if !app.is_plugin_added::<InteractionPlugin>() {
             app.add_plugins(InteractionPlugin);
         }
-        if !app.is_plugin_added::<TimingPlugin>() {
-            app.add_plugins(TimingPlugin);
-        }
         if !app.is_plugin_added::<IOPlugin>() {
             app.add_plugins(IOPlugin);
+        }
+        if !app.is_plugin_added::<DialoguePlugin>() {
+            app.add_plugins(DialoguePlugin);
         }
     }
 }
@@ -100,10 +96,8 @@ pub fn setup_dialogue(
     let dialogue = Dialogue::load(
         PathBuf::from("./text/lab_1.json"),
         &asset_server,
-        character_map
+        character_map.clone()
     );
-
-    let num_lines: usize = dialogue.lines.len();
 
     let text_section = TextSection::new(
         "",
@@ -125,29 +119,16 @@ pub fn setup_dialogue(
     let window = windows.get_single().unwrap();
     let screen_height = window.height();
     let button_y = -screen_height / 2.0 + button_distance; 
-    let button_translation: Vec3 = Vec3::new(500.0, button_y, 1.0);
+    let button_translation: Vec3 = Vec3::new(0.0, button_y, 1.0);
 
     commands.spawn(
         (
             DialogueRoot,
             StateScoped(GameState::Dialogue),
-            Text2dBundle {
-                text : Text {
-                    sections : line_vector,
-                    justify : JustifyText::Left, 
-                    linebreak_behavior: BreakLineOn::WordBoundary
-                },
-                text_2d_bounds : Text2dBounds {
-                    size: box_size,
-                },
-                transform: Transform::from_xyz(-500.0,0.0, 1.0),
-                text_anchor : Anchor::CenterLeft,
-                ..default()
-            },
-            DialogueText {
-                current_line_index : 0,
-                total_num_lines : num_lines
-            },
+            TransformBundle::from_transform(
+                Transform::from_xyz(0.0, 0.0, 0.0)
+            ),
+            VisibilityBundle::default(),
             ContinuousAudioPallet::new(
                 vec![
                     (
@@ -179,18 +160,59 @@ pub fn setup_dialogue(
         )
     ).with_children(
         |parent| {
-            parent.spawn((
-                BottomAnchor::new(button_distance),
-                TextButtonBundle::new(
+
+            parent.spawn(
+                (
+                Text2dBundle {
+                    text : Text {
+                        sections : line_vector,
+                        justify : JustifyText::Left, 
+                        linebreak_behavior: BreakLineOn::WordBoundary
+                    },
+                    text_2d_bounds : Text2dBounds {
+                        size: box_size,
+                    },
+                    transform: Transform::from_xyz(-500.0,0.0, 1.0),
+                    text_anchor : Anchor::CenterLeft,
+                    ..default()
+                },
+                DialogueBundle::load(
+                    "./text/lab_1.json",
                     &asset_server,
-                    vec![
-                        InputAction::PlaySound(String::from("click"))
-                    ],
-                    vec![KeyCode::Enter],
-                    "[Click Here or Press Enter to Ignore Your Inner Dialogue]",
-                    button_translation,
-                ),
-            )); 
+                    character_map
+                ))
+            );
         }
     );
 }
+
+/*
+fn update_button_text(
+    next_state_button: Res<NextStateButton>,
+    loading_query: Query<(&TimerPallet, &LoadingRoot)>,
+    mut text_query: Query<(&mut Text, &TextFrames, &mut Clickable)>,
+) {
+    let Some(button_entity) = next_state_button.entity else {
+        return;
+    };
+
+    let (text, frames, clickable) = match text_query.get_mut(button_entity) {
+        Ok(components) => components,
+        Err(_) => return,
+    };
+
+    let (timers, _) = loading_query
+        .iter()
+        .next()
+        .expect("Expected at least one entity with TimerPallet and LoadingRoot");
+
+    if let Some(update_button_timer) = timers.timers.get("update_button") {
+        if update_button_timer.just_finished() {
+            let index = update_button_timer.times_finished() as usize;
+            if let Some(message) = frames.frames.get(index) {
+                TextButtonBundle::change_text(message, text, clickable);
+            }
+        }
+    }
+}
+*/

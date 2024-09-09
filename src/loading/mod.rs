@@ -31,14 +31,17 @@ use crate::{
         TimingPlugin, 
         TimerConfig,
         TimerStartCondition
+    }, common_ui::{
+        NextButtonBundle,
+        NextButtonConfig
     }
 };
 
 mod loading_bar;
 use loading_bar::LoadingBarBundle;
 
-pub struct LoadingPlugin;
-impl Plugin for LoadingPlugin {
+pub struct LoadingScreenPlugin;
+impl Plugin for LoadingScreenPlugin {
     fn build(&self, app: &mut App) {
 
         app.add_systems(
@@ -46,8 +49,6 @@ impl Plugin for LoadingPlugin {
                 GameState::Loading
             ), 
             setup_loading
-        ).insert_resource(
-            NextStateButton::empty()
         )
         .add_systems(
             Update,
@@ -67,19 +68,6 @@ impl Plugin for LoadingPlugin {
         }
         if !app.is_plugin_added::<IOPlugin>() {
             app.add_plugins(IOPlugin);
-        }
-    }
-}
-
-#[derive(Resource)]
-struct NextStateButton{
-    entity : Option<Entity>
-}
-
-impl NextStateButton {
-    fn empty() -> Self {
-        Self {
-            entity : None
         }
     }
 }
@@ -240,20 +228,13 @@ pub fn spawn_delayed_children(
                     "text/loading_messages/button.json"
                 );
 
-                let button_distance = 100.0;
-                let window = windows.get_single().unwrap();
-                let screen_height = window.height();
-                let button_y = -screen_height / 2.0 + button_distance; 
-                let button_translation: Vec3 = Vec3::new(0.0, button_y, 1.0);
-
-                let mut child_entity_id = None;
 
                 if let Ok(button_messages) = button_messages {
                     commands.entity(entity).with_children(|parent| {
 
                         let first_message = button_messages.frames[0].clone();
-                        let child_entity = parent.spawn((
-                            BottomAnchor::new(button_distance),
+                        parent.spawn((
+                            NextButtonBundle::new(),
                             button_messages,
                             TextButtonBundle::new(
                                 &asset_server,
@@ -263,19 +244,10 @@ pub fn spawn_delayed_children(
                                 ],
                                 vec![KeyCode::Enter],
                                 first_message,
-                                button_translation,
+                                NextButtonBundle::translation(&windows)
                             ),
-                        ))
-                        .id(); // Capture the entity ID of the spawned child
-
-                        // Assign the child entity ID to the mutable variable
-                        child_entity_id = Some(child_entity);
+                        )); // Capture the entity ID of the spawned child
                     });
-
-                    // Insert the child entity ID as a resource outside the closure
-                    if let Some(child_entity) = child_entity_id {
-                        commands.insert_resource(NextStateButton{entity : Some(child_entity)});
-                    }
                 }
             }
         } else {
@@ -286,11 +258,11 @@ pub fn spawn_delayed_children(
 
 
 fn update_button_text(
-    next_state_button: Res<NextStateButton>,
+    next_state_button: Res<NextButtonConfig>,
     loading_query: Query<(&TimerPallet, &LoadingRoot)>,
     mut text_query: Query<(&mut Text, &TextFrames, &mut Clickable)>,
 ) {
-    let Some(button_entity) = next_state_button.entity else {
+    let Some(button_entity) = next_state_button.entity() else {
         return;
     };
 
