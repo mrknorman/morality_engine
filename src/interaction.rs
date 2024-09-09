@@ -44,7 +44,8 @@ impl Plugin for InteractionPlugin {
                 clickable_system,
                 pressable_system,
                 trigger_audio,
-                trigger_state_change
+                trigger_state_change,
+                trigger_despawn
             )
             .run_if(in_state(InteractionSystemsActive::True))
         ).add_systems(
@@ -123,6 +124,7 @@ impl Pressable {
 pub enum InputAction {
     PlaySound(String),
     ChangeState(StateVector),
+    Despawn,
     Custom(fn(&mut Commands, Entity)),
 }
 
@@ -400,5 +402,44 @@ fn trigger_state_change(
             &mut next_game_state,
             &mut next_sub_state,
         );
+    }
+}
+
+fn trigger_despawn(
+    mut commands: Commands,
+    mut pallet_query_mouse: Query<(
+        Entity, &mut Clickable
+    )>,
+    mut pallet_query_keys: Query<(
+        Entity, &mut Pressable
+    )>,
+) {
+    fn handle_actions<T: InputActionHandler>(
+        entity: Entity,
+        handler: &mut T,
+        commands: &mut Commands,
+    ) {
+        if handler.is_triggered() {
+            let actions = handler.clone_actions();
+            for action in actions {
+                if let InputAction::Despawn = action {
+                    // Despawn the entity
+                    commands.entity(entity).despawn();
+                }
+            }
+            if handler.actions_completed() {
+                handler.reset_trigger();
+            }
+        }
+    }
+
+    // Handle mouse clicks
+    for (entity, mut clickable) in pallet_query_mouse.iter_mut() {
+        handle_actions(entity, &mut *clickable, &mut commands);
+    }
+
+    // Handle key presses
+    for (entity, mut pressable) in pallet_query_keys.iter_mut() {
+        handle_actions(entity, &mut *pressable, &mut commands);
     }
 }

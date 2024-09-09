@@ -31,11 +31,12 @@ use crate::{
     io::{
         IOPlugin,
         BottomAnchor
-    }
+    },
+    common_ui::NextButtonBundle
 };
 
-pub struct MenuPlugin;
-impl Plugin for MenuPlugin {
+pub struct MenuScreenPlugin;
+impl Plugin for MenuScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(MainState::Menu), setup_menu
@@ -69,12 +70,6 @@ fn setup_menu(
     let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
     let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
-
-    let button_distance = 100.0;
-    let window = windows.get_single().unwrap();
-    let screen_height = window.height();
-    let button_y = -screen_height / 2.0 + button_distance; 
-    let button_translation: Vec3 = Vec3::new(0.0, button_y, 1.0);
 
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),
@@ -153,7 +148,7 @@ fn setup_menu(
             );
             parent.spawn(
                 (
-                    BottomAnchor::new(button_distance),
+                    NextButtonBundle::new(),
                     TextButtonBundle::new(
                         &asset_server, 
                         vec![
@@ -162,7 +157,7 @@ fn setup_menu(
                         ],
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
-                        button_translation
+                        NextButtonBundle::translation(&windows)
                     )
                 )
             );

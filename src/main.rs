@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use common_ui::CommonUIPlugin;
 
 #[forbid(unsafe_code)]
 
@@ -22,8 +23,13 @@ mod interaction;
 mod timing;
 mod character;
 mod io;
+mod common_ui;
 
-use crate::game_states::{GameState, MainState, SubState};
+use crate::game_states::{
+    GameState, 
+    MainState, 
+    SubState
+};
 
 fn main() {
     App::new()
@@ -48,9 +54,10 @@ impl Plugin for GamePlugin {
                 shortcuts::close_on_esc, 
                 motion::point_to_point_translations
             ))
-            .add_plugins(menu::MenuPlugin)
-            .add_plugins(loading::LoadingPlugin)
-            .add_plugins(dialogue::DialoguePlugin)
+            .add_plugins(common_ui::CommonUIPlugin)
+            .add_plugins(menu::MenuScreenPlugin)
+            .add_plugins(loading::LoadingScreenPlugin)
+            .add_plugins(dialogue::DialogueScreenPlugin)
             .add_plugins(dilemma::DilemmaPlugin);
     }
 }
@@ -64,8 +71,9 @@ fn setup(mut commands: Commands) {
 /*
     Todo:
 
-    Loading:
-        - Change Text Button Messages to Text Frames and load from JSON,
+    PluginCreate helper functions - Lots of repeat code
+    Separate LoadingScreenPlugin and LoadingPlugin
+
     Dialogue:
         - Implement Line End Event and Update Text Button
         - Refactor Dialouge
