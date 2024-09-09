@@ -6,12 +6,7 @@ use std::{
 };
 
 use bevy::{
-    asset::AssetServer, 
-    text::{
-        BreakLineOn, 
-        Text2dBounds
-    }, 
-    sprite::Anchor, 
+    asset::AssetServer,
     prelude::*
 };
 
@@ -50,16 +45,6 @@ impl Plugin for DialogueScreenPlugin {
                 GameState::Dialogue
             ), 
             setup_dialogue
-        ).add_systems(
-            Update,
-            (
-                DialogueLine::play
-            )
-            .run_if(
-                in_state(
-                    GameState::Dialogue
-                )
-            ),
         );
 
         if !app.is_plugin_added::<InteractionPlugin>() {
@@ -79,8 +64,7 @@ pub struct DialogueRoot;
 
 pub fn setup_dialogue(
         mut commands: Commands, 
-        asset_server : Res<AssetServer>,
-        windows: Query<&Window>
+        asset_server : Res<AssetServer>
     ) {
 
     let character_map = HashMap::from([
@@ -92,35 +76,7 @@ pub fn setup_dialogue(
             )
         )
     ]);
-
-    let dialogue = Dialogue::load(
-        PathBuf::from("./text/lab_1.json"),
-        &asset_server,
-        character_map.clone()
-    );
-
-    let text_section = TextSection::new(
-        "",
-        TextStyle {
-            // This font is loaded and will be used instead of the default font.
-            font_size: 15.0,
-            ..default()
-        });
-
-    let mut line_vector : Vec<TextSection> = vec![];
-    for line in dialogue.lines {
-        commands.spawn(line);
-        line_vector.push(text_section.clone());
-    }
-
-    let box_size = Vec2::new(500.0, 2000.0);
-
-    let button_distance = 100.0;
-    let window = windows.get_single().unwrap();
-    let screen_height = window.height();
-    let button_y = -screen_height / 2.0 + button_distance; 
-    let button_translation: Vec3 = Vec3::new(0.0, button_y, 1.0);
-
+    
     commands.spawn(
         (
             DialogueRoot,
@@ -160,27 +116,12 @@ pub fn setup_dialogue(
         )
     ).with_children(
         |parent| {
-
             parent.spawn(
-                (
-                Text2dBundle {
-                    text : Text {
-                        sections : line_vector,
-                        justify : JustifyText::Left, 
-                        linebreak_behavior: BreakLineOn::WordBoundary
-                    },
-                    text_2d_bounds : Text2dBounds {
-                        size: box_size,
-                    },
-                    transform: Transform::from_xyz(-500.0,0.0, 1.0),
-                    text_anchor : Anchor::CenterLeft,
-                    ..default()
-                },
                 DialogueBundle::load(
                     "./text/lab_1.json",
                     &asset_server,
                     character_map
-                ))
+                )
             );
         }
     );
