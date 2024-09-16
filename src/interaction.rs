@@ -1,3 +1,7 @@
+use std::hash::{
+    Hash, 
+    Hasher
+};
 use bevy::{
     prelude::*,
     window::PrimaryWindow,
@@ -35,6 +39,7 @@ impl Plugin for InteractionPlugin {
         };
         app
         .init_state::<InteractionSystemsActive>()
+        .add_event::<AdvanceDialogue>() // Register the event
         .add_systems(
             Update,
             activate_systems
@@ -45,7 +50,8 @@ impl Plugin for InteractionPlugin {
                 pressable_system,
                 trigger_audio,
                 trigger_state_change,
-                trigger_despawn
+                trigger_despawn,
+                trigger_advance_dialogue
             )
             .run_if(in_state(InteractionSystemsActive::True))
         ).add_systems(
@@ -72,6 +78,9 @@ fn activate_systems(
 		interaction_state.set(InteractionSystemsActive::False)
 	}
 }
+
+#[derive(Event)]
+pub struct AdvanceDialogue (u64);
 
 pub const NORMAL_BUTTON: Color = Color::srgb(1.0, 1.0, 1.0);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 1.0, 1.0);
@@ -120,13 +129,13 @@ impl Pressable {
 }
 
 #[derive(Clone)]
-
 pub enum InputAction {
     PlaySound(String),
     ChangeState(StateVector),
+    AdvanceDialogue(String),
     Despawn,
     Custom(fn(&mut Commands, Entity)),
-}
+} 
 
 pub fn clickable_system(
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -404,6 +413,48 @@ fn trigger_state_change(
         );
     }
 }
+
+fn trigger_advance_dialogue(
+    mut event_writer: EventWriter<AdvanceDialogue>,
+    mut clickable_query: Query<&mut Clickable>,
+    mut pressable_query: Query<&mut Pressable>,
+) {
+    fn handle_actions<T: InputActionHandler>(
+        handler: &mut T,
+        event_writer: &mut EventWriter<AdvanceDialogue>,
+    ) {
+        if handler.is_triggered() {
+            let actions = handler.clone_actions();
+            for action in actions {
+                if let InputAction::AdvanceDialogue(ref text) = action {
+                    // Compute the hash of the input string
+                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                    text.hash(&mut hasher);
+                    let hash = hasher.finish();
+
+                    // Send the AdvancedDialogue event with the hash
+                    event_writer.send(AdvanceDialogue(hash));
+
+                    handler.increment();
+                }
+            }
+            if handler.actions_completed() {
+                handler.reset_trigger();
+            }
+        }
+    }
+
+    // Handle actions for Clickable components
+    for mut clickable in clickable_query.iter_mut() {
+        handle_actions(&mut *clickable, &mut event_writer);
+    }
+
+    // Handle actions for Pressable components
+    for mut pressable in pressable_query.iter_mut() {
+        handle_actions(&mut *pressable, &mut event_writer);
+    }
+}
+
 
 fn trigger_despawn(
     mut commands: Commands,
