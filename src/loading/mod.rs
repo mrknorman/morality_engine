@@ -203,7 +203,7 @@ pub fn spawn_delayed_children(
                         ContinuousAudioBundle::new(
                             &asset_server,
                             "./music/a_friend.ogg",
-                            0.3,
+                            0.2,
                         )
                     ));
                 });

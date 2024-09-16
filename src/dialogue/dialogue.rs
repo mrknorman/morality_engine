@@ -21,14 +21,13 @@ use serde::{
 };
 
 use crate::{
-	audio::play_sound_once,
 	game_states::{
 		MainState, 
 		GameState
 	},
 	character::Character,
 	text::TextButtonBundle, 
-    interaction::InputAction,
+    interaction::{InputAction, AdvanceDialogue},
     common_ui::NextButtonBundle
 };
 
@@ -136,25 +135,26 @@ impl DialogueLine {
 		character : &Character,
 		mut line : Mut<'_, DialogueLine>
 	) {
-		
-		/* 
+
 		text.as_mut().sections.push(
 			TextSection::new(
-				format!("{}@pan_box:\n", character.name.as_str()),
+				format!(
+					"{}@pan_box:\n", 
+					character.name.as_str()
+				),
 				TextStyle {
 					font_size: 15.0,
 					..default()
 				}
 			)
 		);
-		*/
-		text.as_mut().sections[line.index].value += character.name.as_str();
-		text.as_mut().sections[line.index].value += "@pan_box:\n";
 	
 		audio.play();
 		line.playing = true;
 		line.timer = Timer::new(
-			Duration::from_millis(line.char_duration_milis), 
+			Duration::from_millis(
+				line.char_duration_milis
+			), 
 			TimerMode::Repeating
 		);
 		line.started = true;
@@ -162,17 +162,24 @@ impl DialogueLine {
 	
 	pub fn play (
 			mut query_line: Query<(
-				&Character, &mut DialogueLine, &mut AudioSink
+				&Character, 
+				&mut DialogueLine, 
+				&mut AudioSink
 			), Without<DialogueText>>,
-			mut query_text: Query<(&mut Text, &DialogueText), Without<DialogueLine>>,
-			keyboard_input: Res<ButtonInput<KeyCode>>,
-			mut commands: Commands, 
-			asset_server : Res<AssetServer>,
+			mut query_text: Query<(
+				&mut Text, 
+				&DialogueText
+			), Without<DialogueLine>>,
+			mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
 			mut next_main_state: ResMut<NextState<MainState>>,
 			mut next_game_state: ResMut<NextState<GameState>>
 		) {
 	
-		for (mut text, dialogue) in query_text.iter_mut() { 
+		for (
+			mut text, 
+			dialogue
+		) in query_text.iter_mut() { 
+
 			if dialogue.current_line_index == 0 {
 				for (
 					character, 
@@ -184,20 +191,30 @@ impl DialogueLine {
 				}
 			}
 			
-			if keyboard_input.just_pressed(KeyCode::Enter) {
-		
-				for (character, mut line, audio) in query_line.iter_mut() {
+			if !ev_advance_dialogue.is_empty() {
+				ev_advance_dialogue.clear();
+
+				for (
+					character, 
+					mut line, 
+					audio
+				) in query_line.iter_mut() {
+
 					if !line.started {
 						if line.index == dialogue.current_line_index {
-		
-							let _ = play_sound_once(
-								"sounds/mech_click.ogg", 
-								&mut commands, 
-								&asset_server
+							
+							text.as_mut().sections.push(
+								TextSection::new(
+									format!(
+										"{}@pan_box:\n", 
+										character.name.as_str()
+									),
+									TextStyle {
+										font_size: 15.0,
+										..default()
+									}
+								)
 							);
-			
-							text.as_mut().sections[line.index].value += character.name.as_str();
-							text.as_mut().sections[line.index].value += "@pan_box:\n";
 						
 							audio.play();
 							line.playing = true;
@@ -215,10 +232,29 @@ impl DialogueLine {
 						);
 						audio.set_speed(4.0);
 					} else if line.playing && line.skip_count > 0 {
-						text.as_mut().sections[line.index].value.clone_from(&character.name);
-						text.as_mut().sections[line.index].value += "@pan_box:\n";
-						text.as_mut().sections[line.index].value += line.raw_text.as_str();
-		
+
+						text.as_mut().sections.append(
+							&mut vec![
+								TextSection::new(
+									format!(
+										"{}@pan_box:\n", 
+										character.name.as_str()
+									),
+									TextStyle {
+										font_size: 15.0,
+										..default()
+									}
+								),
+								TextSection::new(
+									line.raw_text.as_str(),
+									TextStyle {
+										font_size: 15.0,
+										..default()
+									}
+								)
+							]
+						);
+
 						line.current_index = line.raw_text.len() + 1;
 		
 						line.skip_count += 1;
@@ -250,24 +286,28 @@ impl DialogueLine {
 					let char: Option<char> = line.raw_text.chars().nth(line.current_index);
 		
 					match char {
-						Some(_) => text.as_mut().sections[line.index].value.push(
-							char.unwrap()
-						), // Push character directly to each text,
+						Some(_) => match text.as_mut().sections.last_mut() {
+							Some(section) => section.value.push(char.unwrap()),
+							None => {}
+						}, // Push character directly to each text,
 						None => {
 							audio.stop();
 							line.playing = false;
-							text.sections[line.index].value += "\n";
-							
+							match text.as_mut().sections.last_mut() {
+								Some(section) => section.value.push_str("\n"),
+								None => {}
+							}
 							ev_line_finished.send(DialogueLineFinished(
 								"placeholder".to_string())
 							);
-
+							
 							commands.spawn((
 								NextButtonBundle::new(),
 								TextButtonBundle::new(
 									&asset_server,
 									vec![
 										InputAction::PlaySound(String::from("click")),
+										InputAction::AdvanceDialogue("placeholder".to_string()),
 										InputAction::Despawn
 									],
 									vec![KeyCode::Enter],

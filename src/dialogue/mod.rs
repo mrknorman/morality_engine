@@ -1,9 +1,5 @@
 
-use std::{
-    path::PathBuf, 
-    collections::
-    HashMap
-};
+use std::collections::HashMap;
 
 use bevy::{
     asset::AssetServer,
@@ -17,23 +13,13 @@ use crate::{
     },
     game_states::GameState,
     character::Character,
-    io::{
-        BottomAnchor, 
-        IOPlugin
-    }, 
-    text::TextButtonBundle, 
-    interaction::{
-        InteractionPlugin,
-        InputAction
-    },
-    common_ui::NextButtonBundle
+    io::IOPlugin, 
+    interaction::InteractionPlugin
 };
 
 mod dialogue;
 use dialogue::{
-    DialogueLine,
     DialoguePlugin,
-    Dialogue,
     DialogueBundle
 };
 
@@ -126,34 +112,3 @@ pub fn setup_dialogue(
         }
     );
 }
-
-/*
-fn update_button_text(
-    next_state_button: Res<NextStateButton>,
-    loading_query: Query<(&TimerPallet, &LoadingRoot)>,
-    mut text_query: Query<(&mut Text, &TextFrames, &mut Clickable)>,
-) {
-    let Some(button_entity) = next_state_button.entity else {
-        return;
-    };
-
-    let (text, frames, clickable) = match text_query.get_mut(button_entity) {
-        Ok(components) => components,
-        Err(_) => return,
-    };
-
-    let (timers, _) = loading_query
-        .iter()
-        .next()
-        .expect("Expected at least one entity with TimerPallet and LoadingRoot");
-
-    if let Some(update_button_timer) = timers.timers.get("update_button") {
-        if update_button_timer.just_finished() {
-            let index = update_button_timer.times_finished() as usize;
-            if let Some(message) = frames.frames.get(index) {
-                TextButtonBundle::change_text(message, text, clickable);
-            }
-        }
-    }
-}
-*/
