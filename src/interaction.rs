@@ -485,12 +485,16 @@ fn trigger_despawn(
     }
 
     // Handle mouse clicks
-    for (entity, mut clickable) in pallet_query_mouse.iter_mut() {
+    for (
+        entity, mut clickable
+    ) in pallet_query_mouse.iter_mut() {
         handle_actions(entity, &mut *clickable, &mut commands);
     }
 
     // Handle key presses
-    for (entity, mut pressable) in pallet_query_keys.iter_mut() {
+    for (
+        entity, mut pressable
+    ) in pallet_query_keys.iter_mut() {
         handle_actions(entity, &mut *pressable, &mut commands);
     }
 }
