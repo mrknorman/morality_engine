@@ -23,7 +23,8 @@ use serde::{
 use crate::{
 	game_states::{
 		MainState, 
-		GameState
+		GameState,
+		StateVector
 	},
 	character::Character,
 	text::TextButtonBundle, 
@@ -43,14 +44,15 @@ impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
         app
         .init_state::<DialogueSystemsActive>()
-        .add_event::<DialogueLineFinished>()
         .add_systems(
             Update,
             activate_systems
         ).add_systems(
             Update,
             (
+				DialogueLine::first,
 				DialogueLine::advance_dialogue,
+				DialogueLine::skip_controls,
 				DialogueLine::play
 			)
             .run_if(
@@ -71,19 +73,17 @@ fn activate_systems(
 	}
 }
 
-#[derive(Event)]
-pub struct DialogueLineFinished(String);
-
 #[derive(Component, Clone)]
 pub struct DialogueLine {
     pub index : usize,
     pub raw_text : String,
+	pub hostname : String,
     pub current_index : usize,
     pub playing : bool,
     pub started : bool,
     pub skip_count : usize,
     pub timer: Timer,
-    pub char_duration_milis : u64,
+    pub char_duration_millis : u64,
 	pub instruction : String
 } 
 
@@ -108,14 +108,16 @@ impl DialogueText {
 
 impl DialogueLine {
     pub fn new(
-		raw_text : &str, 
+		raw_text : String, 
+		hostname : String,
 		index : usize,
-		instruction : &str
+		instruction : String
 	) -> DialogueLine {
 
         DialogueLine {
             index,
-            raw_text : String::from(raw_text),
+            raw_text,
+			hostname,
             current_index : 0,
             playing : false,
             started : false,
@@ -124,40 +126,81 @@ impl DialogueLine {
 				Duration::from_secs_f32(0.0),
 				TimerMode::Repeating
 			),
-            char_duration_milis : 50,
-			instruction : String::from(instruction)
+            char_duration_millis : 50,
+			instruction
         }
     }
 
-	fn setup(
-		text : &mut Mut<'_, Text>, 
-		audio : Mut<'_, AudioSink>, 
-		character : &Character,
-		mut line : Mut<'_, DialogueLine>
-	) {
+	fn generate_shell_prompt(
+		username : &str,
+		hostname : &str
+	) -> Vec<TextSection> {
 
-		text.as_mut().sections.push(
+		vec![
 			TextSection::new(
 				format!(
-					"{}@pan_box:\n", 
-					character.name.as_str()
+					"{}@{}:\n", 
+					username,
+					hostname
 				),
 				TextStyle {
 					font_size: 15.0,
 					..default()
 				}
+			),
+			TextSection::new(
+				"",
+				TextStyle {
+					font_size: 15.0,
+					..default()
+				}
+			)
+		]
+	}
+
+	fn start(
+		mut line : Mut<'_, DialogueLine>,
+		mut text : Mut<'_, Text>,
+		audio : Mut<'_, AudioSink>,
+		user : &Character
+	) {
+		text.as_mut().sections.append(
+			&mut Self::generate_shell_prompt(
+				user.name.as_str(), 
+				line.hostname.as_str()
 			)
 		);
-	
 		audio.play();
 		line.playing = true;
 		line.timer = Timer::new(
-			Duration::from_millis(
-				line.char_duration_milis
-			), 
-			TimerMode::Repeating
+			Duration::from_millis(line.char_duration_millis),
+			TimerMode::Repeating,
 		);
 		line.started = true;
+	}
+
+	fn first(
+		mut query_text: Query<&mut Text, With<DialogueText>>,
+		mut query_line: Query<(
+			&Character, &mut DialogueLine, &mut AudioSink
+		)>,
+	) {
+		for (
+			user, line, audio
+		) in query_line.iter_mut() {
+			
+			if line.index == 0 && !line.started {
+				if let Ok(mut text) = query_text.get_single_mut() {
+					text.sections.clear();
+					Self::start(
+						line, 
+						text, 
+						audio, 
+						user
+					);
+				}
+			}
+		}
 	}
 	
 	pub fn play (
@@ -171,96 +214,74 @@ impl DialogueLine {
 				&DialogueText
 			), Without<DialogueLine>>,
 			mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
-			mut next_main_state: ResMut<NextState<MainState>>,
-			mut next_game_state: ResMut<NextState<GameState>>
 		) {
-	
+		
 		for (
-			mut text, 
+			text, 
 			dialogue
 		) in query_text.iter_mut() { 
 
-			if dialogue.current_line_index == 0 {
+			if !ev_advance_dialogue.is_empty() {
+				ev_advance_dialogue.clear();
+		
 				for (
-					character, 
-					line, 
-					audio) in query_line.iter_mut() {
-					if line.index == 0 && !line.started {
-						Self::setup(&mut text, audio, character, line);
+					user, line, audio
+				) in query_line.iter_mut() {
+					// Check if the current line should be started
+					if !line.started && line.index == dialogue.current_line_index {
+						// Perform the start operation immediately
+						Self::start(line, text, audio, user);
+						break;  // We found the line to start, so exit the inner loop
 					}
 				}
 			}
-			
-			if !ev_advance_dialogue.is_empty() {
-				ev_advance_dialogue.clear();
+
+		}
+	}
+
+	pub fn skip_controls(
+		mut query_line: Query<(
+			&Character, 
+			&mut DialogueLine, 
+			&mut AudioSink
+		), Without<DialogueText>>,
+		mut query_text: Query<
+			&mut Text, 
+			(With<DialogueText>, 
+			Without<DialogueLine>)>,
+		keyboard_input: Res<ButtonInput<KeyCode>>
+	) {
+
+		for mut text in query_text.iter_mut() { 
+
+			if keyboard_input.just_pressed(KeyCode::Enter) {
 
 				for (
-					character, 
+					_, 
 					mut line, 
 					audio
 				) in query_line.iter_mut() {
 
-					if !line.started {
-						if line.index == dialogue.current_line_index {
-							
-							text.as_mut().sections.push(
-								TextSection::new(
-									format!(
-										"{}@pan_box:\n", 
-										character.name.as_str()
-									),
-									TextStyle {
-										font_size: 15.0,
-										..default()
-									}
-								)
-							);
-						
-							audio.play();
-							line.playing = true;
-							line.timer = Timer::new(
-								Duration::from_millis(line.char_duration_milis), 
-								TimerMode::Repeating
-							);
-							line.started = true;
-						} 
-					} else if line.playing && line.skip_count == 0 {
+					if line.playing && line.skip_count == 0 {
 						line.skip_count += 1;
 						line.timer = Timer::new(
-							Duration::from_millis(line.char_duration_milis / 4), 
+							Duration::from_millis(line.char_duration_millis / 4), 
 							TimerMode::Repeating
 						);
 						audio.set_speed(4.0);
 					} else if line.playing && line.skip_count > 0 {
-
-						text.as_mut().sections.append(
-							&mut vec![
-								TextSection::new(
-									format!(
-										"{}@pan_box:\n", 
-										character.name.as_str()
-									),
-									TextStyle {
-										font_size: 15.0,
-										..default()
-									}
-								),
-								TextSection::new(
-									line.raw_text.as_str(),
-									TextStyle {
-										font_size: 15.0,
-										..default()
-									}
-								)
-							]
+						text.as_mut().sections.pop();
+						text.as_mut().sections.push(
+							TextSection::new(
+								line.raw_text.as_str(),
+								TextStyle {
+									font_size: 15.0,
+									..default()
+								}
+							)
 						);
-
 						line.current_index = line.raw_text.len() + 1;
-		
 						line.skip_count += 1;
-					} else if dialogue.current_line_index >= dialogue.total_num_lines {
-						next_main_state.set(MainState::InGame);
-						next_game_state.set(GameState::Dilemma);
 					}
 				}
 			}
@@ -271,7 +292,6 @@ impl DialogueLine {
 			mut commands: Commands,
 			mut query_line: Query<(&mut DialogueLine,  &mut AudioSink)>,
 			mut query_text: Query<(&mut Text, &mut DialogueText)>,
-			mut ev_line_finished: EventWriter<DialogueLineFinished>,
 			asset_server: Res<AssetServer>,
 			windows: Query<&Window>,
 			time: Res<Time>
@@ -279,8 +299,10 @@ impl DialogueLine {
 	
 		for (mut text, mut dialogue) in query_text.iter_mut() { 
 		
-			// For each character in the dialogue, update all texts in the query
-			for (mut line, audio) in query_line.iter_mut() {
+			// For each user in the dialogue, update all texts in the query
+			for (
+				mut line, audio
+			) in query_line.iter_mut() {
 		
 				if line.playing && (line.timer.tick(time.delta()).finished() || line.skip_count > 1) && line.index == dialogue.current_line_index {
 					let char: Option<char> = line.raw_text.chars().nth(line.current_index);
@@ -289,7 +311,7 @@ impl DialogueLine {
 						Some(_) => match text.as_mut().sections.last_mut() {
 							Some(section) => section.value.push(char.unwrap()),
 							None => {}
-						}, // Push character directly to each text,
+						}, // Push user directly to each text,
 						None => {
 							audio.stop();
 							line.playing = false;
@@ -297,24 +319,33 @@ impl DialogueLine {
 								Some(section) => section.value.push_str("\n"),
 								None => {}
 							}
-							ev_line_finished.send(DialogueLineFinished(
-								"placeholder".to_string())
-							);
+							
+							let next_action = if dialogue.current_line_index >= dialogue.total_num_lines - 1 {
+								InputAction::ChangeState(StateVector::new(
+									Some(MainState::InGame),
+									Some(GameState::Dilemma),
+									None,
+								))
+							} else {
+								InputAction::AdvanceDialogue("placeholder".to_string())
+							};
+							
+							let actions = vec![
+								InputAction::PlaySound("click".to_string()),
+								next_action,
+								InputAction::Despawn,
+							];
 							
 							commands.spawn((
 								NextButtonBundle::new(),
 								TextButtonBundle::new(
 									&asset_server,
-									vec![
-										InputAction::PlaySound(String::from("click")),
-										InputAction::AdvanceDialogue("placeholder".to_string()),
-										InputAction::Despawn
-									],
+									actions,
 									vec![KeyCode::Enter],
-									format!("[{}]", line.instruction.clone()),
-									NextButtonBundle::translation(&windows)
+									format!("[{}]", line.instruction),
+									NextButtonBundle::translation(&windows),
 								),
-							)); 
+							));							
 
 							dialogue.current_line_index += 1;
 						}
@@ -329,7 +360,7 @@ impl DialogueLine {
 
 #[derive(Bundle, Clone)]
 pub struct DialogueLineBundle {
-	character : Character,
+	user : Character,
 	audio : AudioBundle,
 	line : DialogueLine,
 }
@@ -337,15 +368,15 @@ pub struct DialogueLineBundle {
 impl DialogueLineBundle {
 
 	pub fn new(
-		character : Character,
+		user : Character,
 		line : DialogueLine,
 		asset_server : &Res<AssetServer>
 	) -> DialogueLineBundle {
 
-		let audio_source_file_path = character.audio_source_file_path.clone();
+		let audio_source_file_path = user.audio_source_file_path.clone();
 
 		DialogueLineBundle {
-			character,
+			user,
 			audio : AudioBundle {
 					source: asset_server.load(audio_source_file_path),
 					settings : PlaybackSettings {
@@ -368,7 +399,8 @@ struct NextStateOptionLoader {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct DialogueLineLoader {
-    character: String,
+    username: String,
+	hostname: String,
     dialogue: String,
     instruction: String,
 }
@@ -389,7 +421,7 @@ impl Dialogue {
 	pub fn load(
             file_path: PathBuf,
             asset_server : &Res<AssetServer>,
-            character_map : HashMap<String, Character>
+            user_map : HashMap<String, Character>
         ) -> Dialogue {
         
         // Open the file in read-only mode with a buffered reader
@@ -401,18 +433,21 @@ impl Dialogue {
         let mut line_vec = vec![];
         for (index, line) in loaded_dialogue.lines.iter().enumerate() {
 
-            let character_key = line.character.as_str();
-            let character  = character_map.get(character_key)
-                .expect(format!("Character {character_key} not found in map on line {index}").as_str()) // This replaces unwrap() for better error handling
+            let user_key = line.username.as_str();
+            let user  = user_map.get(user_key)
+                .expect(format!(
+					"Character {user_key} not found in map on line {index}"
+				).as_str()) // This replaces unwrap() for better error handling
                 .clone(); // This clones the Character object
 
             line_vec.push(
                 DialogueLineBundle::new(
-                    character,
+                    user,
                     DialogueLine::new(
-                        line.dialogue.as_str(), 
+                        line.dialogue.clone(), 
+						line.hostname.clone(),
                         index,
-						line.instruction.as_str()
+						line.instruction.clone()
                     ),
                     asset_server
                 )
@@ -437,13 +472,13 @@ impl DialogueBundle {
 	pub fn load(
 		dialogue_path : impl Into<PathBuf>,
 		asset_server : &Res<AssetServer>,
-		character_map : HashMap<String, Character>
+		user_map : HashMap<String, Character>
 	) -> Self {
 
 		let dialogue = Dialogue::load(
 			dialogue_path.into(),
 			&asset_server,
-			character_map
+			user_map
 		);
 		let num_lines: u32 = dialogue.lines.len() as u32;	
 
