@@ -214,7 +214,8 @@ impl TrainBundle {
 					ContinuousAudio::new(
 						asset_server, 
 						track_audio_path, 
-						0.1
+						0.1,
+						false
 					)
 				)]
 			)

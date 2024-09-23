@@ -78,7 +78,8 @@ pub fn setup_dialogue(
                         ContinuousAudio::new(
                             &asset_server, 
                             "./sounds/hum.ogg", 
-                            0.1
+                            0.1,
+                            false
                         ),
                     ),
                     (
@@ -87,6 +88,7 @@ pub fn setup_dialogue(
                             &asset_server,
                             "./music/trolley_wires.ogg",
                             0.3,
+                            false
                         )
                     ),
                     (
@@ -94,7 +96,8 @@ pub fn setup_dialogue(
                         ContinuousAudio::new(
                             &asset_server, 
                             "./sounds/office.ogg", 
-                            0.5
+                            0.5,
+                            false
                         ),
                     )
                 ]
@@ -106,7 +109,7 @@ pub fn setup_dialogue(
                 DialogueBundle::load(
                     "./text/lab_1.json",
                     &asset_server,
-                    character_map
+                    &character_map
                 )
             );
         }

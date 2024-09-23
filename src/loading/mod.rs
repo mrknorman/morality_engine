@@ -130,7 +130,8 @@ pub fn setup_loading(
                     ContinuousAudio::new(
                         &asset_server, 
                         "./sounds/hum.ogg", 
-                        0.1
+                        0.1,
+                        false
                     ),
                 ),
                 (
@@ -138,7 +139,8 @@ pub fn setup_loading(
                     ContinuousAudio::new(
                         &asset_server, 
                         "./sounds/office.ogg", 
-                        0.5
+                        0.5,
+                        false
                     ),
                 )
             ]
@@ -204,6 +206,7 @@ pub fn spawn_delayed_children(
                             &asset_server,
                             "./music/a_friend.ogg",
                             0.2,
+                            false
                         )
                     ));
                 });

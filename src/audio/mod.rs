@@ -84,6 +84,7 @@ pub fn play_sound_once(
 pub struct ContinuousAudio {
     source: Handle<AudioSource>,
     volume: f32,
+    paused : bool
 }
 
 impl ContinuousAudio {
@@ -91,11 +92,13 @@ impl ContinuousAudio {
         asset_server: &Res<AssetServer>,
         audio_path: impl Into<AssetPath<'static>>,
         volume: f32,
+        paused : bool
     ) -> ContinuousAudio {
 
         ContinuousAudio {
             source: asset_server.load(audio_path),
-            volume
+            volume,
+            paused
         }
     }
 }
@@ -111,13 +114,15 @@ impl ContinuousAudioBundle {
     pub fn new(
         asset_server: &Res<AssetServer>,
         audio_path: impl Into<AssetPath<'static>>,
-        volume: f32
+        volume: f32,
+        paused: bool
     ) -> Self {
 
         let continuous_audio = ContinuousAudio::new(
             asset_server,
             audio_path,
             volume,
+            paused
         );
 
         Self {
@@ -125,6 +130,7 @@ impl ContinuousAudioBundle {
                 source: continuous_audio.clone().source,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Loop,
+                    paused,
                     volume: Volume::new(continuous_audio.clone().volume),
                     ..default()
                 },
@@ -144,6 +150,7 @@ impl ContinuousAudioBundle {
                 source: continuous_audio.clone().source,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Loop,
+                    paused : continuous_audio.paused,
                     volume: Volume::new(continuous_audio.clone().volume),
                     ..default()
                 },
