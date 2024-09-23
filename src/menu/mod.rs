@@ -96,7 +96,8 @@ fn setup_menu(
                             ContinuousAudio::new(
                                 &asset_server, 
                                 "./sounds/static.ogg", 
-                                0.1
+                                0.1,
+                                false
                             ),
                         ),
                         (
@@ -104,7 +105,8 @@ fn setup_menu(
                             ContinuousAudio::new(
                                 &asset_server, 
                                 "./sounds/office.ogg", 
-                                1.0
+                                1.0,
+                                false
                             ),
                         )
                     ]
@@ -116,7 +118,8 @@ fn setup_menu(
                 ContinuousAudioBundle::new(
                     &asset_server, 
                     "./music/the_last_decision.ogg", 
-                    0.3
+                    0.3,
+                    false
                 )
             ));
 
