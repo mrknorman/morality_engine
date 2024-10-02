@@ -475,7 +475,7 @@ fn trigger_despawn(
             for action in actions {
                 if let InputAction::Despawn = action {
                     // Despawn the entity
-                    commands.entity(entity).despawn();
+                    commands.entity(entity).despawn_recursive();
                 }
             }
             if handler.actions_completed() {

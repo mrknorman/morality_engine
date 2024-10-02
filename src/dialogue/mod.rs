@@ -58,7 +58,8 @@ pub fn setup_dialogue(
             String::from("creator"),  
             Character::new(
                 "creator", 
-                "sounds/typing.ogg"
+                "sounds/typing.ogg",
+                Color::srgba(0.4039, 0.9490, 0.8196, 1.0)
             )
         )
     ]);
