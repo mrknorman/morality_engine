@@ -2,8 +2,6 @@
 use std::{fs::File, io::BufReader, path::PathBuf, time::Duration};
 use bevy::{prelude::*, sprite::Anchor, text::{BreakLineOn, Text2dBounds}};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
 
 mod junction;
 use junction::{TrainJunction, LeverTrackTransform};
@@ -689,7 +687,7 @@ pub fn lever_motion(
 					transform.translation = right_position + Vec3::new(bounce_offset, 0.0, 0.0);
 				}
 			} else if unwrapped_lever.state == LeverState::Left {
-				main_track.unwrap().sections[0].style.color =OPTION_1_COLOR;
+				main_track.unwrap().sections[0].style.color = OPTION_1_COLOR;
 				let distance = (left_position - transform.translation).length();
 				if distance > distance_threshold {
 					let direction = (left_position - transform.translation).normalize();

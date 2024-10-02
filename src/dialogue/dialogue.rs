@@ -84,11 +84,19 @@ impl Dialogue {
         }
     }
 
-    fn generate_shell_prompt(username: &str, hostname: &str) -> Vec<TextSection> {
+    fn generate_shell_prompt(
+        username: &str,
+        hostname: &str, 
+        color : &Color
+    ) -> Vec<TextSection> {        
         vec![
             TextSection::new(
-                format!("{}@{}:\n", username, hostname),
-                TextStyle { font_size: 15.0, ..default() }
+                format!("{}@{}:\n    ", username, hostname),
+                TextStyle { 
+                    font_size: 15.0,
+                    color : *color, 
+                    ..default()
+                }
             ),
             TextSection::new("", TextStyle { font_size: 15.0, ..default() })
         ]
@@ -103,7 +111,11 @@ impl Dialogue {
 			if let Some(line) = dialogue.lines.get(dialogue.current_line_index) {
 				if !dialogue.playing && (!ev_advance_dialogue.is_empty() || dialogue.current_line_index == 0) {
 					ev_advance_dialogue.clear();
-					text.sections.extend(Self::generate_shell_prompt(&line.character.name, &line.hostname));
+					text.sections.extend(Self::generate_shell_prompt(
+                        &line.character.name, 
+                        &line.hostname, 
+                        &line.character.color
+                    ));
 					dialogue.playing = true;
 					dialogue.timer = Timer::new(Duration::from_millis(dialogue.char_duration_millis), TimerMode::Repeating);
 				} else if dialogue.playing {
