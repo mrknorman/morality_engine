@@ -162,7 +162,9 @@ pub fn clickable_system(
             
             if mouse_input.just_pressed(MouseButton::Left) {
                 clickable.clicked = true;
-            } 
+            } else {
+                clickable.clicked = false;
+            }
             
             if mouse_input.pressed(MouseButton::Left) {
                 if let Some(text) = text.as_mut() {
@@ -191,6 +193,8 @@ pub fn pressable_system (
         for key in pressable.keys.clone() {
             if keyboard_input.just_pressed(key) {
                 pressable.pressed = true;
+            } else {
+                pressable.pressed = false;
             }
         }
     }

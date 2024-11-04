@@ -7,7 +7,13 @@ use std::{
 use rand::Rng;
 use serde::Deserialize;
 
-use crate::text::{TextFrames};
+use crate::{
+    text::TextFrames,
+    sprites::{
+        SpriteFactory,
+        SpriteBox
+    }
+};
 
 use bevy::{
     prelude::*, 
@@ -20,57 +26,26 @@ pub struct LoadingText;
 
 #[derive(Component)]
 pub struct ProgressIndicator;
-pub struct LoadingBar{
-    prefix : String,
-    final_message : String,
-    timer : Timer,
-    index : usize
+
+
+pub struct LoadingBar {
+    prefix: String,
+    final_message: String,
+    timer: Timer,
+    index: usize
 }
 
 impl LoadingBar {
-
-    fn create_text_bundle(
-        prefix : String,
-        text: String, 
-        font_size: f32, 
-        position: Vec3
-    ) -> Text2dBundle {
-
-        Text2dBundle {
-            text: Text {
-                sections: vec![
-                    TextSection::new(
-                        prefix, 
-                        TextStyle {
-                            font_size,
-                            ..default()
-                        }
-                    ),
-                    TextSection::new(
-                        text, 
-                        TextStyle {
-                            font_size,
-                            ..default()
-                        }
-                    )
-                ],
-                justify: JustifyText::Center,
-                ..default()
-            },
-            text_anchor: Anchor::CenterLeft,
-            transform: Transform::from_xyz(position.x, position.y, position.z),
-            ..default()
-        }
-    }
-    
-    fn create_sprite_bundle(size: Vec2, position: Vec3) -> SpriteBundle {
-        SpriteBundle {
-            sprite: Sprite {
-                custom_size: Some(size),
-                ..default()
-            },
-            transform: Transform::from_xyz(position.x, position.y, position.z),
-            ..default()
+    fn new(
+        prefix: String, 
+        final_message: String, 
+        timer_duration: Duration
+    ) -> Self {
+        Self {
+            prefix,
+            final_message,
+            timer: Timer::new(timer_duration, TimerMode::Once),
+            index: 0,
         }
     }
 }
@@ -84,20 +59,18 @@ struct LoadingBarConfig {
 
 impl LoadingBarConfig {
     fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, serde_json::Error> {
-        let file = File::open(path).expect(
-            "Could not open JSON file"
-        );
+        let file = File::open(path).expect("Could not open JSON file");
         let reader = BufReader::new(file);
         serde_json::from_reader(reader)
     }
 }
 
 #[derive(Bundle)]
-pub struct LoadingBarBundle{
-    bar : LoadingBar,
-    messages : TextFrames,
-    visibility : VisibilityBundle,
-    transform : TransformBundle
+pub struct LoadingBarBundle {
+    bar: LoadingBar,
+    messages: TextFrames,
+    visibility: VisibilityBundle,
+    transform: TransformBundle,
 }
 
 impl LoadingBarBundle {
@@ -113,15 +86,7 @@ impl LoadingBarBundle {
         );
 
         Self {
-            bar: LoadingBar {
-                prefix: config.prefix,
-                final_message: config.final_message,
-                timer: Timer::new(
-                    timer_duration,
-                    TimerMode::Once,
-                ),
-                index: 0,
-            },
+            bar: LoadingBar::new(config.prefix, config.final_message, timer_duration),
             messages: TextFrames::new(config.messages),
             visibility: VisibilityBundle::default(),
             transform: TransformBundle::from_transform(
@@ -132,17 +97,13 @@ impl LoadingBarBundle {
 
     pub fn fill(
         time: Res<Time>,
-        mut loading_query : Query<(&mut Children, &mut LoadingBar, &TextFrames)>,      
-        mut sprite_query : Query<&mut Sprite, With<ProgressIndicator>>,
-        mut text_query : Query<&mut Text, With<LoadingText>>,
+        mut loading_query: Query<(&mut Children, &mut LoadingBar, &TextFrames)>,      
+        mut sprite_query: Query<&mut Sprite, With<ProgressIndicator>>,
+        mut text_query: Query<&mut Text, With<LoadingText>>,
     ) {
-
         let mut rng = rand::thread_rng();
 
-        for (
-            children, mut bar, frames
-        ) in loading_query.iter_mut() {
-
+        for (children, mut bar, frames) in loading_query.iter_mut() {
             if bar.timer.tick(time.delta()).just_finished() {
                 bar.index += 1;
 
@@ -205,53 +166,33 @@ impl Component for LoadingBar {
                 let mut commands: Commands = world.commands();
 
                 if let Some(messages) = messages {
-                
                     commands.entity(entity).with_children(|parent| {
-                        parent.spawn(
-                            SpriteBundle { 
-                                sprite : Sprite {
-                                    custom_size : Some(Vec2 {
-                                        x : 0.0,
-                                        y : 0.0
-                                    }),
-                                    ..default()
-                                },
-                                ..default()
-                            }
-                        );
+                        // Spawn the loading bar components
+                        parent.spawn(SpriteFactory::create_sprite_bundle(
+                            Vec2::new(0.0, 0.0),
+                            Vec3::new(0.0, 0.0, 0.0),
+                        ));
+                        
                         parent.spawn((
                             LoadingText,
-                            Self::create_text_bundle(
+                            SpriteFactory::create_text_bundle(
                                 prefix.unwrap_or_default(),
                                 messages[0].clone(), 
                                 12.0, 
                                 Vec3::new(-250.0, 20.0, 0.0)
                             ),
                         ));
-                            
-                        let sprite_sizes = vec![
-                            Vec2::new(500.0, 2.0),
-                            Vec2::new(500.0, 2.0),
-                            Vec2::new(2.0, 15.0),
-                            Vec2::new(2.0, 15.0),
-                        ];
-                            
-                        let sprite_positions = vec![
-                            Vec3::new(0.0, -7.5, 0.0),
-                            Vec3::new(0.0, 7.5, 0.0),
-                            Vec3::new(-250.0, 0.0, 0.0),
-                            Vec3::new(250.0, 0.0, 0.0),
-                        ];
-                            
-                        for (size, position) in sprite_sizes.iter().zip(
-                            sprite_positions.iter()
-                        ) {
-                            parent.spawn(Self::create_sprite_bundle(
-                                *size, 
-                                *position
-                            ));
+                        
+                        // Create and spawn the sprite box around the loading bar
+                        let sprite_box = SpriteBox::create_sprite_box(
+                            Vec3::new(0.0, 0.0, 0.0),
+                            500.0,
+                            20.0,
+                        );
+                        for sprite in sprite_box {
+                            parent.spawn(sprite);
                         }
-                            
+
                         parent.spawn((
                             ProgressIndicator,
                             SpriteBundle {

@@ -14,7 +14,11 @@ use crate::{
     common_ui::NextButtonBundle,
     game_states::{GameState, MainState, StateVector},
     interaction::{AdvanceDialogue, InputAction},
-    text::TextButtonBundle
+    text::TextButtonBundle,
+    sprites::{
+        SpriteBox,
+        SpriteFactory
+    }
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
