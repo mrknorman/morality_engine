@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use common_ui::CommonUIPlugin;
 
 #[forbid(unsafe_code)]
 
@@ -23,6 +22,7 @@ mod interaction;
 mod timing;
 mod character;
 mod io;
+mod sprites;
 mod common_ui;
 
 use crate::game_states::{
