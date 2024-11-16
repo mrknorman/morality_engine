@@ -53,8 +53,8 @@ impl Plugin for GamePlugin {
 
         app
             .init_state::<MainState>()
-            .init_state::<GameState>()
-            .init_state::<SubState>()
+            .add_sub_state::<GameState>()
+            .add_sub_state::<SubState>()
             .enable_state_scoped_entities::<MainState>()
             .enable_state_scoped_entities::<GameState>()
             .enable_state_scoped_entities::<SubState>()

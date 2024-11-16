@@ -28,10 +28,7 @@ use crate::{
         TrainBundle, 
         STEAM_TRAIN
     },
-    io::{
-        IOPlugin,
-        BottomAnchor
-    },
+    io::IOPlugin,
     common_ui::NextButtonBundle
 };
 
@@ -53,9 +50,6 @@ impl Plugin for MenuScreenPlugin {
     }
 }
 
-#[derive(Component)]
-pub struct MenuRoot;
-
 fn setup_menu(
         mut commands: Commands, 
         asset_server: Res<AssetServer>,
@@ -73,13 +67,12 @@ fn setup_menu(
 
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),
-        Some(GameState::Loading),
+        None,
         None
     );
 
     commands.spawn(
         (
-            MenuRoot,
             StateScoped(MainState::Menu),
             TransformBundle::from_transform(menu_translation),
             VisibilityBundle::default()

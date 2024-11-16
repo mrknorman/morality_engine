@@ -5,28 +5,28 @@ use serde::{Serialize, Deserialize};
 pub enum MainState {
     #[default]
     Menu,
-    InGame,
+    InGame
 }
 
-#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash, Serialize, 
+#[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash, Serialize, 
     Deserialize)]
+#[source(MainState = MainState::InGame)]
 pub enum GameState {
     #[default]
-    None,
     Loading,
     Dialogue,
     Dilemma,
 }
 
-#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash)]
+#[source(GameState = GameState::Dilemma)]
 pub enum SubState {
     #[default]
-    None,
     Intro,
     IntroDecisionTransition,
     Decision,
     ConsequenceAnimation,
-    Results,
+    Results
 }
 
 #[derive(Clone)]
@@ -37,7 +37,6 @@ pub struct StateVector {
 }
 
 impl StateVector {
-
     pub fn new(
         main: Option<MainState>,
         game: Option<GameState>,
