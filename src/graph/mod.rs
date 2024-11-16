@@ -209,13 +209,10 @@ impl Component for Graph {
                             node_outer_radius)
                         ));
 
-                        let asset_server = world.resource::<AssetServer>();
-                        let texture: Handle<Image> = asset_server.load("branding/icon.png");
-
                         let mut materials = world.resource_mut::<Assets<PulsingMaterial>>();
                         let material_handle = materials.add(PulsingMaterial {
                             color: LinearRgba::new(1.0, 1.0, 1.0, 1.0),
-                            color_texture: Some(texture),
+                            phase : 1.0
                         });
 
                         // Mutable borrow of `world` ends

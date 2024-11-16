@@ -10,9 +10,8 @@ use bevy::{
 pub struct PulsingMaterial {
     #[uniform(0)]
     pub color: LinearRgba,
-    #[texture(1)]
-    #[sampler(2)]
-    pub color_texture: Option<Handle<Image>>,
+    #[uniform(1)]
+    pub phase: f32
 }
 
 /// The Material2d trait is very configurable, but comes with sensible defaults for all methods.
