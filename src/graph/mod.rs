@@ -66,7 +66,6 @@ impl GraphNode {
 
 #[derive(Clone)]
 pub struct Graph {
-    num_layers : i32,
     inter_layer_distance : f32,
     num_nodes_per_layer : Vec<i32>,
     inter_node_distance : f32,
@@ -76,7 +75,6 @@ pub struct Graph {
 
 impl Graph {
     pub fn new(
-        num_layers : i32,
         inter_layer_distance : f32,
         num_nodes_per_layer : Vec<i32>,
         inter_node_distance : f32,
@@ -84,7 +82,6 @@ impl Graph {
         node_border_thickness : f32
     ) -> Self {
         Graph {
-            num_layers,
             inter_layer_distance,
             num_nodes_per_layer,
             inter_node_distance,
@@ -109,41 +106,42 @@ impl Graph {
     // Refactor `spawn_graph_layer` accordingly
     fn spawn_layer(
         parent: &mut ChildBuilder<'_>,
-        circle_mesh_handle: Handle<Mesh>,
-        annulus_mesh_handle: Handle<Mesh>,
-        material_handle: Handle<PulsingMaterial>,
-        transform: Transform,
-        x_positions: Vec<f32>,
+        circle_mesh_handle: &Handle<Mesh>,
+        annulus_mesh_handle: &Handle<Mesh>,
+        node_material_slice: &[Handle<PulsingMaterial>],
+        outline_material: &Handle<ColorMaterial>,
+        transform: &Transform,
+        x_positions: &[f32],
     ) {
-
-        for &x_position in &x_positions {
-            // Set the transform for each node with the calculated x position
+        assert_eq!(
+            x_positions.len(),
+            node_material_slice.len(),
+            "The number of positions and materials must be the same"
+        );
+    
+        for (&x_position, material_handle) in x_positions.iter().zip(node_material_slice.iter()) {
             let node_transform = Transform::from_translation(Vec3::new(
                 x_position + transform.translation.x,
                 transform.translation.y,
                 transform.translation.z,
             ));
-
-            // Spawn the circle bundle at the calculated position
-            parent.spawn(
+    
+            parent.spawn(MaterialMesh2dBundle {
+                mesh: Mesh2dHandle(annulus_mesh_handle.clone()),
+                material: outline_material.clone(),
+                transform: node_transform.clone(),
+                ..default()
+            });
+    
+            parent.spawn((
+                GraphNode,
                 MaterialMesh2dBundle {
-                    mesh: Mesh2dHandle(annulus_mesh_handle.clone()),
+                    mesh: Mesh2dHandle(circle_mesh_handle.clone()),
                     material: material_handle.clone(),
-                    transform: node_transform.clone(),
+                    transform: node_transform,
                     ..default()
                 },
-            );
-            parent.spawn(
-                (
-                    GraphNode,
-                    MaterialMesh2dBundle {
-                        mesh: Mesh2dHandle(circle_mesh_handle.clone()),
-                        material: material_handle.clone(),
-                        transform: node_transform,
-                        ..default()
-                    }
-                ),
-            );
+            ));
         }
     }
 
@@ -151,29 +149,39 @@ impl Graph {
         parent: &mut ChildBuilder<'_>,
         circle_mesh_handle: Handle<Mesh>,
         annulus_mesh_handle: Handle<Mesh>,
-        material_handle: Handle<PulsingMaterial>,
-        graph : Graph
+        node_material_vector: Vec<Handle<PulsingMaterial>>,
+        outline_material: Handle<ColorMaterial>,
+        graph: Graph,
     ) {
         let base_spacing = graph.node_outer_radius * 2.0 + graph.inter_node_distance;
-
-        let center_offset = ((graph.num_layers - 1) as f32) / 2.0 * graph.inter_layer_distance;
-
+        let center_offset = ((graph.num_nodes_per_layer.len() - 1) as f32) / 2.0 * graph.inter_layer_distance;
+    
+        let mut material_index = 0;
+    
         for (layer_index, &num_nodes) in graph.num_nodes_per_layer.iter().enumerate() {
             let y_position = layer_index as f32 * graph.inter_layer_distance - center_offset;
-
+    
             // Compute x positions
             let x_positions = Graph::compute_x_positions(num_nodes, base_spacing);
-
-            // Now we can call spawn_graph_layer with x_positions
+    
+            // Calculate the slice of materials for this layer
+            let next_index = material_index + num_nodes as usize;
+            let node_material_slice = &node_material_vector[material_index..next_index];
+    
+            // Update the material index for the next layer
+            material_index = next_index;
+    
+            // Now we can call spawn_layer with x_positions and the material slice
             let transform = Transform::from_xyz(0.0, y_position, 0.0);
-
+    
             Graph::spawn_layer(
                 parent,
-                circle_mesh_handle.clone(),
-                annulus_mesh_handle.clone(),
-                material_handle.clone(),
-                transform,
-                x_positions,
+                &circle_mesh_handle,
+                &annulus_mesh_handle,
+                node_material_slice,
+                &outline_material,
+                &transform,
+                &x_positions,
             );
         }
     }
@@ -200,7 +208,7 @@ impl Component for Graph {
                     let circle_radius = node_inner_radius - 2.0;
 
                     // Step 2: Extract meshes and materials handles in limited scope
-                    let (circle_mesh_handle, annulus_mesh_handle, material_handle) = {
+                    let (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material) = {
                         // Mutable borrow of `world` starts
                         let mut meshes = world.resource_mut::<Assets<Mesh>>();
                         let circle_mesh_handle = meshes.add(Mesh::from(Circle::new(circle_radius)));
@@ -209,14 +217,28 @@ impl Component for Graph {
                             node_outer_radius)
                         ));
 
+                        let num_nodes = graph.num_nodes_per_layer.iter().sum();
                         let mut materials = world.resource_mut::<Assets<PulsingMaterial>>();
-                        let material_handle = materials.add(PulsingMaterial {
-                            color: LinearRgba::new(1.0, 1.0, 1.0, 1.0),
-                            phase : 1.0
-                        });
+
+                        let node_material_vector: Vec<Handle<PulsingMaterial>> = if num_nodes > 0 {
+                            (0..num_nodes)
+                                .map(|i| {
+                                    let phase = ((i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU);
+                                    materials.add(PulsingMaterial {
+                                        color: LinearRgba::new(1.0, 1.0, 1.0, 1.0),
+                                        phase,
+                                    })
+                                })
+                                .collect()
+                        } else {
+                            Vec::new()
+                        };
+
+                        let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
+                        let outline_material  = materials.add(ColorMaterial::from(Color::WHITE));
 
                         // Mutable borrow of `world` ends
-                        (circle_mesh_handle, annulus_mesh_handle, material_handle)
+                        (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material)
                     };
 
                     // Step 3: Use commands in a separate scope
@@ -230,7 +252,8 @@ impl Component for Graph {
                                 parent,
                                 circle_mesh_handle.clone(),
                                 annulus_mesh_handle.clone(),
-                                material_handle.clone(),
+                                node_material_vector.clone(),
+                                outline_material.clone(),
                                 graph
                             );
                         });
@@ -252,7 +275,6 @@ pub struct GraphBundle{
 
 impl GraphBundle {
     pub fn new(
-        num_layers : i32,
         inter_layer_distance : f32,
         num_nodes_per_layer : Vec<i32>,
         inter_node_distance : f32,
@@ -264,7 +286,6 @@ impl GraphBundle {
 
         GraphBundle {
             graph : Graph::new(
-                num_layers,
                 inter_layer_distance*scale,
                 num_nodes_per_layer,
                 inter_node_distance*scale,

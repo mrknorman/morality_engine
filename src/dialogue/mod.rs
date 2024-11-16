@@ -47,10 +47,6 @@ impl Plugin for DialogueScreenPlugin {
         }
     }
 }
-
-#[derive(Component)]
-pub struct DialogueRoot;
-
 pub fn setup_dialogue(
         mut commands: Commands, 
         asset_server : Res<AssetServer>
@@ -69,7 +65,6 @@ pub fn setup_dialogue(
     
     commands.spawn(
         (
-            DialogueRoot,
             StateScoped(GameState::Dialogue),
             TransformBundle::from_transform(
                 Transform::from_xyz(0.0, 0.0, 0.0)
@@ -118,14 +113,13 @@ pub fn setup_dialogue(
             );
             parent.spawn(
                 GraphBundle::new(
-                    3,
                     45.0,
                     vec![2, 3, 2],
                     10.0,
                     20.0,
                     4.0,
-                    Vec3::new(350.0, 0.0, 0.0),
-                    1.5
+                    Vec3::new(300.0, 0.0, 0.0),
+                    2.0
                 )
             );
         }
