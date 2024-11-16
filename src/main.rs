@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    sprite::Material2dPlugin   
+};
 
 #[forbid(unsafe_code)]
 
@@ -14,6 +17,7 @@ mod menu;
 mod narration;
 mod person;
 mod train;
+mod graph;
 mod shortcuts;
 mod motion;
 mod text;
@@ -24,17 +28,22 @@ mod character;
 mod io;
 mod sprites;
 mod common_ui;
+mod shaders;
 
-use crate::game_states::{
-    GameState, 
-    MainState, 
-    SubState
+use crate::{
+    game_states::{
+        GameState, 
+        MainState, 
+        SubState
+    },
+    shaders::PulsingMaterial
 };
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(GamePlugin)
+        .add_plugins(Material2dPlugin::<PulsingMaterial>::default())
         .run();
 }
 

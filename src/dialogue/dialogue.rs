@@ -5,7 +5,15 @@ use std::{
     fs::File, 
     io::BufReader
 };
-use bevy::{prelude::*, text::{BreakLineOn, Text2dBounds}, sprite::Anchor};
+use bevy::{
+    prelude::*, 
+    text::{BreakLineOn, Text2dBounds}, 
+    sprite::{
+        MaterialMesh2dBundle,
+        Mesh2dHandle,
+        Anchor
+    }
+};
 use serde::{Serialize, Deserialize};
 
 use crate::{
@@ -14,11 +22,7 @@ use crate::{
     common_ui::NextButtonBundle,
     game_states::{GameState, MainState, StateVector},
     interaction::{AdvanceDialogue, InputAction},
-    text::TextButtonBundle,
-    sprites::{
-        SpriteBox,
-        SpriteFactory
-    }
+    text::TextButtonBundle
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -33,8 +37,9 @@ impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
         app
             .init_state::<DialogueSystemsActive>()
-            .add_systems(Update, activate_systems)
-            .add_systems(
+            .add_systems(Update, 
+                activate_systems
+            ).add_systems(
                 Update,
                 (
                     Dialogue::advance_dialogue,
@@ -83,7 +88,10 @@ impl Dialogue {
             current_char_index: 0,
             playing: false,
             skip_count: 0,
-            timer: Timer::new(Duration::from_secs_f32(0.0), TimerMode::Repeating),
+            timer: Timer::new(
+                Duration::from_secs_f32(0.0), 
+                TimerMode::Repeating
+            ),
             char_duration_millis: 50,
         }
     }
@@ -111,9 +119,18 @@ impl Dialogue {
 		audio_query: Query<&AudioSink>,
 		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
 	) {
-		for (mut dialogue, mut text, audio_pallet) in query.iter_mut() {
-			if let Some(line) = dialogue.lines.get(dialogue.current_line_index) {
-				if !dialogue.playing && (!ev_advance_dialogue.is_empty() || dialogue.current_line_index == 0) {
+		for (
+            mut dialogue,
+            mut text,
+            audio_pallet
+        ) in query.iter_mut() {
+			if let Some(line) = dialogue.lines.get(
+                dialogue.current_line_index
+            ) {
+				if !dialogue.playing && (
+                    !ev_advance_dialogue.is_empty() || 
+                    dialogue.current_line_index == 0
+                ) {
 					ev_advance_dialogue.clear();
 					text.sections.extend(Self::generate_shell_prompt(
                         &line.character.name, 
@@ -121,7 +138,10 @@ impl Dialogue {
                         &line.character.color
                     ));
 					dialogue.playing = true;
-					dialogue.timer = Timer::new(Duration::from_millis(dialogue.char_duration_millis), TimerMode::Repeating);
+					dialogue.timer = Timer::new(Duration::from_millis(
+                        dialogue.char_duration_millis), 
+                        TimerMode::Repeating
+                    );
 				} else if dialogue.playing {
 					if let Some(&audio_entity) = audio_pallet.entities.get(&line.character.name) {
 						if let Ok(audio_sink) = audio_query.get(audio_entity) {
@@ -144,13 +164,23 @@ impl Dialogue {
 			return;
 		}
 	
-		for (mut dialogue, mut text, audio_pallet) in query.iter_mut() {
+		for (
+            mut dialogue,
+            mut text, 
+            audio_pallet
+        ) in query.iter_mut() {
+
 			if !dialogue.playing {
 				continue;
 			}
 	
-			if let Some(line) = dialogue.lines.get(dialogue.current_line_index) {
-				if let Some(&audio_entity) = audio_pallet.entities.get(&line.character.name) {
+			if let Some(line) = dialogue.lines.get(
+                dialogue.current_line_index
+            ) {
+
+				if let Some(&audio_entity) = audio_pallet.entities.get(
+                    &line.character.name
+                ) {
 					if let Ok(audio_sink) = audio_query.get(audio_entity) {
 						match dialogue.skip_count {
 							0 => audio_sink.set_speed(4.0),
@@ -161,7 +191,12 @@ impl Dialogue {
 	
 				if dialogue.skip_count == 0 {
 					dialogue.skip_count += 1;
-					dialogue.timer = Timer::new(Duration::from_millis(dialogue.char_duration_millis / 4), TimerMode::Repeating);
+					dialogue.timer = Timer::new(
+                        Duration::from_millis(
+                            dialogue.char_duration_millis / 4
+                        ), 
+                        TimerMode::Repeating
+                    );
 				} else {
 					text.sections.pop();
 					text.sections.push(TextSection::new(
