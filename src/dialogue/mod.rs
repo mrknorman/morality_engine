@@ -14,8 +14,11 @@ use crate::{
     game_states::GameState,
     character::Character,
     io::IOPlugin, 
-    interaction::InteractionPlugin
+    interaction::InteractionPlugin,
+    graph::GraphBundle
 };
+
+
 
 mod dialogue;
 use dialogue::{
@@ -111,6 +114,18 @@ pub fn setup_dialogue(
                     "./text/lab_1.json",
                     &asset_server,
                     &character_map
+                )
+            );
+            parent.spawn(
+                GraphBundle::new(
+                    3,
+                    45.0,
+                    vec![2, 3, 2],
+                    10.0,
+                    20.0,
+                    4.0,
+                    Vec3::new(350.0, 0.0, 0.0),
+                    1.5
                 )
             );
         }

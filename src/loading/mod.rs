@@ -19,10 +19,7 @@ use crate::{
         InputAction,
         InteractionPlugin, 
         Clickable
-    }, io::{
-        BottomAnchor, 
-        IOPlugin
-    }, 
+    }, io::IOPlugin, 
     text::{
         TextButtonBundle,
         TextFrames 
@@ -154,7 +151,7 @@ pub fn setup_loading(
                     1.0
                 )
             ]
-        )
+        ),
     )).with_children(
         |parent| {
             parent.spawn(LoadingBarBundle::new(

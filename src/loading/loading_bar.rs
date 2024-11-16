@@ -153,12 +153,12 @@ impl Component for LoadingBar {
 
                 let (messages, prefix) = {
                     let entity_ref = world.entity(entity);
-                    let messages = entity_ref
+                    let messages: Option<Vec<String>> = entity_ref
                         .get::<TextFrames>()
-                        .map(|frames| frames.frames.clone());
-                    let prefix = entity_ref
+                        .map(|frames: &TextFrames| frames.frames.clone());
+                    let prefix: Option<String> = entity_ref
                         .get::<LoadingBar>()
-                        .map(|bar| bar.prefix.clone());
+                        .map(|bar: &LoadingBar| bar.prefix.clone());
                     (messages, prefix)
                 };
         
@@ -197,7 +197,7 @@ impl Component for LoadingBar {
                             ProgressIndicator,
                             SpriteBundle {
                                 sprite: Sprite {
-                                    custom_size: Some(Vec2::new(0.0, 10.0)),
+                                    custom_size: Some(Vec2::new(0.0, 14.0)),
                                     anchor: Anchor::CenterLeft,
                                     ..default()
                                 },
