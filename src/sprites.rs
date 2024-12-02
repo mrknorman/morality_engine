@@ -3,6 +3,8 @@ use bevy::{
 	sprite::Anchor
 };
 
+use crate::colors::PRIMARY_COLOR;
+
 // Separate module for general sprite creation functionality
 pub struct SpriteFactory;
 
@@ -11,6 +13,7 @@ impl SpriteFactory {
         SpriteBundle {
             sprite: Sprite {
                 custom_size: Some(size),
+                color : PRIMARY_COLOR,
                 ..default()
             },
             transform: Transform::from_xyz(position.x, position.y, position.z),
@@ -31,6 +34,7 @@ impl SpriteFactory {
                         prefix, 
                         TextStyle {
                             font_size,
+                            color : PRIMARY_COLOR,
                             ..default()
                         }
                     ),
@@ -38,6 +42,7 @@ impl SpriteFactory {
                         text, 
                         TextStyle {
                             font_size,
+                            color : PRIMARY_COLOR,
                             ..default()
                         }
                     )

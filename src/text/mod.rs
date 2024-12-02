@@ -9,7 +9,8 @@ use bevy::prelude::*;
 
 use crate::{
     interaction::{InputAction, Clickable, Pressable},
-    audio::{TransientAudioPallet, TransientAudio}
+    audio::{TransientAudioPallet, TransientAudio},
+    colors::PRIMARY_COLOR
 };
 
 fn create_text_bundle(
@@ -24,6 +25,7 @@ fn create_text_bundle(
                 text.into(),
                 TextStyle {
                     font_size,
+                    color : PRIMARY_COLOR,
                     ..default()
                 },
             )],

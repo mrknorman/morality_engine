@@ -7,7 +7,9 @@ use bevy::{
     }
 };
 
-use crate::shaders::PulsingMaterial;
+use crate::{
+    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, shaders::PulsingMaterial
+};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GraphSystemsActive {
@@ -24,17 +26,6 @@ impl Plugin for GraphPlugin {
             .add_systems(Update, 
                 activate_systems
             );
-            
-            /* 
-            .add_systems(
-                Update,
-                (
-                    Graph::advance_graph,
-                    Graph::skip_controls,
-                    Graph::play
-                ).run_if(in_state(GraphSystemsActive::True))
-            );
-            */
     }
 }
 
@@ -51,18 +42,6 @@ fn activate_systems(
 
 #[derive(Component)]
 pub struct GraphNode;
-
-impl GraphNode {
-
-    pub fn pulse(
-        mut node_query: Query<&GraphNode>
-    ) {
-
-        for node in node_query.iter_mut() {
-
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct Graph {
@@ -225,7 +204,7 @@ impl Component for Graph {
                                 .map(|i| {
                                     let phase = ((i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU);
                                     materials.add(PulsingMaterial {
-                                        color: LinearRgba::new(1.0, 1.0, 1.0, 1.0),
+                                        color: HIGHLIGHT_COLOR.into(),
                                         phase,
                                     })
                                 })
@@ -235,19 +214,15 @@ impl Component for Graph {
                         };
 
                         let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-                        let outline_material  = materials.add(ColorMaterial::from(Color::WHITE));
+                        let outline_material  = materials.add(ColorMaterial::from(PRIMARY_COLOR));
 
-                        // Mutable borrow of `world` ends
                         (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material)
                     };
 
-                    // Step 3: Use commands in a separate scope
                     {
-                        // Mutable borrow of `world` starts
                         let mut commands = world.commands();
 
                         commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-                            // Pass the handles to your spawn function
                             Graph::spawn(
                                 parent,
                                 circle_mesh_handle.clone(),
@@ -257,9 +232,7 @@ impl Component for Graph {
                                 graph
                             );
                         });
-                        // Mutable borrow of `world` ends
                     }
-                    // All mutable borrows of `world` are now non-overlapping
                 }
             },
         );

@@ -8,11 +8,7 @@ use std::{
 use bevy::{
     prelude::*, 
     text::{BreakLineOn, Text2dBounds}, 
-    sprite::{
-        MaterialMesh2dBundle,
-        Mesh2dHandle,
-        Anchor
-    }
+    sprite::Anchor
 };
 use serde::{Serialize, Deserialize};
 
@@ -22,7 +18,8 @@ use crate::{
     common_ui::NextButtonBundle,
     game_states::{GameState, MainState, StateVector},
     interaction::{AdvanceDialogue, InputAction},
-    text::TextButtonBundle
+    text::TextButtonBundle,
+    colors::PRIMARY_COLOR
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -110,7 +107,11 @@ impl Dialogue {
                     ..default()
                 }
             ),
-            TextSection::new("", TextStyle { font_size: 15.0, ..default() })
+            TextSection::new("", TextStyle { 
+                font_size: 15.0, 
+                color : PRIMARY_COLOR,
+                ..default() 
+            })
         ]
     }
 
@@ -201,7 +202,11 @@ impl Dialogue {
 					text.sections.pop();
 					text.sections.push(TextSection::new(
 						&line.raw_text,
-						TextStyle { font_size: 15.0, ..default() }
+						TextStyle { 
+                            color : PRIMARY_COLOR,
+                            font_size: 15.0, 
+                            ..default() 
+                        }
 					));
 					dialogue.current_char_index = line.raw_text.len();
 					dialogue.skip_count += 1;
