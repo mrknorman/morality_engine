@@ -14,7 +14,7 @@ use crate::{
         GameState, 
         MainState,
         StateVector, 
-        SubState
+        DilemmaPhase
     }, interaction::{
         InputAction,
         InteractionPlugin, 
@@ -221,13 +221,12 @@ pub fn spawn_delayed_children(
                 let next_state_vector = StateVector::new(
                     Some(MainState::InGame),
                     Some(GameState::Dialogue),
-                    Some(SubState::Intro),
+                    Some(DilemmaPhase::Intro),
                 );
 
                 let button_messages = TextFrames::load(
                     "text/loading_messages/button.json"
                 );
-
 
                 if let Ok(button_messages) = button_messages {
                     commands.entity(entity).with_children(|parent| {
@@ -255,7 +254,6 @@ pub fn spawn_delayed_children(
         }
     }
 }
-
 
 fn update_button_text(
     next_state_button: Res<NextButtonConfig>,

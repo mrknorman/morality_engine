@@ -18,7 +18,12 @@ use crate::{
         StateVector,
         MainState,
         GameState,
-        SubState
+        DilemmaPhase
+    },
+    colors::{
+        PRESSED_BUTTON,
+        HOVERED_BUTTON,
+        PRIMARY_COLOR
     }
 };
 
@@ -81,10 +86,6 @@ fn activate_systems(
 
 #[derive(Event)]
 pub struct AdvanceDialogue (u64);
-
-pub const NORMAL_BUTTON: Color = Color::srgb(1.0, 1.0, 1.0);
-pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 1.0, 1.0);
-pub const PRESSED_BUTTON: Color = Color::srgb(1.0, 1.0, 0.0);
 
 #[derive(Component, Clone)]
 pub struct Clickable {
@@ -177,7 +178,7 @@ pub fn clickable_system(
             }
         } else {
             if let Some(text) = text.as_mut() {
-                update_text_color(text, NORMAL_BUTTON);
+                update_text_color(text, PRIMARY_COLOR);
             }
         }
     }
@@ -372,13 +373,13 @@ fn trigger_state_change(
     mut pressable_query: Query<&mut Pressable>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
-    mut next_sub_state: ResMut<NextState<SubState>>
+    mut next_sub_state: ResMut<NextState<DilemmaPhase>>
 ) {
     fn handle_state_change<T: InputActionHandler>(
         handler: &mut T,
         mut next_main_state: &mut ResMut<NextState<MainState>>,
         mut next_game_state: &mut ResMut<NextState<GameState>>,
-        mut next_sub_state: &mut ResMut<NextState<SubState>>,
+        mut next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
     ) {
         if handler.is_triggered() {
             let actions = handler.clone_actions();

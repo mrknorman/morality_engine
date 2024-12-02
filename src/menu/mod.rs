@@ -79,7 +79,6 @@ fn setup_menu(
         )
     ).with_children(
         |parent| {
-
             parent.spawn((
                 BackgroundAudio,
                 ContinuousAudioPallet::new(

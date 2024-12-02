@@ -12,6 +12,9 @@ use crate::{
     sprites::{
         SpriteFactory,
         SpriteBox
+    },
+    colors::{
+        HIGHLIGHT_COLOR
     }
 };
 
@@ -178,7 +181,7 @@ impl Component for LoadingBar {
                             SpriteFactory::create_text_bundle(
                                 prefix.unwrap_or_default(),
                                 messages[0].clone(), 
-                                12.0, 
+                                14.0, 
                                 Vec3::new(-250.0, 20.0, 0.0)
                             ),
                         ));
@@ -197,6 +200,7 @@ impl Component for LoadingBar {
                             ProgressIndicator,
                             SpriteBundle {
                                 sprite: Sprite {
+                                    color: HIGHLIGHT_COLOR,
                                     custom_size: Some(Vec2::new(0.0, 14.0)),
                                     anchor: Anchor::CenterLeft,
                                     ..default()
