@@ -1,0 +1,3399 @@
+   Compiling morality_engine v0.1.0 (/Users/michaelnorman/Dropbox/Code/morality_engine)
+error[E0412]: cannot find type `TextSection` in this scope
+   --> src/dialogue/dialogue.rs:100:14
+    |
+100 |     ) -> Vec<TextSection> {        
+    |              ^^^^^^^^^^^ not found in this scope
+    |
+help: you might be missing a type parameter
+    |
+80  | impl<TextSection> Dialogue {
+    |     +++++++++++++
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dialogue/dialogue.rs:104:17
+    |
+104 |                 TextStyle { 
+    |                 ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dialogue/dialogue.rs:110:34
+    |
+110 |             TextSection::new("", TextStyle { 
+    |                                  ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dialogue/dialogue.rs:205:7
+    |
+205 |                         TextStyle { 
+    |                         ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:302:8
+    |
+302 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:309:8
+    |
+309 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:379:8
+    |
+379 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:385:8
+    |
+385 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:441:8
+    |
+441 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:448:8
+    |
+448 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:626:8
+    |
+626 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:637:6
+    |
+637 |                     TextStyle {
+    |                     ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:670:9
+    |
+670 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:693:8
+    |
+693 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:704:6
+    |
+704 |                     TextStyle {
+    |                     ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:727:5
+    |
+727 |                 TextStyle {
+    |                 ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:745:7
+    |
+745 |                         TextStyle {
+    |                         ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:771:4
+    |
+771 |             TextStyle {
+    |             ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/dilemma.rs:997:11
+    |
+997 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+    --> src/dilemma/dilemma.rs:1032:11
+     |
+1032 | ...                   TextStyle {
+     |                       ^^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `Dilemma` in this scope
+  --> src/dilemma/junction.rs:37:14
+   |
+37 |             dilemma: &Dilemma
+   |                       ^^^^^^^ not found in this scope
+   |
+help: consider importing this struct through its public re-export
+   |
+1  + use crate::dilemma::Dilemma;
+   |
+
+error[E0422]: cannot find struct, variant or union type `LeverTrackTransform` in this scope
+   --> src/dilemma/junction.rs:102:4
+    |
+102 |             LeverTrackTransform{
+    |             ^^^^^^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this struct
+    |
+1   + use crate::dilemma::dilemma::LeverTrackTransform;
+    |
+
+error[E0422]: cannot find struct, variant or union type `LeverTrackTransform` in this scope
+   --> src/dilemma/junction.rs:116:4
+    |
+116 |             LeverTrackTransform{
+    |             ^^^^^^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this struct
+    |
+1   + use crate::dilemma::dilemma::LeverTrackTransform;
+    |
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/junction.rs:135:11
+    |
+135 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/dilemma/junction.rs:170:11
+    |
+170 | ...                   TextStyle {
+    |                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+  --> src/lever.rs:86:36
+   |
+86 |                         TextSection::new(start_text, TextStyle {
+   |                                                      ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/lever.rs:139:77
+    |
+139 |             lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_LEFT, TextStyle {
+    |                                                                                      ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+   --> src/lever.rs:151:78
+    |
+151 |             lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_RIGHT, TextStyle {
+    |                                                                                       ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+  --> src/person.rs:86:30
+   |
+86 |                         TextSection::new(text, TextStyle {
+   |                                                ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+  --> src/text/mod.rs:26:17
+   |
+26 |                 TextStyle {
+   |                 ^^^^^^^^^ help: a struct with a similar name exists: `TextTitle`
+...
+47 | pub struct TextTitle;
+   | --------------------- similarly named struct `TextTitle` defined here
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+  --> src/sprites.rs:35:25
+   |
+35 |                         TextStyle {
+   |                         ^^^^^^^^^ not found in this scope
+
+error[E0422]: cannot find struct, variant or union type `TextStyle` in this scope
+  --> src/sprites.rs:43:25
+   |
+43 |                         TextStyle {
+   |                         ^^^^^^^^^ not found in this scope
+
+error[E0603]: struct `Mesh2d` is private
+  --> src/graph/mod.rs:6:9
+   |
+6  |         Mesh2d
+   |         ^^^^^^ private struct
+   |
+note: the struct `Mesh2d` is defined here
+  --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_sprite-0.15.0/src/lib.rs:57:18
+   |
+57 |     mesh::{Mesh, Mesh2d, MeshAabb},
+   |                  ^^^^^^
+help: import `Mesh2d` directly
+   |
+6  |         bevy_render::mesh::components::Mesh2d
+   |
+
+warning: unused import: `GameState`
+  --> src/menu/mod.rs:12:9
+   |
+12 |         GameState, 
+   |         ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unnecessary parentheses around assigned value
+   --> src/graph/mod.rs:205:49
+    |
+205 | ...                   let phase = ((i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU);
+    |                                   ^                                                                          ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+205 -                                     let phase = ((i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU);
+205 +                                     let phase = (i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU;
+    |
+
+warning: unused import: `render::view::visibility`
+ --> src/io.rs:2:43
+  |
+2 |     ecs::component::StorageType, prelude::*, render::view::visibility
+  |                                              ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::bevy_core_pipeline::bloom::BloomSettings`: Renamed to `Bloom`
+ --> src/main.rs:6:16
+  |
+6 |         bloom::BloomSettings,
+  |                ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated struct `bevy::prelude::Camera2dBundle`: Use the `Camera2d` component instead. Inserting it will now also insert the other components required by it automatically.
+  --> src/main.rs:86:9
+   |
+86 |         Camera2dBundle {
+   |         ^^^^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::bevy_core_pipeline::bloom::BloomSettings`: Renamed to `Bloom`
+  --> src/main.rs:94:9
+   |
+94 |         BloomSettings::default(), // 3. Enable bloom for the camera
+   |         ^^^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+  --> src/audio/mod.rs:71:13
+   |
+71 |             AudioBundle {
+   |             ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:108:13
+    |
+108 |     audio : AudioBundle,
+    |             ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:426:13
+    |
+426 |     audio : AudioBundle,
+    |             ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:129:21
+    |
+129 |             audio : AudioBundle {
+    |                     ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:149:21
+    |
+149 |             audio : AudioBundle {
+    |                     ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:197:27
+    |
+197 |     pub fn play(&self) -> AudioBundle {
+    |                           ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:198:9
+    |
+198 |         AudioBundle {
+    |         ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:446:21
+    |
+446 |             audio : AudioBundle {
+    |                     ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:502:41
+    |
+502 | ...                   AudioBundle {
+    |                       ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:518:33
+    |
+518 | ...                   AudioBundle {
+    |                       ^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+  --> src/dialogue/mod.rs:69:13
+   |
+69 |             TransformBundle::from_transform(
+   |             ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+  --> src/dialogue/mod.rs:72:13
+   |
+72 |             VisibilityBundle::default(),
+   |             ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dialogue/dialogue.rs:368:11
+    |
+368 |     text: Text2dBundle
+    |           ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dialogue/dialogue.rs:379:20
+    |
+379 |         let text = Text2dBundle {
+    |                    ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/dilemma/mod.rs:126:4
+    |
+126 |             TransformBundle::from_transform(Transform::from_translation(
+    |             ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/dilemma/mod.rs:135:4
+    |
+135 |             VisibilityBundle::default()
+    |             ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/dilemma/mod.rs:169:4
+    |
+169 |             TransformBundle::from_transform(Transform::from_translation(
+    |             ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/dilemma/mod.rs:172:4
+    |
+172 |             VisibilityBundle::default(),
+    |             ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/mod.rs:297:17
+    |
+297 |     commands.spawn(AudioBundle {
+    |                    ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/mod.rs:308:17
+    |
+308 |     commands.spawn(AudioBundle {
+    |                    ^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/dilemma.rs:365:13
+    |
+365 |     pub text : Text2dBundle
+    |                ^^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::AudioBundle`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/dilemma.rs:812:4
+    |
+812 |             AudioBundle {
+    |             ^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/dilemma.rs:297:4
+    |
+297 |             Text2dBundle {
+    |             ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/dilemma.rs:374:11
+    |
+374 |             text : Text2dBundle {
+    |                    ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/dilemma.rs:431:4
+    |
+431 |             Text2dBundle {
+    |             ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/dilemma.rs:992:8
+    |
+992 |                         (Text2dBundle {
+    |                          ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+    --> src/dilemma/dilemma.rs:1027:8
+     |
+1027 |                         (Text2dBundle {
+     |                          ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/junction.rs:130:8
+    |
+130 |                         (Text2dBundle {
+    |                          ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/dilemma/junction.rs:165:8
+    |
+165 |                         (Text2dBundle {
+    |                          ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/lever.rs:83:4
+   |
+83 |             Text2dBundle {
+   |             ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/loading/mod.rs:119:9
+    |
+119 |         TransformBundle::from_transform(
+    |         ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/loading/mod.rs:122:9
+    |
+122 |         VisibilityBundle::default(),
+    |         ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+  --> src/loading/loading_bar.rs:75:17
+   |
+75 |     visibility: VisibilityBundle,
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+  --> src/loading/loading_bar.rs:76:16
+   |
+76 |     transform: TransformBundle,
+   |                ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+  --> src/loading/loading_bar.rs:94:25
+   |
+94 |             visibility: VisibilityBundle::default(),
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+  --> src/loading/loading_bar.rs:95:24
+   |
+95 |             transform: TransformBundle::from_transform(
+   |                        ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::SpriteBundle`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+   --> src/loading/loading_bar.rs:201:29
+    |
+201 | ...                   SpriteBundle {
+    |                       ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+  --> src/menu/mod.rs:77:13
+   |
+77 |             TransformBundle::from_transform(menu_translation),
+   |             ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+  --> src/menu/mod.rs:78:13
+   |
+78 |             VisibilityBundle::default()
+   |             ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/person.rs:83:4
+   |
+83 |             Text2dBundle {
+   |             ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/train/mod.rs:184:14
+    |
+184 |     transform : TransformBundle,
+    |                 ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/train/mod.rs:185:15
+    |
+185 |     visibility : VisibilityBundle,
+    |                  ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/train/mod.rs:207:15
+    |
+207 |             transform: TransformBundle::from_transform(
+    |                        ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/train/mod.rs:210:16
+    |
+210 |             visibility: VisibilityBundle::default(), 
+    |                         ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::bevy_sprite::MaterialMesh2dBundle`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+ --> src/graph/mod.rs:5:9
+  |
+5 |         MaterialMesh2dBundle,
+  |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/graph/mod.rs:245:18
+    |
+245 |     visibility : VisibilityBundle,
+    |                  ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/graph/mod.rs:246:17
+    |
+246 |     transform : TransformBundle
+    |                 ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::bevy_sprite::MaterialMesh2dBundle`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:108:26
+    |
+108 |             parent.spawn(MaterialMesh2dBundle {
+    |                          ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::bevy_sprite::MaterialMesh2dBundle`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:117:17
+    |
+117 |                 MaterialMesh2dBundle {
+    |                 ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::VisibilityBundle`: Use the `Visibility` component instead. Inserting it will now also insert `InheritedVisibility` and `ViewVisibility` automatically.
+   --> src/graph/mod.rs:268:26
+    |
+268 |             visibility : VisibilityBundle::default(),
+    |                          ^^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::TransformBundle`: Use the `Transform` component instead. Inserting `Transform` will now also insert a `GlobalTransform` automatically.
+   --> src/graph/mod.rs:269:25
+    |
+269 |             transform : TransformBundle::from_transform(
+    |                         ^^^^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/text/mod.rs:20:10
+   |
+20 |     ) -> Text2dBundle {
+   |          ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/text/mod.rs:22:5
+   |
+22 |     Text2dBundle {
+   |     ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/text/mod.rs:53:11
+   |
+53 |     text: Text2dBundle,
+   |           ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/text/mod.rs:69:11
+   |
+69 |     text: Text2dBundle,
+   |           ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/text/mod.rs:85:11
+   |
+85 |     text: Text2dBundle,
+   |           ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+   --> src/text/mod.rs:192:12
+    |
+192 |     text : Text2dBundle,
+    |            ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::SpriteBundle`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+  --> src/sprites.rs:12:64
+   |
+12 |     pub fn create_sprite_bundle(size: Vec2, position: Vec3) -> SpriteBundle {
+   |                                                                ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::SpriteBundle`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+  --> src/sprites.rs:13:9
+   |
+13 |         SpriteBundle {
+   |         ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/sprites.rs:29:10
+   |
+29 |     ) -> Text2dBundle {
+   |          ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::Text2dBundle`: Text2dBundle has been migrated to required components. Follow the documentation for more information.
+  --> src/sprites.rs:30:9
+   |
+30 |         Text2dBundle {
+   |         ^^^^^^^^^^^^
+
+warning: use of deprecated struct `bevy::prelude::SpriteBundle`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+  --> src/sprites.rs:68:14
+   |
+68 |     ) -> Vec<SpriteBundle> {
+   |              ^^^^^^^^^^^^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+  --> src/audio/mod.rs:72:17
+   |
+72 |                 source: asset_server.load(audio_path),
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+  --> src/audio/mod.rs:72:25
+   |
+72 |                 source: asset_server.load(audio_path),
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<_>`
+   |
+   = note: expected struct `AudioPlayer`
+                found enum `bevy::prelude::Handle<_>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+   |
+72 |                 source: bevy::prelude::AudioPlayer(asset_server.load(audio_path)),
+   |                         +++++++++++++++++++++++++++                             +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+  --> src/audio/mod.rs:73:17
+   |
+73 | /                 settings: PlaybackSettings {
+74 | |                     mode: PlaybackMode::Despawn,
+75 | |                     volume: Volume::new(0.5),
+76 | |                     ..default()
+77 | |                 },
+   | |_________________^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:130:17
+    |
+130 |                 source: continuous_audio.clone().source,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/audio/mod.rs:130:25
+    |
+130 |                 source: continuous_audio.clone().source,
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<AudioSource>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<bevy::prelude::AudioSource>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+130 |                 source: bevy::prelude::AudioPlayer(continuous_audio.clone().source),
+    |                         +++++++++++++++++++++++++++                               +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:131:17
+    |
+131 | /                 settings: PlaybackSettings {
+132 | |                     mode: PlaybackMode::Loop,
+133 | |                     paused,
+134 | |                     volume: Volume::new(continuous_audio.clone().volume),
+135 | |                     ..default()
+136 | |                 },
+    | |_________________^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:150:17
+    |
+150 |                 source: continuous_audio.clone().source,
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/audio/mod.rs:150:25
+    |
+150 |                 source: continuous_audio.clone().source,
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<AudioSource>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<bevy::prelude::AudioSource>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+150 |                 source: bevy::prelude::AudioPlayer(continuous_audio.clone().source),
+    |                         +++++++++++++++++++++++++++                               +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:151:17
+    |
+151 | /                 settings: PlaybackSettings {
+152 | |                     mode: PlaybackMode::Loop,
+153 | |                     paused : continuous_audio.paused,
+154 | |                     volume: Volume::new(continuous_audio.clone().volume),
+155 | |                     ..default()
+156 | |                 },
+    | |_________________^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:199:13
+    |
+199 |             source: self.source.clone(),
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/audio/mod.rs:199:21
+    |
+199 |             source: self.source.clone(),
+    |                     ^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<AudioSource>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<bevy::prelude::AudioSource>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+199 |             source: bevy::prelude::AudioPlayer(self.source.clone()),
+    |                     +++++++++++++++++++++++++++                   +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:200:13
+    |
+200 | /             settings: PlaybackSettings {
+201 | |                 mode: PlaybackMode::Despawn,
+202 | |                 volume: Volume::new(self.volume),
+203 | |                 ..default()
+204 | |             },
+    | |_____________^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:447:17
+    |
+447 |                 source: one_shot_audio.source.clone(),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/audio/mod.rs:447:25
+    |
+447 |                 source: one_shot_audio.source.clone(),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<AudioSource>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<bevy::prelude::AudioSource>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+447 |                 source: bevy::prelude::AudioPlayer(one_shot_audio.source.clone()),
+    |                         +++++++++++++++++++++++++++                             +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:448:17
+    |
+448 | /                 settings: PlaybackSettings {
+449 | |                     paused : false,
+450 | |                     mode: PlaybackMode::Despawn,
+451 | |                     volume: Volume::new(
+...   |
+454 | |                 ..default()
+455 | |                 },
+    | |_________________^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:503:45
+    |
+503 | ...                   source: audio_component.source.clone(),
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/audio/mod.rs:503:53
+    |
+503 | ...                   source: audio_component.source.clone(),
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<AudioSource>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<bevy::prelude::AudioSource>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+503 |                                             source: bevy::prelude::AudioPlayer(audio_component.source.clone()),
+    |                                                     +++++++++++++++++++++++++++                              +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:504:45
+    |
+504 | / ...                   settings: PlaybackSettings {
+505 | | ...                       paused : false,
+506 | | ...                       mode: PlaybackMode::Despawn,
+507 | | ...                       volume: Volume::new(
+...   |
+510 | | ...                   ..default()
+511 | | ...                   },
+    | |_______________________^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:519:37
+    |
+519 | ...                   source: audio_component.source.clone(),
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/audio/mod.rs:519:45
+    |
+519 | ...                   source: audio_component.source.clone(),
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<AudioSource>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<bevy::prelude::AudioSource>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+519 |                                     source: bevy::prelude::AudioPlayer(audio_component.source.clone()),
+    |                                             +++++++++++++++++++++++++++                              +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/audio/mod.rs:520:37
+    |
+520 | / ...                   settings: PlaybackSettings {
+521 | | ...                       paused : false,
+522 | | ...                       mode: PlaybackMode::Despawn,
+523 | | ...                       volume: Volume::new(
+...   |
+526 | | ...                   ..default()
+527 | | ...                   },
+    | |_______________________^
+
+error[E0599]: no method named `is_some` found for enum `Result` in the current scope
+   --> src/audio/mod.rs:579:53
+    |
+579 |                         if world.get_entity(entity).is_some() {
+    |                                                     ^^^^^^^
+    |
+help: there is a method `is_ok` with a similar name
+    |
+579 |                         if world.get_entity(entity).is_ok() {
+    |                                                     ~~~~~
+
+error[E0599]: no method named `is_some` found for enum `Result` in the current scope
+   --> src/audio/mod.rs:655:53
+    |
+655 |                         if world.get_entity(entity).is_some() {
+    |                                                     ^^^^^^^
+    |
+help: there is a method `is_ok` with a similar name
+    |
+655 |                         if world.get_entity(entity).is_ok() {
+    |                                                     ~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dialogue/dialogue.rs:102:13
+    |
+102 |             TextSection::new(
+    |             ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dialogue/dialogue.rs:110:13
+    |
+110 |             TextSection::new("", TextStyle { 
+    |             ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dialogue/dialogue.rs:136:11
+    |
+136 |                     text.sections.extend(Self::generate_shell_prompt(
+    |                          ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dialogue/dialogue.rs:202:11
+    |
+202 |                     text.sections.pop();
+    |                          ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dialogue/dialogue.rs:203:11
+    |
+203 |                     text.sections.push(TextSection::new(
+    |                          ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dialogue/dialogue.rs:203:25
+    |
+203 |                     text.sections.push(TextSection::new(
+    |                                        ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dialogue/dialogue.rs:236:49
+    |
+236 |                     if let Some(section) = text.sections.last_mut() {
+    |                                                 ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dialogue/dialogue.rs:244:49
+    |
+244 |                     if let Some(section) = text.sections.last_mut() {
+    |                                                 ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dialogue/dialogue.rs:368:11
+    |
+368 |     text: Text2dBundle
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::component_ids`
+...
+151 |     fn component_ids(
+    |        ------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dialogue/dialogue.rs:368:11
+    |
+368 |     text: Text2dBundle
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `get_component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::get_component_ids`
+...
+158 |     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+    |        ----------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dialogue/dialogue.rs:368:11
+    |
+368 |     text: Text2dBundle
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `from_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::from_components`
+...
+167 |     unsafe fn from_components<T, F>(ctx: &mut T, func: &mut F) -> Self
+    |               --------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dialogue/dialogue.rs:368:11
+    |
+368 |     text: Text2dBundle
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `bevy::prelude::Bundle::register_required_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::register_required_components`
+...
+174 |     fn register_required_components(
+    |        ---------------------------- required by a bound in this associated function
+
+error[E0599]: `bevy::prelude::Text2dBundle` is not a `Component`
+   --> src/dialogue/dialogue.rs:364:10
+    |
+364 | #[derive(Bundle)]
+    |          ^^^^^^ invalid `Component`
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_text-0.15.0/src/text2d.rs:44:1
+    |
+44  | pub struct Text2dBundle {}
+    | ----------------------- doesn't satisfy `_: Component` or `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = note: the following trait bounds were not satisfied:
+            `bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+            `&bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `&bevy::prelude::Text2dBundle: DynamicBundle`
+            `&mut bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `&mut bevy::prelude::Text2dBundle: DynamicBundle`
+    = note: consider annotating `bevy::prelude::Text2dBundle` with `#[derive(Component)]`
+    = note: this error originates in the derive macro `Bundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dialogue/dialogue.rs:380:13
+    |
+380 |             text: Text {
+    |             ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dialogue/dialogue.rs:381:17
+    |
+381 |                 sections: vec![],
+    |                 ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+380 |             text: bevy::prelude::Text(/* std::string::String */),
+    |                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/dialogue/dialogue.rs:382:17
+    |
+382 |                 justify: JustifyText::Left,
+    |                 ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+380 |             text: bevy::prelude::Text(/* std::string::String */),
+    |                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+   --> src/dialogue/dialogue.rs:383:17
+    |
+383 |                 linebreak_behavior: LineBreak::WordBoundary
+    |                 ^^^^^^^^^^^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+380 |             text: bevy::prelude::Text(/* std::string::String */),
+    |                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_2d_bounds`
+   --> src/dialogue/dialogue.rs:385:13
+    |
+385 |             text_2d_bounds: TextBounds {
+    |             ^^^^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `TextBounds` has no field named `size`
+   --> src/dialogue/dialogue.rs:386:17
+    |
+386 |                 size: Vec2::new(500.0, 2000.0),
+    |                 ^^^^ `TextBounds` does not have this field
+    |
+    = note: available fields are: `width`, `height`
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+   --> src/dialogue/dialogue.rs:388:13
+    |
+388 |             transform: Transform::from_xyz(-500.0, 0.0, 1.0),
+    |             ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+   --> src/dialogue/dialogue.rs:389:13
+    |
+389 |             text_anchor: Anchor::CenterLeft,
+    |             ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dilemma/dilemma.rs:298:5
+    |
+298 |                 text : Text {
+    |                 ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dilemma/dilemma.rs:299:6
+    |
+299 |                     sections : vec![
+    |                     ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+298 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:300:7
+    |
+300 |                         TextSection::new(
+    |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:307:7
+    |
+307 |                         TextSection::new(
+    |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/dilemma/dilemma.rs:315:6
+    |
+315 |                     justify : JustifyText::Center, 
+    |                     ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+298 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+   --> src/dilemma/dilemma.rs:316:6
+    |
+316 |                     linebreak_behavior: LineBreak::WordBoundary
+    |                     ^^^^^^^^^^^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+298 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+   --> src/dilemma/dilemma.rs:318:5
+    |
+318 |                 transform: Transform::from_xyz(0.0, -100.0, 1.0),
+    |                 ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+   --> src/dilemma/dilemma.rs:319:5
+    |
+319 |                 text_anchor : Anchor::Center,
+    |                 ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0277]: `(DilemmaTimer, bevy::prelude::Text2dBundle)` is not a `Bundle`
+   --> src/dilemma/dilemma.rs:290:4
+    |
+289 |           commands.spawn(
+    |                    ----- required by a bound introduced by this call
+290 | /             (
+291 | |             DilemmaTimer {
+292 | |                 timer : Timer::from_seconds(
+293 | |                     max_time_seconds,
+...   |
+321 | |             }
+322 | |             )
+    | |_____________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(DilemmaTimer, bevy::prelude::Text2dBundle)`
+    = note: consider annotating `(DilemmaTimer, bevy::prelude::Text2dBundle)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::Commands::<'w, 's>::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/system/commands/mod.rs:395:21
+    |
+395 |     pub fn spawn<T: Bundle>(&mut self, bundle: T) -> EntityCommands {
+    |                     ^^^^^^ required by this bound in `Commands::<'w, 's>::spawn`
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dilemma/dilemma.rs:365:13
+    |
+365 |     pub text : Text2dBundle
+    |                ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 380 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::component_ids`
+...
+151 |     fn component_ids(
+    |        ------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dilemma/dilemma.rs:365:13
+    |
+365 |     pub text : Text2dBundle
+    |                ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 380 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `get_component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::get_component_ids`
+...
+158 |     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+    |        ----------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dilemma/dilemma.rs:365:13
+    |
+365 |     pub text : Text2dBundle
+    |                ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 380 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `from_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::from_components`
+...
+167 |     unsafe fn from_components<T, F>(ctx: &mut T, func: &mut F) -> Self
+    |               --------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/dilemma/dilemma.rs:365:13
+    |
+365 |     pub text : Text2dBundle
+    |                ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 380 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `bevy::prelude::Bundle::register_required_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::register_required_components`
+...
+174 |     fn register_required_components(
+    |        ---------------------------- required by a bound in this associated function
+
+error[E0599]: `bevy::prelude::Text2dBundle` is not a `Component`
+   --> src/dilemma/dilemma.rs:362:10
+    |
+362 | #[derive(Bundle)]
+    |          ^^^^^^ invalid `Component`
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_text-0.15.0/src/text2d.rs:44:1
+    |
+44  | pub struct Text2dBundle {}
+    | ----------------------- doesn't satisfy `_: Component` or `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = note: the following trait bounds were not satisfied:
+            `bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+            `&bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `&bevy::prelude::Text2dBundle: DynamicBundle`
+            `&mut bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `&mut bevy::prelude::Text2dBundle: DynamicBundle`
+    = note: consider annotating `bevy::prelude::Text2dBundle` with `#[derive(Component)]`
+    = note: this error originates in the derive macro `Bundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dilemma/dilemma.rs:375:5
+    |
+375 |                 text : Text {
+    |                 ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dilemma/dilemma.rs:376:6
+    |
+376 |                     sections : vec![
+    |                     ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+375 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:377:7
+    |
+377 |                         TextSection::new(
+    |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:383:7
+    |
+383 |                         TextSection::new(
+    |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/dilemma/dilemma.rs:391:6
+    |
+391 |                     justify : JustifyText::Left, 
+    |                     ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+375 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+   --> src/dilemma/dilemma.rs:392:6
+    |
+392 |                     linebreak_behavior: LineBreak::WordBoundary
+    |                     ^^^^^^^^^^^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+375 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_2d_bounds`
+   --> src/dilemma/dilemma.rs:394:5
+    |
+394 |                 text_2d_bounds : TextBounds {
+    |                 ^^^^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `TextBounds` has no field named `size`
+   --> src/dilemma/dilemma.rs:395:6
+    |
+395 |                     size: Vec2::new(500.0, 2000.0),
+    |                     ^^^^ `TextBounds` does not have this field
+    |
+    = note: available fields are: `width`, `height`
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+   --> src/dilemma/dilemma.rs:397:5
+    |
+397 |                 transform: Transform::from_xyz(-600.0,300.0, 1.0),
+    |                 ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+   --> src/dilemma/dilemma.rs:398:5
+    |
+398 |                 text_anchor : Anchor::TopLeft,
+    |                 ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dilemma/dilemma.rs:432:5
+    |
+432 |                 text : Text {
+    |                 ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dilemma/dilemma.rs:433:6
+    |
+433 |                     sections : vec![
+    |                     ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+432 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:434:7
+    |
+434 |                         TextSection::new(
+    |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:446:7
+    |
+446 |                         TextSection::new(
+    |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/dilemma/dilemma.rs:455:6
+    |
+455 |                     justify : JustifyText::Left, 
+    |                     ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+432 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+   --> src/dilemma/dilemma.rs:456:6
+    |
+456 |                     linebreak_behavior: LineBreak::WordBoundary
+    |                     ^^^^^^^^^^^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+432 |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_2d_bounds`
+   --> src/dilemma/dilemma.rs:458:5
+    |
+458 |                 text_2d_bounds : TextBounds {
+    |                 ^^^^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `TextBounds` has no field named `size`
+   --> src/dilemma/dilemma.rs:459:6
+    |
+459 |                     size: box_size,
+    |                     ^^^^ `TextBounds` does not have this field
+    |
+    = note: available fields are: `width`, `height`
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+   --> src/dilemma/dilemma.rs:461:5
+    |
+461 |                 transform: Transform::from_xyz(x_transform,-150.0, 1.0),
+    |                 ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+   --> src/dilemma/dilemma.rs:462:5
+    |
+462 |                 text_anchor : Anchor::TopLeft,
+    |                 ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0277]: `(DilemmaOptionInfoPanel, bevy::prelude::Text2dBundle)` is not a `Bundle`
+   --> src/dilemma/dilemma.rs:429:4
+    |
+428 |           commands.spawn(
+    |                    ----- required by a bound introduced by this call
+429 | /             (
+430 | |             DilemmaOptionInfoPanel,
+431 | |             Text2dBundle {
+432 | |                 text : Text {
+...   |
+463 | |                 ..default()
+464 | |             })
+    | |______________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(DilemmaOptionInfoPanel, bevy::prelude::Text2dBundle)`
+    = note: consider annotating `(DilemmaOptionInfoPanel, bevy::prelude::Text2dBundle)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::Commands::<'w, 's>::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/system/commands/mod.rs:395:21
+    |
+395 |     pub fn spawn<T: Bundle>(&mut self, bundle: T) -> EntityCommands {
+    |                     ^^^^^^ required by this bound in `Commands::<'w, 's>::spawn`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:538:25
+    |
+538 |                 main_track.unwrap().sections[0].style.color = OPTION_2_COLOR;
+    |                                     ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0599]: no method named `elapsed_seconds` found for struct `bevy::prelude::Res<'_, bevy::prelude::Time>` in the current scope
+   --> src/dilemma/dilemma.rs:545:51
+    |
+545 |                     let bounce_offset = bounce_amplitude * (time.elapsed_seconds() * bounce_frequency).sin();
+    |                                                                  ^^^^^^^^^^^^^^^
+    |
+help: there is a method `elapsed_secs` with a similar name
+    |
+545 |                     let bounce_offset = bounce_amplitude * (time.elapsed_secs() * bounce_frequency).sin();
+    |                                                                  ~~~~~~~~~~~~
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:549:25
+    |
+549 |                 main_track.unwrap().sections[0].style.color = OPTION_1_COLOR;
+    |                                     ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0599]: no method named `elapsed_seconds` found for struct `bevy::prelude::Res<'_, bevy::prelude::Time>` in the current scope
+   --> src/dilemma/dilemma.rs:556:51
+    |
+556 |                     let bounce_offset = bounce_amplitude * (time.elapsed_seconds() * bounce_frequency).sin();
+    |                                                                  ^^^^^^^^^^^^^^^
+    |
+help: there is a method `elapsed_secs` with a similar name
+    |
+556 |                     let bounce_offset = bounce_amplitude * (time.elapsed_secs() * bounce_frequency).sin();
+    |                                                                  ~~~~~~~~~~~~
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:624:12
+    |
+624 |                         text.sections[0] = TextSection::new(
+    |                              ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:624:26
+    |
+624 |                         text.sections[0] = TextSection::new(
+    |                                            ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:635:10
+    |
+635 |                 text.sections[0] = TextSection::new(
+    |                      ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:635:24
+    |
+635 |                 text.sections[0] = TextSection::new(
+    |                                    ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:668:13
+    |
+668 | ...                   text.sections[0] = TextSection::new(
+    |                            ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:668:27
+    |
+668 | ...                   text.sections[0] = TextSection::new(
+    |                                          ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:691:12
+    |
+691 |                         text.sections[0] = TextSection::new(
+    |                              ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:691:26
+    |
+691 |                         text.sections[0] = TextSection::new(
+    |                                            ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:702:10
+    |
+702 |                 text.sections[0] = TextSection::new(
+    |                      ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:702:24
+    |
+702 |                 text.sections[0] = TextSection::new(
+    |                                    ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:725:9
+    |
+725 |             text.sections[0] = TextSection::new(
+    |                  ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:725:23
+    |
+725 |             text.sections[0] = TextSection::new(
+    |                                ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:743:11
+    |
+743 |                     text.sections[0] = TextSection::new(
+    |                          ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:743:25
+    |
+743 |                     text.sections[0] = TextSection::new(
+    |                                        ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/dilemma/dilemma.rs:769:8
+    |
+769 |         text.sections[0] = TextSection::new(
+    |              ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:769:22
+    |
+769 |         text.sections[0] = TextSection::new(
+    |                            ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/dilemma.rs:813:5
+    |
+813 |                 source: asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg")),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/dilemma/dilemma.rs:813:13
+    |
+813 |                 source: asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg")),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<_>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<_>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+813 |                 source: bevy::prelude::AudioPlayer(asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg"))),
+    |                         +++++++++++++++++++++++++++                                                                 +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/dilemma.rs:814:5
+    |
+814 | /                 settings : PlaybackSettings {
+815 | |                     paused : false,
+816 | |                     mode:  bevy::audio::PlaybackMode::Despawn,
+817 | |                     volume :bevy::audio::Volume::new(0.3),
+818 | |                     speed : 0.1,
+819 | |                     ..default()
+820 | |                 }
+    | |_________________^
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dilemma/dilemma.rs:993:8
+    |
+993 | ...                   text : Text {
+    |                       ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dilemma/dilemma.rs:994:9
+    |
+994 | ...                   sections : vec![
+    |                       ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+993 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/dilemma.rs:995:10
+    |
+995 | ...                   TextSection::new(
+    |                       ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+    --> src/dilemma/dilemma.rs:1002:9
+     |
+1002 | ...                   justify : JustifyText::Left, 
+     |                       ^^^^^^^ field does not exist
+     |
+    ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+     |
+107  | pub struct Text(pub String);
+     |            ---- `bevy::prelude::Text` defined here
+     |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+     |
+993  |                             text : bevy::prelude::Text(/* std::string::String */),
+     |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+    --> src/dilemma/dilemma.rs:1003:9
+     |
+1003 | ...                   linebreak_behavior: LineBreak::WordBoundary
+     |                       ^^^^^^^^^^^^^^^^^^ field does not exist
+     |
+    ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+     |
+107  | pub struct Text(pub String);
+     |            ---- `bevy::prelude::Text` defined here
+     |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+     |
+993  |                             text : bevy::prelude::Text(/* std::string::String */),
+     |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+    --> src/dilemma/dilemma.rs:1005:8
+     |
+1005 | ...                   transform: Transform::from_translation(
+     |                       ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+     |
+     = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+    --> src/dilemma/dilemma.rs:1008:8
+     |
+1008 | ...                   text_anchor : Anchor::BottomCenter,
+     |                       ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+     |
+     = note: all struct fields are already assigned
+
+error[E0277]: `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` is not a `Bundle`
+    --> src/dilemma/dilemma.rs:992:7
+     |
+991  |                       parent.spawn(
+     |                              ----- required by a bound introduced by this call
+992  | /                         (Text2dBundle {
+993  | |                             text : Text {
+994  | |                                 sections : vec![
+995  | |                                     TextSection::new(
+...    |
+1012 | |                         BounceAnimation::new(40.0, 60.0)
+1013 | |                         )
+     | |_________________________^ invalid `Bundle`
+     |
+     = help: the trait `bevy::prelude::Bundle` is not implemented for `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)`
+     = note: consider annotating `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+     = help: the following other types implement trait `bevy::prelude::Bundle`:
+               ()
+               (B,)
+               (B0, B1)
+               (B0, B1, B2)
+               (B0, B1, B2, B3)
+               (B0, B1, B2, B3, B4)
+               (B0, B1, B2, B3, B4, B5)
+               (B0, B1, B2, B3, B4, B5, B6)
+             and 8 others
+note: required by a bound in `bevy::prelude::ChildBuild::spawn`
+    --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_hierarchy-0.15.0/src/child_builder.rs:298:38
+     |
+298  |     fn spawn(&mut self, bundle: impl Bundle) -> Self::SpawnOutput<'_>;
+     |                                      ^^^^^^ required by this bound in `ChildBuild::spawn`
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+    --> src/dilemma/dilemma.rs:1028:8
+     |
+1028 | ...                   text : Text {
+     |                       ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+     |
+     = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+    --> src/dilemma/dilemma.rs:1029:9
+     |
+1029 | ...                   sections : vec![
+     |                       ^^^^^^^^ field does not exist
+     |
+    ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+     |
+107  | pub struct Text(pub String);
+     |            ---- `bevy::prelude::Text` defined here
+     |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+     |
+1028 |                             text : bevy::prelude::Text(/* std::string::String */),
+     |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+    --> src/dilemma/dilemma.rs:1030:10
+     |
+1030 | ...                   TextSection::new(
+     |                       ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+    --> src/dilemma/dilemma.rs:1037:9
+     |
+1037 | ...                   justify : JustifyText::Left, 
+     |                       ^^^^^^^ field does not exist
+     |
+    ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+     |
+107  | pub struct Text(pub String);
+     |            ---- `bevy::prelude::Text` defined here
+     |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+     |
+1028 |                             text : bevy::prelude::Text(/* std::string::String */),
+     |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+    --> src/dilemma/dilemma.rs:1038:9
+     |
+1038 | ...                   linebreak_behavior: LineBreak::WordBoundary
+     |                       ^^^^^^^^^^^^^^^^^^ field does not exist
+     |
+    ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+     |
+107  | pub struct Text(pub String);
+     |            ---- `bevy::prelude::Text` defined here
+     |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+     |
+1028 |                             text : bevy::prelude::Text(/* std::string::String */),
+     |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+    --> src/dilemma/dilemma.rs:1040:8
+     |
+1040 | ...                   transform: Transform::from_translation(
+     |                       ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+     |
+     = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+    --> src/dilemma/dilemma.rs:1043:8
+     |
+1043 | ...                   text_anchor : Anchor::BottomCenter,
+     |                       ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+     |
+     = note: all struct fields are already assigned
+
+error[E0277]: `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` is not a `Bundle`
+    --> src/dilemma/dilemma.rs:1027:7
+     |
+1026 |                       parent.spawn(
+     |                              ----- required by a bound introduced by this call
+1027 | /                         (Text2dBundle {
+1028 | |                             text : Text {
+1029 | |                                 sections : vec![
+1030 | |                                     TextSection::new(
+...    |
+1047 | |                         BounceAnimation::new(40.0, 60.0)
+1048 | |                         )
+     | |_________________________^ invalid `Bundle`
+     |
+     = help: the trait `bevy::prelude::Bundle` is not implemented for `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)`
+     = note: consider annotating `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+     = help: the following other types implement trait `bevy::prelude::Bundle`:
+               ()
+               (B,)
+               (B0, B1)
+               (B0, B1, B2)
+               (B0, B1, B2, B3)
+               (B0, B1, B2, B3, B4)
+               (B0, B1, B2, B3, B4, B5)
+               (B0, B1, B2, B3, B4, B5, B6)
+             and 8 others
+note: required by a bound in `bevy::prelude::ChildBuild::spawn`
+    --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_hierarchy-0.15.0/src/child_builder.rs:298:38
+     |
+298  |     fn spawn(&mut self, bundle: impl Bundle) -> Self::SpawnOutput<'_>;
+     |                                      ^^^^^^ required by this bound in `ChildBuild::spawn`
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dilemma/junction.rs:131:8
+    |
+131 | ...                   text : Text {
+    |                       ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dilemma/junction.rs:132:9
+    |
+132 | ...                   sections : vec![
+    |                       ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+131 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/junction.rs:133:10
+    |
+133 | ...                   TextSection::new(
+    |                       ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/dilemma/junction.rs:140:9
+    |
+140 | ...                   justify : JustifyText::Left, 
+    |                       ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+131 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+   --> src/dilemma/junction.rs:141:9
+    |
+141 | ...                   linebreak_behavior: LineBreak::WordBoundary
+    |                       ^^^^^^^^^^^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+131 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+   --> src/dilemma/junction.rs:143:8
+    |
+143 | ...                   transform: Transform::from_translation(
+    |                       ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+   --> src/dilemma/junction.rs:146:8
+    |
+146 | ...                   text_anchor : Anchor::BottomCenter,
+    |                       ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0277]: `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` is not a `Bundle`
+   --> src/dilemma/junction.rs:130:7
+    |
+129 |                       parent.spawn(
+    |                              ----- required by a bound introduced by this call
+130 | /                         (Text2dBundle {
+131 | |                             text : Text {
+132 | |                                 sections : vec![
+133 | |                                     TextSection::new(
+...   |
+150 | |                         BounceAnimation::new(40.0, 60.0)
+151 | |                         )
+    | |_________________________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)`
+    = note: consider annotating `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::ChildBuild::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_hierarchy-0.15.0/src/child_builder.rs:298:38
+    |
+298 |     fn spawn(&mut self, bundle: impl Bundle) -> Self::SpawnOutput<'_>;
+    |                                      ^^^^^^ required by this bound in `ChildBuild::spawn`
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+   --> src/dilemma/junction.rs:166:8
+    |
+166 | ...                   text : Text {
+    |                       ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/dilemma/junction.rs:167:9
+    |
+167 | ...                   sections : vec![
+    |                       ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+166 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/dilemma/junction.rs:168:10
+    |
+168 | ...                   TextSection::new(
+    |                       ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/dilemma/junction.rs:175:9
+    |
+175 | ...                   justify : JustifyText::Left, 
+    |                       ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+166 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `linebreak_behavior`
+   --> src/dilemma/junction.rs:176:9
+    |
+176 | ...                   linebreak_behavior: LineBreak::WordBoundary
+    |                       ^^^^^^^^^^^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+166 |                             text : bevy::prelude::Text(/* std::string::String */),
+    |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+   --> src/dilemma/junction.rs:178:8
+    |
+178 | ...                   transform: Transform::from_translation(
+    |                       ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+   --> src/dilemma/junction.rs:181:8
+    |
+181 | ...                   text_anchor : Anchor::BottomCenter,
+    |                       ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0277]: `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` is not a `Bundle`
+   --> src/dilemma/junction.rs:165:7
+    |
+164 |                       parent.spawn(
+    |                              ----- required by a bound introduced by this call
+165 | /                         (Text2dBundle {
+166 | |                             text : Text {
+167 | |                                 sections : vec![
+168 | |                                     TextSection::new(
+...   |
+185 | |                         BounceAnimation::new(40.0, 60.0)
+186 | |                         )
+    | |_________________________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)`
+    = note: consider annotating `(bevy::prelude::Text2dBundle, PersonSprite, BounceAnimation)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::ChildBuild::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_hierarchy-0.15.0/src/child_builder.rs:298:38
+    |
+298 |     fn spawn(&mut self, bundle: impl Bundle) -> Self::SpawnOutput<'_>;
+    |                                      ^^^^^^ required by this bound in `ChildBuild::spawn`
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/mod.rs:298:3
+    |
+298 | /         source: asset_server.load(
+299 | |             PathBuf::from("./sounds/train_aproaching.ogg")
+300 | |         ),
+    | |_________^
+
+error[E0308]: mismatched types
+   --> src/dilemma/mod.rs:298:11
+    |
+298 |           source: asset_server.load(
+    |  _________________^
+299 | |             PathBuf::from("./sounds/train_aproaching.ogg")
+300 | |         ),
+    | |_________^ expected `AudioPlayer`, found `Handle<_>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<_>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+298 ~         source: bevy::prelude::AudioPlayer(asset_server.load(
+299 |             PathBuf::from("./sounds/train_aproaching.ogg")
+300 ~         )),
+    |
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/mod.rs:301:3
+    |
+301 | /         settings : PlaybackSettings {
+302 | |             paused : false,
+303 | |             volume : bevy::audio::Volume::new(1.0),
+304 | |             mode:  bevy::audio::PlaybackMode::Loop,
+305 | |             ..default()
+306 | |     }});
+    | |_____^
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::source`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/mod.rs:309:3
+    |
+309 |         source: asset_server.load(PathBuf::from("./sounds/clock.ogg")),
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/dilemma/mod.rs:309:11
+    |
+309 |         source: asset_server.load(PathBuf::from("./sounds/clock.ogg")),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `AudioPlayer`, found `Handle<_>`
+    |
+    = note: expected struct `AudioPlayer`
+                 found enum `bevy::prelude::Handle<_>`
+help: try wrapping the expression in `bevy::prelude::AudioPlayer`
+    |
+309 |         source: bevy::prelude::AudioPlayer(asset_server.load(PathBuf::from("./sounds/clock.ogg"))),
+    |                 +++++++++++++++++++++++++++                                                      +
+
+warning: use of deprecated field `bevy::prelude::AudioSourceBundle::settings`: Use the `AudioPlayer` component instead. Inserting it will now also insert a `PlaybackSettings` component automatically.
+   --> src/dilemma/mod.rs:310:3
+    |
+310 | /         settings : PlaybackSettings {
+311 | |             paused : false,
+312 | |             volume : bevy::audio::Volume::new(0.3),
+313 | |             mode:  bevy::audio::PlaybackMode::Loop,
+314 | |             ..default()
+315 | |     }});
+    | |_____^
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+  --> src/lever.rs:84:5
+   |
+84 |                 text : Text {
+   |                 ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/lever.rs:85:6
+    |
+85  |                     sections : vec!(
+    |                     ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+84  |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+  --> src/lever.rs:86:7
+   |
+86 |                         TextSection::new(start_text, TextStyle {
+   |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/lever.rs:92:6
+    |
+92  |                     justify : JustifyText::Center, 
+    |                     ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+84  |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+  --> src/lever.rs:95:5
+   |
+95 |                 transform: Transform { 
+   |                 ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0277]: `(LeverText, bevy::prelude::Text2dBundle)` is not a `Bundle`
+   --> src/lever.rs:81:36
+    |
+81  |           let text_entity = commands.spawn((
+    |  ____________________________________-----_^
+    | |                                    |
+    | |                                    required by a bound introduced by this call
+82  | |             LeverText,
+83  | |             Text2dBundle {
+84  | |                 text : Text {
+...   |
+101 | |             }
+102 | |         )).id(); 
+    | |_________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(LeverText, bevy::prelude::Text2dBundle)`
+    = note: consider annotating `(LeverText, bevy::prelude::Text2dBundle)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::Commands::<'w, 's>::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/system/commands/mod.rs:395:21
+    |
+395 |     pub fn spawn<T: Bundle>(&mut self, bundle: T) -> EntityCommands {
+    |                     ^^^^^^ required by this bound in `Commands::<'w, 's>::spawn`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/lever.rs:139:34
+    |
+139 |             lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_LEFT, TextStyle {
+    |                                           ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/lever.rs:139:48
+    |
+139 |             lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_LEFT, TextStyle {
+    |                                                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/lever.rs:151:34
+    |
+151 |             lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_RIGHT, TextStyle {
+    |                                           ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+   --> src/lever.rs:151:48
+    |
+151 |             lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_RIGHT, TextStyle {
+    |                                                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/loading/loading_bar.rs:136:38
+    |
+136 | ...                   text.sections[1].value = frames.frames[new_index].clone();
+    |                            ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/loading/loading_bar.rs:138:38
+    |
+138 | ...                   text.sections[1].value = bar.final_message.clone();
+    |                            ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0277]: `(LoadingText, bevy::prelude::Text2dBundle)` is not a `Bundle`
+   --> src/loading/loading_bar.rs:179:38
+    |
+179 |                           parent.spawn((
+    |  ________________________________-----_^
+    | |                                |
+    | |                                required by a bound introduced by this call
+180 | |                             LoadingText,
+181 | |                             SpriteFactory::create_text_bundle(
+182 | |                                 prefix.unwrap_or_default(),
+...   |
+186 | |                             ),
+187 | |                         ));
+    | |_________________________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(LoadingText, bevy::prelude::Text2dBundle)`
+    = note: consider annotating `(LoadingText, bevy::prelude::Text2dBundle)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::ChildBuild::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_hierarchy-0.15.0/src/child_builder.rs:298:38
+    |
+298 |     fn spawn(&mut self, bundle: impl Bundle) -> Self::SpawnOutput<'_>;
+    |                                      ^^^^^^ required by this bound in `ChildBuild::spawn`
+
+warning: use of deprecated field `bevy::prelude::SpriteBundle::sprite`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+   --> src/loading/loading_bar.rs:202:33
+    |
+202 | / ...                   sprite: Sprite {
+203 | | ...                       color: HIGHLIGHT_COLOR,
+204 | | ...                       custom_size: Some(Vec2::new(0.0, 14.0)),
+205 | | ...                       anchor: Anchor::CenterLeft,
+206 | | ...                       ..default()
+207 | | ...                   },
+    | |_______________________^
+
+warning: use of deprecated field `bevy::prelude::SpriteBundle::transform`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+   --> src/loading/loading_bar.rs:208:33
+    |
+208 | / ...                   transform: Transform::from_xyz(
+209 | | ...                       -247.0, 0.0, 0.0
+210 | | ...                   ),
+    | |_______________________^
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+  --> src/person.rs:84:5
+   |
+84 |                 text : Text {
+   |                 ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/person.rs:85:6
+    |
+85  |                     sections : vec!(
+    |                     ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+84  |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+  --> src/person.rs:86:7
+   |
+86 |                         TextSection::new(text, TextStyle {
+   |                         ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/person.rs:91:6
+    |
+91  |                     justify : JustifyText::Center, 
+    |                     ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+84  |                 text : bevy::prelude::Text(/* std::string::String */),
+    |                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+  --> src/person.rs:94:5
+   |
+94 |                 transform: Transform::from_translation(translation),
+   |                 ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0277]: `(EmoticonSprite, bevy::prelude::Text2dBundle)` is not a `Bundle`
+   --> src/person.rs:81:16
+    |
+81  |           parent.spawn((
+    |  ________________-----_^
+    | |                |
+    | |                required by a bound introduced by this call
+82  | |             self,
+83  | |             Text2dBundle {
+84  | |                 text : Text {
+...   |
+95  | |                 ..default()
+96  | |             })).id()
+    | |______________^ invalid `Bundle`
+    |
+    = help: the trait `bevy::prelude::Bundle` is not implemented for `(EmoticonSprite, bevy::prelude::Text2dBundle)`
+    = note: consider annotating `(EmoticonSprite, bevy::prelude::Text2dBundle)` with `#[derive(Component)]` or `#[derive(Bundle)]`
+    = help: the following other types implement trait `bevy::prelude::Bundle`:
+              ()
+              (B,)
+              (B0, B1)
+              (B0, B1, B2)
+              (B0, B1, B2, B3)
+              (B0, B1, B2, B3, B4)
+              (B0, B1, B2, B3, B4, B5)
+              (B0, B1, B2, B3, B4, B5, B6)
+            and 8 others
+note: required by a bound in `bevy::prelude::ChildBuild::spawn`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_hierarchy-0.15.0/src/child_builder.rs:298:38
+    |
+298 |     fn spawn(&mut self, bundle: impl Bundle) -> Self::SpawnOutput<'_>;
+    |                                      ^^^^^^ required by this bound in `ChildBuild::spawn`
+
+warning: use of deprecated field `bevy::bevy_sprite::MaterialMesh2dBundle::mesh`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:109:17
+    |
+109 |                 mesh: Mesh2d(annulus_mesh_handle.clone()),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `bevy::bevy_sprite::MaterialMesh2dBundle::material`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:110:17
+    |
+110 |                 material: outline_material.clone(),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/graph/mod.rs:110:27
+    |
+110 |                 material: outline_material.clone(),
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^ expected `MeshMaterial2d<_>`, found `Handle<ColorMaterial>`
+    |
+    = note: expected struct `MeshMaterial2d<_>`
+                 found enum `bevy::prelude::Handle<bevy::prelude::ColorMaterial>`
+help: try wrapping the expression in `bevy::prelude::MeshMaterial2d`
+    |
+110 |                 material: bevy::prelude::MeshMaterial2d(outline_material.clone()),
+    |                           ++++++++++++++++++++++++++++++                        +
+
+warning: use of deprecated field `bevy::bevy_sprite::MaterialMesh2dBundle::transform`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:111:17
+    |
+111 |                 transform: node_transform.clone(),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `bevy::bevy_sprite::MaterialMesh2dBundle::mesh`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:118:21
+    |
+118 |                     mesh: Mesh2d(circle_mesh_handle.clone()),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `bevy::bevy_sprite::MaterialMesh2dBundle::material`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:119:21
+    |
+119 |                     material: material_handle.clone(),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/graph/mod.rs:119:31
+    |
+119 |                     material: material_handle.clone(),
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^ expected `MeshMaterial2d<_>`, found `Handle<PulsingMaterial>`
+    |
+    = note: expected struct `MeshMaterial2d<_>`
+                 found enum `bevy::prelude::Handle<PulsingMaterial>`
+help: try wrapping the expression in `bevy::prelude::MeshMaterial2d`
+    |
+119 |                     material: bevy::prelude::MeshMaterial2d(material_handle.clone()),
+    |                               ++++++++++++++++++++++++++++++                       +
+
+warning: use of deprecated field `bevy::bevy_sprite::MaterialMesh2dBundle::transform`: Use the `Mesh2d` and `MeshMaterial2d` components instead. Inserting them will now also insert the other components required by them automatically.
+   --> src/graph/mod.rs:120:21
+    |
+120 |                     transform: node_transform,
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `delta_seconds` found for struct `bevy::prelude::Res<'_, bevy::prelude::Time>` in the current scope
+  --> src/motion.rs:59:58
+   |
+59 |             let distance_to_travel = motion.speed * time.delta_seconds();
+   |                                                          ^^^^^^^^^^^^^
+   |
+help: there is a method `delta_secs` with a similar name
+   |
+59 |             let distance_to_travel = motion.speed * time.delta_secs();
+   |                                                          ~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+  --> src/text/mod.rs:23:9
+   |
+23 |         text: Text {
+   |         ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/text/mod.rs:24:13
+    |
+24  |             sections: vec![TextSection::new(
+    |             ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+23  |         text: bevy::prelude::Text(/* std::string::String */),
+    |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+  --> src/text/mod.rs:24:28
+   |
+24 |             sections: vec![TextSection::new(
+   |                            ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/text/mod.rs:32:13
+    |
+32  |             justify: JustifyText::Center,
+    |             ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+23  |         text: bevy::prelude::Text(/* std::string::String */),
+    |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+  --> src/text/mod.rs:35:9
+   |
+35 |         transform: Transform::from_translation(translation),
+   |         ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:53:11
+    |
+53  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::component_ids`
+...
+151 |     fn component_ids(
+    |        ------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:53:11
+    |
+53  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `get_component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::get_component_ids`
+...
+158 |     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+    |        ----------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:53:11
+    |
+53  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `from_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::from_components`
+...
+167 |     unsafe fn from_components<T, F>(ctx: &mut T, func: &mut F) -> Self
+    |               --------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:53:11
+    |
+53  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `bevy::prelude::Bundle::register_required_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::register_required_components`
+...
+174 |     fn register_required_components(
+    |        ---------------------------- required by a bound in this associated function
+
+error[E0599]: `bevy::prelude::Text2dBundle` is not a `Component`
+  --> src/text/mod.rs:50:10
+   |
+50 | #[derive(Bundle, Clone)]
+   |          ^^^^^^ invalid `Component`
+   |
+  ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_text-0.15.0/src/text2d.rs:44:1
+   |
+44 | pub struct Text2dBundle {}
+   | ----------------------- doesn't satisfy `_: Component` or `bevy::prelude::Text2dBundle: DynamicBundle`
+   |
+   = note: the following trait bounds were not satisfied:
+           `bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+           `&bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `&bevy::prelude::Text2dBundle: DynamicBundle`
+           `&mut bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `&mut bevy::prelude::Text2dBundle: DynamicBundle`
+   = note: consider annotating `bevy::prelude::Text2dBundle` with `#[derive(Component)]`
+   = note: this error originates in the derive macro `Bundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: Clone` is not satisfied
+  --> src/text/mod.rs:53:5
+   |
+50 | #[derive(Bundle, Clone)]
+   |                  ----- in this derive macro expansion
+...
+53 |     text: Text2dBundle,
+   |     ^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `bevy::prelude::Text2dBundle`
+   |
+   = note: this error originates in the derive macro `Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:69:11
+    |
+69  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::component_ids`
+...
+151 |     fn component_ids(
+    |        ------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:69:11
+    |
+69  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `get_component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::get_component_ids`
+...
+158 |     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+    |        ----------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:69:11
+    |
+69  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `from_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::from_components`
+...
+167 |     unsafe fn from_components<T, F>(ctx: &mut T, func: &mut F) -> Self
+    |               --------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:69:11
+    |
+69  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `bevy::prelude::Bundle::register_required_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::register_required_components`
+...
+174 |     fn register_required_components(
+    |        ---------------------------- required by a bound in this associated function
+
+error[E0599]: `bevy::prelude::Text2dBundle` is not a `Component`
+  --> src/text/mod.rs:66:10
+   |
+66 | #[derive(Bundle, Clone)]
+   |          ^^^^^^ invalid `Component`
+   |
+  ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_text-0.15.0/src/text2d.rs:44:1
+   |
+44 | pub struct Text2dBundle {}
+   | ----------------------- doesn't satisfy `_: Component` or `bevy::prelude::Text2dBundle: DynamicBundle`
+   |
+   = note: the following trait bounds were not satisfied:
+           `bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+           `&bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `&bevy::prelude::Text2dBundle: DynamicBundle`
+           `&mut bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `&mut bevy::prelude::Text2dBundle: DynamicBundle`
+   = note: consider annotating `bevy::prelude::Text2dBundle` with `#[derive(Component)]`
+   = note: this error originates in the derive macro `Bundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: Clone` is not satisfied
+  --> src/text/mod.rs:69:5
+   |
+66 | #[derive(Bundle, Clone)]
+   |                  ----- in this derive macro expansion
+...
+69 |     text: Text2dBundle,
+   |     ^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `bevy::prelude::Text2dBundle`
+   |
+   = note: this error originates in the derive macro `Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:85:11
+    |
+85  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::component_ids`
+...
+151 |     fn component_ids(
+    |        ------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:85:11
+    |
+85  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `get_component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::get_component_ids`
+...
+158 |     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+    |        ----------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:85:11
+    |
+85  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `from_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::from_components`
+...
+167 |     unsafe fn from_components<T, F>(ctx: &mut T, func: &mut F) -> Self
+    |               --------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:85:11
+    |
+85  |     text: Text2dBundle,
+    |           ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `bevy::prelude::Bundle::register_required_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::register_required_components`
+...
+174 |     fn register_required_components(
+    |        ---------------------------- required by a bound in this associated function
+
+error[E0599]: `bevy::prelude::Text2dBundle` is not a `Component`
+  --> src/text/mod.rs:82:10
+   |
+82 | #[derive(Bundle, Clone)]
+   |          ^^^^^^ invalid `Component`
+   |
+  ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_text-0.15.0/src/text2d.rs:44:1
+   |
+44 | pub struct Text2dBundle {}
+   | ----------------------- doesn't satisfy `_: Component` or `bevy::prelude::Text2dBundle: DynamicBundle`
+   |
+   = note: the following trait bounds were not satisfied:
+           `bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+           `&bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `&bevy::prelude::Text2dBundle: DynamicBundle`
+           `&mut bevy::prelude::Text2dBundle: bevy::prelude::Component`
+           which is required by `&mut bevy::prelude::Text2dBundle: DynamicBundle`
+   = note: consider annotating `bevy::prelude::Text2dBundle` with `#[derive(Component)]`
+   = note: this error originates in the derive macro `Bundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: Clone` is not satisfied
+  --> src/text/mod.rs:85:5
+   |
+82 | #[derive(Bundle, Clone)]
+   |                  ----- in this derive macro expansion
+...
+85 |     text: Text2dBundle,
+   |     ^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `bevy::prelude::Text2dBundle`
+   |
+   = note: this error originates in the derive macro `Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/text/mod.rs:178:22
+    |
+178 |                 text.sections[0].value = 
+    |                      ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:192:12
+    |
+192 |     text : Text2dBundle,
+    |            ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::component_ids`
+...
+151 |     fn component_ids(
+    |        ------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:192:12
+    |
+192 |     text : Text2dBundle,
+    |            ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `get_component_ids`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::get_component_ids`
+...
+158 |     fn get_component_ids(components: &Components, ids: &mut impl FnMut(Option<ComponentId>));
+    |        ----------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:192:12
+    |
+192 |     text : Text2dBundle,
+    |            ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `from_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::from_components`
+...
+167 |     unsafe fn from_components<T, F>(ctx: &mut T, func: &mut F) -> Self
+    |               --------------- required by a bound in this associated function
+
+error[E0277]: the trait bound `bevy::prelude::Text2dBundle: DynamicBundle` is not satisfied
+   --> src/text/mod.rs:192:12
+    |
+192 |     text : Text2dBundle,
+    |            ^^^^^^^^^^^^ the trait `bevy::prelude::Component` is not implemented for `bevy::prelude::Text2dBundle`, which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = help: the following other types implement trait `bevy::prelude::Component`:
+              Aabb
+              AccessibilityNode
+              ActionRequest
+              AdvanceDialogue
+              Animated
+              AnimationGraphHandle
+              AnimationPlayer
+              AnimationTarget
+            and 378 others
+    = note: required for `bevy::prelude::Text2dBundle` to implement `DynamicBundle`
+note: required by a bound in `bevy::prelude::Bundle::register_required_components`
+   --> /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ecs-0.15.0/src/bundle.rs:148:26
+    |
+148 | pub unsafe trait Bundle: DynamicBundle + Send + Sync + 'static {
+    |                          ^^^^^^^^^^^^^ required by this bound in `Bundle::register_required_components`
+...
+174 |     fn register_required_components(
+    |        ---------------------------- required by a bound in this associated function
+
+error[E0599]: `bevy::prelude::Text2dBundle` is not a `Component`
+   --> src/text/mod.rs:188:10
+    |
+188 | #[derive(Bundle)]
+    |          ^^^^^^ invalid `Component`
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_text-0.15.0/src/text2d.rs:44:1
+    |
+44  | pub struct Text2dBundle {}
+    | ----------------------- doesn't satisfy `_: Component` or `bevy::prelude::Text2dBundle: DynamicBundle`
+    |
+    = note: the following trait bounds were not satisfied:
+            `bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `bevy::prelude::Text2dBundle: DynamicBundle`
+            `&bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `&bevy::prelude::Text2dBundle: DynamicBundle`
+            `&mut bevy::prelude::Text2dBundle: bevy::prelude::Component`
+            which is required by `&mut bevy::prelude::Text2dBundle: DynamicBundle`
+    = note: consider annotating `bevy::prelude::Text2dBundle` with `#[derive(Component)]`
+    = note: this error originates in the derive macro `Bundle` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0609]: no field `sections` on type `bevy::prelude::Mut<'_, bevy::prelude::Text>`
+   --> src/text/mod.rs:243:14
+    |
+243 |         text.sections[0].value = new_text;
+    |              ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0609]: no field `sections` on type `&mut bevy::prelude::Text`
+   --> src/interaction.rs:204:25
+    |
+204 |     for section in text.sections.iter_mut() {
+    |                         ^^^^^^^^ unknown field
+    |
+    = note: available field is: `0`
+
+error[E0277]: the `?` operator can only be used on `Option`s, not `Result`s, in a function that returns `Option`
+   --> src/interaction.rs:221:6
+    |
+209 | / fn get_cursor_world_position(
+210 | |     windows: &Query<&Window, With<PrimaryWindow>>,
+211 | |     camera_q: &Query<(&Camera, &GlobalTransform)>,
+212 | | ) -> Option<Vec2> {
+    | |_________________- this function returns an `Option`
+...
+221 |       )?;
+    |        ^ use `.ok()?` if you want to discard the `Result<Infallible, ViewportConversionError>` error information
+    |
+    = help: the trait `FromResidual<Result<Infallible, ViewportConversionError>>` is not implemented for `std::option::Option<bevy::prelude::Vec2>`
+    = help: the trait `FromResidual<std::option::Option<Infallible>>` is implemented for `std::option::Option<T>`
+
+warning: use of deprecated field `bevy::prelude::SpriteBundle::sprite`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+  --> src/sprites.rs:14:13
+   |
+14 | /             sprite: Sprite {
+15 | |                 custom_size: Some(size),
+16 | |                 color : PRIMARY_COLOR,
+17 | |                 ..default()
+18 | |             },
+   | |_____________^
+
+warning: use of deprecated field `bevy::prelude::SpriteBundle::transform`: Use the `Sprite` component instead. Inserting it will now also insert `Transform` and `Visibility` automatically.
+  --> src/sprites.rs:19:13
+   |
+19 |             transform: Transform::from_xyz(position.x, position.y, position.z),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text`
+  --> src/sprites.rs:31:13
+   |
+31 |             text: Text {
+   |             ^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `sections`
+   --> src/sprites.rs:32:17
+    |
+32  |                 sections: vec![
+    |                 ^^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+31  |             text: bevy::prelude::Text(/* std::string::String */),
+    |                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+  --> src/sprites.rs:33:21
+   |
+33 |                     TextSection::new(
+   |                     ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0433]: failed to resolve: use of undeclared type `TextSection`
+  --> src/sprites.rs:41:21
+   |
+41 |                     TextSection::new(
+   |                     ^^^^^^^^^^^ use of undeclared type `TextSection`
+
+error[E0560]: struct `bevy::prelude::Text` has no field named `justify`
+   --> src/sprites.rs:50:17
+    |
+50  |                 justify: JustifyText::Center,
+    |                 ^^^^^^^ field does not exist
+    |
+   ::: /Users/michaelnorman/.cargo/registry/src/index.crates.io-6f17d22bba15001f/bevy_ui-0.15.0/src/widget/text.rs:107:12
+    |
+107 | pub struct Text(pub String);
+    |            ---- `bevy::prelude::Text` defined here
+    |
+help: `bevy::prelude::Text` is a tuple struct, use the appropriate syntax
+    |
+31  |             text: bevy::prelude::Text(/* std::string::String */),
+    |                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `text_anchor`
+  --> src/sprites.rs:53:13
+   |
+53 |             text_anchor: Anchor::CenterLeft,
+   |             ^^^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0560]: struct `bevy::prelude::Text2dBundle` has no field named `transform`
+  --> src/sprites.rs:54:13
+   |
+54 |             transform: Transform::from_xyz(position.x, position.y, position.z),
+   |             ^^^^^^^^^ `bevy::prelude::Text2dBundle` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0599]: no method named `is_some` found for enum `Result` in the current scope
+  --> src/common_ui.rs:69:53
+   |
+69 |                         if world.get_entity(entity).is_some() {
+   |                                                     ^^^^^^^
+   |
+help: there is a method `is_ok` with a similar name
+   |
+69 |                         if world.get_entity(entity).is_ok() {
+   |                                                     ~~~~~
+
+warning: use of deprecated field `bevy::prelude::Camera2dBundle::camera`: Use the `Camera2d` component instead. Inserting it will now also insert the other components required by it automatically.
+  --> src/main.rs:87:13
+   |
+87 | /             camera: Camera {
+88 | |                 hdr: true, // 1. HDR is required for bloom
+89 | |                 ..default()
+90 | |             },
+   | |_____________^
+
+warning: use of deprecated field `bevy::prelude::Camera2dBundle::tonemapping`: Use the `Camera2d` component instead. Inserting it will now also insert the other components required by it automatically.
+  --> src/main.rs:91:13
+   |
+91 |             tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0277, E0308, E0412, E0422, E0433, E0560, E0599, E0603, E0609.
+For more information about an error, try `rustc --explain E0277`.
+warning: `morality_engine` (bin "morality_engine") generated 156 warnings (56 duplicates)
+error: could not compile `morality_engine` (bin "morality_engine") due to 215 previous errors; 156 warnings emitted

@@ -66,7 +66,7 @@ impl Component for NextButton {
                 let mut previous_entity : Option<Entity> = None;
                 if let Some(audio_config) = world.get_resource::<NextButtonConfig>() {
                     if let Some(entity) = audio_config.entity {
-                        if world.get_entity(entity).is_some() {
+                        if world.get_entity(entity).is_ok() {
                             previous_entity = Some(entity);
                         }
                     }

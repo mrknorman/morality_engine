@@ -6,9 +6,7 @@ use std::{
     io::BufReader
 };
 use bevy::{
-    prelude::*, 
-    text::{BreakLineOn, Text2dBounds}, 
-    sprite::Anchor
+    ecs::entity, prelude::*, sprite::Anchor, text::{LineBreak, TextBounds}
 };
 use serde::{Serialize, Deserialize};
 
@@ -75,6 +73,7 @@ pub struct Dialogue {
     pub skip_count: usize,
     pub timer: Timer,
     pub char_duration_millis: u64,
+    pub num_spans: usize
 }
 
 impl Dialogue {
@@ -90,6 +89,7 @@ impl Dialogue {
                 TimerMode::Repeating
             ),
             char_duration_millis: 50,
+            num_spans : 0
         }
     }
 
@@ -97,32 +97,30 @@ impl Dialogue {
         username: &str,
         hostname: &str, 
         color : &Color
-    ) -> Vec<TextSection> {        
+    ) -> Vec<(TextSpan, TextColor)> {        
         vec![
-            TextSection::new(
-                format!("{}@{}:\n    ", username, hostname),
-                TextStyle { 
-                    font_size: 15.0,
-                    color : *color, 
-                    ..default()
-                }
+            (
+                TextSpan::new(
+                    format!("{}@{}:\n    ", username, hostname)
+                ),
+                TextColor(*color)
             ),
-            TextSection::new("", TextStyle { 
-                font_size: 15.0, 
-                color : PRIMARY_COLOR,
-                ..default() 
-            })
+            (
+                TextSpan::new(""),
+                TextColor(PRIMARY_COLOR)
+            )
         ]
     }
 
 	pub fn play(
-		mut query: Query<(&mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
+        mut commands: Commands,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text>>,
 		audio_query: Query<&AudioSink>,
 		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
 	) {
 		for (
+            entity,
             mut dialogue,
-            mut text,
             audio_pallet
         ) in query.iter_mut() {
 			if let Some(line) = dialogue.lines.get(
@@ -133,11 +131,24 @@ impl Dialogue {
                     dialogue.current_line_index == 0
                 ) {
 					ev_advance_dialogue.clear();
-					text.sections.extend(Self::generate_shell_prompt(
-                        &line.character.name, 
-                        &line.hostname, 
-                        &line.character.color
-                    ));
+
+                    commands.get_entity(entity).unwrap().with_children(
+                        | parent | {
+                            let shell_prompts = Self::generate_shell_prompt(
+                                &line.character.name, 
+                                &line.hostname, 
+                                &line.character.color
+                            );
+
+                            for span in shell_prompts{
+                                parent.spawn(
+                                    span 
+                                );
+                            }         
+                        }
+                    );
+                    dialogue.num_spans += 2;
+
 					dialogue.playing = true;
 					dialogue.timer = Timer::new(Duration::from_millis(
                         dialogue.char_duration_millis), 
@@ -157,8 +168,9 @@ impl Dialogue {
 	}
 
 	pub fn skip_controls(
-		mut query: Query<(&mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text>>,
 		audio_query: Query<&AudioSink>,
+        mut writer: Text2dWriter,
 		keyboard_input: Res<ButtonInput<KeyCode>>,
 	) {
 		if !keyboard_input.just_pressed(KeyCode::Enter) {
@@ -166,8 +178,8 @@ impl Dialogue {
 		}
 	
 		for (
+            entity,
             mut dialogue,
-            mut text, 
             audio_pallet
         ) in query.iter_mut() {
 
@@ -199,15 +211,7 @@ impl Dialogue {
                         TimerMode::Repeating
                     );
 				} else {
-					text.sections.pop();
-					text.sections.push(TextSection::new(
-						&line.raw_text,
-						TextStyle { 
-                            color : PRIMARY_COLOR,
-                            font_size: 15.0, 
-                            ..default() 
-                        }
-					));
+                    *writer.text(entity, dialogue.num_spans - 1) = line.raw_text.clone();
 					dialogue.current_char_index = line.raw_text.len();
 					dialogue.skip_count += 1;
 				}
@@ -218,33 +222,33 @@ impl Dialogue {
 	pub fn advance_dialogue(
         mut commands: Commands,
         mut query: Query<(Entity, &mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
-        audio_query: Query<&AudioSink>,  // Query for AudioSink components
+        mut writer: Text2dWriter,
+        audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
         windows: Query<&Window>,
         time: Res<Time>
     ) {
-        for (dialogue_entity, mut dialogue, mut text, audio_pallet) in query.iter_mut() {
+        for (entity, mut dialogue, mut text, audio_pallet) in query.iter_mut() {
             if !dialogue.playing || (!dialogue.timer.tick(time.delta()).finished() && dialogue.skip_count <= 1) {
                 continue;
             }
     
             let line = &dialogue.lines[dialogue.current_line_index];
             let next_char = line.raw_text.chars().nth(dialogue.current_char_index);
+
+            let span_index = dialogue.num_spans - 1;
     
             match next_char {
                 Some(c) => {
-                    if let Some(section) = text.sections.last_mut() {
-                        section.value.push(c);
-                    }
+
+                    writer.text(entity, span_index).push(c);
                     dialogue.current_char_index += 1;
                 }
                 None => {
                     Self::stop_audio_if_playing(&audio_pallet, &audio_query, &line.character.name);
-    
-                    if let Some(section) = text.sections.last_mut() {
-                        section.value.push('\n');
-                    }
-    
+
+                    writer.text(entity, span_index).push('\n');
+
                     let next_action = if dialogue.current_line_index >= dialogue.lines.len() - 1 {
                         InputAction::ChangeState(StateVector::new(
                             Some(MainState::InGame),
@@ -257,7 +261,7 @@ impl Dialogue {
     
                     Self::spawn_next_button(
                         &mut commands, 
-                        dialogue_entity,   // Pass the dialogue entity as the parent
+                        entity,   // Pass the dialogue entity as the parent
                         &asset_server, 
                         &windows, 
                         next_action, 
@@ -365,7 +369,10 @@ impl Dialogue {
 pub struct DialogueBundle {
     audio: ContinuousAudioPallet,
     dialogue: Dialogue,
-    text: Text2dBundle
+    text: Text2d,
+    bounds : TextBounds,
+    transform : Transform,
+    anchor : Anchor
 }
 
 impl DialogueBundle {
@@ -375,21 +382,7 @@ impl DialogueBundle {
         user_map: &HashMap<String, Character>
     ) -> Self {
         let dialogue = Dialogue::load(dialogue_path.into(), user_map);
-
-        let text = Text2dBundle {
-            text: Text {
-                sections: vec![],
-                justify: JustifyText::Left,
-                linebreak_behavior: BreakLineOn::WordBoundary
-            },
-            text_2d_bounds: Text2dBounds {
-                size: Vec2::new(500.0, 2000.0),
-            },
-            transform: Transform::from_xyz(-500.0, 0.0, 1.0),
-            text_anchor: Anchor::CenterLeft,
-            ..default()
-        };
-
+        
         let character_audio: Vec<(String, ContinuousAudio)> = dialogue.lines.iter()
             .map(|line| (
                 line.character.name.clone(),
@@ -405,7 +398,13 @@ impl DialogueBundle {
         DialogueBundle {
             audio: ContinuousAudioPallet::new(character_audio),
             dialogue,
-            text
+            text : Text2d::new(""),
+            bounds : TextBounds {
+                width : Some(500.0), 
+                height : Some(2000.0)
+            },
+            transform : Transform::from_xyz(-500.0, 0.0, 1.0),
+            anchor : Anchor::CenterLeft
         }
     }
 }
