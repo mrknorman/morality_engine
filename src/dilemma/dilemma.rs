@@ -14,8 +14,8 @@ use bevy::{
 	prelude::*, 
 	sprite::Anchor, 
 	text::{
-		BreakLineOn, 
-		Text2dBounds
+		LineBreak, 
+		TextBounds
 	},
 	color::palettes::css::RED
 };
@@ -313,7 +313,7 @@ impl DilemmaTimer {
 						)
 					],
 					justify : JustifyText::Center, 
-					linebreak_behavior: BreakLineOn::WordBoundary
+					linebreak_behavior: LineBreak::WordBoundary
 				},
 				transform: Transform::from_xyz(0.0, -100.0, 1.0),
 				text_anchor : Anchor::Center,
@@ -389,9 +389,9 @@ impl DilemmaInfoPanelBundle {
 
 					],
 					justify : JustifyText::Left, 
-					linebreak_behavior: BreakLineOn::WordBoundary
+					linebreak_behavior: LineBreak::WordBoundary
 				},
-				text_2d_bounds : Text2dBounds {
+				text_2d_bounds : TextBounds {
 					size: Vec2::new(500.0, 2000.0),
 				},
 				transform: Transform::from_xyz(-600.0,300.0, 1.0),
@@ -453,9 +453,9 @@ impl DilemmaOptionInfoPanel {
 
 					],
 					justify : JustifyText::Left, 
-					linebreak_behavior: BreakLineOn::WordBoundary
+					linebreak_behavior: LineBreak::WordBoundary
 				},
-				text_2d_bounds : Text2dBounds {
+				text_2d_bounds : TextBounds {
 					size: box_size,
 				},
 				transform: Transform::from_xyz(x_transform,-150.0, 1.0),
@@ -1000,7 +1000,7 @@ impl TrainJunction{
 									})
 								],
 								justify : JustifyText::Left, 
-								linebreak_behavior: BreakLineOn::WordBoundary
+								linebreak_behavior: LineBreak::WordBoundary
 							},
 							transform: Transform::from_translation(
 								position
@@ -1035,7 +1035,7 @@ impl TrainJunction{
 									})
 								],
 								justify : JustifyText::Left, 
-								linebreak_behavior: BreakLineOn::WordBoundary
+								linebreak_behavior: LineBreak::WordBoundary
 							},
 							transform: Transform::from_translation(
 								position

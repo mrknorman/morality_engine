@@ -1,7 +1,7 @@
 use bevy::{
 	prelude::*, 
 	sprite::Anchor, 
-	text::BreakLineOn
+	text::LineBreak
 };
 
 use crate::{
@@ -138,7 +138,7 @@ impl TrainJunction{
 									})
 								],
 								justify : JustifyText::Left, 
-								linebreak_behavior: BreakLineOn::WordBoundary
+								linebreak_behavior: LineBreak::WordBoundary
 							},
 							transform: Transform::from_translation(
 								position
@@ -173,7 +173,7 @@ impl TrainJunction{
 									})
 								],
 								justify : JustifyText::Left, 
-								linebreak_behavior: BreakLineOn::WordBoundary
+								linebreak_behavior: LineBreak::WordBoundary
 							},
 							transform: Transform::from_translation(
 								position

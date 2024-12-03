@@ -3,7 +3,7 @@ use bevy::{
 	ecs::component::StorageType,
     sprite::{
         MaterialMesh2dBundle,
-        Mesh2dHandle
+        Mesh2d
     }
 };
 
@@ -106,7 +106,7 @@ impl Graph {
             ));
     
             parent.spawn(MaterialMesh2dBundle {
-                mesh: Mesh2dHandle(annulus_mesh_handle.clone()),
+                mesh: Mesh2d(annulus_mesh_handle.clone()),
                 material: outline_material.clone(),
                 transform: node_transform.clone(),
                 ..default()
@@ -115,7 +115,7 @@ impl Graph {
             parent.spawn((
                 GraphNode,
                 MaterialMesh2dBundle {
-                    mesh: Mesh2dHandle(circle_mesh_handle.clone()),
+                    mesh: Mesh2d(circle_mesh_handle.clone()),
                     material: material_handle.clone(),
                     transform: node_transform,
                     ..default()

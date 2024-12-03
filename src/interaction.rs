@@ -4,8 +4,7 @@ use std::hash::{
 };
 use bevy::{
     prelude::*,
-    window::PrimaryWindow,
-    text::Text
+    window::PrimaryWindow
 };
 use crate::{
     audio::{

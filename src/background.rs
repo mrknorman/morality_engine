@@ -7,7 +7,7 @@ use std::{
 use bevy::{
 	prelude::*, 
 	sprite::Anchor, 
-	text::BreakLineOn,
+	text::LineBreak,
 	ecs::component::StorageType,
 };
 use rand::Rng;
@@ -139,31 +139,25 @@ impl BackgroundSprite {
 		speed : f32,
 		translation: Vec3
 	) {
-		parent.spawn(
-			(Text2dBundle {
-				text : Text {
-					sections : vec![
-						TextSection::new(
-							text,
-							TextStyle {
-								font_size: 12.0,
-								..default()
-						})
-					],
-					justify : JustifyText::Left, 
-					linebreak_behavior: BreakLineOn::WordBoundary
-				},
-				transform: Transform::from_translation(
-					translation
-				),
-				text_anchor : Anchor::BottomCenter,
+
+		parent.spawn((
+			Text2d::new(text),
+			Transform::from_translation(
+				translation
+			),
+			TextFont{
+				font_size: 12.0,
 				..default()
+			},
+			TextLayout{
+				justify : JustifyText::Left,
+				linebreak : LineBreak::WordBoundary
 			},
 			BackgroundSprite{
 				speed
-			}
-			)
-		);
+			},
+			Anchor::BottomCenter
+		));
 	}
 }
 
