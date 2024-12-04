@@ -9,7 +9,6 @@ use crate::{
         BackgroundAudio
     }, 
     game_states::{
-        GameState, 
         MainState, 
         StateVector
     }, 
@@ -58,7 +57,7 @@ fn setup_menu(
 
     let text = include_str!("main_menu.txt");
 
-    let menu_translation : Transform = Transform::from_xyz(0.0, 0.0, 0.0);
+    let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let title_translation : Vec3 = Vec3::new(0.0, 150.0, 1.0);
     let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
@@ -74,8 +73,8 @@ fn setup_menu(
     commands.spawn(
         (
             StateScoped(MainState::Menu),
-            TransformBundle::from_transform(menu_translation),
-            VisibilityBundle::default()
+            Transform::from_translation(menu_translation),
+            Visibility::default()
         )
     ).with_children(
         |parent| {

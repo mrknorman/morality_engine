@@ -3,7 +3,7 @@ use bevy::{
     color::palettes::css::BLACK,
     sprite::Material2dPlugin,
     core_pipeline::{
-        bloom::BloomSettings,
+        bloom::Bloom,
         tonemapping::Tonemapping,
     }
 };
@@ -83,15 +83,13 @@ fn setup(
     clear_color.0 = BLACK.into();
     
     commands.spawn((
-        Camera2dBundle {
-            camera: Camera {
-                hdr: true, // 1. HDR is required for bloom
-                ..default()
-            },
-            tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+        Camera2d,
+        Camera{
+            hdr : true,
             ..default()
         },
-        BloomSettings::default(), // 3. Enable bloom for the camera
+        Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+        Bloom::default(), // 3. Enable bloom for the camera
     ));
 }
 

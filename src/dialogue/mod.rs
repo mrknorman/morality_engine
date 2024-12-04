@@ -66,10 +66,8 @@ pub fn setup_dialogue(
     commands.spawn(
         (
             StateScoped(GameState::Dialogue),
-            TransformBundle::from_transform(
-                Transform::from_xyz(0.0, 0.0, 0.0)
-            ),
-            VisibilityBundle::default(),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Visibility::default(),
             ContinuousAudioPallet::new(
                 vec![
                     (
