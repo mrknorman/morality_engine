@@ -80,19 +80,16 @@ impl EmoticonSprite {
 
 		parent.spawn((
 			self,
-			Text2dBundle {
-				text : Text {
-					sections : vec!(
-						TextSection::new(text, TextStyle {
-							font_size : 12.0,
-							..default()
-						})
-					),
-					justify : JustifyText::Center, 
-					..default()
-				},
-				transform: Transform::from_translation(translation),
+			Text2d::new(text),
+			TextFont{
+				font_size : 12.0,
 				..default()
-			})).id()
+			},
+			TextLayout{
+				justify : JustifyText::Center,
+				..default()
+			},
+			Transform::from_translation(translation)
+		)).id()
 	}
 }

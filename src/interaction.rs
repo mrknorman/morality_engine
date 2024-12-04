@@ -3,8 +3,7 @@ use std::hash::{
     Hasher
 };
 use bevy::{
-    prelude::*,
-    window::PrimaryWindow
+    prelude::*, window::PrimaryWindow
 };
 use crate::{
     audio::{
@@ -143,8 +142,10 @@ pub fn clickable_system(
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut clickable_q: Query<(
         &GlobalTransform, 
-        &mut Clickable, Option<&mut Text>
+        &mut Clickable,
+        &Children
     )>,
+    mut span_q : Query<&mut TextColor, With<TextSpan>>
 ) {
     let Some(cursor_position) = get_cursor_world_position(
         &windows, &camera_q
@@ -153,8 +154,10 @@ pub fn clickable_system(
     for (
         transform, 
         mut clickable,
-        mut text
+        children
     ) in clickable_q.iter_mut() {
+
+        let color;
 
         if is_cursor_within_bounds(
                 cursor_position, transform, clickable.size
@@ -165,19 +168,19 @@ pub fn clickable_system(
             } else {
                 clickable.clicked = false;
             }
-            
+
             if mouse_input.pressed(MouseButton::Left) {
-                if let Some(text) = text.as_mut() {
-                    update_text_color(text, PRESSED_BUTTON);
-                }
+                color = PRESSED_BUTTON;
             } else {
-                if let Some(text) = text.as_mut() {
-                    update_text_color(text, HOVERED_BUTTON);
-                }
+                color = HOVERED_BUTTON;
             }
         } else {
-            if let Some(text) = text.as_mut() {
-                update_text_color(text, PRIMARY_COLOR);
+            color = PRIMARY_COLOR;
+        }
+
+        for child in children.iter() {
+            if let Ok(mut span) = span_q.get_mut(*child) {
+                span.0 = color;
             }
         }
     }
@@ -200,25 +203,15 @@ pub fn pressable_system (
     }
 }
 
-fn update_text_color(text: &mut Text, color: Color) {
-    for section in text.sections.iter_mut() {
-        section.style.color = color;
-    }
-}
-
 fn get_cursor_world_position(
     windows: &Query<&Window, With<PrimaryWindow>>,
     camera_q: &Query<(&Camera, &GlobalTransform)>,
 ) -> Option<Vec2> {
     let cursor_position = windows.single().cursor_position()?;
-    let (
-        camera, 
-        camera_transform
-    ) = camera_q.get_single().ok()?;
-    let world_position = camera.viewport_to_world(
-        camera_transform, 
-        cursor_position
-    )?;
+    let (camera, camera_transform) = camera_q.get_single().ok()?;
+    let world_position = camera
+        .viewport_to_world(camera_transform, cursor_position)
+        .ok()?;
     Some(world_position.origin.truncate())
 }
 
