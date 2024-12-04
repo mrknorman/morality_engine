@@ -116,10 +116,8 @@ pub fn setup_loading(
                 )
             ]
         ),
-        TransformBundle::from_transform(
-            Transform::from_xyz(0.0, 0.0, 0.0)
-        ),
-        VisibilityBundle::default(),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Visibility::default(),
         ContinuousAudioPallet::new(
             vec![
                 (
