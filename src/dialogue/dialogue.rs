@@ -6,7 +6,7 @@ use std::{
     io::BufReader
 };
 use bevy::{
-    ecs::entity, prelude::*, sprite::Anchor, text::{LineBreak, TextBounds}
+    prelude::*, sprite::Anchor, text::TextBounds
 };
 use serde::{Serialize, Deserialize};
 
@@ -221,14 +221,14 @@ impl Dialogue {
 
 	pub fn advance_dialogue(
         mut commands: Commands,
-        mut query: Query<(Entity, &mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
+        mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text>>,
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
         windows: Query<&Window>,
         time: Res<Time>
     ) {
-        for (entity, mut dialogue, mut text, audio_pallet) in query.iter_mut() {
+        for (entity, mut dialogue, audio_pallet) in query.iter_mut() {
             if !dialogue.playing || (!dialogue.timer.tick(time.delta()).finished() && dialogue.skip_count <= 1) {
                 continue;
             }
@@ -382,7 +382,7 @@ impl DialogueBundle {
         user_map: &HashMap<String, Character>
     ) -> Self {
         let dialogue = Dialogue::load(dialogue_path.into(), user_map);
-        
+
         let character_audio: Vec<(String, ContinuousAudio)> = dialogue.lines.iter()
             .map(|line| (
                 line.character.name.clone(),

@@ -294,33 +294,35 @@ impl DilemmaTimer {
 					TimerMode::Once
 				)
 			},
-			Text2dBundle {
-				text : Text {
-					sections : vec![
-						TextSection::new(
-							format!("{:.2}\n", max_time_seconds),
-							TextStyle {
-								font_size: 50.0,
-								..default()
-							}
-						),
-						TextSection::new(
-							"seconds remaining.\n".to_string(),
-							TextStyle {
-								font_size: 12.0,
-								..default()
-							}
-						)
-					],
-					justify : JustifyText::Center, 
-					linebreak_behavior: LineBreak::WordBoundary
-				},
-				transform: Transform::from_xyz(0.0, -100.0, 1.0),
-				text_anchor : Anchor::Center,
-				..default()
-			}
-			)
-		).id()
+			Text2d::new(""),
+			TextLayout{
+				justify : JustifyText::Center, 
+				linebreak : LineBreak::WordBoundary
+			},
+			Transform::from_xyz(0.0, -100.0, 1.0),
+			Anchor::Center
+		)).with_children( | parent | {
+			parent.spawn((
+				TextSpan::new(
+					format!("{:.2}\n", max_time_seconds)
+				), 
+				TextFont {
+					font_size: 50.0,
+					..default()
+				}
+			));
+			parent.spawn(
+				(
+					TextSpan::new(
+						"seconds remaining.\n".to_string()
+					), 
+					TextFont {
+						font_size: 12.0,
+						..default()
+					}
+				)
+			);
+		}).id()
 	}
 }
 
@@ -362,42 +364,45 @@ pub struct DilemmaInfoPanel;
 #[derive(Bundle)]
 pub struct DilemmaInfoPanelBundle{
 	pub marker : DilemmaInfoPanel,
-	pub text : Text2dBundle
+	pub text : Text2d,
+	pub font : TextFont,
+	pub layout : TextLayout,
+	pub bounds : TextBounds,
+	pub anchor : Anchor,
+	pub transform : Transform
 }
 
 impl DilemmaInfoPanelBundle {
 	pub fn new(
 		dilemma : &Dilemma
 	) -> Self {
+
+		/* 
+		TextSection::new(
+			dilemma.description.clone(),
+			TextStyle {
+				font_size: 15.0,
+				..default()
+		});
+		*/
+
 		DilemmaInfoPanelBundle {
 			marker : DilemmaInfoPanel,
-			text : Text2dBundle {
-				text : Text {
-					sections : vec![
-						TextSection::new(
-							format!("Dilemma {}: {}\n", dilemma.index, dilemma.name),
-							TextStyle {
-								font_size: 30.0,
-								..default()
-						}),
-						TextSection::new(
-							dilemma.description.clone(),
-							TextStyle {
-								font_size: 15.0,
-								..default()
-						}),
-
-					],
-					justify : JustifyText::Left, 
-					linebreak_behavior: LineBreak::WordBoundary
-				},
-				text_2d_bounds : TextBounds {
-					size: Vec2::new(500.0, 2000.0),
-				},
-				transform: Transform::from_xyz(-600.0,300.0, 1.0),
-				text_anchor : Anchor::TopLeft,
+			text : Text2d::new(format!("Dilemma {}: {}\n", dilemma.index, dilemma.name),),
+			font : TextFont{
+				font_size : 30.0,
 				..default()
-			}
+			},
+			layout : TextLayout {
+				justify : JustifyText::Left,
+				linebreak  : LineBreak::WordBoundary
+			},
+			bounds : TextBounds {
+				width : Some(500.0),
+				height : Some(2000.0)
+			},
+			anchor :  Anchor::TopLeft,
+			transform : Transform::from_xyz(-600.0,300.0, 1.0)
 		}
 	}
 }

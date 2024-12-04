@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::component::StorageType, prelude::*, render::view::visibility
+	ecs::component::StorageType, prelude::*
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]

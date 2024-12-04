@@ -181,8 +181,8 @@ pub struct Train {
 pub struct TrainBundle {
 	train : Train,
 	locomotion : Locomotion,
-	transform : TransformBundle,
-	visibility : VisibilityBundle,
+	transform : Transform,
+	visibility : Visibility,
 	audio : ContinuousAudioPallet
 }
 
@@ -204,10 +204,8 @@ impl TrainBundle {
 		Self { 
 			train: Train::new(asset_server, train_file_path, translation), 
 			locomotion: Locomotion::new(speed), 
-			transform: TransformBundle::from_transform(
-				Transform::from_translation(translation)
-			), 
-			visibility: VisibilityBundle::default(), 
+			transform: Transform::from_translation(translation), 
+			visibility: Visibility::default(), 
 			audio:ContinuousAudioPallet::new(
 				vec![(
 					"tracks".to_string(),
