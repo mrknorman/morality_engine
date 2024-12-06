@@ -417,8 +417,6 @@ impl DilemmaOptionInfoPanel {
 		index : usize
 	) -> Entity {
 
-		let box_size = Vec2::new(500.0, 2000.0);
-
 		let mut color = Color::WHITE;
 		let mut x_transform : f32 = 0.0;
 
@@ -433,41 +431,41 @@ impl DilemmaOptionInfoPanel {
 		commands.spawn(
 			(
 			DilemmaOptionInfoPanel,
-			Text2dBundle {
-				text : Text {
-					sections : vec![
-						TextSection::new(
-							format!(
-								"Option {}: {} [Press {} to select]\n", 
-								index + 1, 
-								option.name, 
-								index + 1
-							),
-							TextStyle {
-								font_size: 20.0,
-								color,
-								..default()
-						}),
-						TextSection::new(
-							option.description.clone(),
-							TextStyle {
-								font_size: 15.0,
-								color,
-								..default()
-						}),
-
-					],
-					justify : JustifyText::Left, 
-					linebreak_behavior: LineBreak::WordBoundary
-				},
-				text_2d_bounds : TextBounds {
-					size: box_size,
-				},
-				transform: Transform::from_xyz(x_transform,-150.0, 1.0),
-				text_anchor : Anchor::TopLeft,
+			Text2d::new(
+				format!(
+					"Option {}: {} [Press {} to select]\n", 
+					index + 1, 
+					option.name, 
+					index + 1
+				)
+			),
+			TextColor(color),
+			TextFont{
+				font_size : 15.0,
 				..default()
-			})
-		).id()
+			},
+			TextLayout{
+				justify : JustifyText::Left,
+				linebreak : LineBreak::WordBoundary
+			},
+			TextBounds{
+				width : Some(500.0),
+				height : Some(2000.0)
+			}, 
+			Transform::from_xyz(x_transform,-150.0, 1.0),
+			Anchor::TopLeft
+		)).with_children( | parent | {
+			parent.spawn(
+				(
+					TextSpan::new(option.description.clone()),
+					TextColor(color),
+					TextFont{
+						font_size : 15.0,
+						..default()
+					}
+				)
+			); 
+		} ).id()
 	}
 }
 
@@ -514,12 +512,11 @@ pub fn cleanup_decision(
 }
 
 pub fn lever_motion(
-    mut movement_query: Query<(&mut LeverTrackTransform, &mut Transform)>,
-	mut track_query: Query<&mut Text, (With<Track>, Without<LeverTrackTransform>)>,
-    lever: Option<Res<Lever>>,
-    time: Res<Time>,  // Add time resource to manage frame delta time
-	
-) {
+		mut movement_query: Query<(&mut LeverTrackTransform, &mut Transform)>,
+		mut track_query: Query<&mut TextColor, (With<Track>, Without<LeverTrackTransform>)>,
+		lever: Option<Res<Lever>>,
+		time: Res<Time>,  // Add time resource to manage frame delta time
+	) {
 
 	if lever.is_some() {
 
@@ -537,28 +534,28 @@ pub fn lever_motion(
 			let bounce_amplitude = 0.02; // Amplitude of the bounce effect
 			let bounce_frequency = 10.0; // Frequency of the bounce effect
 
-			let main_track = track_query.get_single_mut(); 
-
+			let mut main_track = track_query.get_single_mut(); 
+			
 			if unwrapped_lever.state == LeverState::Right {
-				main_track.unwrap().sections[0].style.color = OPTION_2_COLOR;
+				main_track.unwrap().0 = OPTION_2_COLOR;
 				let distance = (right_position - transform.translation).length();
 				if distance > distance_threshold {
 					let direction = (right_position - transform.translation).normalize();
 					let movement_speed = distance * proportional_speed_factor;
 					transform.translation += direction * movement_speed;
 				} else {
-					let bounce_offset = bounce_amplitude * (time.elapsed_seconds() * bounce_frequency).sin();
+					let bounce_offset = bounce_amplitude * (time.elapsed_secs() * bounce_frequency).sin();
 					transform.translation = right_position + Vec3::new(bounce_offset, 0.0, 0.0);
 				}
 			} else if unwrapped_lever.state == LeverState::Left {
-				main_track.unwrap().sections[0].style.color = OPTION_1_COLOR;
+				main_track.unwrap().0 = OPTION_1_COLOR;
 				let distance = (left_position - transform.translation).length();
 				if distance > distance_threshold {
 					let direction = (left_position - transform.translation).normalize();
 					let movement_speed = distance * proportional_speed_factor;
 					transform.translation += direction * movement_speed;
 				} else {
-					let bounce_offset = bounce_amplitude * (time.elapsed_seconds() * bounce_frequency).sin();
+					let bounce_offset = bounce_amplitude * (time.elapsed_secs() * bounce_frequency).sin();
 					transform.translation = left_position + Vec3::new(bounce_offset, 0.0, 0.0);
 				}
 			}

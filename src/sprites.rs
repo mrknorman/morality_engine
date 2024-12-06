@@ -1,59 +1,23 @@
-use bevy::{
-	prelude::*,
-	sprite::Anchor
-};
-
+use bevy::prelude::*;
 use crate::colors::PRIMARY_COLOR;
 
 // Separate module for general sprite creation functionality
 pub struct SpriteFactory;
 
 impl SpriteFactory {
-    pub fn create_sprite_bundle(size: Vec2, position: Vec3) -> SpriteBundle {
-        SpriteBundle {
-            sprite: Sprite {
+    pub fn create_sprite_bundle(size: Vec2, position: Vec3) -> (Sprite, Transform) {
+        (
+            Sprite{
                 custom_size: Some(size),
                 color : PRIMARY_COLOR,
                 ..default()
             },
-            transform: Transform::from_xyz(position.x, position.y, position.z),
-            ..default()
-        }
-    }
-
-    pub fn create_text_bundle(
-        prefix: String,
-        text: String, 
-        font_size: f32, 
-        position: Vec3
-    ) -> Text2dBundle {
-        Text2dBundle {
-            text: Text {
-                sections: vec![
-                    TextSection::new(
-                        prefix, 
-                        TextStyle {
-                            font_size,
-                            color : PRIMARY_COLOR,
-                            ..default()
-                        }
-                    ),
-                    TextSection::new(
-                        text, 
-                        TextStyle {
-                            font_size,
-                            color : PRIMARY_COLOR,
-                            ..default()
-                        }
-                    )
-                ],
-                justify: JustifyText::Center,
-                ..default()
-            },
-            text_anchor: Anchor::CenterLeft,
-            transform: Transform::from_xyz(position.x, position.y, position.z),
-            ..default()
-        }
+            Transform::from_xyz(
+                position.x,
+                position.y, 
+                position.z
+            )
+        )
     }
 }
 
@@ -65,7 +29,7 @@ impl SpriteBox {
         position: Vec3, 
         width: f32, 
         height: f32
-    ) -> Vec<SpriteBundle> {
+    ) -> Vec<(Sprite, Transform)> {
         let border_thickness = 2.0;
 
         let sprite_sizes = vec![
