@@ -13,29 +13,6 @@ use crate::{
     colors::PRIMARY_COLOR
 };
 
-fn create_text_bundle(
-        text: impl Into<String>, 
-        translation: Vec3, 
-        font_size: f32
-    ) -> Text2dBundle {
-    
-    Text2dBundle {
-        text: Text {
-            sections: vec![TextSection::new(
-                text.into(),
-                TextStyle {
-                    font_size,
-                    color : PRIMARY_COLOR,
-                    ..default()
-                },
-            )],
-            justify: JustifyText::Center,
-            ..default()
-        },
-        transform: Transform::from_translation(translation),
-        ..default()
-    }
-}
 // Existing components
 #[derive(Component, Clone)]
 pub struct TextRaw;
@@ -50,14 +27,28 @@ pub struct TextTitle;
 #[derive(Bundle, Clone)]
 pub struct TextRawBundle {
     marker: TextRaw,
-    text: Text2dBundle,
+    text: Text2d,
+    font: TextFont,
+    color : TextColor,
+    layout : TextLayout,
+    transform : Transform
 }
 
 impl TextRawBundle {
     pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
         Self {
             marker: TextRaw,
-            text: create_text_bundle(text, translation, 12.0),
+            text : Text2d::new(text),
+            font : TextFont{
+                font_size : 12.0,
+                ..default()
+            },
+            color : TextColor(PRIMARY_COLOR),
+            layout : TextLayout{
+                justify: JustifyText::Center,
+                ..default()
+            },
+            transform : Transform::from_translation(translation)
         }
     }
 }
@@ -66,14 +57,28 @@ impl TextRawBundle {
 #[derive(Bundle, Clone)]
 pub struct TextSpriteBundle {
     marker: TextSprite,
-    text: Text2dBundle,
+    text: Text2d,
+    font: TextFont,
+    color : TextColor,
+    layout : TextLayout,
+    transform : Transform
 }
 
 impl TextSpriteBundle {
     pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
         Self {
             marker: TextSprite,
-            text: create_text_bundle(text, translation, 12.0),
+            text : Text2d::new(text),
+            font : TextFont{
+                font_size : 12.0,
+                ..default()
+            },
+            color : TextColor(PRIMARY_COLOR),
+            layout : TextLayout{
+                justify: JustifyText::Center,
+                ..default()
+            },
+            transform : Transform::from_translation(translation)
         }
     }
 }
@@ -82,14 +87,28 @@ impl TextSpriteBundle {
 #[derive(Bundle, Clone)]
 pub struct TextTitleBundle {
     marker: TextTitle,
-    text: Text2dBundle,
+    text: Text2d,
+    font: TextFont,
+    color : TextColor,
+    layout : TextLayout,
+    transform : Transform
 }
 
 impl TextTitleBundle {
     pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
         Self {
             marker: TextTitle,
-            text: create_text_bundle(text, translation, 12.0),
+            text : Text2d::new(text),
+            font : TextFont{
+                font_size : 12.0,
+                ..default()
+            },
+            color : TextColor(PRIMARY_COLOR),
+            layout : TextLayout{
+                justify: JustifyText::Center,
+                ..default()
+            },
+            transform : Transform::from_translation(translation)
         }
     }
 }
@@ -175,8 +194,7 @@ impl AnimatedTextSpriteBundle {
             if animation.timer.just_finished() {
                 animation.current_frame = 
                     (animation.current_frame + 1) % frames.frames.len();
-                text.sections[0].value = 
-                    frames.frames[animation.current_frame].clone();
+                text.0 = frames.frames[animation.current_frame].clone();
             }
         }
     }
@@ -189,9 +207,13 @@ pub struct TextButton;
 pub struct TextButtonBundle {
     marker : TextButton,
     clickable : Clickable,
-    text : Text2dBundle,
+    pressable : Pressable,
     audio : TransientAudioPallet,
-    pressable : Pressable
+    text: Text2d,
+    font: TextFont,
+    color : TextColor,
+    layout : TextLayout,
+    transform : Transform
 }
 
 impl TextButtonBundle {
@@ -211,7 +233,10 @@ impl TextButtonBundle {
         Self {
             marker : TextButton, 
             clickable : Clickable::new(actions.clone(), Vec2::new(button_width, 20.0)),
-            text : create_text_bundle(text, translation, 16.0),
+            pressable : Pressable::new(
+                keys,
+                actions
+            ),
             audio : TransientAudioPallet::new(
                 vec![(
                     "click".to_string(),
@@ -224,10 +249,17 @@ impl TextButtonBundle {
                     ),
                 )]
             ),
-            pressable : Pressable::new(
-                keys,
-                actions
-            )
+            text : Text2d::new(text),
+            font : TextFont{
+                font_size : 16.0,
+                ..default()
+            },
+            color : TextColor(PRIMARY_COLOR),
+            layout : TextLayout{
+                justify: JustifyText::Center,
+                ..default()
+            },
+            transform : Transform::from_translation(translation)
         }
     }
 
@@ -240,7 +272,7 @@ impl TextButtonBundle {
         let text_length = new_text.clone().len();
         let button_width = text_length as f32 * 7.92;
 
-        text.sections[0].value = new_text;
+        text.0 = new_text;
 
         let old_size =  clickable.size;
         clickable.size = Vec2::new(button_width, old_size.y);
