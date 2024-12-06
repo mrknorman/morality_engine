@@ -1,10 +1,7 @@
 use bevy::{
     prelude::*, 
 	ecs::component::StorageType,
-    sprite::{
-        MaterialMesh2dBundle,
-        Mesh2d
-    }
+    render::mesh::Mesh2d
 };
 
 use crate::{
@@ -105,21 +102,17 @@ impl Graph {
                 transform.translation.z,
             ));
     
-            parent.spawn(MaterialMesh2dBundle {
-                mesh: Mesh2d(annulus_mesh_handle.clone()),
-                material: outline_material.clone(),
-                transform: node_transform.clone(),
-                ..default()
-            });
-    
+            parent.spawn((
+                Mesh2d(annulus_mesh_handle.clone()),
+                MeshMaterial2d(outline_material.clone()),
+                node_transform.clone()
+            ));
+
             parent.spawn((
                 GraphNode,
-                MaterialMesh2dBundle {
-                    mesh: Mesh2d(circle_mesh_handle.clone()),
-                    material: material_handle.clone(),
-                    transform: node_transform,
-                    ..default()
-                },
+                Mesh2d(circle_mesh_handle.clone()),
+                MeshMaterial2d(material_handle.clone()),
+                node_transform.clone()
             ));
         }
     }
@@ -202,7 +195,7 @@ impl Component for Graph {
                         let node_material_vector: Vec<Handle<PulsingMaterial>> = if num_nodes > 0 {
                             (0..num_nodes)
                                 .map(|i| {
-                                    let phase = ((i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU);
+                                    let phase = (i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU;
                                     materials.add(PulsingMaterial {
                                         color: HIGHLIGHT_COLOR.into(),
                                         phase,
@@ -242,8 +235,8 @@ impl Component for Graph {
 #[derive(Bundle)]
 pub struct GraphBundle{
     graph : Graph,
-    visibility : VisibilityBundle,
-    transform : TransformBundle
+    visibility : Visibility,
+    transform : Transform
 }
 
 impl GraphBundle {
@@ -265,10 +258,8 @@ impl GraphBundle {
                 node_outer_radius*scale,
                 node_border_thickness*scale
             ),
-            visibility : VisibilityBundle::default(),
-            transform : TransformBundle::from_transform(
-                Transform::from_translation(translation)
-            )
+            visibility : Visibility::default(),
+            transform : Transform::from_translation(translation)
         }
     }
 }
