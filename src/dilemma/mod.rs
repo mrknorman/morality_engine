@@ -123,16 +123,14 @@ pub fn setup_dilemma(
 		(
 			DilemmaRoot,
 			StateScoped(GameState::Dilemma),
-			TransformBundle::from_transform(Transform::from_translation(
-				Vec3::new(0.0, 0.0, 0.0))
-			),
+			Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
 			Background::load_from_json(
 				"text/backgrounds/desert.json",	
 				20.0,
 				0.5,
 				
 			),
-			VisibilityBundle::default()
+			Visibility::default()
 		)
 	).with_children(
         |parent| {
@@ -166,10 +164,8 @@ pub fn setup_dilemma_intro(
 		(
 			DilemmaIntroRoot,
 			StateScoped(DilemmaPhase::Intro),
-			TransformBundle::from_transform(Transform::from_translation(
-				Vec3::new(0.0, 0.0, 0.0))
-			),
-			VisibilityBundle::default(),
+			Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+			Visibility::default(),
 			TimerPallet::new(
 				vec![
 					(
@@ -294,26 +290,32 @@ pub fn setup_decision(
 		dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
 	) {
 	
-	commands.spawn(AudioBundle {
-		source: asset_server.load(
-			PathBuf::from("./sounds/train_aproaching.ogg")
+	commands.spawn((
+		AudioPlayer::<AudioSource>(
+			asset_server.load(
+				PathBuf::from("./sounds/train_aproaching.ogg")
+			)
 		),
-		settings : PlaybackSettings {
+		PlaybackSettings {
 			paused : false,
 			volume : bevy::audio::Volume::new(1.0),
 			mode:  bevy::audio::PlaybackMode::Loop,
 			..default()
-	}});
+		})
+	);
 
-	commands.spawn(AudioBundle {
-		source: asset_server.load(PathBuf::from("./sounds/clock.ogg")),
-		settings : PlaybackSettings {
+	commands.spawn((
+		AudioPlayer::<AudioSource>(
+			asset_server.load(PathBuf::from("./sounds/clock.ogg"))
+		),
+		PlaybackSettings {
 			paused : false,
 			volume : bevy::audio::Volume::new(0.3),
 			mode:  bevy::audio::PlaybackMode::Loop,
 			..default()
-	}});
-
+		})
+	);
+	
 	DilemmaDashboard::spawn(&mut commands, &dilemma);
 }
 
