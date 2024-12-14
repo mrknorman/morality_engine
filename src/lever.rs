@@ -115,7 +115,7 @@ impl Lever {
 
 pub fn check_level_pull(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-	mut lever_text_query : Query<(&mut Text, &mut TextColor), With<LeverText>>,
+	mut lever_text_query : Query<(&mut Text2d, &mut TextColor), With<LeverText>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     lever: Option<Res<Lever>>,

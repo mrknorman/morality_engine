@@ -294,7 +294,11 @@ impl DilemmaTimer {
 					TimerMode::Once
 				)
 			},
-			Text2d::new(""),
+			Text2d::new(format!("{:.2}\n", max_time_seconds)),
+			TextFont {
+				font_size: 50.0,
+				..default()
+			},
 			TextLayout{
 				justify : JustifyText::Center, 
 				linebreak : LineBreak::WordBoundary
@@ -302,15 +306,6 @@ impl DilemmaTimer {
 			Transform::from_xyz(0.0, -100.0, 1.0),
 			Anchor::Center
 		)).with_children( | parent | {
-			parent.spawn((
-				TextSpan::new(
-					format!("{:.2}\n", max_time_seconds)
-				), 
-				TextFont {
-					font_size: 50.0,
-					..default()
-				}
-			));
 			parent.spawn(
 				(
 					TextSpan::new(
@@ -597,8 +592,8 @@ pub fn person_check_danger(
 
 pub fn animate_person(
     time: Res<Time>,
-    mut query: Query<(&mut Children, &mut Text, &mut TextColor, &mut Transform, &mut PersonSprite, &mut BounceAnimation)>,
-	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text, &mut TextColor, &mut Transform), Without<PersonSprite>>,
+    mut query: Query<(&Children, &mut Text2d, &mut TextColor, &mut Transform, &mut PersonSprite, &mut BounceAnimation)>,
+	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text2d, &mut TextColor), Without<PersonSprite>>,
 	mut commands : Commands,
 	asset_server: Res<AssetServer>
 ) {
@@ -615,14 +610,14 @@ pub fn animate_person(
 						
 						let duration_seconds = time.delta().as_millis() as f32 / 1000.0;
 
-						query_result.0.current_size += 1.0 + 2.0*duration_seconds;
+						query_result.0.current_size += duration_seconds;
 						let mut transform = query_result.1;
 						let sprite: Mut<'_, EmoticonSprite> = query_result.0;
 						
 						let mut text = query_result.2;
 						let mut color = query_result.3;
 
-						transform.translation.y += 15.0*duration_seconds;
+						//transform.translation.y += 15.0*duration_seconds;
 						transform.scale = Vec3::new(
 							sprite.current_size.clone(), 
 							sprite.current_size.clone(), 
@@ -747,7 +742,7 @@ pub fn animate_person(
 
 pub fn update_timer(
 		time: Res<Time>,
-		mut timer_query: Query<(&mut DilemmaTimer, &mut Text)>,
+		mut timer_query: Query<(&mut DilemmaTimer, &mut Text2d)>,
 		mut next_game_state: ResMut<NextState<DilemmaPhase>>
 	) {
 	

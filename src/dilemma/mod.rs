@@ -53,15 +53,13 @@ impl Plugin for DilemmaPlugin {
                 )
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::Intro)),
-            )
-            .add_systems(OnEnter(DilemmaPhase::IntroDecisionTransition), setup_dilemma_transition)
+            ).add_systems(OnEnter(DilemmaPhase::IntroDecisionTransition), setup_dilemma_transition)
             .add_systems(
                 Update,
                 (end_transition)
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
-            )
-            .add_systems(
+            ).add_systems(
                 OnEnter(DilemmaPhase::Decision),
                 setup_decision.run_if(in_state(GameState::Dilemma)),
             )
@@ -77,7 +75,8 @@ impl Plugin for DilemmaPlugin {
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::Decision)),
             )
-            .add_systems(OnExit(DilemmaPhase::Decision), cleanup_decision)
+			
+			.add_systems(OnExit(DilemmaPhase::Decision), cleanup_decision)
             .add_systems(
                 OnEnter(DilemmaPhase::ConsequenceAnimation),
                 setup_dilemma_consequence_animation,
@@ -90,7 +89,7 @@ impl Plugin for DilemmaPlugin {
                 )
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
-            );//.add_plugins(TrainPlugin::new(GameState::Dilemma));
+            );
 
 		if !app.is_plugin_added::<InteractionPlugin>() {
 			app.add_plugins(InteractionPlugin);
@@ -264,13 +263,11 @@ pub fn setup_dilemma_transition(
 	let speed: f32 = -450.0;
 	let decision_position = -45.0 * dilemma.countdown_duration_seconds;
 	let duration_seconds = decision_position/speed;
-
 	BackgroundSprite::update_speed(background_query,2.0);
 	Train::update_speed(
 		locomotion_query,
 		speed
 	);
-
 	let transition_timer = TransitionCounter{
 		timer : Timer::from_seconds(duration_seconds, TimerMode::Once)
 	};

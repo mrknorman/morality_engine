@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-pub const PERSON : &str = "\t @ \n\t/|\\\n\t/ \\";
-pub const PERSON_IN_DANGER : &str= "\t\\@/\n\t | \n\t/ \\";
+pub const PERSON : &str = " @ \n/|\\\n/ \\";
+pub const PERSON_IN_DANGER : &str= "\\@/\n | \n/ \\";
 
-pub const EXCLAIMATION : &str = "\t ! ";
-pub const NEUTRAL : &str = "\t   ";
+pub const EXCLAIMATION : &str = "!";
+pub const NEUTRAL : &str = "    ";
 
 #[derive(Component)]
 pub struct BounceAnimation {
@@ -67,9 +67,9 @@ impl EmoticonSprite {
 	pub fn new() -> EmoticonSprite {
 		EmoticonSprite{
 			state : EmotionState::Neutral,
-			initial_size : 12.0,
-			current_size : 12.0,
-			translation : Vec3{x: 0.0, y: 42.0, z:0.0}
+			initial_size : 1.0,
+			current_size : 1.0,
+			translation : Vec3{x: 0.0, y: 50.0, z:0.0}
 		}
 	}
 
