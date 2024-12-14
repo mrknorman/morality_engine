@@ -127,9 +127,9 @@ impl LoadingBarBundle {
                         if !frames.frames.is_empty() {
                             if !loading_finished {
                                 let new_index = bar.index % frames.frames.len();
-                                *writer.text(entity, 2) = frames.frames[new_index].clone();
+                                *writer.text(entity, 1) = frames.frames[new_index].clone();
                             } else {
-                                *writer.text(entity, 2) = bar.final_message.clone();
+                                *writer.text(entity, 1) = bar.final_message.clone();
                             }
                         }
                     }
@@ -173,35 +173,26 @@ impl Component for LoadingBar {
                         
                         parent.spawn((
                             LoadingText,
-                            Text2d::new(""),
+                            Text2d::new(prefix.unwrap_or_default()),
+                            TextColor(PRIMARY_COLOR),
+                            TextFont{
+                                font_size : 12.0,
+                                ..default()
+                            },
                             Transform::from_xyz(-250.0, 20.0, 0.0),
+                            TextLayout{
+                                justify: JustifyText::Center,
+                                ..default()
+                            },
                             Anchor::CenterLeft,
                         )).with_children( |parent| {
                             parent.spawn((
-                                TextSpan::new(prefix.unwrap_or_default()),
-                                TextColor(PRIMARY_COLOR),
-                                TextLayout{
-                                    justify: JustifyText::Center,
-                                    ..default()
-                                },
-                                TextFont{
-                                    font_size : 12.0,
-                                    ..default()
-                                },
-                                )
-                            );
-
-                            parent.spawn((
-                                TextSpan::new(messages[0].clone()),
-                                TextColor(PRIMARY_COLOR),
-                                TextLayout{
-                                    justify: JustifyText::Center,
-                                    ..default()
-                                },
-                                TextFont{
-                                    font_size : 12.0,
-                                    ..default()
-                                },
+                                    TextSpan::new(messages[0].clone()),
+                                    TextColor(PRIMARY_COLOR),
+                                    TextFont{
+                                        font_size : 12.0,
+                                        ..default()
+                                    },
                                 )
                             );
                         }); 
