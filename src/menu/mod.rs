@@ -54,15 +54,23 @@ fn setup_menu(
         asset_server: Res<AssetServer>,
         windows: Query<&Window>
     ) {
-
-    let text = include_str!("main_menu.txt");
+    
+    let text = r#"
+ ___      ___     ______     _______        __      ___        __  ___________  ___  ___       _______  _____  ___    _______   __    _____  ___    _______  
+|"  \    /"  |   /    " \   /"      \      /""\    |"  |      |" \("     _   ")|"  \/"  |     /"     "|(\"   \|"  \  /" _   "| |" \  (\"   \|"  \  /"     "| 
+ \   \  //   |  // ____  \ |:        |    /    \   ||  |      ||  |)__/  \\__/  \   \  /     (: ______)|.\\   \    |(: ( \___) ||  | |.\\   \    |(: ______) 
+ /\\  \/.    | /  /    ) :)|_____/   )   /' /\  \  |:  |      |:  |   \\_ /      \\  \/       \/    |  |: \.   \\  | \/ \      |:  | |: \.   \\  | \/    |   
+|: \.        |(: (____/ //  //      /   //  __'  \  \  |___   |.  |   |.  |      /   /        // ___)_ |.  \    \. | //  \ ___ |.  | |.  \    \. | // ___)_  
+|.  \    /:  | \        /  |:  __   \  /   /  \\  \( \_|:  \  /\  |\  \:  |     /   /        (:      "||    \    \ |(:   _(  _|/\  |\|    \    \ |(:      "| 
+|___|\__/|___|  \"_____/   |__|  \___)(___/    \___)\_______)(__\_|_)  \__|    |___/          \_______) \___|\____\) \_______)(__\_|_)\___|\____\) \_______) 
+"#;
 
     let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let title_translation : Vec3 = Vec3::new(0.0, 150.0, 1.0);
-    let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
-    let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
+    let train_translation: Vec3 = Vec3::new(63.0, 00.0, 1.0);
+    let track_displacement: Vec3 = Vec3::new(-57.0, -30.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
-    let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
+    let signature_translation : Vec3 = Vec3::new(0.0, -40.0, 1.0);
 
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),

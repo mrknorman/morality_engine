@@ -534,8 +534,8 @@ pub fn lever_motion(
 			let bounce_amplitude = 0.02; // Amplitude of the bounce effect
 			let bounce_frequency = 10.0; // Frequency of the bounce effect
 
-			let mut main_track = track_query.get_single_mut(); 
-			
+			let main_track = track_query.get_single_mut(); 
+
 			if unwrapped_lever.state == LeverState::Right {
 				main_track.unwrap().0 = OPTION_2_COLOR;
 				let distance = (right_position - transform.translation).length();
@@ -597,12 +597,12 @@ pub fn person_check_danger(
 
 pub fn animate_person(
     time: Res<Time>,
-    mut query: Query<(&mut Children, &mut Text, &mut Transform, &mut PersonSprite, &mut BounceAnimation)>,
-	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text), Without<PersonSprite>>,
+    mut query: Query<(&mut Children, &mut Text, &mut TextColor, &mut Transform, &mut PersonSprite, &mut BounceAnimation)>,
+	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text, &mut TextColor, &mut Transform), Without<PersonSprite>>,
 	mut commands : Commands,
 	asset_server: Res<AssetServer>
 ) {
-    for (children, mut text, mut transform, mut person, mut animation) in query.iter_mut() {
+    for (children, mut text, mut color,  mut transform, mut person, mut animation) in query.iter_mut() {
 
 		let emoticon_entity = children.iter().next();
 
@@ -615,33 +615,31 @@ pub fn animate_person(
 						
 						let duration_seconds = time.delta().as_millis() as f32 / 1000.0;
 
-						query_result.0.current_size += 50.0*duration_seconds;
+						query_result.0.current_size += 1.0 + 2.0*duration_seconds;
 						let mut transform = query_result.1;
-						let sprite = query_result.0;
+						let sprite: Mut<'_, EmoticonSprite> = query_result.0;
 						
 						let mut text = query_result.2;
+						let mut color = query_result.3;
 
 						transform.translation.y += 15.0*duration_seconds;
-
-						text.sections[0] = TextSection::new(
-							String::from(EXCLAIMATION),
-							TextStyle {
-								font_size: sprite.current_size,
-								color : Color::from(RED),
-								..default()
-							}
+						transform.scale = Vec3::new(
+							sprite.current_size.clone(), 
+							sprite.current_size.clone(), 
+							1.0
 						);
+						text.0 = String::from(EXCLAIMATION);
+						color.0 = Color::from(RED);
 					}
 				}
 				
-				text.sections[0] = TextSection::new(
-					String::from(PERSON_IN_DANGER),
-					TextStyle {
-						font_size: 12.0,
-						color : Color::from(RED),
-						..default()
-					}
+				text.0 = String::from(PERSON_IN_DANGER);
+				transform.scale = Vec3::new(
+					1.0, 
+					1.0, 
+					1.0
 				);
+				color.0 = Color::from(RED);
 
 				if transform.translation.y >= animation.initial_position.y {
 					let duration_seconds = time.delta().as_millis() as f32 / 1000.0;
@@ -666,15 +664,13 @@ pub fn animate_person(
 							let mut text = query_result.2;
 
 							transform.translation.y = sprite.translation.y;
-	
-							text.sections[0] = TextSection::new(
-								String::from(NEUTRAL),
-								TextStyle {
-									font_size: sprite.initial_size,
-									color : Color::WHITE,
-									..default()
-								}
+							transform.scale = Vec3::new(
+								1.0, 
+								1.0, 
+								1.0
 							);
+							color.0 = Color::from(Color::WHITE);
+							text.0 = String::from(NEUTRAL);
 						}
 					}
 				}
@@ -689,26 +685,22 @@ pub fn animate_person(
 						let mut text = query_result.2;
 
 						transform.translation.y = sprite.translation.y;
-
-						text.sections[0] = TextSection::new(
-							String::from(NEUTRAL),
-							TextStyle {
-								font_size: sprite.initial_size,
-								color : Color::WHITE,
-								..default()
-							}
+						transform.scale = Vec3::new(
+							1.0, 
+							1.0, 
+							1.0
 						);
+						color.0 = Color::from(Color::WHITE);
+						text.0 = String::from(NEUTRAL);
 					}
 				}
 
-				text.sections[0] = TextSection::new(
-					String::from(PERSON),
-					TextStyle {
-						font_size: 12.0,
-						..default()
-					}
+				text.0 = String::from(PERSON);
+				transform.scale = Vec3::new(
+					1.0, 
+					1.0, 
+					1.0
 				);
-
 				let mut rng = rand::thread_rng();
 
 				person.animaton_interval_timer.tick(time.delta());
@@ -724,12 +716,11 @@ pub fn animate_person(
 		else {
 			animation.playing = false;
 			transform.translation.y = animation.initial_position.y;
-			text.sections[0] = TextSection::new(
-				String::from(PERSON),
-				TextStyle {
-					font_size: 12.0,
-					..default()
-				}
+			text.0 = String::from(PERSON);
+			transform.scale = Vec3::new(
+				1.0, 
+				1.0, 
+				1.0
 			);
 
 			if let Some(emoticon_entity) = emoticon_entity {
@@ -741,15 +732,13 @@ pub fn animate_person(
 					let mut text = query_result.2;
 
 					transform.translation.y = sprite.translation.y;
-
-					text.sections[0] = TextSection::new(
-						String::from(NEUTRAL),
-						TextStyle {
-							font_size: sprite.initial_size,
-							color : Color::WHITE,
-							..default()
-						}
+					transform.scale = Vec3::new(
+						1.0, 
+						1.0, 
+						1.0
 					);
+					color.0 = Color::from(Color::WHITE);
+					text.0 = String::from(NEUTRAL);
 				}
 			}
 		}
@@ -768,13 +757,7 @@ pub fn update_timer(
 
 		let time_remaining = timer.timer.remaining_secs();
 
-		text.sections[0] = TextSection::new(
-			format!("{:.2}\n", time_remaining),
-			TextStyle {
-				font_size: 50.0,
-				..default()
-			}
-		);
+		text.0 = format!("{:.2}\n", time_remaining);
 
 		if timer.timer.just_finished() {
 			next_game_state.set(
@@ -811,16 +794,14 @@ pub fn consequence_animation_tick_down(
 		}
 		commands.spawn((
 			LongScream,
-			AudioBundle {
-				source: asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg")),
-				settings : PlaybackSettings {
-					paused : false,
-					mode:  bevy::audio::PlaybackMode::Despawn,
-					volume :bevy::audio::Volume::new(0.3),
-					speed : 0.1,
-					..default()
-				}
-			}
+			AudioPlayer::<AudioSource>(asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg"))),
+            PlaybackSettings {
+				paused : false,
+				mode:  bevy::audio::PlaybackMode::Despawn,
+				volume :bevy::audio::Volume::new(0.3),
+				speed : 0.1,
+				..default()
+            }
 		));
 	} else if ! timer.scream_timer.finished() {
 
@@ -991,27 +972,20 @@ impl TrainJunction{
 			let position: Vec3 = Vec3::new(-800.0, 0.0, 0.0);
 			commands.entity(track_1).with_children(|parent| {
 					parent.spawn(
-						(Text2dBundle {
-							text : Text {
-								sections : vec![
-									TextSection::new(
-										person.clone(),
-										TextStyle {
-											font_size: 12.0,
-											..default()
-									})
-								],
-								justify : JustifyText::Left, 
-								linebreak_behavior: LineBreak::WordBoundary
+						(
+							Text2d::new(person.clone()),
+							TextFont{
+								font_size : 12.0,
+								..default()
 							},
-							transform: Transform::from_translation(
-								position
-							),
-							text_anchor : Anchor::BottomCenter,
-							..default()
-						},
-						PersonSprite::new(),
-						BounceAnimation::new(40.0, 60.0)
+							TextLayout{
+								justify : JustifyText::Left, 
+								linebreak: LineBreak::WordBoundary
+							},
+							Transform::from_translation(position),
+							Anchor::BottomCenter,
+							PersonSprite::new(),
+							BounceAnimation::new(40.0, 60.0)
 						)
 					).with_children(
 						|parent| {
@@ -1024,37 +998,30 @@ impl TrainJunction{
 	
 		for _ in 0..dilemma.options[1].consequences.total_fatalities {
 			let position: Vec3 = Vec3::new(-800.0, 0.0, 0.0);
-			commands.entity(track_2).with_children(|parent| {
-					parent.spawn(
-						(Text2dBundle {
-							text : Text {
-								sections : vec![
-									TextSection::new(
-										person.clone(),
-										TextStyle {
-											font_size: 12.0,
-											..default()
-									})
-								],
-								justify : JustifyText::Left, 
-								linebreak_behavior: LineBreak::WordBoundary
-							},
-							transform: Transform::from_translation(
-								position
-							),
-							text_anchor : Anchor::BottomCenter,
+			commands.entity(track_1).with_children(|parent| {
+				parent.spawn(
+					(
+						Text2d::new(person.clone()),
+						TextFont{
+							font_size : 12.0,
 							..default()
 						},
+						TextLayout{
+							justify : JustifyText::Left, 
+							linebreak: LineBreak::WordBoundary
+						},
+						Transform::from_translation(position),
+						Anchor::BottomCenter,
 						PersonSprite::new(),
 						BounceAnimation::new(40.0, 60.0)
-						)
-					).with_children(
-						|parent| {
-							EmoticonSprite::new().spawn_with_parent(parent);
-						}
-					);	
-				}
-			);
+					)
+				).with_children(
+					|parent| {
+						EmoticonSprite::new().spawn_with_parent(parent);
+					}
+				);	
+			}
+		);
 		}
 		
 		let track = vec![main_track, track_1, track_2];

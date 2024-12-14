@@ -71,7 +71,8 @@ impl Plugin for GamePlugin {
             .add_plugins(menu::MenuScreenPlugin)
             .add_plugins(loading::LoadingScreenPlugin)
             .add_plugins(dialogue::DialogueScreenPlugin)
-            .add_plugins(dilemma::DilemmaPlugin);
+            //.add_plugins(dilemma::DilemmaPlugin)
+            ;
     }
 }
 

@@ -7,21 +7,11 @@ use bevy::{
 };
 use crate::{
     audio::{
-        TransientAudio, 
-        TransientAudioPallet, 
-        AudioPlugin,
-        AudioSystemsActive
-    },
-    game_states::{
-        StateVector,
-        MainState,
-        GameState,
-        DilemmaPhase
-    },
-    colors::{
-        PRESSED_BUTTON,
-        HOVERED_BUTTON,
-        PRIMARY_COLOR
+        AudioPlugin, AudioSystemsActive, TransientAudio, TransientAudioPallet
+    }, colors::{
+        HOVERED_BUTTON, PRESSED_BUTTON, PRIMARY_COLOR
+    }, game_states::{
+        DilemmaPhase, GameState, MainState, StateVector
     }
 };
 
@@ -132,8 +122,7 @@ pub enum InputAction {
     PlaySound(String),
     ChangeState(StateVector),
     AdvanceDialogue(String),
-    Despawn,
-    Custom(fn(&mut Commands, Entity)),
+    Despawn
 } 
 
 pub fn clickable_system(
@@ -143,8 +132,9 @@ pub fn clickable_system(
     mut clickable_q: Query<(
         &GlobalTransform, 
         &mut Clickable,
-        &Children
-    )>,
+        &Children, 
+        Option<&mut TextColor>
+    ), Without<TextSpan>>,
     mut span_q : Query<&mut TextColor, With<TextSpan>>
 ) {
     let Some(cursor_position) = get_cursor_world_position(
@@ -154,7 +144,8 @@ pub fn clickable_system(
     for (
         transform, 
         mut clickable,
-        children
+        children,
+        text_color
     ) in clickable_q.iter_mut() {
 
         let color;
@@ -176,6 +167,10 @@ pub fn clickable_system(
             }
         } else {
             color = PRIMARY_COLOR;
+        }
+
+        if let Some(mut text_color) = text_color {
+            text_color.0 = color;
         }
 
         for child in children.iter() {

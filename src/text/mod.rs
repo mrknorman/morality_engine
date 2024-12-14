@@ -76,6 +76,7 @@ impl TextSpriteBundle {
             color : TextColor(PRIMARY_COLOR),
             layout : TextLayout{
                 justify: JustifyText::Center,
+                linebreak : LineBreak::NoWrap,
                 ..default()
             },
             transform : Transform::from_translation(translation)
@@ -106,6 +107,7 @@ impl TextTitleBundle {
             color : TextColor(PRIMARY_COLOR),
             layout : TextLayout{
                 justify: JustifyText::Center,
+                linebreak : LineBreak::NoWrap,
                 ..default()
             },
             transform : Transform::from_translation(translation)
@@ -184,12 +186,11 @@ impl AnimatedTextSpriteBundle {
 
     pub fn animate(
         time: Res<Time>,
-        mut query: Query<(&mut Animated, &TextFrames, &mut Text)>,
+        mut query: Query<(&mut Animated, &TextFrames, &mut Text2d)>,
     ) {
         for (
                 mut animation, frames, mut text
             ) in query.iter_mut() {
-                
                 animation.timer.tick(time.delta());
             if animation.timer.just_finished() {
                 animation.current_frame = 

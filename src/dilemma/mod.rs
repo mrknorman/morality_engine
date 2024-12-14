@@ -38,7 +38,6 @@ use dilemma::{
 	DilemmaDashboard
 };
 
-mod junction;
 	
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {

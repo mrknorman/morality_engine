@@ -127,27 +127,22 @@ impl TrainJunction{
 			let position: Vec3 = Vec3::new(-800.0, 0.0, 0.0);
 			commands.entity(track_1).with_children(|parent| {
 					parent.spawn(
-						(Text2dBundle {
-							text : Text {
-								sections : vec![
-									TextSection::new(
-										person.clone(),
-										TextStyle {
-											font_size: 12.0,
-											..default()
-									})
-								],
-								justify : JustifyText::Left, 
-								linebreak_behavior: LineBreak::WordBoundary
+						(
+							Text2d::new(person.clone()),
+							TextFont{
+								font_size : 12.0,
+								..default()
 							},
-							transform: Transform::from_translation(
+							TextLayout{
+								justify : JustifyText::Left, 
+								linebreak: LineBreak::WordBoundary
+							},
+							Transform::from_translation(
 								position
 							),
-							text_anchor : Anchor::BottomCenter,
-							..default()
-						},
-						PersonSprite::new(),
-						BounceAnimation::new(40.0, 60.0)
+							Anchor::BottomCenter,
+							PersonSprite::new(),
+							BounceAnimation::new(40.0, 60.0)
 						)
 					).with_children(
 						|parent| {
@@ -162,27 +157,22 @@ impl TrainJunction{
 			let position: Vec3 = Vec3::new(-800.0, 0.0, 0.0);
 			commands.entity(track_2).with_children(|parent| {
 					parent.spawn(
-						(Text2dBundle {
-							text : Text {
-								sections : vec![
-									TextSection::new(
-										person.clone(),
-										TextStyle {
-											font_size: 12.0,
-											..default()
-									})
-								],
-								justify : JustifyText::Left, 
-								linebreak_behavior: LineBreak::WordBoundary
+						(
+							Text2d::new(person.clone()),
+							TextFont{
+								font_size : 12.0,
+								..default()
 							},
-							transform: Transform::from_translation(
+							TextLayout{
+								justify : JustifyText::Left, 
+								linebreak: LineBreak::WordBoundary
+							},
+							Transform::from_translation(
 								position
 							),
-							text_anchor : Anchor::BottomCenter,
-							..default()
-						},
-						PersonSprite::new(),
-						BounceAnimation::new(40.0, 60.0)
+							Anchor::BottomCenter,
+							PersonSprite::new(),
+							BounceAnimation::new(40.0, 60.0)
 						)
 					).with_children(
 						|parent| {
