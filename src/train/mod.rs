@@ -161,8 +161,8 @@ impl TrainSmokeBundle {
 				).collect(),
 				0.1,
 				Vec3::new(
-					translation.x - 25.0,
-					translation.y + 20.0,
+					translation.x - 35.0,
+					translation.y + 32.0,
 					translation.z,
 				)
 			)
@@ -259,7 +259,7 @@ impl Train {
 					carriage_translation
 				)
 			);
-			carriage_translation.x -= 70.0;
+			carriage_translation.x -= 85.0;
 		}
 		
 		Train {
