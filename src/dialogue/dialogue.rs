@@ -89,7 +89,7 @@ impl Dialogue {
                 TimerMode::Repeating
             ),
             char_duration_millis: 50,
-            num_spans : 0
+            num_spans : 1
         }
     }
 
@@ -97,24 +97,32 @@ impl Dialogue {
         username: &str,
         hostname: &str, 
         color : &Color
-    ) -> Vec<(TextSpan, TextColor)> {        
+    ) -> Vec<(TextSpan, TextColor, TextFont)> {        
         vec![
             (
                 TextSpan::new(
                     format!("{}@{}:\n    ", username, hostname)
                 ),
-                TextColor(*color)
+                TextColor(*color),
+                TextFont{
+                    font_size : 12.0,
+                    ..default()
+                }
             ),
             (
                 TextSpan::new(""),
-                TextColor(PRIMARY_COLOR)
+                TextColor(PRIMARY_COLOR),
+                TextFont{
+                    font_size : 12.0,
+                    ..default()
+                }
             )
         ]
     }
 
 	pub fn play(
         mut commands: Commands,
-		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text>>,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
 		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
 	) {
@@ -168,7 +176,7 @@ impl Dialogue {
 	}
 
 	pub fn skip_controls(
-		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text>>,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
         mut writer: Text2dWriter,
 		keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -221,7 +229,7 @@ impl Dialogue {
 
 	pub fn advance_dialogue(
         mut commands: Commands,
-        mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text>>,
+        mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
