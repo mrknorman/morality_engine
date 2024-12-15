@@ -13,107 +13,46 @@ use crate::{
     colors::PRIMARY_COLOR
 };
 
+fn default_font() -> TextFont {
+    TextFont{
+        font_size : 12.0,
+        ..default()
+    }
+}
+
+fn default_font_color() -> TextColor {
+    TextColor(PRIMARY_COLOR)
+}
+
+fn default_text_layout() -> TextLayout {
+    TextLayout{
+        justify: JustifyText::Center,
+        ..default()
+    }
+}
+
+fn default_nowrap_layout() -> TextLayout {
+    TextLayout{
+        justify: JustifyText::Center,
+        linebreak : LineBreak::NoWrap,
+        ..default()
+    }
+}
+
 // Existing components
 #[derive(Component, Clone)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_text_layout), Transform)]
 pub struct TextRaw;
 
 #[derive(Component, Clone)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout), Transform)]
 pub struct TextSprite;
 
 #[derive(Component, Clone)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout), Transform)]
 pub struct TextTitle;
 
-// Bundle struct for TextRaw
-#[derive(Bundle, Clone)]
-pub struct TextRawBundle {
-    marker: TextRaw,
-    text: Text2d,
-    font: TextFont,
-    color : TextColor,
-    layout : TextLayout,
-    transform : Transform
-}
 
-impl TextRawBundle {
-    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
-        Self {
-            marker: TextRaw,
-            text : Text2d::new(text),
-            font : TextFont{
-                font_size : 12.0,
-                ..default()
-            },
-            color : TextColor(PRIMARY_COLOR),
-            layout : TextLayout{
-                justify: JustifyText::Center,
-                ..default()
-            },
-            transform : Transform::from_translation(translation)
-        }
-    }
-}
-
-// Bundle struct for TextSprite
-#[derive(Bundle, Clone)]
-pub struct TextSpriteBundle {
-    marker: TextSprite,
-    text: Text2d,
-    font: TextFont,
-    color : TextColor,
-    layout : TextLayout,
-    transform : Transform
-}
-
-impl TextSpriteBundle {
-    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
-        Self {
-            marker: TextSprite,
-            text : Text2d::new(text),
-            font : TextFont{
-                font_size : 12.0,
-                ..default()
-            },
-            color : TextColor(PRIMARY_COLOR),
-            layout : TextLayout{
-                justify: JustifyText::Center,
-                linebreak : LineBreak::NoWrap,
-                ..default()
-            },
-            transform : Transform::from_translation(translation)
-        }
-    }
-}
-
-// Bundle struct for TextTitle
-#[derive(Bundle, Clone)]
-pub struct TextTitleBundle {
-    marker: TextTitle,
-    text: Text2d,
-    font: TextFont,
-    color : TextColor,
-    layout : TextLayout,
-    transform : Transform
-}
-
-impl TextTitleBundle {
-    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
-        Self {
-            marker: TextTitle,
-            text : Text2d::new(text),
-            font : TextFont{
-                font_size : 12.0,
-                ..default()
-            },
-            color : TextColor(PRIMARY_COLOR),
-            layout : TextLayout{
-                justify: JustifyText::Center,
-                linebreak : LineBreak::NoWrap,
-                ..default()
-            },
-            transform : Transform::from_translation(translation)
-        }
-    }
-}
 
 #[derive(Component, Clone, Deserialize)]
 pub struct TextFrames {
@@ -153,10 +92,11 @@ pub struct Animated{
     pub timer: Timer
 }
 
-
 #[derive(Bundle, Clone)]
 pub struct AnimatedTextSpriteBundle {
-    text_sprite_bundle: TextSpriteBundle,
+    text_sprite: TextSprite,
+    text : Text2d,
+    transform : Transform,
     animation : Animated,
     frames : TextFrames
 }
@@ -169,10 +109,9 @@ impl AnimatedTextSpriteBundle {
     ) -> Self {
 
         Self {
-            text_sprite_bundle : TextSpriteBundle::new(
-                frames[0].clone(), 
-                translation
-            ),
+            text_sprite: TextSprite,
+            text : Text2d(frames[0].clone()),
+            transform : Transform::from_translation(translation),
             animation : Animated {
                 current_frame: 0,
                 timer: Timer::from_seconds(

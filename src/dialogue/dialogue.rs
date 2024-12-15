@@ -6,18 +6,22 @@ use std::{
     io::BufReader
 };
 use bevy::{
-    prelude::*, sprite::Anchor, text::TextBounds
+    prelude::*, 
+    sprite::Anchor, 
+    text::TextBounds, 
+    audio::Volume
 };
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    audio::{ContinuousAudioPallet, ContinuousAudio},
-    character::Character,
-    common_ui::NextButtonBundle,
-    game_states::{GameState, MainState, StateVector},
-    interaction::{AdvanceDialogue, InputAction},
-    text::TextButtonBundle,
-    colors::PRIMARY_COLOR
+    audio::{continuous_audio, ContinuousAudioPallet}, 
+    character::Character, 
+    colors::PRIMARY_COLOR, 
+    common_ui::NextButton, 
+    game_states::{GameState, MainState, StateVector}, 
+    graph::GraphPlugin, 
+    interaction::{AdvanceDialogue, InputAction}, 
+    text::TextButtonBundle
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -42,6 +46,10 @@ impl Plugin for DialoguePlugin {
                     Dialogue::play
                 ).run_if(in_state(DialogueSystemsActive::True))
             );
+
+            if !app.is_plugin_added::<GraphPlugin>() {
+                app.add_plugins(GraphPlugin);
+            };
     }
 }
 
@@ -64,7 +72,19 @@ pub struct DialogueLine {
     pub character: Character,
 }
 
+fn dialogue_text_bounds() -> TextBounds {
+    TextBounds {
+        width : Some(500.0), 
+        height : Some(2000.0)
+    }
+}
+
+fn dialogue_anchor() -> Anchor {
+    Anchor::CenterLeft
+}
+
 #[derive(Component)]
+#[require(Text2d, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
 pub struct Dialogue {
     pub lines: Vec<DialogueLine>,
     pub current_line_index: usize,
@@ -91,6 +111,56 @@ impl Dialogue {
             char_duration_millis: 50,
             num_spans : 1
         }
+    }
+
+    pub fn load(file_path: PathBuf, user_map: &HashMap<String, Character>) -> Self {
+        let file = File::open(file_path).expect("Unable to open file");
+        let reader = BufReader::new(file);
+        
+        let loaded_dialogue: DialogueLoader = serde_json::from_reader(reader).unwrap();
+
+        let lines = loaded_dialogue.lines.into_iter()
+            .map(|line| {
+                let character = user_map.get(&line.username)
+                    .expect(&format!("Character {} not found in user map", line.username))
+                    .clone();
+                DialogueLine {
+                    raw_text: line.dialogue,
+                    hostname: line.hostname,
+                    instruction: line.instruction,
+                    character,
+                }
+            })
+            .collect();
+
+        Self::new(lines)
+    }
+
+    pub fn init(
+        dialogue_path: impl Into<PathBuf>,
+        asset_server: &Res<AssetServer>,
+        user_map: &HashMap<String, Character>
+    ) -> (ContinuousAudioPallet, Dialogue) {
+        let dialogue = Dialogue::load(dialogue_path.into(), user_map);
+
+        let character_audio: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)> = dialogue.lines.iter()
+            .map(|line| (
+                line.character.name.clone(),
+                AudioPlayer::<AudioSource>(asset_server.load(
+                    line.character.audio_source_file_path.clone()
+                )),
+                PlaybackSettings{
+                    paused : true,
+                    volume : Volume::new(0.3),
+                    ..continuous_audio()
+                }
+            ))
+            .collect();
+
+        (
+            ContinuousAudioPallet::new(character_audio),
+            dialogue
+        )
     }
 
     fn generate_shell_prompt(
@@ -314,13 +384,13 @@ impl Dialogue {
     
         commands.entity(dialogue_entity).with_children(|parent| {
             parent.spawn((
-                NextButtonBundle::new(),
+                NextButton,
                 TextButtonBundle::new(
                     asset_server,
                     actions,
                     vec![KeyCode::Enter],
                     format!("[{}]", instruction),
-                    NextButtonBundle::translation(windows),
+                    NextButton::translation(windows),
                 ),
             ));
         });
@@ -346,73 +416,4 @@ struct DialogueLineLoader {
 struct DialogueLoader {
     lines: Vec<DialogueLineLoader>,
     possible_exit_states: Vec<NextStateOptionLoader>
-}
-
-impl Dialogue {
-    pub fn load(file_path: PathBuf, user_map: &HashMap<String, Character>) -> Self {
-        let file = File::open(file_path).expect("Unable to open file");
-        let reader = BufReader::new(file);
-        
-        let loaded_dialogue: DialogueLoader = serde_json::from_reader(reader).unwrap();
-
-        let lines = loaded_dialogue.lines.into_iter()
-            .map(|line| {
-                let character = user_map.get(&line.username)
-                    .expect(&format!("Character {} not found in user map", line.username))
-                    .clone();
-                DialogueLine {
-                    raw_text: line.dialogue,
-                    hostname: line.hostname,
-                    instruction: line.instruction,
-                    character,
-                }
-            })
-            .collect();
-
-        Dialogue::new(lines)
-    }
-}
-
-#[derive(Bundle)]
-pub struct DialogueBundle {
-    audio: ContinuousAudioPallet,
-    dialogue: Dialogue,
-    text: Text2d,
-    bounds : TextBounds,
-    transform : Transform,
-    anchor : Anchor
-}
-
-impl DialogueBundle {
-    pub fn load(
-        dialogue_path: impl Into<PathBuf>,
-        asset_server: &Res<AssetServer>,
-        user_map: &HashMap<String, Character>
-    ) -> Self {
-        let dialogue = Dialogue::load(dialogue_path.into(), user_map);
-
-        let character_audio: Vec<(String, ContinuousAudio)> = dialogue.lines.iter()
-            .map(|line| (
-                line.character.name.clone(),
-                ContinuousAudio::new(
-                    asset_server,
-                    line.character.audio_source_file_path.clone(),
-                    0.3,
-					true
-                )
-            ))
-            .collect();
-
-        DialogueBundle {
-            audio: ContinuousAudioPallet::new(character_audio),
-            dialogue,
-            text : Text2d::new(""),
-            bounds : TextBounds {
-                width : Some(500.0), 
-                height : Some(2000.0)
-            },
-            transform : Transform::from_xyz(-500.0, 0.0, 1.0),
-            anchor : Anchor::CenterLeft
-        }
-    }
 }

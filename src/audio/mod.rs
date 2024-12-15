@@ -48,9 +48,8 @@ impl Plugin for AudioPlugin {
 fn activate_systems(
 	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
 	transient_query: Query<&TransientAudio>,
-    continious_query: Query<&ContinuousAudio>
 ) {
-	if !transient_query.is_empty() || !continious_query.is_empty(){
+	if !transient_query.is_empty() {
 		audio_state.set(AudioSystemsActive::True)
 	} else {
 		audio_state.set(AudioSystemsActive::False)
@@ -77,78 +76,11 @@ pub fn play_sound_once(
         )).id()
 }
 
-#[derive(Component, Clone)]
-pub struct ContinuousAudio {
-    source: Handle<AudioSource>,
-    volume: f32,
-    paused : bool
-}
-
-impl ContinuousAudio {
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        volume: f32,
-        paused : bool
-    ) -> ContinuousAudio {
-
-        ContinuousAudio {
-            source: asset_server.load(audio_path),
-            volume,
-            paused
-        }
-    }
-}
-
-#[derive(Bundle)]
-pub struct ContinuousAudioBundle {
-    audio : AudioPlayer::<AudioSource>,
-    playback : PlaybackSettings,
-    continuous_audio : ContinuousAudio
-}
-
-impl ContinuousAudioBundle {
-
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        volume: f32,
-        paused: bool
-    ) -> Self {
-
-        let continuous_audio = ContinuousAudio::new(
-            asset_server,
-            audio_path,
-            volume,
-            paused
-        );
-
-        Self {
-            audio : AudioPlayer::<AudioSource>(continuous_audio.clone().source),
-            playback :  PlaybackSettings {
-                mode: PlaybackMode::Loop,
-                paused,
-                volume: Volume::new(continuous_audio.clone().volume),
-                ..default()
-            },
-            continuous_audio
-        }
-    }
-
-    fn from_continuous_audio(
-        continuous_audio : ContinuousAudio
-    ) -> Self {
-
-        Self {
-            audio : AudioPlayer::<AudioSource>(continuous_audio.clone().source),
-            playback :  PlaybackSettings {
-                mode: PlaybackMode::Loop,
-                paused : continuous_audio.paused,
-                volume: Volume::new(continuous_audio.clone().volume),
-                ..default()
-            },
-            continuous_audio
-        }
+pub fn continuous_audio() -> PlaybackSettings {
+    PlaybackSettings {
+        paused : false,
+        mode: PlaybackMode::Loop,
+        ..default()
     }
 }
 
@@ -211,12 +143,12 @@ impl TransientAudio {
 #[derive(Clone)]
 pub struct ContinuousAudioPallet {
     pub entities: HashMap<String, Entity>,
-    pub components: Vec<(String, ContinuousAudio)>
+    pub components: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
 }
 
 impl ContinuousAudioPallet {
     pub fn new(
-        components : Vec<(String, ContinuousAudio)>
+        components : Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
     ) -> ContinuousAudioPallet {
         ContinuousAudioPallet {
             entities : HashMap::new(),
@@ -251,14 +183,13 @@ impl Component for ContinuousAudioPallet {
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent| {
                         for (
-                            name, audio_component
+                            name, audio_component, playback_settings
                         ) in components.iter() {
                             
-                            let child_entity = parent.spawn(
-                                ContinuousAudioBundle::from_continuous_audio(
-                                    audio_component.clone()
-                                )
-                            ).id();
+                            let child_entity = parent.spawn((
+                                audio_component.clone(),
+                                *playback_settings
+                            )).id();
                             entities.insert(name.clone(), child_entity);
                         }
                     });
@@ -392,61 +323,16 @@ impl Component for TransientAudioPallet {
 
 #[derive(Component, Clone)]
 pub struct OneShotAudio {
-    source: Handle<AudioSource>,
-    persistent : bool,
-    volume: f32
+    pub source: Handle<AudioSource>,
+    pub persistent : bool,
+    pub volume: f32
 }
 
-impl OneShotAudio {
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        persistent : bool,
-        volume: f32,
-    ) -> Self {
-
-        OneShotAudio {
-            source: asset_server.load(audio_path),
-            persistent,
-            volume
-        }
-    }
-}
-
-#[derive(Bundle)]
-pub struct OneShotAudioBundle{
-    audio : AudioPlayer::<AudioSource>,
-    playback : PlaybackSettings,
-    one_shot_audio : OneShotAudio
-}
-
-impl OneShotAudioBundle {
-
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        persistent : bool,
-        volume: f32,
-    ) -> Self {
-
-        let one_shot_audio = OneShotAudio {
-            source: asset_server.load(audio_path),
-            persistent,
-            volume
-        };
-
-        Self {
-            audio : AudioPlayer::<AudioSource>(one_shot_audio.source.clone()), 
-            playback : PlaybackSettings {
-                paused : false,
-                mode: PlaybackMode::Despawn,
-                volume: Volume::new(
-                    one_shot_audio.volume
-                ),
-            ..default()
-            },
-            one_shot_audio
-        }
+pub fn one_shot_audio() -> PlaybackSettings {
+    PlaybackSettings {
+        paused : false,
+        mode: PlaybackMode::Despawn,
+        ..default()
     }
 }
 

@@ -1,14 +1,17 @@
 
 use std::path::PathBuf;
 
-use bevy::prelude::*;
+use bevy::{
+	prelude::*,
+	audio::Volume
+};
 
 use crate::{
 	audio::{
-		play_sound_once, ContinuousAudioBundle, MusicAudio, NarrationAudio, OneShotAudioBundle
+		play_sound_once, continuous_audio, one_shot_audio, MusicAudio, NarrationAudio,
 	}, 
 	background::{Background, BackgroundPlugin, BackgroundSprite}, 
-	common_ui::NextButtonBundle, 
+	common_ui::NextButton, 
 	game_states::{
 		DilemmaPhase, GameState, MainState, StateVector
 	}, interaction::{
@@ -125,8 +128,7 @@ pub fn setup_dilemma(
 			Background::load_from_json(
 				"text/backgrounds/desert.json",	
 				20.0,
-				0.5,
-				
+				0.5
 			),
 			Visibility::default()
 		)
@@ -134,12 +136,14 @@ pub fn setup_dilemma(
         |parent| {
 			parent.spawn((
                 MusicAudio,
-                ContinuousAudioBundle::new(
-                    &asset_server, 
-                    "./music/algorithm_of_fate.ogg", 
-                    0.3,
-                    false
-                )
+				AudioPlayer::<AudioSource>(asset_server.load(
+					"./music/algorithm_of_fate.ogg"
+				)),
+				PlaybackSettings{
+					paused : false,
+					volume : Volume::new(0.3),
+					..continuous_audio()
+				}
             ));
 			parent.spawn(
 				DilemmaInfoPanelBundle::new(&dilemma)
@@ -204,12 +208,14 @@ fn spawn_delayed_children(
                     |parent| {
                     parent.spawn((
                         NarrationAudio,
-                        OneShotAudioBundle::new(
-                            &asset_server,
-                            "sounds/dilemma_narration/lab_1.ogg",
-                            false,
-                            1.0,
-                        )
+						AudioPlayer::<AudioSource>(asset_server.load(
+							"sounds/dilemma_narration/lab_1.ogg",
+						)),
+						PlaybackSettings{
+							paused : false,
+							volume : Volume::new(1.0),
+							..one_shot_audio()
+						}
                     ));
                 });
 
@@ -231,7 +237,7 @@ fn spawn_delayed_children(
                 
 				commands.entity(entity).with_children(|parent| {
 					parent.spawn((
-						NextButtonBundle::new(),
+						NextButton,
 						TextButtonBundle::new(
 							&asset_server,
 							vec![
@@ -241,7 +247,7 @@ fn spawn_delayed_children(
 							],
 							vec![KeyCode::Enter],
 							"[ Click here or Press Enter to Test Your Morality ]",
-							NextButtonBundle::translation(&windows)
+							NextButton::translation(&windows)
 						),
 					)); // Capture the entity ID of the spawned child
 				});

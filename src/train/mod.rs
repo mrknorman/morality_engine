@@ -5,13 +5,14 @@ use std::{
 
 use bevy::{
 	prelude::*,
-	ecs::component::StorageType
+	ecs::component::StorageType,
+	audio::Volume
 };
 use serde::Deserialize;
 
 use crate::{
     audio::{
-		AudioPlugin, ContinuousAudioPallet, ContinuousAudio, TransientAudio, TransientAudioPallet
+		AudioPlugin, ContinuousAudioPallet, continuous_audio, TransientAudio, TransientAudioPallet
 	}, 
 	interaction::{
 		Clickable, InputAction, InteractionPlugin
@@ -22,7 +23,7 @@ use crate::{
 	}, 
 	text::{
 		AnimatedTextSpriteBundle, 
-		TextSpriteBundle
+		TextSprite
 	}
 };
 
@@ -113,7 +114,9 @@ pub struct TrainCarriageBundle{
 	marker : TrainCarriage,
 	anchor : TranslationAnchor,
 	wobble : Wobble,
-	sprite : TextSpriteBundle
+	sprite : TextSprite,
+	text : Text2d,
+	transform : Transform,
 }
 
 impl TrainCarriageBundle{
@@ -129,10 +132,10 @@ impl TrainCarriageBundle{
 				translation
 			),
 			wobble : Wobble::new(),
-			sprite : TextSpriteBundle::new(
-				text,
-				translation
-			)
+			sprite : TextSprite, 
+			text : Text2d::new(text),
+			transform : Transform::from_translation(translation), 
+			
 		}
 	}
 }
@@ -199,22 +202,21 @@ impl TrainBundle {
 			train_file_path.to_string()
 		);
 
-		let track_audio_path = train_type.track_audio_path;
-
 		Self { 
 			train: Train::new(asset_server, train_file_path, translation), 
 			locomotion: Locomotion::new(speed), 
 			transform: Transform::from_translation(translation), 
 			visibility: Visibility::default(), 
-			audio:ContinuousAudioPallet::new(
+			audio: ContinuousAudioPallet::new(
 				vec![(
 					"tracks".to_string(),
-					ContinuousAudio::new(
-						asset_server, 
-						track_audio_path, 
-						0.1,
-						false
-					)
+					AudioPlayer::<AudioSource>(asset_server.load(
+						train_type.track_audio_path
+					)),
+					PlaybackSettings{
+						volume : Volume::new(0.1),
+						..continuous_audio()
+					}
 				)]
 			)
 		}

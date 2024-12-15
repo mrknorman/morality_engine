@@ -31,19 +31,7 @@ pub struct NextButtonBundle{
     center_anchor : CenterXAnchor
 }
 
-impl NextButtonBundle {
-
-	pub fn new() -> Self {
-
-		let button_distance = 100.0;
-
-		Self {
-			marker : NextButton,
-			anchor : BottomAnchor::new(button_distance),
-            center_anchor : CenterXAnchor
-		}
-	}
-
+impl NextButton {
 	pub fn translation(windows: &Query<&Window>) -> Vec3 {
 		let button_distance = 100.0;
 		let window: &Window = windows.get_single().unwrap();
@@ -97,5 +85,8 @@ impl Plugin for CommonUIPlugin {
     fn build(&self, app: &mut App) {
         app
 		.insert_resource(NextButtonConfig::empty());
+
+        app.register_required_components::<NextButton, BottomAnchor>();
+        app.register_required_components::<NextButton, CenterXAnchor>();
     }
 }

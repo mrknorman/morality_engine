@@ -22,6 +22,44 @@ use crate::{
     colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}
 };
 
+pub struct LoadingBarPlugin;
+impl Plugin for LoadingBarPlugin {
+    fn build(&self, app: &mut App) {
+
+        app
+        .init_state::<LoadingSystemsActive>()
+        .add_systems(Update, activate_systems)
+        .add_systems(
+            Update,
+            (
+                LoadingBar::fill,
+            )
+            .run_if(in_state(LoadingSystemsActive::True)),
+        );
+
+        app.register_required_components::<LoadingBar, Transform>();
+        app.register_required_components::<LoadingBar, Visibility>();
+    }
+}
+
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LoadingSystemsActive {
+    #[default]
+    False,
+    True
+}
+
+fn activate_systems(
+    mut loading_state: ResMut<NextState<LoadingSystemsActive>>,
+    loading_query: Query<&LoadingBar>
+) {
+    loading_state.set(if loading_query.is_empty() {
+        LoadingSystemsActive::False
+    } else {
+        LoadingSystemsActive::True
+    });
+}
+
 #[derive(Component)]
 pub struct LoadingText;
 
@@ -32,7 +70,8 @@ pub struct LoadingBar {
     prefix: String,
     final_message: String,
     timer: Timer,
-    index: usize
+    index: usize,
+    finished : bool
 }
 
 impl LoadingBar {
@@ -46,35 +85,11 @@ impl LoadingBar {
             final_message,
             timer: Timer::new(timer_duration, TimerMode::Once),
             index: 0,
+            finished: false
         }
     }
-}
 
-#[derive(Deserialize)]
-struct LoadingBarConfig {
-    prefix: String,
-    final_message: String,
-    messages: Vec<String>,
-}
-
-impl LoadingBarConfig {
-    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, serde_json::Error> {
-        let file = File::open(path).expect("Could not open JSON file");
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader)
-    }
-}
-
-#[derive(Bundle)]
-pub struct LoadingBarBundle {
-    bar: LoadingBar,
-    messages: TextFrames,
-    visibility: Visibility,
-    transform: Transform,
-}
-
-impl LoadingBarBundle {
-    pub fn new(path: impl AsRef<Path>) -> Self {
+    pub fn load(path: impl AsRef<Path>) -> (LoadingBar, TextFrames) {
         let config = LoadingBarConfig::from_file(path).expect(
             "Error reading Loading Bar configuration file!"
         );
@@ -85,12 +100,10 @@ impl LoadingBarBundle {
             rng.gen_range(1.0..=2.0)
         );
 
-        Self {
-            bar: LoadingBar::new(config.prefix, config.final_message, timer_duration),
-            messages: TextFrames::new(config.messages),
-            visibility: Visibility::default(),
-            transform: Transform::from_xyz(0.0, 0.0, 0.0)
-        }
+        (
+            LoadingBar::new(config.prefix, config.final_message, timer_duration),
+            TextFrames::new(config.messages)
+        )
     }
 
     pub fn fill(
@@ -112,20 +125,22 @@ impl LoadingBarBundle {
                     TimerMode::Once
                 );
 
-                let mut loading_finished = false;
                 // Update sprite (progress indicator)
                 for &child in children.iter() {
-                    if let Ok(mut sprite) = sprite_query.get_mut(child) {
-                        if let Some(custom_size) = &mut sprite.custom_size {
-                            let bar_size_increase = rng.gen_range(5.0..=50.0);
-                            custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
-                            loading_finished = custom_size.x >= 494.0;
-                        }
-                    }   
-                    
+
+                    if !bar.finished {
+                        if let Ok(mut sprite) = sprite_query.get_mut(child) {
+                            if let Some(custom_size) = &mut sprite.custom_size {
+                                let bar_size_increase = rng.gen_range(5.0..=50.0);
+                                custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
+                                bar.finished = custom_size.x >= 494.0;
+                            }
+                        }  
+                    }
+                        
                     if let Ok(entity) = text_query.get_mut(child) {
                         if !frames.frames.is_empty() {
-                            if !loading_finished {
+                            if !bar.finished {
                                 let new_index = bar.index % frames.frames.len();
                                 *writer.text(entity, 1) = frames.frames[new_index].clone();
                             } else {
@@ -136,6 +151,21 @@ impl LoadingBarBundle {
                 }
             };
         }
+    }
+}
+
+#[derive(Deserialize)]
+struct LoadingBarConfig {
+    prefix: String,
+    final_message: String,
+    messages: Vec<String>,
+}
+
+impl LoadingBarConfig {
+    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, serde_json::Error> {
+        let file = File::open(path).expect("Could not open JSON file");
+        let reader = BufReader::new(file);
+        serde_json::from_reader(reader)
     }
 }
 
