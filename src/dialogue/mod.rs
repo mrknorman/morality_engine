@@ -3,27 +3,26 @@ use std::collections::HashMap;
 
 use bevy::{
     asset::AssetServer,
+    audio::Volume,
     prelude::*
 };
 
 use crate::{
-    audio::{
-        ContinuousAudioPallet, 
-        ContinuousAudio
+    audio:: {
+        ContinuousAudioPallet,
+        continuous_audio
     },
     game_states::GameState,
     character::Character,
     io::IOPlugin, 
     interaction::InteractionPlugin,
-    graph::GraphBundle
+    graph::Graph
 };
-
-
 
 mod dialogue;
 use dialogue::{
     DialoguePlugin,
-    DialogueBundle
+    Dialogue
 };
 
 pub struct DialogueScreenPlugin;
@@ -72,54 +71,59 @@ pub fn setup_dialogue(
                 vec![
                     (
                         "hum".to_string(),
-                        ContinuousAudio::new(
-                            &asset_server, 
-                            "./sounds/hum.ogg", 
-                            0.1,
-                            false
-                        ),
-                    ),
-                    (
-                        "music".to_string(), 
-                        ContinuousAudio::new(
-                            &asset_server,
-                            "./music/trolley_wires.ogg",
-                            0.3,
-                            false
-                        )
+                        AudioPlayer::<AudioSource>(asset_server.load(
+                            "./sounds/hum.ogg"
+                        )),
+                        PlaybackSettings{
+                            volume : Volume::new(0.1),
+                            ..continuous_audio()
+                        }
                     ),
                     (
                         "office".to_string(),
-                        ContinuousAudio::new(
-                            &asset_server, 
-                            "./sounds/office.ogg", 
-                            0.5,
-                            false
-                        ),
+                        AudioPlayer::<AudioSource>(asset_server.load(
+                            "./sounds/office.ogg"
+                        )),
+                        PlaybackSettings{
+                            volume : Volume::new(0.5),
+                            ..continuous_audio()
+                        }
+                    ),
+                    (
+                        "music".to_string(),
+                        AudioPlayer::<AudioSource>(asset_server.load(
+                            "./music/trolley_wires.ogg"
+                        )),
+                        PlaybackSettings{
+                            volume : Volume::new(0.3),
+                            ..continuous_audio()
+                        }
                     )
                 ]
             )
         )
     ).with_children(
         |parent| {
-            parent.spawn(
-                DialogueBundle::load(
+            parent.spawn((
+                Dialogue::init(
                     "./text/lab_1.json",
                     &asset_server,
                     &character_map
+                ),
+                Transform::from_xyz(-500.0, 0.0, 1.0),
                 )
             );
-            parent.spawn(
-                GraphBundle::new(
+            parent.spawn((
+                Graph::new(
                     45.0,
                     vec![2, 3, 2],
                     10.0,
                     20.0,
                     4.0,
-                    Vec3::new(300.0, 0.0, 0.0),
                     2.0
-                )
-            );
+                ),
+                Transform::from_xyz(300.0, 0.0, 0.0)
+            ));
         }
     );
 }

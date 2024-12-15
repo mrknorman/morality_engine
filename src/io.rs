@@ -43,11 +43,15 @@ pub struct BottomAnchor {
     distance: f32,
 }
 
-impl BottomAnchor {
-    pub fn new(distance: f32) -> Self {
-        Self { distance }
+impl Default for BottomAnchor {
+    fn default() -> Self {
+        BottomAnchor{
+            distance: 100.0
+        }
     }
+}
 
+impl BottomAnchor {
     fn bottom_anchor(
         windows: Query<&Window>,
         mut query: Query<(&BottomAnchor, &mut Transform, Option<&Parent>)>,
@@ -73,6 +77,12 @@ impl BottomAnchor {
 
 pub struct CenterXAnchor;
 
+impl Default for CenterXAnchor {
+    fn default() -> Self {
+        CenterXAnchor
+    }
+}
+
 impl CenterXAnchor {
 
     fn center_x_anchor(
@@ -95,7 +105,6 @@ impl CenterXAnchor {
         }
     }
 }
-
 
 impl Component for CenterXAnchor {
     const STORAGE_TYPE: StorageType = StorageType::Table;

@@ -23,6 +23,9 @@ impl Plugin for GraphPlugin {
             .add_systems(Update, 
                 activate_systems
             );
+
+        app.register_required_components::<Graph, Transform>();
+        app.register_required_components::<Graph, Visibility>();
     }
 }
 
@@ -55,14 +58,15 @@ impl Graph {
         num_nodes_per_layer : Vec<i32>,
         inter_node_distance : f32,
         node_outer_radius : f32,
-        node_border_thickness : f32
+        node_border_thickness : f32,
+        scale : f32
     ) -> Self {
         Graph {
-            inter_layer_distance,
-            num_nodes_per_layer,
-            inter_node_distance,
-            node_outer_radius,
-            node_border_thickness
+            inter_layer_distance : inter_layer_distance * scale,
+            num_nodes_per_layer : num_nodes_per_layer,
+            inter_node_distance : inter_node_distance * scale,
+            node_outer_radius : node_outer_radius * scale,
+            node_border_thickness : node_border_thickness
         }
     }
 
@@ -79,7 +83,6 @@ impl Graph {
         }).collect()
     }
 
-    // Refactor `spawn_graph_layer` accordingly
     fn spawn_layer(
         parent: &mut ChildBuilder<'_>,
         circle_mesh_handle: &Handle<Mesh>,
@@ -162,6 +165,16 @@ impl Graph {
 impl Component for Graph {
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
+    fn register_required_components(
+            _component_id: bevy::ecs::component::ComponentId,
+            _components: &mut bevy::ecs::component::Components,
+            _storages: &mut bevy::ecs::storage::Storages,
+            _required_components: &mut bevy::ecs::component::RequiredComponents,
+            _inheritance_depth: u16,
+        ) {
+        
+    }
+
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
@@ -231,35 +244,3 @@ impl Component for Graph {
         );
     }
 }    
-
-#[derive(Bundle)]
-pub struct GraphBundle{
-    graph : Graph,
-    visibility : Visibility,
-    transform : Transform
-}
-
-impl GraphBundle {
-    pub fn new(
-        inter_layer_distance : f32,
-        num_nodes_per_layer : Vec<i32>,
-        inter_node_distance : f32,
-        node_outer_radius : f32,
-        node_border_thickness : f32,
-        translation : Vec3,
-        scale : f32
-    ) ->  Self {
-
-        GraphBundle {
-            graph : Graph::new(
-                inter_layer_distance*scale,
-                num_nodes_per_layer,
-                inter_node_distance*scale,
-                node_outer_radius*scale,
-                node_border_thickness*scale
-            ),
-            visibility : Visibility::default(),
-            transform : Transform::from_translation(translation)
-        }
-    }
-}
