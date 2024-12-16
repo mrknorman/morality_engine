@@ -3,7 +3,8 @@ use std::path::PathBuf;
 
 use bevy::{
 	prelude::*,
-	audio::Volume
+	audio::Volume,
+	sprite::Anchor
 };
 
 use crate::{
@@ -26,12 +27,15 @@ use crate::{
 		Locomotion, PointToPointTranslation
 	}, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
-    }, track::Track, train::Train
+    }, track::Track, train::{
+        Train,
+        STEAM_TRAIN
+    }
 };
 
 mod dilemma;
 use dilemma::{
-	TrainJunction,
+	Junction,
 	end_transition,
 	person_check_danger,
 	animate_person,
@@ -42,12 +46,10 @@ use dilemma::{
 	consequence_animation_tick_down,
 	Dilemma,
 	DramaticPauseTimer,
-	DilemmaInfoPanelBundle,
+	DilemmaInfoPanel,
 	TransitionCounter,
 	DilemmaDashboard
 };
-
-	
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
@@ -110,6 +112,8 @@ impl Plugin for DilemmaPlugin {
 			app.add_plugins(BackgroundPlugin);
 		}
 
+		app.register_required_components::<Junction, Transform>();
+        app.register_required_components::<Junction, Visibility>();
     }
 }
 
@@ -139,7 +143,7 @@ pub fn setup_dilemma(
 			Visibility::default()
 		)
 	).with_children(
-        |parent| {
+        |parent: &mut ChildBuilder<'_>| {
 			parent.spawn((
                 MusicAudio,
 				AudioPlayer::<AudioSource>(asset_server.load(
@@ -151,12 +155,36 @@ pub fn setup_dilemma(
 					..continuous_audio()
 				}
             ));
+			parent.spawn((
+				DilemmaInfoPanel,
+				Text2d::new(&dilemma.name),
+				TextFont{
+					font_size : 60.0,
+					..default()
+				},
+				TextLayout {
+					justify : JustifyText::Left,
+					linebreak  : LineBreak::WordBoundary
+				},
+				Anchor::TopCenter,
+				Transform::from_xyz(0.0,300.0, 1.0)
+			));	
 			parent.spawn(
-				DilemmaInfoPanelBundle::new(&dilemma)
+				Train::init(
+					&asset_server,
+					STEAM_TRAIN,
+					Vec3::new(120.0, -10.0, 1.0),
+					0.0
+				)
 			);
+			parent.spawn(
+				Junction{
+					dilemma : dilemma.clone()
+				}
+			);
+
 		}
 	);
-	TrainJunction::spawn(&mut commands, &asset_server, &dilemma);
 
 	commands.insert_resource(dilemma);
 }
