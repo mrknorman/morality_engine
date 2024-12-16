@@ -1,41 +1,28 @@
 use std::vec;
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    audio::Volume
+};
 use crate::{
     audio::{
-        ContinuousAudio, 
-        ContinuousAudioBundle,
-        ContinuousAudioPallet, 
-        MusicAudio, 
-        NarrationAudio, 
-        OneShotAudio, 
-        OneShotAudioBundle,
-        OneShotAudioPallet
+        continuous_audio, one_shot_audio, ContinuousAudioPallet, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet
+    }, common_ui::{
+        NextButton,
+        NextButtonConfig
     }, game_states::{
-        GameState, 
-        MainState,
-        StateVector, 
-        SubState
+        DilemmaPhase, GameState, MainState, StateVector
     }, interaction::{
-        InputAction,
-        InteractionPlugin, 
-        Clickable
-    }, io::IOPlugin, 
-    text::{
+        Clickable, InputAction, InteractionPlugin
+    }, io::IOPlugin, text::{
         TextButtonBundle,
         TextFrames 
     }, timing::{
-        TimerPallet, 
-        TimingPlugin, 
-        TimerConfig,
-        TimerStartCondition
-    }, common_ui::{
-        NextButtonBundle,
-        NextButtonConfig
+        TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     }
 };
 
 mod loading_bar;
-use loading_bar::LoadingBarBundle;
+use loading_bar::{LoadingBar, LoadingBarPlugin};
 
 pub struct LoadingScreenPlugin;
 impl Plugin for LoadingScreenPlugin {
@@ -52,11 +39,13 @@ impl Plugin for LoadingScreenPlugin {
             (
                 spawn_delayed_children,
                 update_button_text,
-                LoadingBarBundle::fill,
             )
                 .run_if(in_state(GameState::Loading)),
         );
 
+        if !app.is_plugin_added::<LoadingBarPlugin>() {
+            app.add_plugins(LoadingBarPlugin);
+        }
         if !app.is_plugin_added::<InteractionPlugin>() {
             app.add_plugins(InteractionPlugin);
         }
@@ -116,45 +105,48 @@ pub fn setup_loading(
                 )
             ]
         ),
-        TransformBundle::from_transform(
-            Transform::from_xyz(0.0, 0.0, 0.0)
-        ),
-        VisibilityBundle::default(),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Visibility::default(),
         ContinuousAudioPallet::new(
             vec![
                 (
                     "hum".to_string(),
-                    ContinuousAudio::new(
-                        &asset_server, 
-                        "./sounds/hum.ogg", 
-                        0.1,
-                        false
-                    ),
+                    AudioPlayer::<AudioSource>(asset_server.load(
+                        "./sounds/hum.ogg"
+                    )),
+                    PlaybackSettings{
+                        paused : false,
+                        volume : Volume::new(0.1),
+                        ..continuous_audio()
+                    }
                 ),
                 (
                     "office".to_string(),
-                    ContinuousAudio::new(
-                        &asset_server, 
-                        "./sounds/office.ogg", 
-                        0.5,
-                        false
-                    ),
-                )
+                    AudioPlayer::<AudioSource>(asset_server.load(
+                        "./sounds/office.ogg"
+                    )),
+                    PlaybackSettings{
+                        paused : false,
+                        volume : Volume::new(0.5),
+                        ..continuous_audio()
+                    }
+                ),
             ]
         ),
         OneShotAudioPallet::new(
             vec![
-                OneShotAudio::new(
-                    &asset_server, 
-                    "./sounds/startup_beep.ogg",
-                    true,
-                    1.0
-                )
+                OneShotAudio{
+                    source: asset_server.load(
+                            "./sounds/startup_beep.ogg"
+                        ),
+                    persistent : true,
+                    volume : 1.0
+                }
             ]
         ),
     )).with_children(
         |parent| {
-            parent.spawn(LoadingBarBundle::new(
+            parent.spawn(LoadingBar::load(
                 "text/loading_messages/bar.json"
             ));
         }
@@ -178,12 +170,13 @@ pub fn spawn_delayed_children(
                     |parent| {
                     parent.spawn((
                         NarrationAudio,
-                        OneShotAudioBundle::new(
-                            &asset_server,
-                            "./sounds/intro_lilly_elvenlabs.ogg",
-                            false,
-                            1.0,
-                        )
+                        AudioPlayer::<AudioSource>(asset_server.load(
+                            "./sounds/intro_lilly_elvenlabs.ogg", 
+                        )),
+                        PlaybackSettings{
+                            volume : Volume::new(1.0),
+                            ..one_shot_audio()
+                        }
                     ));
                 });
             }
@@ -199,12 +192,14 @@ pub fn spawn_delayed_children(
                     |parent| {
                     parent.spawn((
                         MusicAudio,
-                        ContinuousAudioBundle::new(
-                            &asset_server,
-                            "./music/a_friend.ogg",
-                            0.2,
-                            false
-                        )
+                        AudioPlayer::<AudioSource>(asset_server.load(
+                            "./music/a_friend.ogg"
+                        )),
+                        PlaybackSettings{
+                            paused : false,
+                            volume : Volume::new(0.1),
+                            ..continuous_audio()
+                        }
                     ));
                 });
             }
@@ -221,20 +216,19 @@ pub fn spawn_delayed_children(
                 let next_state_vector = StateVector::new(
                     Some(MainState::InGame),
                     Some(GameState::Dialogue),
-                    Some(SubState::Intro),
+                    Some(DilemmaPhase::Intro),
                 );
 
                 let button_messages = TextFrames::load(
                     "text/loading_messages/button.json"
                 );
 
-
                 if let Ok(button_messages) = button_messages {
                     commands.entity(entity).with_children(|parent| {
 
                         let first_message = button_messages.frames[0].clone();
                         parent.spawn((
-                            NextButtonBundle::new(),
+                            NextButton,
                             button_messages,
                             TextButtonBundle::new(
                                 &asset_server,
@@ -244,7 +238,7 @@ pub fn spawn_delayed_children(
                                 ],
                                 vec![KeyCode::Enter],
                                 first_message,
-                                NextButtonBundle::translation(&windows)
+                                NextButton::translation(&windows)
                             ),
                         )); // Capture the entity ID of the spawned child
                     });
@@ -255,7 +249,6 @@ pub fn spawn_delayed_children(
         }
     }
 }
-
 
 fn update_button_text(
     next_state_button: Res<NextButtonConfig>,

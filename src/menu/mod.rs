@@ -1,15 +1,16 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    audio::Volume
+};
 
 use crate::{
     audio::{
-        ContinuousAudio,
-        ContinuousAudioBundle,
+        continuous_audio,
         ContinuousAudioPallet,
         MusicAudio,
         BackgroundAudio
     }, 
     game_states::{
-        GameState, 
         MainState, 
         StateVector
     }, 
@@ -19,8 +20,8 @@ use crate::{
     }, 
     text::{
         TextButtonBundle, 
-        TextRawBundle, 
-        TextTitleBundle
+        TextRaw, 
+        TextTitle
     }, 
     track::TrackBundle, 
     train::{
@@ -29,7 +30,7 @@ use crate::{
         STEAM_TRAIN
     },
     io::IOPlugin,
-    common_ui::NextButtonBundle
+    common_ui::NextButton
 };
 
 pub struct MenuScreenPlugin;
@@ -55,15 +56,31 @@ fn setup_menu(
         asset_server: Res<AssetServer>,
         windows: Query<&Window>
     ) {
+    
+    let text = r#"
+     ___________  __    __    _______     ___________  _______     ______    ___      ___       _______  ___  ___ 
+    ("     _   ")/" |  | "\  /"     "|   ("     _   ")/"      \   /    " \  |"  |    |"  |     /"     "||"  \/"  |
+     )__/  \\__/(:  (__)  :)(: ______)    )__/  \\__/|:        | // ____  \ ||  |    ||  |    (: ______) \   \  / 
+        \\_ /    \/      \/  \/    |         \\_ /   |_____/   )/  /    ) :)|:  |    |:  |     \/    |    \\  \/  
+        |.  |    //  __  \\  // ___)_        |.  |    //      /(: (____/ //  \  |___  \  |___  // ___)_   /   /   
+        \:  |   (:  (  )  :)(:      "|       \:  |   |:  __   \ \        /  ( \_|:  \( \_|:  \(:      "| /   /    
+         \__|    \__|  |__/  \_______)        \__|   |__|  \___) \"_____/    \_______)\_______)\_______)|___/     
+                                                                                                                  
+              __      ___       _______     ______     _______    __  ___________  __    __   ___      ___            
+             /""\    |"  |     /" _   "|   /    " \   /"      \  |" \("     _   ")/" |  | "\ |"  \    /"  |           
+            /    \   ||  |    (: ( \___)  // ____  \ |:        | ||  |)__/  \\__/(:  (__)  :) \   \  //   |           
+           /' /\  \  |:  |     \/ \      /  /    ) :)|_____/   ) |:  |   \\_ /    \/      \/  /\\  \/.    |           
+          //  __'  \  \  |___  //  \ ___(: (____/ //  //      /  |.  |   |.  |    //  __  \\ |: \.        |           
+         /   /  \\  \( \_|:  \(:   _(  _|\        /  |:  __   \  /\  |\  \:  |   (:  (  )  :)|.  \    /:  |           
+        (___/    \___)\_______)\_______)  \"_____/   |__|  \___)(__\_|_)  \__|    \__|  |__/ |___|\__/|___|           
+"#;
 
-    let text = include_str!("main_menu.txt");
-
-    let menu_translation : Transform = Transform::from_xyz(0.0, 0.0, 0.0);
+    let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let title_translation : Vec3 = Vec3::new(0.0, 150.0, 1.0);
-    let train_translation: Vec3 = Vec3::new(50.0, 30.0, 1.0);
-    let track_displacement: Vec3 = Vec3::new(-45.0, 0.0, 1.0);
+    let train_translation: Vec3 = Vec3::new(63.0, -20.0, 1.0);
+    let track_displacement: Vec3 = Vec3::new(-57.0, -50.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
-    let signature_translation : Vec3 = Vec3::new(0.0, 10.0, 1.0);
+    let signature_translation : Vec3 = Vec3::new(0.0, -100.0, 1.0);
 
     let next_state_vector = StateVector::new(
         Some(MainState::InGame),
@@ -74,33 +91,34 @@ fn setup_menu(
     commands.spawn(
         (
             StateScoped(MainState::Menu),
-            TransformBundle::from_transform(menu_translation),
-            VisibilityBundle::default()
+            Transform::from_translation(menu_translation),
+            Visibility::default()
         )
     ).with_children(
         |parent| {
-
             parent.spawn((
                 BackgroundAudio,
                 ContinuousAudioPallet::new(
                     vec![
                         (
                             "static".to_string(),
-                            ContinuousAudio::new(
-                                &asset_server, 
-                                "./sounds/static.ogg", 
-                                0.1,
-                                false
-                            ),
+                            AudioPlayer::<AudioSource>(asset_server.load(
+                                "./sounds/static.ogg"
+                            )),
+                            PlaybackSettings{
+                                volume : Volume::new(0.1),
+                                ..continuous_audio()
+                            }
                         ),
                         (
                             "office".to_string(),
-                            ContinuousAudio::new(
-                                &asset_server, 
-                                "./sounds/office.ogg", 
-                                1.0,
-                                false
-                            ),
+                            AudioPlayer::<AudioSource>(asset_server.load(
+                                "./sounds/office.ogg"
+                            )),
+                            PlaybackSettings{
+                                volume : Volume::new(0.5),
+                                ..continuous_audio()
+                            }
                         )
                     ]
                 )
@@ -108,18 +126,20 @@ fn setup_menu(
 
             parent.spawn((
                 MusicAudio,
-                ContinuousAudioBundle::new(
-                    &asset_server, 
+                AudioPlayer::<AudioSource>(asset_server.load(
                     "./music/the_last_decision.ogg", 
-                    0.3,
-                    false
-                )
+                )),
+                PlaybackSettings{
+                    volume : Volume::new(0.3),
+                    ..continuous_audio()
+                }
             ));
 
             parent.spawn(
-                TextTitleBundle::new(
-                    text,
-                    title_translation, 
+                (
+                    TextTitle,
+                    Text2d::new(text),
+                    Transform::from_translation(title_translation)
                 )
             );
             parent.spawn(
@@ -137,14 +157,15 @@ fn setup_menu(
                 )
             );
             parent.spawn(
-                TextRawBundle::new(
-                    "A game by Michael Norman",
-                    signature_translation
+                (
+                    TextRaw,
+                    Text2d::new("A game by Michael Norman"),
+                    Transform::from_translation(signature_translation)
                 )
             );
             parent.spawn(
                 (
-                    NextButtonBundle::new(),
+                    NextButton,
                     TextButtonBundle::new(
                         &asset_server, 
                         vec![
@@ -153,7 +174,7 @@ fn setup_menu(
                         ],
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
-                        NextButtonBundle::translation(&windows)
+                        NextButton::translation(&windows)
                     )
                 )
             );

@@ -1,37 +1,26 @@
 
 use std::path::PathBuf;
 
-use bevy::prelude::*;
+use bevy::{
+	prelude::*,
+	audio::Volume
+};
 
 use crate::{
-	lever::check_level_pull, 
-	train::Train,
-	track::Track,
-	background::{
-		BackgroundSprite,
-		LARGE_CACTUS,
-		SMALL_CACTUS
-	},
-	narration::{
-		start_narration,
-		Narration
-	},
-	audio::play_sound_once,
-	motion::{
-		PointToPointTranslation,
-		Locomotion
-	},
+	audio::{
+		play_sound_once, continuous_audio, one_shot_audio, MusicAudio, NarrationAudio,
+	}, 
+	background::{Background, BackgroundPlugin, BackgroundSprite}, 
+	common_ui::NextButton, 
 	game_states::{
-		SubState, 
-		MainState,
-		GameState
-	},
-	io_elements::{
-		check_if_enter_pressed, 
-		spawn_text_button, 
-		show_text_button, 
-		text_button_interaction
-	},
+		DilemmaPhase, GameState, MainState, StateVector
+	}, interaction::{
+		InputAction, InteractionPlugin
+	}, lever::check_level_pull, motion::{
+		Locomotion, PointToPointTranslation
+	}, text::TextButtonBundle, timing::{
+        TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
+    }, track::Track, train::Train
 };
 
 mod dilemma;
@@ -47,43 +36,34 @@ use dilemma::{
 	consequence_animation_tick_down,
 	Dilemma,
 	DramaticPauseTimer,
-	DilemmaInfoPanel,
-	DilemmaHeader,
+	DilemmaInfoPanelBundle,
 	TransitionCounter,
 	DilemmaDashboard
 };
+
 	
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Dilemma), setup_dilemma_intro)
+        app.add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
+			.add_systems(OnEnter(DilemmaPhase::Intro), setup_dilemma_intro
+				.run_if(in_state(GameState::Dilemma))
+			)
             .add_systems(
                 Update,
                 (
-                    check_if_enter_pressed
+					spawn_delayed_children
                 )
                     .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(SubState::Intro)),
-            )
-            .add_systems(
-                Update,
-                (
-                    start_narration,
-                    show_text_button,
-                    text_button_interaction,
-                    BackgroundSprite::move_background_spites,
-                )
-                .run_if(in_state(GameState::Dilemma)),
-            )
-            .add_systems(OnEnter(SubState::IntroDecisionTransition), setup_dilemma_transition)
+                    .run_if(in_state(DilemmaPhase::Intro)),
+            ).add_systems(OnEnter(DilemmaPhase::IntroDecisionTransition), setup_dilemma_transition)
             .add_systems(
                 Update,
                 (end_transition)
                     .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(SubState::IntroDecisionTransition)),
-            )
-            .add_systems(
-                OnEnter(SubState::Decision),
+                    .run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
+            ).add_systems(
+                OnEnter(DilemmaPhase::Decision),
                 setup_decision.run_if(in_state(GameState::Dilemma)),
             )
             .add_systems(
@@ -96,11 +76,12 @@ impl Plugin for DilemmaPlugin {
                     update_timer
                 )
                     .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(SubState::Decision)),
+                    .run_if(in_state(DilemmaPhase::Decision)),
             )
-            .add_systems(OnExit(SubState::Decision), cleanup_decision)
+			
+			.add_systems(OnExit(DilemmaPhase::Decision), cleanup_decision)
             .add_systems(
-                OnEnter(SubState::ConsequenceAnimation),
+                OnEnter(DilemmaPhase::ConsequenceAnimation),
                 setup_dilemma_consequence_animation,
             )
             .add_systems(
@@ -110,109 +91,189 @@ impl Plugin for DilemmaPlugin {
                     consequence_animation_tick_down,
                 )
                     .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(SubState::ConsequenceAnimation)),
-            );//.add_plugins(TrainPlugin::new(GameState::Dilemma));
+                    .run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
+            );
+
+		if !app.is_plugin_added::<InteractionPlugin>() {
+			app.add_plugins(InteractionPlugin);
+		}
+		if !app.is_plugin_added::<TimingPlugin>() {
+			app.add_plugins(TimingPlugin);
+		}
+		if !app.is_plugin_added::<BackgroundPlugin>() {
+			app.add_plugins(BackgroundPlugin);
+		}
+
     }
 }
 
-pub fn setup_dilemma_intro(
-	mut commands : Commands,
-	asset_server: Res<AssetServer>
+
+#[derive(Component)]
+struct DilemmaRoot;
+
+pub fn setup_dilemma(
+		mut commands : Commands,
+		asset_server: Res<AssetServer>
 	) {
-
-	commands.spawn(
-		(
-			StateScoped(GameState::Dilemma),
-			TransformBundle::from_transform(Transform::from_translation(
-				Vec3::new(0.0, 0.0, 0.0))
-			),
-			VisibilityBundle::default()
-		)
-	);
-
-	BackgroundSprite::spawn_multi(
-		&mut commands, 
-		SMALL_CACTUS, 
-		LARGE_CACTUS,
-		".",
-		0.5,
-		5
-	);
 
 	let dilemma : Dilemma = Dilemma::load(
 		PathBuf::from("./dilemmas/lab_1.json")
 	);
-	let dilemma_entity : Entity = DilemmaInfoPanel::spawn(
-		&mut commands, &dilemma
-	);
-
-	let narration_audio_entity : Entity = commands.spawn((
-		Narration {
-			timer: Timer::from_seconds(1.0, TimerMode::Once)
-		},
-		AudioBundle {
-			source: asset_server.load(
-				PathBuf::from("sounds/dilemma_narration/lab_1.ogg")
+	
+	commands.spawn(
+		(
+			DilemmaRoot,
+			StateScoped(GameState::Dilemma),
+			Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+			Background::load_from_json(
+				"text/backgrounds/desert.json",	
+				20.0,
+				0.5
 			),
-			settings : PlaybackSettings {
-				paused : true,
-				volume : bevy::audio::Volume::new(1.0),
-				mode:  bevy::audio::PlaybackMode::Remove,
-				..default()
-			}
-		})).id();
-
+			Visibility::default()
+		)
+	).with_children(
+        |parent| {
+			parent.spawn((
+                MusicAudio,
+				AudioPlayer::<AudioSource>(asset_server.load(
+					"./music/algorithm_of_fate.ogg"
+				)),
+				PlaybackSettings{
+					paused : false,
+					volume : Volume::new(0.3),
+					..continuous_audio()
+				}
+            ));
+			parent.spawn(
+				DilemmaInfoPanelBundle::new(&dilemma)
+			);
+		}
+	);
 	TrainJunction::spawn(&mut commands, &asset_server, &dilemma);
 
-	let music_audio: Entity = commands.spawn(AudioBundle {
-		source: asset_server.load(PathBuf::from("./music/algorithm_of_fate.ogg")),
-		settings : PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(0.3),
-			mode:  bevy::audio::PlaybackMode::Loop,
-			..default()
-	}}).id();
-
-	let button_entity = spawn_text_button(
-		"[Click here or Press Enter to Begin]",
-		Some(MainState::InGame),
-		Some(GameState::Dilemma),
-		Some(SubState::IntroDecisionTransition),
-		2.0,
-		&mut commands
-	);
-
 	commands.insert_resource(dilemma);
-	commands.insert_resource(DilemmaHeader{
-		button_entity,
-		dilemma_entity,
-		narration_audio_entity
-	});
+}
 
+#[derive(Component)]
+struct DilemmaIntroRoot;
+
+pub fn setup_dilemma_intro(
+	mut commands : Commands
+	) {
+
+	commands.spawn(
+		(
+			DilemmaIntroRoot,
+			StateScoped(DilemmaPhase::Intro),
+			Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+			Visibility::default(),
+			TimerPallet::new(
+				vec![
+					(
+						"narration".to_string(),
+						TimerConfig::new(
+							TimerStartCondition::Immediate, 
+							1.0,
+							None
+						)
+					),
+					(
+						"button".to_string(),
+						TimerConfig::new(
+							TimerStartCondition::Immediate, 
+							2.0,
+							None
+						)
+					)
+				]
+			)
+		)
+	);
+}
+
+fn spawn_delayed_children(
+    mut commands: Commands,
+    loading_query: Query<(Entity, &TimerPallet), With<DilemmaIntroRoot>>,
+    asset_server: Res<AssetServer>,
+    windows: Query<&Window>
+) {
+    for (entity, timers) in loading_query.iter() {
+
+		if let Some(narration_timer) = timers.timers.get(
+            "narration"
+        ) {
+            if narration_timer.just_finished() {
+				commands.entity(entity).with_children(
+                    |parent| {
+                    parent.spawn((
+                        NarrationAudio,
+						AudioPlayer::<AudioSource>(asset_server.load(
+							"sounds/dilemma_narration/lab_1.ogg",
+						)),
+						PlaybackSettings{
+							paused : false,
+							volume : Volume::new(1.0),
+							..one_shot_audio()
+						}
+                    ));
+                });
+
+            }
+        } else {
+            warn!("Entity {:?} is missing the 'button' timer", entity);
+        }
+
+        // Handle narration timer
+        if let Some(button_timer) = timers.timers.get(
+            "button"
+        ) {
+            if button_timer.just_finished() {
+                let next_state_vector = StateVector::new(
+                    Some(MainState::InGame),
+                    Some(GameState::Dilemma),
+                    Some(DilemmaPhase::IntroDecisionTransition),
+                );
+                
+				commands.entity(entity).with_children(|parent| {
+					parent.spawn((
+						NextButton,
+						TextButtonBundle::new(
+							&asset_server,
+							vec![
+								InputAction::PlaySound(String::from("click")),
+								InputAction::ChangeState(next_state_vector),
+								InputAction::Despawn
+							],
+							vec![KeyCode::Enter],
+							"[ Click here or Press Enter to Test Your Morality ]",
+							NextButton::translation(&windows)
+						),
+					)); // Capture the entity ID of the spawned child
+				});
+            }
+        } else {
+            warn!("Entity {:?} is missing the 'button' timer", entity);
+        }
+    }
 }
 
 pub fn setup_dilemma_transition(
 	mut commands : Commands,
 	background_query : Query<&mut BackgroundSprite>,
 	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
-	entities : ResMut<DilemmaHeader>,
 	locomotion_query : Query<&mut Locomotion, With<Train>>,
 	mut track_query: Query<&mut PointToPointTranslation, With<Track>>
 ) {
 
-	commands.entity(entities.button_entity).despawn_recursive();
-	commands.entity(entities.narration_audio_entity).despawn_recursive();
-
 	let speed: f32 = -450.0;
 	let decision_position = -45.0 * dilemma.countdown_duration_seconds;
 	let duration_seconds = decision_position/speed;
-
 	BackgroundSprite::update_speed(background_query,2.0);
 	Train::update_speed(
 		locomotion_query,
 		speed
 	);
-
 	let transition_timer = TransitionCounter{
 		timer : Timer::from_seconds(duration_seconds, TimerMode::Once)
 	};
@@ -225,6 +286,41 @@ pub fn setup_dilemma_transition(
 	commands.insert_resource(transition_timer);
 }
 
+pub fn setup_decision(
+		mut commands : Commands,
+		asset_server: Res<AssetServer>,
+		dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
+	) {
+	
+	commands.spawn((
+		AudioPlayer::<AudioSource>(
+			asset_server.load(
+				PathBuf::from("./sounds/train_aproaching.ogg")
+			)
+		),
+		PlaybackSettings {
+			paused : false,
+			volume : bevy::audio::Volume::new(1.0),
+			mode:  bevy::audio::PlaybackMode::Loop,
+			..default()
+		})
+	);
+
+	commands.spawn((
+		AudioPlayer::<AudioSource>(
+			asset_server.load(PathBuf::from("./sounds/clock.ogg"))
+		),
+		PlaybackSettings {
+			paused : false,
+			volume : bevy::audio::Volume::new(0.3),
+			mode:  bevy::audio::PlaybackMode::Loop,
+			..default()
+		})
+	);
+	
+	DilemmaDashboard::spawn(&mut commands, &dilemma);
+}
+
 pub fn setup_dilemma_consequence_animation(
 	mut commands : Commands,
 	asset_server: Res<AssetServer>
@@ -235,33 +331,4 @@ pub fn setup_dilemma_consequence_animation(
 		speed_up_timer: Timer::from_seconds(4.0, TimerMode::Once),
 		scream_timer: Timer::from_seconds(3.0, TimerMode::Once)
 	});
-}
-
-pub fn setup_decision(
-		mut commands : Commands,
-		asset_server: Res<AssetServer>,
-		dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
-	) {
-	
-	let train_audio = commands.spawn(AudioBundle {
-		source: asset_server.load(
-			PathBuf::from("./sounds/train_aproaching.ogg")
-		),
-		settings : PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(1.0),
-			mode:  bevy::audio::PlaybackMode::Loop,
-			..default()
-	}}).id();
-
-	let clock_audio: Entity = commands.spawn(AudioBundle {
-		source: asset_server.load(PathBuf::from("./sounds/clock.ogg")),
-		settings : PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(0.3),
-			mode:  bevy::audio::PlaybackMode::Loop,
-			..default()
-	}}).id();
-
-	DilemmaDashboard::spawn(&mut commands, &dilemma);
 }

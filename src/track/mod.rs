@@ -1,6 +1,6 @@
 
 use bevy::prelude::*;
-use crate::text::TextSpriteBundle;
+use crate::text::TextSprite;
 
 #[derive(Component)]
 pub struct Track;
@@ -8,7 +8,9 @@ pub struct Track;
 #[derive(Bundle)]
 pub struct TrackBundle{
 	marker : Track,
-	text : TextSpriteBundle
+	text_sprite : TextSprite,
+	text : Text2d,
+	transform : Transform
 }
 
 impl TrackBundle {
@@ -25,10 +27,9 @@ impl TrackBundle {
 		
 		Self {
 			marker : Track,
-			text : TextSpriteBundle::new(
-				Self::generate_track(length),
-				translation
-			)
+			text_sprite : TextSprite,
+			text : Text2d::new(Self::generate_track(length)),
+			transform : Transform::from_translation(translation)
 		}
 	}
 }
