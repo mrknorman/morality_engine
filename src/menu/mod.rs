@@ -8,7 +8,9 @@ use crate::{
         continuous_audio,
         ContinuousAudioPallet,
         MusicAudio,
-        BackgroundAudio
+        BackgroundAudio,
+        TransientAudioPallet,
+        TransientAudio
     }, 
     game_states::{
         MainState, 
@@ -19,14 +21,14 @@ use crate::{
         InputAction
     }, 
     text::{
-        TextButtonBundle, 
+        TextButton, 
         TextRaw, 
         TextTitle
     }, 
-    track::TrackBundle, 
+    track::Track, 
     train::{
         TrainPlugin,
-        TrainBundle, 
+        Train, 
         STEAM_TRAIN
     },
     io::IOPlugin,
@@ -77,8 +79,8 @@ fn setup_menu(
 
     let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let title_translation : Vec3 = Vec3::new(0.0, 150.0, 1.0);
-    let train_translation: Vec3 = Vec3::new(63.0, -20.0, 1.0);
-    let track_displacement: Vec3 = Vec3::new(-57.0, -50.0, 1.0);
+    let train_translation: Vec3 = Vec3::new(110.0, -35.0, 1.0);
+    let track_displacement: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
     let signature_translation : Vec3 = Vec3::new(0.0, -100.0, 1.0);
 
@@ -143,19 +145,17 @@ fn setup_menu(
                 )
             );
             parent.spawn(
-                TrainBundle::new(
+                Train::init(
                     &asset_server,
                     STEAM_TRAIN,
                     train_translation,
                     0.0
                 )
             );
-            parent.spawn(
-                TrackBundle::new(
-                    50, 
-                    track_translation
-                )
-            );
+            parent.spawn((
+                Track::new(50),
+                Transform::from_translation(track_translation)
+            ));
             parent.spawn(
                 (
                     TextRaw,
@@ -166,16 +166,27 @@ fn setup_menu(
             parent.spawn(
                 (
                     NextButton,
-                    TextButtonBundle::new(
-                        &asset_server, 
+                    TextButton::new(
                         vec![
                             InputAction::PlaySound(String::from("click")),
                             InputAction::ChangeState(next_state_vector)
                         ],
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
-                        NextButton::translation(&windows)
-                    )
+                    ),
+                    TransientAudioPallet::new(
+                        vec![(
+                            "click".to_string(),
+                            TransientAudio::new(
+                                "sounds/mech_click.ogg", 
+                                &asset_server, 
+                                0.1, 
+                                true,
+                                1.0
+                            ),
+                        )]
+                    ),
+                    NextButton::transform(&windows)
                 )
             );
         }

@@ -140,7 +140,6 @@ impl TransientAudio {
     }
 }
 
-#[derive(Clone)]
 pub struct ContinuousAudioPallet {
     pub entities: HashMap<String, Entity>,
     pub components: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
@@ -225,7 +224,6 @@ impl Component for ContinuousAudioPallet {
     }
 }
 
-#[derive(Clone)]
 pub struct TransientAudioPallet {
     pub entities: HashMap<String, Entity>,
     pub components: Vec<(String, TransientAudio)>
@@ -336,7 +334,6 @@ pub fn one_shot_audio() -> PlaybackSettings {
     }
 }
 
-#[derive(Clone)]
 pub struct OneShotAudioPallet {
     pub components: Vec<OneShotAudio>
 }

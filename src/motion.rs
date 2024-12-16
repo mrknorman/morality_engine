@@ -76,6 +76,14 @@ pub struct TranslationAnchor{
 	pub translation : Vec3
 }
 
+impl Default for TranslationAnchor {
+    fn default() -> Self {
+        TranslationAnchor {
+            translation : Vec3::default()
+        }
+    }
+}
+
 impl TranslationAnchor {
 
 	pub fn new(translation : Vec3) -> TranslationAnchor {
@@ -88,6 +96,12 @@ impl TranslationAnchor {
 #[derive(Component, Clone)]
 pub struct Wobble{
 	pub timer: Timer
+}
+
+impl Default for Wobble {
+    fn default() -> Self {
+        Wobble::new()
+    }
 }
 
 impl Wobble {

@@ -30,13 +30,9 @@ use crate::{
 	}, 
 	train::{
         Train,
-        TrainBundle,
         STEAM_TRAIN
     },
-	track::{
-        Track,
-        TrackBundle
-    },
+	track::Track,
 	person::{
 		PERSON,
 		PERSON_IN_DANGER,
@@ -362,7 +358,6 @@ pub struct DilemmaInfoPanelBundle{
 	pub text : Text2d,
 	pub font : TextFont,
 	pub layout : TextLayout,
-	pub bounds : TextBounds,
 	pub anchor : Anchor,
 	pub transform : Transform
 }
@@ -383,21 +378,17 @@ impl DilemmaInfoPanelBundle {
 
 		DilemmaInfoPanelBundle {
 			marker : DilemmaInfoPanel,
-			text : Text2d::new(format!("Dilemma {}: {}\n", dilemma.index, dilemma.name),),
+			text : Text2d::new(dilemma.name.clone()),
 			font : TextFont{
-				font_size : 30.0,
+				font_size : 60.0,
 				..default()
 			},
 			layout : TextLayout {
 				justify : JustifyText::Left,
 				linebreak  : LineBreak::WordBoundary
 			},
-			bounds : TextBounds {
-				width : Some(500.0),
-				height : Some(2000.0)
-			},
-			anchor :  Anchor::TopLeft,
-			transform : Transform::from_xyz(-600.0,300.0, 1.0)
+			anchor :  Anchor::TopCenter,
+			transform : Transform::from_xyz(0.0,300.0, 1.0)
 		}
 	}
 }
@@ -884,15 +875,15 @@ impl TrainJunction{
 		);
 
 		let train: Entity = commands.spawn(
-			TrainBundle::new(
+			Train::init(
 				asset_server,
 				STEAM_TRAIN,
-				Vec3::new(50.0, -5.0, 1.0),
+				Vec3::new(120.0, -10.0, 1.0),
 				0.0
 			)
 		).id();
 
-		let color = match dilemma.default_option {
+		let color: Color = match dilemma.default_option {
 			None => Color::WHITE,
 			Some(ref option) if *option == 1 => OPTION_1_COLOR,
 			Some(_) =>  OPTION_2_COLOR,
@@ -903,37 +894,21 @@ impl TrainJunction{
 
 		let main_track_translation_end: Vec3 = Vec3::new(-1700.0, lower_track_y, 0.0);
 		let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-		let main_track: TrackBundle = TrackBundle::new(
-			600, 
-			main_track_translation_start
-		);
-
-		let track_1_translation_end: Vec3 = Vec3{x : 1000.0 , y : lower_track_y, z: 0.0};
-		let track_1_translation_start: Vec3= track_1_translation_end + final_position;
-		let track_1: TrackBundle = TrackBundle::new(
-			300, 
-			track_1_translation_start
-		);
-
-		let track_2_translation_end: Vec3 = Vec3{x : 1000.0 , y : upper_track_y, z: 0.0};
-		let track_2_translation_start: Vec3 = track_2_translation_end + final_position;
-		let track_2: TrackBundle = TrackBundle::new(
-			300, 
-			track_2_translation_start
-		);
-	
-		let main_track : Entity = commands.spawn(main_track).id();
-		let track_1 : Entity = commands.spawn(track_1).id();
-		let track_2: Entity = commands.spawn(track_2).id();
-
-		commands.entity(main_track).insert(
+		let main_track : Entity = commands.spawn((
+			Track::new(600),
+			Transform::from_translation(main_track_translation_start),
 			PointToPointTranslation::new(
 				main_track_translation_start, 
 				main_track_translation_end,
 				dilemma.countdown_duration_seconds
 			)
-		);
-		commands.entity(track_1).insert((
+		)).id();
+
+		let track_1_translation_end: Vec3 = Vec3{x : 1000.0 , y : lower_track_y, z: 0.0};
+		let track_1_translation_start: Vec3= track_1_translation_end + final_position;
+		let track_1 : Entity = commands.spawn((
+			Track::new(300),
+			Transform::from_translation(track_1_translation_start),
 			PointToPointTranslation::new(
 				track_1_translation_start, 
 				track_1_translation_end,
@@ -945,9 +920,14 @@ impl TrainJunction{
 				left : Vec3{x: 0.0, y: 0.0, z: 0.0},
 				right : Vec3{x: 0.0, y: -100.0, z: 0.0},
 				random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-			})
-		);
-		commands.entity(track_2).insert((
+			}		
+		)).id();
+
+		let track_2_translation_end: Vec3 = Vec3{x : 1000.0 , y : upper_track_y, z: 0.0};
+		let track_2_translation_start: Vec3 = track_2_translation_end + final_position;
+		let track_2 : Entity = commands.spawn((
+			Track::new(300),
+			Transform::from_translation(track_2_translation_start),
 			PointToPointTranslation::new(
 				track_2_translation_start, 
 				track_2_translation_end,
@@ -959,8 +939,8 @@ impl TrainJunction{
 				left : Vec3{x: 0.0, y: 0.0, z: 0.0},
 				right : Vec3{x: 0.0, y: -100.0, z: 0.0},
 				random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-			}
-		));
+			}		
+		)).id();
 		
 		let person = String::from(PERSON);
 		for _ in 0..dilemma.options[0].consequences.total_fatalities {
