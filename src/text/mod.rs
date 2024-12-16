@@ -9,7 +9,6 @@ use bevy::prelude::*;
 
 use crate::{
     interaction::{InputAction, Clickable, Pressable},
-    audio::{TransientAudioPallet, TransientAudio},
     colors::PRIMARY_COLOR
 };
 
@@ -40,23 +39,35 @@ fn default_nowrap_layout() -> TextLayout {
 }
 
 // Existing components
-#[derive(Component, Clone)]
-#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_text_layout), Transform)]
+#[derive(Component)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_text_layout))]
 pub struct TextRaw;
 
-#[derive(Component, Clone)]
-#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout), Transform)]
+#[derive(Component)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout))]
 pub struct TextSprite;
 
-#[derive(Component, Clone)]
-#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout), Transform)]
+impl Default for TextSprite {
+    fn default() -> Self {
+        TextSprite
+    }
+}
+
+#[derive(Component)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout))]
 pub struct TextTitle;
 
-
-
-#[derive(Component, Clone, Deserialize)]
+#[derive(Component, Deserialize)]
 pub struct TextFrames {
     pub frames: Vec<String>
+}
+
+impl Default for TextFrames {
+    fn default() -> Self {
+        TextFrames{
+            frames : vec![]
+        }
+    }
 }
 
 impl TextFrames {
@@ -86,44 +97,27 @@ impl TextFrames {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component)]
+#[require(TextSprite, Text2d, TextFrames)]
 pub struct Animated{
     pub current_frame: usize,
     pub timer: Timer
 }
 
-#[derive(Bundle, Clone)]
-pub struct AnimatedTextSpriteBundle {
-    text_sprite: TextSprite,
-    text : Text2d,
-    transform : Transform,
-    animation : Animated,
-    frames : TextFrames
-}
-
-impl AnimatedTextSpriteBundle {
-    pub fn from_vec(
-        frames: Vec<String>, 
-        frame_time_seconds : f32, 
-        translation : Vec3
-    ) -> Self {
-
-        Self {
-            text_sprite: TextSprite,
-            text : Text2d(frames[0].clone()),
-            transform : Transform::from_translation(translation),
-            animation : Animated {
-                current_frame: 0,
-                timer: Timer::from_seconds(
-                    frame_time_seconds, 
-                    TimerMode::Repeating
-                )
-            },
-            frames : TextFrames::new(frames.clone())
+impl Default for Animated {
+    fn default() -> Self {
+        Animated {
+            current_frame: 0,
+            timer: Timer::from_seconds(
+                0.1, 
+                TimerMode::Repeating
+            )
         }
     }
+}
 
-    pub fn animate(
+impl Animated {
+    pub fn animate_text(
         time: Res<Time>,
         mut query: Query<(&mut Animated, &TextFrames, &mut Text2d)>,
     ) {
@@ -140,67 +134,41 @@ impl AnimatedTextSpriteBundle {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component)]
+#[require(Text2d(default_button_text), TextFont(default_button_font), TextColor(default_font_color), TextLayout(default_text_layout))]
 pub struct TextButton;
 
-#[derive(Bundle)]
-pub struct TextButtonBundle {
-    marker : TextButton,
-    clickable : Clickable,
-    pressable : Pressable,
-    audio : TransientAudioPallet,
-    text: Text2d,
-    font: TextFont,
-    color : TextColor,
-    layout : TextLayout,
-    transform : Transform
+fn default_button_text() -> Text2d {
+    Text2d::new("Default Button Text")
 }
 
-impl TextButtonBundle {
+fn default_button_font() -> TextFont {
+    TextFont{
+        font_size : 16.0,
+        ..default()
+    }
+}
 
+impl TextButton {
     pub fn new( 
-        asset_server: &Res<AssetServer>,
         actions : Vec<InputAction>,
         keys : Vec<KeyCode>,
-        text: impl Into<String>, 
-        translation: Vec3
-    ) -> Self {
+        text: impl Into<String>
+    ) -> (TextButton, Clickable, Pressable, Text2d) {
     
         let text = text.into();
         let text_length = text.clone().len();
         let button_width = text_length as f32 * 7.92;
         
-        Self {
-            marker : TextButton, 
-            clickable : Clickable::new(actions.clone(), Vec2::new(button_width, 20.0)),
-            pressable : Pressable::new(
+        (
+            TextButton, 
+            Clickable::new(actions.clone(), Vec2::new(button_width, 20.0)),
+            Pressable::new(
                 keys,
                 actions
             ),
-            audio : TransientAudioPallet::new(
-                vec![(
-                    "click".to_string(),
-                    TransientAudio::new(
-                        "sounds/mech_click.ogg", 
-                        asset_server, 
-                        0.1, 
-                        true,
-                        1.0
-                    ),
-                )]
-            ),
-            text : Text2d::new(text),
-            font : TextFont{
-                font_size : 16.0,
-                ..default()
-            },
-            color : TextColor(PRIMARY_COLOR),
-            layout : TextLayout{
-                justify: JustifyText::Center,
-                ..default()
-            },
-            transform : Transform::from_translation(translation)
-        }
+            Text2d::new(text)
+        )
     }
 
     pub fn change_text( 

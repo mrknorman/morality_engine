@@ -32,12 +32,12 @@ pub struct NextButtonBundle{
 }
 
 impl NextButton {
-	pub fn translation(windows: &Query<&Window>) -> Vec3 {
+	pub fn transform(windows: &Query<&Window>) -> Transform {
 		let button_distance = 100.0;
 		let window: &Window = windows.get_single().unwrap();
 		let screen_height = window.height();
 		let button_y = -screen_height / 2.0 + button_distance; 
-		Vec3::new(0.0, button_y, 1.0)
+        Transform::from_xyz(0.0, button_y, 1.0)
 	}
 }
 
