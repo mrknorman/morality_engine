@@ -20,7 +20,7 @@ pub enum GameState {
 
 #[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash)]
 #[source(GameState = GameState::Dilemma)]
-pub enum SubState {
+pub enum DilemmaPhase {
     #[default]
     Intro,
     IntroDecisionTransition,
@@ -33,14 +33,14 @@ pub enum SubState {
 pub struct StateVector {
     main: Option<MainState>,
     game: Option<GameState>,
-    sub: Option<SubState>,
+    sub: Option<DilemmaPhase>,
 }
 
 impl StateVector {
     pub fn new(
         main: Option<MainState>,
         game: Option<GameState>,
-        sub: Option<SubState>,
+        sub: Option<DilemmaPhase>,
     ) -> StateVector {
         StateVector {
             main,
@@ -53,7 +53,7 @@ impl StateVector {
         self,
         next_main_state: &mut ResMut<NextState<MainState>>,
         next_game_state: &mut ResMut<NextState<GameState>>,
-        next_sub_state: &mut ResMut<NextState<SubState>>,
+        next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
     ) {
         if let Some(state) = &self.main {
             next_main_state.set(state.clone());

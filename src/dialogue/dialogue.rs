@@ -7,21 +7,20 @@ use std::{
 };
 use bevy::{
     prelude::*, 
-    text::{BreakLineOn, Text2dBounds}, 
-    sprite::{
-        MaterialMesh2dBundle,
-        Mesh2dHandle,
-        Anchor
-    }
+    sprite::Anchor, 
+    text::TextBounds, 
+    audio::Volume
 };
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    audio::{ContinuousAudioPallet, ContinuousAudio},
-    character::Character,
-    common_ui::NextButtonBundle,
-    game_states::{GameState, MainState, StateVector},
-    interaction::{AdvanceDialogue, InputAction},
+    audio::{continuous_audio, ContinuousAudioPallet}, 
+    character::Character, 
+    colors::PRIMARY_COLOR, 
+    common_ui::NextButton, 
+    game_states::{GameState, MainState, StateVector}, 
+    graph::GraphPlugin, 
+    interaction::{AdvanceDialogue, InputAction}, 
     text::TextButtonBundle
 };
 
@@ -47,6 +46,10 @@ impl Plugin for DialoguePlugin {
                     Dialogue::play
                 ).run_if(in_state(DialogueSystemsActive::True))
             );
+
+            if !app.is_plugin_added::<GraphPlugin>() {
+                app.add_plugins(GraphPlugin);
+            };
     }
 }
 
@@ -69,7 +72,19 @@ pub struct DialogueLine {
     pub character: Character,
 }
 
+fn dialogue_text_bounds() -> TextBounds {
+    TextBounds {
+        width : Some(500.0), 
+        height : Some(2000.0)
+    }
+}
+
+fn dialogue_anchor() -> Anchor {
+    Anchor::CenterLeft
+}
+
 #[derive(Component)]
+#[require(Text2d, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
 pub struct Dialogue {
     pub lines: Vec<DialogueLine>,
     pub current_line_index: usize,
@@ -78,6 +93,7 @@ pub struct Dialogue {
     pub skip_count: usize,
     pub timer: Timer,
     pub char_duration_millis: u64,
+    pub num_spans: usize
 }
 
 impl Dialogue {
@@ -93,35 +109,96 @@ impl Dialogue {
                 TimerMode::Repeating
             ),
             char_duration_millis: 50,
+            num_spans : 1
         }
+    }
+
+    pub fn load(file_path: PathBuf, user_map: &HashMap<String, Character>) -> Self {
+        let file = File::open(file_path).expect("Unable to open file");
+        let reader = BufReader::new(file);
+        
+        let loaded_dialogue: DialogueLoader = serde_json::from_reader(reader).unwrap();
+
+        let lines = loaded_dialogue.lines.into_iter()
+            .map(|line| {
+                let character = user_map.get(&line.username)
+                    .expect(&format!("Character {} not found in user map", line.username))
+                    .clone();
+                DialogueLine {
+                    raw_text: line.dialogue,
+                    hostname: line.hostname,
+                    instruction: line.instruction,
+                    character,
+                }
+            })
+            .collect();
+
+        Self::new(lines)
+    }
+
+    pub fn init(
+        dialogue_path: impl Into<PathBuf>,
+        asset_server: &Res<AssetServer>,
+        user_map: &HashMap<String, Character>
+    ) -> (ContinuousAudioPallet, Dialogue) {
+        let dialogue = Dialogue::load(dialogue_path.into(), user_map);
+
+        let character_audio: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)> = dialogue.lines.iter()
+            .map(|line| (
+                line.character.name.clone(),
+                AudioPlayer::<AudioSource>(asset_server.load(
+                    line.character.audio_source_file_path.clone()
+                )),
+                PlaybackSettings{
+                    paused : true,
+                    volume : Volume::new(0.3),
+                    ..continuous_audio()
+                }
+            ))
+            .collect();
+
+        (
+            ContinuousAudioPallet::new(character_audio),
+            dialogue
+        )
     }
 
     fn generate_shell_prompt(
         username: &str,
         hostname: &str, 
         color : &Color
-    ) -> Vec<TextSection> {        
+    ) -> Vec<(TextSpan, TextColor, TextFont)> {        
         vec![
-            TextSection::new(
-                format!("{}@{}:\n    ", username, hostname),
-                TextStyle { 
-                    font_size: 15.0,
-                    color : *color, 
+            (
+                TextSpan::new(
+                    format!("{}@{}:\n    ", username, hostname)
+                ),
+                TextColor(*color),
+                TextFont{
+                    font_size : 12.0,
                     ..default()
                 }
             ),
-            TextSection::new("", TextStyle { font_size: 15.0, ..default() })
+            (
+                TextSpan::new(""),
+                TextColor(PRIMARY_COLOR),
+                TextFont{
+                    font_size : 12.0,
+                    ..default()
+                }
+            )
         ]
     }
 
 	pub fn play(
-		mut query: Query<(&mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
+        mut commands: Commands,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
 		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
 	) {
 		for (
+            entity,
             mut dialogue,
-            mut text,
             audio_pallet
         ) in query.iter_mut() {
 			if let Some(line) = dialogue.lines.get(
@@ -132,11 +209,24 @@ impl Dialogue {
                     dialogue.current_line_index == 0
                 ) {
 					ev_advance_dialogue.clear();
-					text.sections.extend(Self::generate_shell_prompt(
-                        &line.character.name, 
-                        &line.hostname, 
-                        &line.character.color
-                    ));
+
+                    commands.get_entity(entity).unwrap().with_children(
+                        | parent | {
+                            let shell_prompts = Self::generate_shell_prompt(
+                                &line.character.name, 
+                                &line.hostname, 
+                                &line.character.color
+                            );
+
+                            for span in shell_prompts{
+                                parent.spawn(
+                                    span 
+                                );
+                            }         
+                        }
+                    );
+                    dialogue.num_spans += 2;
+
 					dialogue.playing = true;
 					dialogue.timer = Timer::new(Duration::from_millis(
                         dialogue.char_duration_millis), 
@@ -156,8 +246,9 @@ impl Dialogue {
 	}
 
 	pub fn skip_controls(
-		mut query: Query<(&mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
+        mut writer: Text2dWriter,
 		keyboard_input: Res<ButtonInput<KeyCode>>,
 	) {
 		if !keyboard_input.just_pressed(KeyCode::Enter) {
@@ -165,8 +256,8 @@ impl Dialogue {
 		}
 	
 		for (
+            entity,
             mut dialogue,
-            mut text, 
             audio_pallet
         ) in query.iter_mut() {
 
@@ -198,11 +289,7 @@ impl Dialogue {
                         TimerMode::Repeating
                     );
 				} else {
-					text.sections.pop();
-					text.sections.push(TextSection::new(
-						&line.raw_text,
-						TextStyle { font_size: 15.0, ..default() }
-					));
+                    *writer.text(entity, dialogue.num_spans - 1) = line.raw_text.clone();
 					dialogue.current_char_index = line.raw_text.len();
 					dialogue.skip_count += 1;
 				}
@@ -212,34 +299,34 @@ impl Dialogue {
 
 	pub fn advance_dialogue(
         mut commands: Commands,
-        mut query: Query<(Entity, &mut Dialogue, &mut Text, &mut ContinuousAudioPallet)>,
-        audio_query: Query<&AudioSink>,  // Query for AudioSink components
+        mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
+        mut writer: Text2dWriter,
+        audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
         windows: Query<&Window>,
         time: Res<Time>
     ) {
-        for (dialogue_entity, mut dialogue, mut text, audio_pallet) in query.iter_mut() {
+        for (entity, mut dialogue, audio_pallet) in query.iter_mut() {
             if !dialogue.playing || (!dialogue.timer.tick(time.delta()).finished() && dialogue.skip_count <= 1) {
                 continue;
             }
     
             let line = &dialogue.lines[dialogue.current_line_index];
             let next_char = line.raw_text.chars().nth(dialogue.current_char_index);
+
+            let span_index = dialogue.num_spans - 1;
     
             match next_char {
                 Some(c) => {
-                    if let Some(section) = text.sections.last_mut() {
-                        section.value.push(c);
-                    }
+
+                    writer.text(entity, span_index).push(c);
                     dialogue.current_char_index += 1;
                 }
                 None => {
                     Self::stop_audio_if_playing(&audio_pallet, &audio_query, &line.character.name);
-    
-                    if let Some(section) = text.sections.last_mut() {
-                        section.value.push('\n');
-                    }
-    
+
+                    writer.text(entity, span_index).push('\n');
+
                     let next_action = if dialogue.current_line_index >= dialogue.lines.len() - 1 {
                         InputAction::ChangeState(StateVector::new(
                             Some(MainState::InGame),
@@ -252,7 +339,7 @@ impl Dialogue {
     
                     Self::spawn_next_button(
                         &mut commands, 
-                        dialogue_entity,   // Pass the dialogue entity as the parent
+                        entity,   // Pass the dialogue entity as the parent
                         &asset_server, 
                         &windows, 
                         next_action, 
@@ -297,13 +384,13 @@ impl Dialogue {
     
         commands.entity(dialogue_entity).with_children(|parent| {
             parent.spawn((
-                NextButtonBundle::new(),
+                NextButton,
                 TextButtonBundle::new(
                     asset_server,
                     actions,
                     vec![KeyCode::Enter],
                     format!("[{}]", instruction),
-                    NextButtonBundle::translation(windows),
+                    NextButton::translation(windows),
                 ),
             ));
         });
@@ -329,78 +416,4 @@ struct DialogueLineLoader {
 struct DialogueLoader {
     lines: Vec<DialogueLineLoader>,
     possible_exit_states: Vec<NextStateOptionLoader>
-}
-
-impl Dialogue {
-    pub fn load(file_path: PathBuf, user_map: &HashMap<String, Character>) -> Self {
-        let file = File::open(file_path).expect("Unable to open file");
-        let reader = BufReader::new(file);
-        
-        let loaded_dialogue: DialogueLoader = serde_json::from_reader(reader).unwrap();
-
-        let lines = loaded_dialogue.lines.into_iter()
-            .map(|line| {
-                let character = user_map.get(&line.username)
-                    .expect(&format!("Character {} not found in user map", line.username))
-                    .clone();
-                DialogueLine {
-                    raw_text: line.dialogue,
-                    hostname: line.hostname,
-                    instruction: line.instruction,
-                    character,
-                }
-            })
-            .collect();
-
-        Dialogue::new(lines)
-    }
-}
-
-#[derive(Bundle)]
-pub struct DialogueBundle {
-    audio: ContinuousAudioPallet,
-    dialogue: Dialogue,
-    text: Text2dBundle
-}
-
-impl DialogueBundle {
-    pub fn load(
-        dialogue_path: impl Into<PathBuf>,
-        asset_server: &Res<AssetServer>,
-        user_map: &HashMap<String, Character>
-    ) -> Self {
-        let dialogue = Dialogue::load(dialogue_path.into(), user_map);
-
-        let text = Text2dBundle {
-            text: Text {
-                sections: vec![],
-                justify: JustifyText::Left,
-                linebreak_behavior: BreakLineOn::WordBoundary
-            },
-            text_2d_bounds: Text2dBounds {
-                size: Vec2::new(500.0, 2000.0),
-            },
-            transform: Transform::from_xyz(-500.0, 0.0, 1.0),
-            text_anchor: Anchor::CenterLeft,
-            ..default()
-        };
-
-        let character_audio: Vec<(String, ContinuousAudio)> = dialogue.lines.iter()
-            .map(|line| (
-                line.character.name.clone(),
-                ContinuousAudio::new(
-                    asset_server,
-                    line.character.audio_source_file_path.clone(),
-                    0.3,
-					true
-                )
-            ))
-            .collect();
-
-        DialogueBundle {
-            audio: ContinuousAudioPallet::new(character_audio),
-            dialogue,
-            text
-        }
-    }
 }

@@ -5,13 +5,14 @@ use std::{
 
 use bevy::{
 	prelude::*,
-	ecs::component::StorageType
+	ecs::component::StorageType,
+	audio::Volume
 };
 use serde::Deserialize;
 
 use crate::{
     audio::{
-		AudioPlugin, ContinuousAudioPallet, ContinuousAudio, TransientAudio, TransientAudioPallet
+		AudioPlugin, ContinuousAudioPallet, continuous_audio, TransientAudio, TransientAudioPallet
 	}, 
 	interaction::{
 		Clickable, InputAction, InteractionPlugin
@@ -22,7 +23,7 @@ use crate::{
 	}, 
 	text::{
 		AnimatedTextSpriteBundle, 
-		TextSpriteBundle
+		TextSprite
 	}
 };
 
@@ -113,7 +114,9 @@ pub struct TrainCarriageBundle{
 	marker : TrainCarriage,
 	anchor : TranslationAnchor,
 	wobble : Wobble,
-	sprite : TextSpriteBundle
+	sprite : TextSprite,
+	text : Text2d,
+	transform : Transform,
 }
 
 impl TrainCarriageBundle{
@@ -129,10 +132,10 @@ impl TrainCarriageBundle{
 				translation
 			),
 			wobble : Wobble::new(),
-			sprite : TextSpriteBundle::new(
-				text,
-				translation
-			)
+			sprite : TextSprite, 
+			text : Text2d::new(text),
+			transform : Transform::from_translation(translation), 
+			
 		}
 	}
 }
@@ -161,8 +164,8 @@ impl TrainSmokeBundle {
 				).collect(),
 				0.1,
 				Vec3::new(
-					translation.x - 25.0,
-					translation.y + 20.0,
+					translation.x - 35.0,
+					translation.y + 32.0,
 					translation.z,
 				)
 			)
@@ -181,8 +184,8 @@ pub struct Train {
 pub struct TrainBundle {
 	train : Train,
 	locomotion : Locomotion,
-	transform : TransformBundle,
-	visibility : VisibilityBundle,
+	transform : Transform,
+	visibility : Visibility,
 	audio : ContinuousAudioPallet
 }
 
@@ -199,24 +202,21 @@ impl TrainBundle {
 			train_file_path.to_string()
 		);
 
-		let track_audio_path = train_type.track_audio_path;
-
 		Self { 
 			train: Train::new(asset_server, train_file_path, translation), 
 			locomotion: Locomotion::new(speed), 
-			transform: TransformBundle::from_transform(
-				Transform::from_translation(translation)
-			), 
-			visibility: VisibilityBundle::default(), 
-			audio:ContinuousAudioPallet::new(
+			transform: Transform::from_translation(translation), 
+			visibility: Visibility::default(), 
+			audio: ContinuousAudioPallet::new(
 				vec![(
 					"tracks".to_string(),
-					ContinuousAudio::new(
-						asset_server, 
-						track_audio_path, 
-						0.1,
-						false
-					)
+					AudioPlayer::<AudioSource>(asset_server.load(
+						train_type.track_audio_path
+					)),
+					PlaybackSettings{
+						volume : Volume::new(0.1),
+						..continuous_audio()
+					}
 				)]
 			)
 		}
@@ -261,7 +261,7 @@ impl Train {
 					carriage_translation
 				)
 			);
-			carriage_translation.x -= 70.0;
+			carriage_translation.x -= 85.0;
 		}
 		
 		Train {

@@ -80,23 +80,19 @@ impl Lever {
 		
 		let text_entity = commands.spawn((
 			LeverText,
-			Text2dBundle {
-				text : Text {
-					sections : vec!(
-						TextSection::new(start_text, TextStyle {
-							font_size : 25.0,
-							color,
-							..default()
-						})
-					),
-					justify : JustifyText::Center, 
-					..default()
-				},
-				transform: Transform { 
-					translation,
-					rotation: Quat::from_rotation_z(std::f32::consts::PI / 2.0), 
-					..default()
-				},
+			Text2d::new(start_text), 
+			TextFont{
+				font_size : 25.0,
+				..default()
+			},
+			TextColor(color),
+			TextLayout{
+				justify : JustifyText::Center, 
+				..default()
+			}, 
+			Transform { 
+				translation,
+				rotation: Quat::from_rotation_z(std::f32::consts::PI / 2.0), 
 				..default()
 			}
 		)).id(); 
@@ -119,7 +115,7 @@ impl Lever {
 
 pub fn check_level_pull(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-	mut lever_text_query : Query<&mut Text, With<LeverText>>,
+	mut lever_text_query : Query<(&mut Text2d, &mut TextColor), With<LeverText>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     lever: Option<Res<Lever>>,
@@ -136,23 +132,18 @@ pub fn check_level_pull(
 				state : LeverState::Left,
 				text_entity : unwrapped_lever.text_entity
 			});
-			lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_LEFT, TextStyle {
-				font_size : 25.0,
-				color : OPTION_1_COLOR,
-				..default()
-			});
-		
+			let (mut text, mut color) = lever_text_query.single_mut();
+			text.0 = LEVER_LEFT.to_string();
+			color.0 = OPTION_1_COLOR;		
 		} else if keyboard_input.just_pressed(KeyCode::Digit2) && (unwrapped_lever.state != LeverState::Right) {
 			_ = Some(play_sound_once("sounds/switch.ogg", &mut commands, &asset_server));
 			commands.insert_resource(Lever {
 				state : LeverState::Right,
 				text_entity : unwrapped_lever.text_entity
 			});
-			lever_text_query.single_mut().sections[0] = TextSection::new(LEVER_RIGHT, TextStyle {
-				font_size : 25.0,
-				color : OPTION_2_COLOR,
-				..default()
-			});
+			let (mut text, mut color) = lever_text_query.single_mut();
+			text.0 = LEVER_RIGHT.to_string();
+			color.0 = OPTION_2_COLOR;	
 		}
 	}
 }

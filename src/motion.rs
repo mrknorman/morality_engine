@@ -56,7 +56,7 @@ pub fn point_to_point_translations(
     for (mut motion, mut transform) in query.iter_mut() {
         if motion.has_started && !motion.has_finished {
             let direction = (motion.end - motion.start).normalize();
-            let distance_to_travel = motion.speed * time.delta_seconds();
+            let distance_to_travel = motion.speed * time.delta_secs();
             let current_position = transform.translation;
             
             let distance_to_end = (motion.end - current_position).length();

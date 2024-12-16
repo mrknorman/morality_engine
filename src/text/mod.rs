@@ -9,88 +9,50 @@ use bevy::prelude::*;
 
 use crate::{
     interaction::{InputAction, Clickable, Pressable},
-    audio::{TransientAudioPallet, TransientAudio}
+    audio::{TransientAudioPallet, TransientAudio},
+    colors::PRIMARY_COLOR
 };
 
-fn create_text_bundle(
-        text: impl Into<String>, 
-        translation: Vec3, 
-        font_size: f32
-    ) -> Text2dBundle {
-    
-    Text2dBundle {
-        text: Text {
-            sections: vec![TextSection::new(
-                text.into(),
-                TextStyle {
-                    font_size,
-                    ..default()
-                },
-            )],
-            justify: JustifyText::Center,
-            ..default()
-        },
-        transform: Transform::from_translation(translation),
+fn default_font() -> TextFont {
+    TextFont{
+        font_size : 12.0,
         ..default()
     }
 }
+
+fn default_font_color() -> TextColor {
+    TextColor(PRIMARY_COLOR)
+}
+
+fn default_text_layout() -> TextLayout {
+    TextLayout{
+        justify: JustifyText::Center,
+        ..default()
+    }
+}
+
+fn default_nowrap_layout() -> TextLayout {
+    TextLayout{
+        justify: JustifyText::Center,
+        linebreak : LineBreak::NoWrap,
+        ..default()
+    }
+}
+
 // Existing components
 #[derive(Component, Clone)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_text_layout), Transform)]
 pub struct TextRaw;
 
 #[derive(Component, Clone)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout), Transform)]
 pub struct TextSprite;
 
 #[derive(Component, Clone)]
+#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout), Transform)]
 pub struct TextTitle;
 
-// Bundle struct for TextRaw
-#[derive(Bundle, Clone)]
-pub struct TextRawBundle {
-    marker: TextRaw,
-    text: Text2dBundle,
-}
 
-impl TextRawBundle {
-    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
-        Self {
-            marker: TextRaw,
-            text: create_text_bundle(text, translation, 12.0),
-        }
-    }
-}
-
-// Bundle struct for TextSprite
-#[derive(Bundle, Clone)]
-pub struct TextSpriteBundle {
-    marker: TextSprite,
-    text: Text2dBundle,
-}
-
-impl TextSpriteBundle {
-    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
-        Self {
-            marker: TextSprite,
-            text: create_text_bundle(text, translation, 12.0),
-        }
-    }
-}
-
-// Bundle struct for TextTitle
-#[derive(Bundle, Clone)]
-pub struct TextTitleBundle {
-    marker: TextTitle,
-    text: Text2dBundle,
-}
-
-impl TextTitleBundle {
-    pub fn new(text: impl Into<String>, translation: Vec3) -> Self {
-        Self {
-            marker: TextTitle,
-            text: create_text_bundle(text, translation, 12.0),
-        }
-    }
-}
 
 #[derive(Component, Clone, Deserialize)]
 pub struct TextFrames {
@@ -130,10 +92,11 @@ pub struct Animated{
     pub timer: Timer
 }
 
-
 #[derive(Bundle, Clone)]
 pub struct AnimatedTextSpriteBundle {
-    text_sprite_bundle: TextSpriteBundle,
+    text_sprite: TextSprite,
+    text : Text2d,
+    transform : Transform,
     animation : Animated,
     frames : TextFrames
 }
@@ -146,10 +109,9 @@ impl AnimatedTextSpriteBundle {
     ) -> Self {
 
         Self {
-            text_sprite_bundle : TextSpriteBundle::new(
-                frames[0].clone(), 
-                translation
-            ),
+            text_sprite: TextSprite,
+            text : Text2d(frames[0].clone()),
+            transform : Transform::from_translation(translation),
             animation : Animated {
                 current_frame: 0,
                 timer: Timer::from_seconds(
@@ -163,18 +125,16 @@ impl AnimatedTextSpriteBundle {
 
     pub fn animate(
         time: Res<Time>,
-        mut query: Query<(&mut Animated, &TextFrames, &mut Text)>,
+        mut query: Query<(&mut Animated, &TextFrames, &mut Text2d)>,
     ) {
         for (
                 mut animation, frames, mut text
             ) in query.iter_mut() {
-                
                 animation.timer.tick(time.delta());
             if animation.timer.just_finished() {
                 animation.current_frame = 
                     (animation.current_frame + 1) % frames.frames.len();
-                text.sections[0].value = 
-                    frames.frames[animation.current_frame].clone();
+                text.0 = frames.frames[animation.current_frame].clone();
             }
         }
     }
@@ -187,9 +147,13 @@ pub struct TextButton;
 pub struct TextButtonBundle {
     marker : TextButton,
     clickable : Clickable,
-    text : Text2dBundle,
+    pressable : Pressable,
     audio : TransientAudioPallet,
-    pressable : Pressable
+    text: Text2d,
+    font: TextFont,
+    color : TextColor,
+    layout : TextLayout,
+    transform : Transform
 }
 
 impl TextButtonBundle {
@@ -209,7 +173,10 @@ impl TextButtonBundle {
         Self {
             marker : TextButton, 
             clickable : Clickable::new(actions.clone(), Vec2::new(button_width, 20.0)),
-            text : create_text_bundle(text, translation, 16.0),
+            pressable : Pressable::new(
+                keys,
+                actions
+            ),
             audio : TransientAudioPallet::new(
                 vec![(
                     "click".to_string(),
@@ -222,10 +189,17 @@ impl TextButtonBundle {
                     ),
                 )]
             ),
-            pressable : Pressable::new(
-                keys,
-                actions
-            )
+            text : Text2d::new(text),
+            font : TextFont{
+                font_size : 16.0,
+                ..default()
+            },
+            color : TextColor(PRIMARY_COLOR),
+            layout : TextLayout{
+                justify: JustifyText::Center,
+                ..default()
+            },
+            transform : Transform::from_translation(translation)
         }
     }
 
@@ -238,7 +212,7 @@ impl TextButtonBundle {
         let text_length = new_text.clone().len();
         let button_width = text_length as f32 * 7.92;
 
-        text.sections[0].value = new_text;
+        text.0 = new_text;
 
         let old_size =  clickable.size;
         clickable.size = Vec2::new(button_width, old_size.y);

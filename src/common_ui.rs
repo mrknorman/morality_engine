@@ -31,22 +31,10 @@ pub struct NextButtonBundle{
     center_anchor : CenterXAnchor
 }
 
-impl NextButtonBundle {
-
-	pub fn new() -> Self {
-
-		let button_distance = 100.0;
-
-		Self {
-			marker : NextButton,
-			anchor : BottomAnchor::new(button_distance),
-            center_anchor : CenterXAnchor
-		}
-	}
-
+impl NextButton {
 	pub fn translation(windows: &Query<&Window>) -> Vec3 {
 		let button_distance = 100.0;
-		let window = windows.get_single().unwrap();
+		let window: &Window = windows.get_single().unwrap();
 		let screen_height = window.height();
 		let button_y = -screen_height / 2.0 + button_distance; 
 		Vec3::new(0.0, button_y, 1.0)
@@ -66,7 +54,7 @@ impl Component for NextButton {
                 let mut previous_entity : Option<Entity> = None;
                 if let Some(audio_config) = world.get_resource::<NextButtonConfig>() {
                     if let Some(entity) = audio_config.entity {
-                        if world.get_entity(entity).is_some() {
+                        if world.get_entity(entity).is_ok() {
                             previous_entity = Some(entity);
                         }
                     }
@@ -97,5 +85,8 @@ impl Plugin for CommonUIPlugin {
     fn build(&self, app: &mut App) {
         app
 		.insert_resource(NextButtonConfig::empty());
+
+        app.register_required_components::<NextButton, BottomAnchor>();
+        app.register_required_components::<NextButton, CenterXAnchor>();
     }
 }

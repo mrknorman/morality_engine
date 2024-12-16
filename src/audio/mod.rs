@@ -48,9 +48,8 @@ impl Plugin for AudioPlugin {
 fn activate_systems(
 	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
 	transient_query: Query<&TransientAudio>,
-    continious_query: Query<&ContinuousAudio>
 ) {
-	if !transient_query.is_empty() || !continious_query.is_empty(){
+	if !transient_query.is_empty() {
 		audio_state.set(AudioSystemsActive::True)
 	} else {
 		audio_state.set(AudioSystemsActive::False)
@@ -68,95 +67,20 @@ pub fn play_sound_once(
     commands
         .spawn((
             SingleSound,
-            AudioBundle {
-                source: asset_server.load(audio_path),
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Despawn,
-                    volume: Volume::new(0.5),
-                    ..default()
-                },
-            },
-        ))
-        .id()
+            AudioPlayer::<AudioSource>(asset_server.load(audio_path)),
+            PlaybackSettings {
+                mode: PlaybackMode::Despawn,
+                volume: Volume::new(0.5),
+                ..default()
+            }
+        )).id()
 }
 
-#[derive(Component, Clone)]
-pub struct ContinuousAudio {
-    source: Handle<AudioSource>,
-    volume: f32,
-    paused : bool
-}
-
-impl ContinuousAudio {
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        volume: f32,
-        paused : bool
-    ) -> ContinuousAudio {
-
-        ContinuousAudio {
-            source: asset_server.load(audio_path),
-            volume,
-            paused
-        }
-    }
-}
-
-#[derive(Bundle)]
-pub struct ContinuousAudioBundle {
-    audio : AudioBundle,
-    continuous_audio : ContinuousAudio
-}
-
-impl ContinuousAudioBundle {
-
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        volume: f32,
-        paused: bool
-    ) -> Self {
-
-        let continuous_audio = ContinuousAudio::new(
-            asset_server,
-            audio_path,
-            volume,
-            paused
-        );
-
-        Self {
-            audio : AudioBundle {
-                source: continuous_audio.clone().source,
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Loop,
-                    paused,
-                    volume: Volume::new(continuous_audio.clone().volume),
-                    ..default()
-                },
-            },
-            continuous_audio
-        }
-
-
-    }
-
-    fn from_continuous_audio(
-        continuous_audio : ContinuousAudio
-    ) -> Self {
-
-        Self {
-            audio : AudioBundle {
-                source: continuous_audio.clone().source,
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Loop,
-                    paused : continuous_audio.paused,
-                    volume: Volume::new(continuous_audio.clone().volume),
-                    ..default()
-                },
-            },
-            continuous_audio
-        }
+pub fn continuous_audio() -> PlaybackSettings {
+    PlaybackSettings {
+        paused : false,
+        mode: PlaybackMode::Loop,
+        ..default()
     }
 }
 
@@ -194,15 +118,15 @@ impl TransientAudio {
         }
     }
 
-    pub fn play(&self) -> AudioBundle {
-        AudioBundle {
-            source: self.source.clone(),
-            settings: PlaybackSettings {
+    pub fn play(&self) -> (AudioPlayer::<AudioSource>, PlaybackSettings) {
+        (
+            AudioPlayer::<AudioSource>(self.source.clone()), 
+            PlaybackSettings {
                 mode: PlaybackMode::Despawn,
                 volume: Volume::new(self.volume),
                 ..default()
-            },
-        }
+            }
+        )
     }
 
     pub fn tick(
@@ -219,12 +143,12 @@ impl TransientAudio {
 #[derive(Clone)]
 pub struct ContinuousAudioPallet {
     pub entities: HashMap<String, Entity>,
-    pub components: Vec<(String, ContinuousAudio)>
+    pub components: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
 }
 
 impl ContinuousAudioPallet {
     pub fn new(
-        components : Vec<(String, ContinuousAudio)>
+        components : Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
     ) -> ContinuousAudioPallet {
         ContinuousAudioPallet {
             entities : HashMap::new(),
@@ -259,14 +183,13 @@ impl Component for ContinuousAudioPallet {
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent| {
                         for (
-                            name, audio_component
+                            name, audio_component, playback_settings
                         ) in components.iter() {
                             
-                            let child_entity = parent.spawn(
-                                ContinuousAudioBundle::from_continuous_audio(
-                                    audio_component.clone()
-                                )
-                            ).id();
+                            let child_entity = parent.spawn((
+                                audio_component.clone(),
+                                *playback_settings
+                            )).id();
                             entities.insert(name.clone(), child_entity);
                         }
                     });
@@ -400,62 +323,16 @@ impl Component for TransientAudioPallet {
 
 #[derive(Component, Clone)]
 pub struct OneShotAudio {
-    source: Handle<AudioSource>,
-    persistent : bool,
-    volume: f32
+    pub source: Handle<AudioSource>,
+    pub persistent : bool,
+    pub volume: f32
 }
 
-impl OneShotAudio {
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        persistent : bool,
-        volume: f32,
-    ) -> Self {
-
-        OneShotAudio {
-            source: asset_server.load(audio_path),
-            persistent,
-            volume
-        }
-    }
-}
-
-#[derive(Bundle)]
-pub struct OneShotAudioBundle{
-    audio : AudioBundle,
-    one_shot_audio : OneShotAudio
-}
-
-impl OneShotAudioBundle {
-
-    pub fn new(
-        asset_server: &Res<AssetServer>,
-        audio_path: impl Into<AssetPath<'static>>,
-        persistent : bool,
-        volume: f32,
-    ) -> Self {
-
-        let one_shot_audio = OneShotAudio {
-            source: asset_server.load(audio_path),
-            persistent,
-            volume
-        };
-
-        Self {
-            audio : AudioBundle {
-                source: one_shot_audio.source.clone(),
-                settings: PlaybackSettings {
-                    paused : false,
-                    mode: PlaybackMode::Despawn,
-                    volume: Volume::new(
-                        one_shot_audio.volume
-                    ),
-                ..default()
-                },
-            },
-            one_shot_audio
-        }
+pub fn one_shot_audio() -> PlaybackSettings {
+    PlaybackSettings {
+        paused : false,
+        mode: PlaybackMode::Despawn,
+        ..default()
     }
 }
 
@@ -499,33 +376,34 @@ impl Component for OneShotAudioPallet {
                             commands.entity(entity).with_children(
                                 |parent| {
                                     parent.spawn(
-                                        AudioBundle {
-                                            source: audio_component.source.clone(),
-                                            settings: PlaybackSettings {
+                                        (
+                                            AudioPlayer::<AudioSource>(audio_component.source.clone()), 
+                                            PlaybackSettings {
                                                 paused : false,
                                                 mode: PlaybackMode::Despawn,
                                                 volume: Volume::new(
                                                     audio_component.volume
                                                 ),
-                                            ..default()
-                                            },
-                                        }
+                                                ..default()
+                                            }
+                                        )
                                     );
                                 }
                             );
                         } else {
                             commands.spawn(
-                                AudioBundle {
-                                    source: audio_component.source.clone(),
-                                    settings: PlaybackSettings {
+                                (
+                                    AudioPlayer::<AudioSource>(audio_component.source.clone()), 
+                                    PlaybackSettings {
                                         paused : false,
                                         mode: PlaybackMode::Despawn,
                                         volume: Volume::new(
                                             audio_component.volume
                                         ),
-                                    ..default()
-                                    },
-                            });
+                                        ..default()
+                                    }
+                                )
+                            );
                         }
                     } 
                 }
@@ -576,7 +454,7 @@ impl Component for MusicAudio {
                 let mut previous_entity : Option<Entity> = None;
                 if let Some(audio_config) = world.get_resource::<MusicAudioConfig>() {
                     if let Some(entity) = audio_config.entity {
-                        if world.get_entity(entity).is_some() {
+                        if world.get_entity(entity).is_ok() {
                             previous_entity = Some(entity);
                         }
                     }
@@ -652,7 +530,7 @@ impl Component for NarrationAudio {
                 let mut previous_entity : Option<Entity> = None;
                 if let Some(audio_config) = world.get_resource::<NarrationAudioConfig>() {
                     if let Some(entity) = audio_config.entity {
-                        if world.get_entity(entity).is_some() {
+                        if world.get_entity(entity).is_ok() {
                             previous_entity = Some(entity);
                         }
                     }

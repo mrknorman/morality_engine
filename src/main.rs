@@ -1,6 +1,11 @@
 use bevy::{
     prelude::*,
-    sprite::Material2dPlugin   
+    color::palettes::css::BLACK,
+    sprite::Material2dPlugin,
+    core_pipeline::{
+        bloom::Bloom,
+        tonemapping::Tonemapping,
+    }
 };
 
 #[forbid(unsafe_code)]
@@ -10,11 +15,9 @@ mod background;
 mod dialogue;
 mod dilemma;
 mod game_states;
-mod io_elements;
 mod lever;
 mod loading;
 mod menu;
-mod narration;
 mod person;
 mod train;
 mod graph;
@@ -29,12 +32,13 @@ mod io;
 mod sprites;
 mod common_ui;
 mod shaders;
+mod colors;
 
 use crate::{
     game_states::{
         GameState, 
         MainState, 
-        SubState
+        DilemmaPhase
     },
     shaders::PulsingMaterial
 };
@@ -54,10 +58,10 @@ impl Plugin for GamePlugin {
         app
             .init_state::<MainState>()
             .add_sub_state::<GameState>()
-            .add_sub_state::<SubState>()
+            .add_sub_state::<DilemmaPhase>()
             .enable_state_scoped_entities::<MainState>()
             .enable_state_scoped_entities::<GameState>()
-            .enable_state_scoped_entities::<SubState>()
+            .enable_state_scoped_entities::<DilemmaPhase>()
             .add_systems(Startup, setup)
             .add_systems(Update, (
                 shortcuts::close_on_esc, 
@@ -67,12 +71,27 @@ impl Plugin for GamePlugin {
             .add_plugins(menu::MenuScreenPlugin)
             .add_plugins(loading::LoadingScreenPlugin)
             .add_plugins(dialogue::DialogueScreenPlugin)
-            .add_plugins(dilemma::DilemmaPlugin);
+            .add_plugins(dilemma::DilemmaPlugin)
+            ;
     }
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+fn setup(
+        mut commands: Commands,
+        mut clear_color: ResMut<ClearColor>
+    ) {
+    
+    clear_color.0 = BLACK.into();
+    
+    commands.spawn((
+        Camera2d,
+        Camera{
+            hdr : true,
+            ..default()
+        },
+        Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+        Bloom::default(), // 3. Enable bloom for the camera
+    ));
 }
 
 //

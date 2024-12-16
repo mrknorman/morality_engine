@@ -7,19 +7,58 @@ use std::{
 use rand::Rng;
 use serde::Deserialize;
 
-use crate::{
-    text::TextFrames,
-    sprites::{
-        SpriteFactory,
-        SpriteBox
-    }
-};
-
 use bevy::{
     prelude::*, 
     ecs::component::StorageType, 
     sprite::Anchor
 };
+
+use crate::{
+    text::TextFrames,
+    sprites::{
+        SpriteFactory,
+        SpriteBox
+    },
+    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}
+};
+
+pub struct LoadingBarPlugin;
+impl Plugin for LoadingBarPlugin {
+    fn build(&self, app: &mut App) {
+
+        app
+        .init_state::<LoadingSystemsActive>()
+        .add_systems(Update, activate_systems)
+        .add_systems(
+            Update,
+            (
+                LoadingBar::fill,
+            )
+            .run_if(in_state(LoadingSystemsActive::True)),
+        );
+
+        app.register_required_components::<LoadingBar, Transform>();
+        app.register_required_components::<LoadingBar, Visibility>();
+    }
+}
+
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LoadingSystemsActive {
+    #[default]
+    False,
+    True
+}
+
+fn activate_systems(
+    mut loading_state: ResMut<NextState<LoadingSystemsActive>>,
+    loading_query: Query<&LoadingBar>
+) {
+    loading_state.set(if loading_query.is_empty() {
+        LoadingSystemsActive::False
+    } else {
+        LoadingSystemsActive::True
+    });
+}
 
 #[derive(Component)]
 pub struct LoadingText;
@@ -27,12 +66,12 @@ pub struct LoadingText;
 #[derive(Component)]
 pub struct ProgressIndicator;
 
-
 pub struct LoadingBar {
     prefix: String,
     final_message: String,
     timer: Timer,
-    index: usize
+    index: usize,
+    finished : bool
 }
 
 impl LoadingBar {
@@ -46,6 +85,71 @@ impl LoadingBar {
             final_message,
             timer: Timer::new(timer_duration, TimerMode::Once),
             index: 0,
+            finished: false
+        }
+    }
+
+    pub fn load(path: impl AsRef<Path>) -> (LoadingBar, TextFrames) {
+        let config = LoadingBarConfig::from_file(path).expect(
+            "Error reading Loading Bar configuration file!"
+        );
+
+        let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
+
+        let timer_duration: Duration = Duration::from_secs_f32(
+            rng.gen_range(1.0..=2.0)
+        );
+
+        (
+            LoadingBar::new(config.prefix, config.final_message, timer_duration),
+            TextFrames::new(config.messages)
+        )
+    }
+
+    pub fn fill(
+        time: Res<Time>,
+        mut loading_query: Query<(&Children, &mut LoadingBar, &TextFrames)>,      
+        mut sprite_query: Query<&mut Sprite, With<ProgressIndicator>>,
+        mut text_query: Query<Entity, With<LoadingText>>,
+        mut writer: Text2dWriter
+    ) {
+        let mut rng = rand::thread_rng();
+
+        for (children, mut bar, frames) in loading_query.iter_mut() {
+            if bar.timer.tick(time.delta()).just_finished() {
+                bar.index += 1;
+
+                let secs = rng.gen_range(0.5..=2.0) as f32;
+                bar.timer = Timer::new(
+                    Duration::from_secs_f32(secs), 
+                    TimerMode::Once
+                );
+
+                // Update sprite (progress indicator)
+                for &child in children.iter() {
+
+                    if !bar.finished {
+                        if let Ok(mut sprite) = sprite_query.get_mut(child) {
+                            if let Some(custom_size) = &mut sprite.custom_size {
+                                let bar_size_increase = rng.gen_range(5.0..=50.0);
+                                custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
+                                bar.finished = custom_size.x >= 494.0;
+                            }
+                        }  
+                    }
+                        
+                    if let Ok(entity) = text_query.get_mut(child) {
+                        if !frames.frames.is_empty() {
+                            if !bar.finished {
+                                let new_index = bar.index % frames.frames.len();
+                                *writer.text(entity, 1) = frames.frames[new_index].clone();
+                            } else {
+                                *writer.text(entity, 1) = bar.final_message.clone();
+                            }
+                        }
+                    }
+                }
+            };
         }
     }
 }
@@ -62,83 +166,6 @@ impl LoadingBarConfig {
         let file = File::open(path).expect("Could not open JSON file");
         let reader = BufReader::new(file);
         serde_json::from_reader(reader)
-    }
-}
-
-#[derive(Bundle)]
-pub struct LoadingBarBundle {
-    bar: LoadingBar,
-    messages: TextFrames,
-    visibility: VisibilityBundle,
-    transform: TransformBundle,
-}
-
-impl LoadingBarBundle {
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        let config = LoadingBarConfig::from_file(path).expect(
-            "Error reading Loading Bar configuration file!"
-        );
-
-        let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
-
-        let timer_duration: Duration = Duration::from_secs_f32(
-            rng.gen_range(1.0..=2.0)
-        );
-
-        Self {
-            bar: LoadingBar::new(config.prefix, config.final_message, timer_duration),
-            messages: TextFrames::new(config.messages),
-            visibility: VisibilityBundle::default(),
-            transform: TransformBundle::from_transform(
-                Transform::from_xyz(0.0, 0.0, 0.0),
-            ),
-        }
-    }
-
-    pub fn fill(
-        time: Res<Time>,
-        mut loading_query: Query<(&mut Children, &mut LoadingBar, &TextFrames)>,      
-        mut sprite_query: Query<&mut Sprite, With<ProgressIndicator>>,
-        mut text_query: Query<&mut Text, With<LoadingText>>,
-    ) {
-        let mut rng = rand::thread_rng();
-
-        for (children, mut bar, frames) in loading_query.iter_mut() {
-            if bar.timer.tick(time.delta()).just_finished() {
-                bar.index += 1;
-
-                let secs = rng.gen_range(0.5..=2.0) as f32;
-                bar.timer = Timer::new(
-                    Duration::from_secs_f32(secs), 
-                    TimerMode::Once
-                );
-
-                let mut loading_finished = false;
-                // Update sprite (progress indicator)
-                for &child in children.iter() {
-                    if let Ok(mut sprite) = sprite_query.get_mut(child) {
-                        if let Some(custom_size) = &mut sprite.custom_size {
-                            let bar_size_increase = rng.gen_range(5.0..=50.0);
-                            custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
-                            loading_finished = custom_size.x >= 494.0;
-                        }
-                    }   
-                }
-                
-                for &child in children.iter() {
-                    if let Ok(mut text) = text_query.get_mut(child) {
-                        if !frames.frames.is_empty() {
-                            if !loading_finished {
-                                let new_index = bar.index % frames.frames.len();
-                                text.sections[1].value = frames.frames[new_index].clone();
-                            } else {
-                                text.sections[1].value = bar.final_message.clone();
-                            }
-                        }
-                    }
-                }
-            };
-        }
     }
 }
 
@@ -172,16 +199,33 @@ impl Component for LoadingBar {
                             Vec2::new(0.0, 0.0),
                             Vec3::new(0.0, 0.0, 0.0),
                         ));
+
                         
                         parent.spawn((
                             LoadingText,
-                            SpriteFactory::create_text_bundle(
-                                prefix.unwrap_or_default(),
-                                messages[0].clone(), 
-                                12.0, 
-                                Vec3::new(-250.0, 20.0, 0.0)
-                            ),
-                        ));
+                            Text2d::new(prefix.unwrap_or_default()),
+                            TextColor(PRIMARY_COLOR),
+                            TextFont{
+                                font_size : 12.0,
+                                ..default()
+                            },
+                            Transform::from_xyz(-250.0, 20.0, 0.0),
+                            TextLayout{
+                                justify: JustifyText::Center,
+                                ..default()
+                            },
+                            Anchor::CenterLeft,
+                        )).with_children( |parent| {
+                            parent.spawn((
+                                    TextSpan::new(messages[0].clone()),
+                                    TextColor(PRIMARY_COLOR),
+                                    TextFont{
+                                        font_size : 12.0,
+                                        ..default()
+                                    },
+                                )
+                            );
+                        }); 
                         
                         // Create and spawn the sprite box around the loading bar
                         let sprite_box = SpriteBox::create_sprite_box(
@@ -195,17 +239,15 @@ impl Component for LoadingBar {
 
                         parent.spawn((
                             ProgressIndicator,
-                            SpriteBundle {
-                                sprite: Sprite {
-                                    custom_size: Some(Vec2::new(0.0, 14.0)),
-                                    anchor: Anchor::CenterLeft,
-                                    ..default()
-                                },
-                                transform: Transform::from_xyz(
-                                    -247.0, 0.0, 0.0
-                                ),
+                            Sprite {
+                                color: HIGHLIGHT_COLOR,
+                                custom_size: Some(Vec2::new(0.0, 14.0)),
+                                anchor: Anchor::CenterLeft,
                                 ..default()
                             },
+                            Transform::from_xyz(
+                                -247.0, 0.0, 0.0
+                            ),
                         ));
                     });
                 }

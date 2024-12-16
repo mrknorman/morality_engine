@@ -1,13 +1,12 @@
 use bevy::{
     prelude::*, 
 	ecs::component::StorageType,
-    sprite::{
-        MaterialMesh2dBundle,
-        Mesh2dHandle
-    }
+    render::mesh::Mesh2d
 };
 
-use crate::shaders::PulsingMaterial;
+use crate::{
+    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, shaders::PulsingMaterial
+};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GraphSystemsActive {
@@ -24,17 +23,9 @@ impl Plugin for GraphPlugin {
             .add_systems(Update, 
                 activate_systems
             );
-            
-            /* 
-            .add_systems(
-                Update,
-                (
-                    Graph::advance_graph,
-                    Graph::skip_controls,
-                    Graph::play
-                ).run_if(in_state(GraphSystemsActive::True))
-            );
-            */
+
+        app.register_required_components::<Graph, Transform>();
+        app.register_required_components::<Graph, Visibility>();
     }
 }
 
@@ -52,18 +43,6 @@ fn activate_systems(
 #[derive(Component)]
 pub struct GraphNode;
 
-impl GraphNode {
-
-    pub fn pulse(
-        mut node_query: Query<&GraphNode>
-    ) {
-
-        for node in node_query.iter_mut() {
-
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Graph {
     inter_layer_distance : f32,
@@ -79,14 +58,15 @@ impl Graph {
         num_nodes_per_layer : Vec<i32>,
         inter_node_distance : f32,
         node_outer_radius : f32,
-        node_border_thickness : f32
+        node_border_thickness : f32,
+        scale : f32
     ) -> Self {
         Graph {
-            inter_layer_distance,
-            num_nodes_per_layer,
-            inter_node_distance,
-            node_outer_radius,
-            node_border_thickness
+            inter_layer_distance : inter_layer_distance * scale,
+            num_nodes_per_layer : num_nodes_per_layer,
+            inter_node_distance : inter_node_distance * scale,
+            node_outer_radius : node_outer_radius * scale,
+            node_border_thickness : node_border_thickness
         }
     }
 
@@ -103,7 +83,6 @@ impl Graph {
         }).collect()
     }
 
-    // Refactor `spawn_graph_layer` accordingly
     fn spawn_layer(
         parent: &mut ChildBuilder<'_>,
         circle_mesh_handle: &Handle<Mesh>,
@@ -126,21 +105,17 @@ impl Graph {
                 transform.translation.z,
             ));
     
-            parent.spawn(MaterialMesh2dBundle {
-                mesh: Mesh2dHandle(annulus_mesh_handle.clone()),
-                material: outline_material.clone(),
-                transform: node_transform.clone(),
-                ..default()
-            });
-    
+            parent.spawn((
+                Mesh2d(annulus_mesh_handle.clone()),
+                MeshMaterial2d(outline_material.clone()),
+                node_transform.clone()
+            ));
+
             parent.spawn((
                 GraphNode,
-                MaterialMesh2dBundle {
-                    mesh: Mesh2dHandle(circle_mesh_handle.clone()),
-                    material: material_handle.clone(),
-                    transform: node_transform,
-                    ..default()
-                },
+                Mesh2d(circle_mesh_handle.clone()),
+                MeshMaterial2d(material_handle.clone()),
+                node_transform.clone()
             ));
         }
     }
@@ -190,6 +165,16 @@ impl Graph {
 impl Component for Graph {
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
+    fn register_required_components(
+            _component_id: bevy::ecs::component::ComponentId,
+            _components: &mut bevy::ecs::component::Components,
+            _storages: &mut bevy::ecs::storage::Storages,
+            _required_components: &mut bevy::ecs::component::RequiredComponents,
+            _inheritance_depth: u16,
+        ) {
+        
+    }
+
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
@@ -223,9 +208,9 @@ impl Component for Graph {
                         let node_material_vector: Vec<Handle<PulsingMaterial>> = if num_nodes > 0 {
                             (0..num_nodes)
                                 .map(|i| {
-                                    let phase = ((i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU);
+                                    let phase = (i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU;
                                     materials.add(PulsingMaterial {
-                                        color: LinearRgba::new(1.0, 1.0, 1.0, 1.0),
+                                        color: HIGHLIGHT_COLOR.into(),
                                         phase,
                                     })
                                 })
@@ -235,19 +220,15 @@ impl Component for Graph {
                         };
 
                         let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-                        let outline_material  = materials.add(ColorMaterial::from(Color::WHITE));
+                        let outline_material  = materials.add(ColorMaterial::from(PRIMARY_COLOR));
 
-                        // Mutable borrow of `world` ends
                         (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material)
                     };
 
-                    // Step 3: Use commands in a separate scope
                     {
-                        // Mutable borrow of `world` starts
                         let mut commands = world.commands();
 
                         commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-                            // Pass the handles to your spawn function
                             Graph::spawn(
                                 parent,
                                 circle_mesh_handle.clone(),
@@ -257,45 +238,9 @@ impl Component for Graph {
                                 graph
                             );
                         });
-                        // Mutable borrow of `world` ends
                     }
-                    // All mutable borrows of `world` are now non-overlapping
                 }
             },
         );
     }
 }    
-
-#[derive(Bundle)]
-pub struct GraphBundle{
-    graph : Graph,
-    visibility : VisibilityBundle,
-    transform : TransformBundle
-}
-
-impl GraphBundle {
-    pub fn new(
-        inter_layer_distance : f32,
-        num_nodes_per_layer : Vec<i32>,
-        inter_node_distance : f32,
-        node_outer_radius : f32,
-        node_border_thickness : f32,
-        translation : Vec3,
-        scale : f32
-    ) ->  Self {
-
-        GraphBundle {
-            graph : Graph::new(
-                inter_layer_distance*scale,
-                num_nodes_per_layer,
-                inter_node_distance*scale,
-                node_outer_radius*scale,
-                node_border_thickness*scale
-            ),
-            visibility : VisibilityBundle::default(),
-            transform : TransformBundle::from_transform(
-                Transform::from_translation(translation)
-            )
-        }
-    }
-}
