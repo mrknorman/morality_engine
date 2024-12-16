@@ -14,14 +14,14 @@ use bevy::{
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    audio::{continuous_audio, ContinuousAudioPallet}, 
+    audio::{continuous_audio, ContinuousAudioPallet, TransientAudioPallet, TransientAudio}, 
     character::Character, 
     colors::PRIMARY_COLOR, 
     common_ui::NextButton, 
     game_states::{GameState, MainState, StateVector}, 
     graph::GraphPlugin, 
     interaction::{AdvanceDialogue, InputAction}, 
-    text::TextButtonBundle
+    text::TextButton
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -64,7 +64,6 @@ fn activate_systems(
     });
 }
 
-#[derive(Clone)]
 pub struct DialogueLine {
     pub raw_text: String,
     pub hostname: String,
@@ -385,13 +384,24 @@ impl Dialogue {
         commands.entity(dialogue_entity).with_children(|parent| {
             parent.spawn((
                 NextButton,
-                TextButtonBundle::new(
-                    asset_server,
+                TextButton::new(
                     actions,
                     vec![KeyCode::Enter],
                     format!("[{}]", instruction),
-                    NextButton::translation(windows),
                 ),
+                TransientAudioPallet::new(
+                    vec![(
+                        "click".to_string(),
+                        TransientAudio::new(
+                            "sounds/mech_click.ogg", 
+                            asset_server, 
+                            0.1, 
+                            true,
+                            1.0
+                        ),
+                    )]
+                ),
+                NextButton::transform(windows)
             ));
         });
     }

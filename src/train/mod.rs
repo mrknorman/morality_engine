@@ -12,7 +12,11 @@ use serde::Deserialize;
 
 use crate::{
     audio::{
-		AudioPlugin, ContinuousAudioPallet, continuous_audio, TransientAudio, TransientAudioPallet
+		AudioPlugin, 
+		ContinuousAudioPallet, 
+		continuous_audio, 
+		TransientAudio, 
+		TransientAudioPallet
 	}, 
 	interaction::{
 		Clickable, InputAction, InteractionPlugin
@@ -22,8 +26,9 @@ use crate::{
 		Wobble
 	}, 
 	text::{
-		AnimatedTextSpriteBundle, 
-		TextSprite
+		Animated, 
+		TextSprite,
+		TextFrames
 	}
 };
 
@@ -56,12 +61,16 @@ impl Plugin for TrainPlugin {
 		).add_systems(
             Update,
             (
-				AnimatedTextSpriteBundle::animate,
+				Animated::animate_text,
                 Wobble::wobble,
 				Locomotion::locomote,
             )
             .run_if(in_state(TrainSystemsActive::True))
         );
+
+		app.register_required_components::<Train, Transform>();
+        app.register_required_components::<Train, Visibility>();
+
     }
 }
 
@@ -106,108 +115,56 @@ impl TrainType {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component)]
+#[require(Wobble, TextSprite, Text2d, TranslationAnchor)]
 pub struct TrainCarriage;
 
-#[derive(Bundle, Clone)]
-pub struct TrainCarriageBundle{
-	marker : TrainCarriage,
-	anchor : TranslationAnchor,
-	wobble : Wobble,
-	sprite : TextSprite,
-	text : Text2d,
-	transform : Transform,
-}
-
-impl TrainCarriageBundle{
-
+impl TrainCarriage{
 	pub fn new(
 		text : String,
 		translation : Vec3
-	) -> Self {
+	) -> (TrainCarriage, TranslationAnchor, Text2d, Transform) {
 
-		Self {
-			marker : TrainCarriage,
-			anchor : TranslationAnchor::new(
+		(
+			TrainCarriage,
+			TranslationAnchor::new(
 				translation
 			),
-			wobble : Wobble::new(),
-			sprite : TextSprite, 
-			text : Text2d::new(text),
-			transform : Transform::from_translation(translation), 
-			
-		}
+			Text2d::new(text),
+			Transform::from_translation(translation)
+		)
 	}
 }
 
-#[derive(Component, Clone)]
+#[derive(Component)]
+#[require(Animated)]
 pub struct TrainSmoke;
-
-#[derive(Bundle, Clone)]
-pub struct TrainSmokeBundle{
-	marker : TrainSmoke,
-	animation_sprite : AnimatedTextSpriteBundle
-}
-
-impl TrainSmokeBundle {
-
-	pub fn new(
-			frames : Vec<String>, 
-			translation : Vec3
-		) -> Self {
-
-		Self {
-			marker : TrainSmoke,
-			animation_sprite : AnimatedTextSpriteBundle::from_vec(
-				frames.iter().map(
-					|s| s.to_string()
-				).collect(),
-				0.1,
-				Vec3::new(
-					translation.x - 35.0,
-					translation.y + 32.0,
-					translation.z,
-				)
-			)
-		}
-	}
-}
 
 #[derive(Clone)]
 pub struct Train {
-	pub carriages : Vec<TrainCarriageBundle>,
-	pub smoke : TrainSmokeBundle,
+	pub carriages : Vec<String>,
+	pub smoke_frames : Vec<String>,
 	pub horn_audio : Option<TransientAudio>
 }
 
-#[derive(Clone, Bundle)]
-pub struct TrainBundle {
-	train : Train,
-	locomotion : Locomotion,
-	transform : Transform,
-	visibility : Visibility,
-	audio : ContinuousAudioPallet
-}
+impl Train {
 
-impl TrainBundle {
-
-	pub fn new(
+	pub fn init(
 		asset_server: &Res<AssetServer>,
 		train_file_path : &str,
 		translation : Vec3,
 		speed : f32
-	) -> Self {
+	) -> (Train, Locomotion, Transform, ContinuousAudioPallet, ) {
 
 		let train_type = TrainType::load_from_json(
 			train_file_path.to_string()
 		);
 
-		Self { 
-			train: Train::new(asset_server, train_file_path, translation), 
-			locomotion: Locomotion::new(speed), 
-			transform: Transform::from_translation(translation), 
-			visibility: Visibility::default(), 
-			audio: ContinuousAudioPallet::new(
+		(
+			Train::new(asset_server, train_file_path), 
+			Locomotion::new(speed), 
+			Transform::from_translation(translation), 
+			ContinuousAudioPallet::new(
 				vec![(
 					"tracks".to_string(),
 					AudioPlayer::<AudioSource>(asset_server.load(
@@ -219,22 +176,18 @@ impl TrainBundle {
 					}
 				)]
 			)
-		}
+		)
 	}
-}
 
-impl Train {
 	pub fn new (
 			asset_server: &Res<AssetServer>,
-			train_file_path : &str,
-			translation : Vec3
+			train_file_path : &str
 		) -> Train {
 
 		let train_type = TrainType::load_from_json(
 			train_file_path.to_string()
 		);
 		
-		let carriage_text_vector: Vec<String> = train_type.carriages;
 		let smoke_frames: Vec<String> = train_type.smoke.unwrap_or(vec![]);
 		let horn_audio: Option<TransientAudio> = train_type.horn_audio_path.map(
 			|path| {
@@ -246,27 +199,10 @@ impl Train {
 					1.0
 				)
 		});
-		
-		let mut carriages : Vec<TrainCarriageBundle> = vec![];
-		let smoke = TrainSmokeBundle::new(
-			smoke_frames,
-			translation
-		);
 
-		let mut carriage_translation = translation.clone();
-		for carriage_text in carriage_text_vector {
-			carriages.push(
-				TrainCarriageBundle::new(
-					carriage_text,
-					carriage_translation
-				)
-			);
-			carriage_translation.x -= 85.0;
-		}
-		
 		Train {
-			carriages,
-			smoke,
+			carriages : train_type.carriages,
+			smoke_frames,
 			horn_audio
 		}
 	}
@@ -303,12 +239,28 @@ impl Component for Train {
                 if let Some(train) = train {
                     commands.entity(entity).with_children(
 						|parent| {
+
+						let mut carriage_translation = Vec3::default();
                         for carriage in train.carriages {
 							carriage_entities.push(
-								parent.spawn(carriage).id()
+								parent.spawn(				
+								TrainCarriage::new(
+									carriage,
+									carriage_translation
+								)).id()
 							);
+							carriage_translation.x -= 85.0;
 						}
-						parent.spawn(train.smoke);
+						parent.spawn((
+							TrainSmoke,
+							Text2d(train.smoke_frames[0].clone()),
+							TextFrames::new(train.smoke_frames),
+							Transform::from_xyz(
+								-35.0,
+								32.0,
+								1.0
+							)
+						));
                     });
 
 					if let Some(horn_audio) = train.horn_audio{
