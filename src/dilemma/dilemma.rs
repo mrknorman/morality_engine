@@ -13,6 +13,7 @@ use rand::Rng;
 use bevy::{
 	prelude::*, 
 	sprite::Anchor, 
+	ecs::component::StorageType,
 	text::{
 		LineBreak, 
 		TextBounds
@@ -28,10 +29,7 @@ use crate::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
 	}, 
-	train::{
-        Train,
-        STEAM_TRAIN
-    },
+	train::Train,
 	track::Track,
 	person::{
 		PERSON,
@@ -317,7 +315,7 @@ impl DilemmaTimer {
 	}
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct Dilemma {
 	pub index : String,
     pub name : String,
@@ -351,47 +349,6 @@ impl Dilemma {
 
 #[derive(Component)]
 pub struct DilemmaInfoPanel;
-
-#[derive(Bundle)]
-pub struct DilemmaInfoPanelBundle{
-	pub marker : DilemmaInfoPanel,
-	pub text : Text2d,
-	pub font : TextFont,
-	pub layout : TextLayout,
-	pub anchor : Anchor,
-	pub transform : Transform
-}
-
-impl DilemmaInfoPanelBundle {
-	pub fn new(
-		dilemma : &Dilemma
-	) -> Self {
-
-		/* 
-		TextSection::new(
-			dilemma.description.clone(),
-			TextStyle {
-				font_size: 15.0,
-				..default()
-		});
-		*/
-
-		DilemmaInfoPanelBundle {
-			marker : DilemmaInfoPanel,
-			text : Text2d::new(dilemma.name.clone()),
-			font : TextFont{
-				font_size : 60.0,
-				..default()
-			},
-			layout : TextLayout {
-				justify : JustifyText::Left,
-				linebreak  : LineBreak::WordBoundary
-			},
-			anchor :  Anchor::TopCenter,
-			transform : Transform::from_xyz(0.0,300.0, 1.0)
-		}
-	}
-}
 
 #[derive(Component)]
 pub struct DilemmaOptionInfoPanel;
@@ -484,17 +441,13 @@ pub fn end_transition(
 pub fn cleanup_decision(
 		mut commands : Commands,
 		dashboard : ResMut<DilemmaDashboard>,
-		junction : ResMut<TrainJunction>,
 		background_query : Query<Entity, With<BackgroundSprite>>
 	){
-	
 
 	for entity in background_query.iter() {
 		commands.entity(entity).despawn();
 	}
-
 	dashboard.despawn(&mut commands);
-	junction.despawn(&mut commands);
 }
 
 pub fn lever_motion(
@@ -854,166 +807,119 @@ pub struct LeverTrackTransform{
 	pub random : Vec3
 }
 
-#[derive(Resource)]
-pub struct TrainJunction{
-	train : Entity,
-	track : Vec<Entity>
+#[derive(Clone)]
+pub struct Junction{
+	pub dilemma : Dilemma
 }
 
-impl TrainJunction{
+impl Component for Junction {
 
-	pub fn spawn(
-			commands : &mut Commands,
-			asset_server: &Res<AssetServer>,
-			dilemma: &Dilemma
-		) {
+	const STORAGE_TYPE: StorageType = StorageType::Table;
 
-		let final_position = Vec3::new(
-			90.0 * dilemma.countdown_duration_seconds,
-			0.0, 
-			0.0
-		);
+	fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+				// Step 1: Extract components from the pallet
+				let junction: Option<Junction> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Junction>()
+                        .map(|train: &Junction| train.clone())
+                };
 
-		let train: Entity = commands.spawn(
-			Train::init(
-				asset_server,
-				STEAM_TRAIN,
-				Vec3::new(120.0, -10.0, 1.0),
-				0.0
-			)
-		).id();
+				let mut commands = world.commands();
 
-		let color: Color = match dilemma.default_option {
-			None => Color::WHITE,
-			Some(ref option) if *option == 1 => OPTION_1_COLOR,
-			Some(_) =>  OPTION_2_COLOR,
-		};
+				if let Some(junction) = junction {
+					let dilemma = junction.dilemma; 
 
-		let lower_track_y: f32 = -40.0;
-		let upper_track_y: f32 = 60.0;
+					let final_position = Vec3::new(
+						90.0 * dilemma.countdown_duration_seconds,
+						0.0, 
+						0.0
+					);
+			
+					let color: Color = match dilemma.default_option {
+						None => Color::WHITE,
+						Some(ref option) if *option == 1 => OPTION_1_COLOR,
+						Some(_) =>  OPTION_2_COLOR,
+					};
+			
+					let track_y_positions = vec![-40.0, 60.0];
+					let mut track = vec![];
+			
+					let main_track_translation_end: Vec3 = Vec3::new(-2000.0, track_y_positions[0], 0.0);
+					let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
 
-		let main_track_translation_end: Vec3 = Vec3::new(-1700.0, lower_track_y, 0.0);
-		let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-		let main_track : Entity = commands.spawn((
-			Track::new(600),
-			Transform::from_translation(main_track_translation_start),
-			PointToPointTranslation::new(
-				main_track_translation_start, 
-				main_track_translation_end,
-				dilemma.countdown_duration_seconds
-			)
-		)).id();
-
-		let track_1_translation_end: Vec3 = Vec3{x : 1000.0 , y : lower_track_y, z: 0.0};
-		let track_1_translation_start: Vec3= track_1_translation_end + final_position;
-		let track_1 : Entity = commands.spawn((
-			Track::new(300),
-			Transform::from_translation(track_1_translation_start),
-			PointToPointTranslation::new(
-				track_1_translation_start, 
-				track_1_translation_end,
-				dilemma.countdown_duration_seconds
-			),
-			LeverTrackTransform{
-				index : 1, 
-				initial : track_1_translation_end,
-				left : Vec3{x: 0.0, y: 0.0, z: 0.0},
-				right : Vec3{x: 0.0, y: -100.0, z: 0.0},
-				random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-			}		
-		)).id();
-
-		let track_2_translation_end: Vec3 = Vec3{x : 1000.0 , y : upper_track_y, z: 0.0};
-		let track_2_translation_start: Vec3 = track_2_translation_end + final_position;
-		let track_2 : Entity = commands.spawn((
-			Track::new(300),
-			Transform::from_translation(track_2_translation_start),
-			PointToPointTranslation::new(
-				track_2_translation_start, 
-				track_2_translation_end,
-				dilemma.countdown_duration_seconds
-			),
-			LeverTrackTransform{
-				index : 2,
-				initial : track_2_translation_end,
-				left : Vec3{x: 0.0, y: 0.0, z: 0.0},
-				right : Vec3{x: 0.0, y: -100.0, z: 0.0},
-				random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-			}		
-		)).id();
-		
-		let person = String::from(PERSON);
-		for _ in 0..dilemma.options[0].consequences.total_fatalities {
-			let position: Vec3 = Vec3::new(-800.0, 0.0, 0.0);
-			commands.entity(track_1).with_children(|parent| {
-					parent.spawn(
-						(
-							Text2d::new(person.clone()),
-							TextFont{
-								font_size : 12.0,
-								..default()
-							},
-							TextLayout{
-								justify : JustifyText::Left, 
-								linebreak: LineBreak::WordBoundary
-							},
-							Transform::from_translation(position),
-							Anchor::BottomCenter,
-							PersonSprite::new(),
-							BounceAnimation::new(40.0, 60.0)
-						)
-					).with_children(
+					commands.entity(entity).with_children(
 						|parent| {
-							EmoticonSprite::new().spawn_with_parent(parent);
+							track.push(parent.spawn((
+								Track::new(600),
+								Transform::from_translation(main_track_translation_start),
+								PointToPointTranslation::new(
+									main_track_translation_start, 
+									main_track_translation_end,
+									dilemma.countdown_duration_seconds
+								)
+							)).id());
+
+							
+							let person = String::from(PERSON);
+							for (i, y_position)  in track_y_positions.iter().enumerate() {
+								let track_translation_end: Vec3 = Vec3{x : 1240.0 , y : *y_position, z: 0.0};
+								let track_translation_start: Vec3= track_translation_end + final_position;
+								let num_fatalities = dilemma.options[i].consequences.total_fatalities;
+
+								track.push(parent.spawn((
+									Track::new(300),
+									Transform::from_translation(track_translation_start),
+									PointToPointTranslation::new(
+										track_translation_start, 
+										track_translation_end,
+										dilemma.countdown_duration_seconds
+									),
+									LeverTrackTransform{
+										index : 1, 
+										initial : track_translation_end,
+										left : Vec3{x: 0.0, y: 0.0, z: 0.0},
+										right : Vec3{x: 0.0, y: -100.0, z: 0.0},
+										random : Vec3{x: 0.0, y: -50.0, z: 0.0}
+									}		
+								)).with_children(|parent| {
+										for _ in 0..num_fatalities {
+											parent.spawn(
+												(
+													Text2d::new(person.clone()),
+													TextFont{
+														font_size : 12.0,
+														..default()
+													},
+													TextLayout{
+														justify : JustifyText::Left, 
+														linebreak: LineBreak::WordBoundary
+													},
+													Transform::from_xyz(
+														-800.0,
+														0.0,
+														0.0 
+													),
+													Anchor::BottomCenter,
+													PersonSprite::new(),
+													BounceAnimation::new(40.0, 60.0)
+												)
+											).with_children(
+												|parent| {
+													EmoticonSprite::new().spawn_with_parent(parent);
+												}
+											);	
+										}
+									}
+								).id());
+							}
 						}
-					);	
+					);
 				}
-			);
-		}
-	
-		for _ in 0..dilemma.options[1].consequences.total_fatalities {
-			let position: Vec3 = Vec3::new(-800.0, 0.0, 0.0);
-			commands.entity(track_1).with_children(|parent| {
-				parent.spawn(
-					(
-						Text2d::new(person.clone()),
-						TextFont{
-							font_size : 12.0,
-							..default()
-						},
-						TextLayout{
-							justify : JustifyText::Left, 
-							linebreak: LineBreak::WordBoundary
-						},
-						Transform::from_translation(position),
-						Anchor::BottomCenter,
-						PersonSprite::new(),
-						BounceAnimation::new(40.0, 60.0)
-					)
-				).with_children(
-					|parent| {
-						EmoticonSprite::new().spawn_with_parent(parent);
-					}
-				);	
 			}
-		);
-		}
-		
-		let track = vec![main_track, track_1, track_2];
-		let junction: TrainJunction = TrainJunction{
-			train,
-			track
-		};
-
-		commands.insert_resource(junction);
-	}
-
-	pub fn despawn( 
-		&self,
-		commands: &mut Commands
-	) {		
-		for track in self.track.clone() {
-			commands.entity(track).despawn();
-		}
-	}
+        );
+    }
 }
