@@ -8,7 +8,13 @@ use bevy::{
 
 use crate::{
 	audio::{
-		play_sound_once, continuous_audio, one_shot_audio, MusicAudio, NarrationAudio,
+		play_sound_once, 
+		continuous_audio, 
+		one_shot_audio,
+		MusicAudio, 
+		NarrationAudio,
+		TransientAudioPallet,
+		TransientAudio
 	}, 
 	background::{Background, BackgroundPlugin, BackgroundSprite}, 
 	common_ui::NextButton, 
@@ -18,7 +24,7 @@ use crate::{
 		InputAction, InteractionPlugin
 	}, lever::check_level_pull, motion::{
 		Locomotion, PointToPointTranslation
-	}, text::TextButtonBundle, timing::{
+	}, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     }, track::Track, train::Train
 };
@@ -238,8 +244,7 @@ fn spawn_delayed_children(
 				commands.entity(entity).with_children(|parent| {
 					parent.spawn((
 						NextButton,
-						TextButtonBundle::new(
-							&asset_server,
+						TextButton::new(
 							vec![
 								InputAction::PlaySound(String::from("click")),
 								InputAction::ChangeState(next_state_vector),
@@ -247,8 +252,20 @@ fn spawn_delayed_children(
 							],
 							vec![KeyCode::Enter],
 							"[ Click here or Press Enter to Test Your Morality ]",
-							NextButton::translation(&windows)
 						),
+						TransientAudioPallet::new(
+							vec![(
+								"click".to_string(),
+								TransientAudio::new(
+									"sounds/mech_click.ogg", 
+									&asset_server, 
+									0.1, 
+									true,
+									1.0
+								),
+							)]
+						),
+						NextButton::transform(&windows)
 					)); // Capture the entity ID of the spawned child
 				});
             }

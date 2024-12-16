@@ -5,7 +5,15 @@ use bevy::{
 };
 use crate::{
     audio::{
-        continuous_audio, one_shot_audio, ContinuousAudioPallet, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet
+        continuous_audio, 
+        one_shot_audio, 
+        ContinuousAudioPallet, 
+        MusicAudio,
+        NarrationAudio,
+        OneShotAudio, 
+        OneShotAudioPallet,
+        TransientAudioPallet,
+        TransientAudio
     }, common_ui::{
         NextButton,
         NextButtonConfig
@@ -14,7 +22,7 @@ use crate::{
     }, interaction::{
         Clickable, InputAction, InteractionPlugin
     }, io::IOPlugin, text::{
-        TextButtonBundle,
+        TextButton,
         TextFrames 
     }, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
@@ -230,16 +238,27 @@ pub fn spawn_delayed_children(
                         parent.spawn((
                             NextButton,
                             button_messages,
-                            TextButtonBundle::new(
-                                &asset_server,
+                            TextButton::new(
                                 vec![
                                     InputAction::PlaySound(String::from("click")),
                                     InputAction::ChangeState(next_state_vector),
                                 ],
                                 vec![KeyCode::Enter],
-                                first_message,
-                                NextButton::translation(&windows)
+                                first_message
                             ),
+                            TransientAudioPallet::new(
+                                vec![(
+                                    "click".to_string(),
+                                    TransientAudio::new(
+                                        "sounds/mech_click.ogg", 
+                                        &asset_server, 
+                                        0.1, 
+                                        true,
+                                        1.0
+                                    ),
+                                )]
+                            ),
+                            NextButton::transform(&windows)
                         )); // Capture the entity ID of the spawned child
                     });
                 }
@@ -273,7 +292,7 @@ fn update_button_text(
         if update_button_timer.just_finished() {
             let index = update_button_timer.times_finished() as usize;
             if let Some(message) = frames.frames.get(index) {
-                TextButtonBundle::change_text(message, text, clickable);
+                TextButton::change_text(message, text, clickable);
             }
         }
     }
