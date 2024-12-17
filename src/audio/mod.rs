@@ -2,6 +2,7 @@ use std::{
     collections::HashMap, 
     time::Duration
 };
+use rand::prelude::*;
 
 use bevy::{
     asset::AssetPath,
@@ -94,8 +95,7 @@ pub struct TransientAudio {
 
 impl TransientAudio {
     pub fn new(
-        audio_path: impl Into<AssetPath<'static>>,
-        asset_server: &Res<AssetServer>,
+        source: Handle<AudioSource>,
         cooldown_time_seconds: f32,
         persistent : bool,
         volume: f32,
@@ -111,7 +111,7 @@ impl TransientAudio {
             )
         );
         TransientAudio {
-            source: asset_server.load(audio_path),
+            source: source,
             cooldown_timer,
             persistent,
             volume
@@ -225,13 +225,13 @@ impl Component for ContinuousAudioPallet {
 }
 
 pub struct TransientAudioPallet {
-    pub entities: HashMap<String, Entity>,
-    pub components: Vec<(String, TransientAudio)>
+    pub entities: HashMap<String, Vec<Entity>>,
+    pub components: Vec<(String, Vec<TransientAudio>)>
 }
 
 impl TransientAudioPallet {
     pub fn new(
-        components : Vec<(String, TransientAudio)>
+        components : Vec<(String,  Vec<TransientAudio>)>
     ) -> TransientAudioPallet {
         TransientAudioPallet {
             entities : HashMap::new(),
@@ -239,7 +239,7 @@ impl TransientAudioPallet {
         }
     }
 
-    pub fn play_transient_audio(
+    pub fn play(
         commands: &mut Commands,
         entity: Entity,
         transient_audio: &mut TransientAudio
@@ -255,6 +255,32 @@ impl TransientAudioPallet {
             }
 
             transient_audio.cooldown_timer.reset();
+        }
+    }
+    pub fn play_transient_audio(
+        entity: Entity,
+        mut commands: &mut Commands,
+        pallet : &TransientAudioPallet,
+        key : String,
+        audio_query: &mut Query<&mut TransientAudio>
+    ) {
+
+        if let Some(
+            audio_entity
+        ) = pallet.entities.get(&key) {
+
+            let random_sound = audio_entity.choose(&mut thread_rng()).clone();
+            if let Some(random_sound) = random_sound {
+                if let Ok(
+                    mut transient_audio
+                ) = audio_query.get_mut(*random_sound) {
+                    Self::play(
+                        &mut commands,
+                        entity,
+                        &mut transient_audio,
+                    );
+                }
+            }
         }
     }
 
@@ -281,10 +307,15 @@ impl Component for TransientAudioPallet {
                 let mut entities = HashMap::new();
                 
                 if let Some(components) = components {
-                    commands.entity(entity).with_children(|parent| {
-                        for (name, audio_component) in components.iter() {
-                            let child_entity = parent.spawn(audio_component.clone()).id();
-                            entities.insert(name.clone(), child_entity);
+                    commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
+                        for (name, audio_components) in components.iter() {
+                            let mut child_vector = vec![];
+                            for component in audio_components.iter() {
+                                child_vector.push(
+                                    parent.spawn(component.clone()).id()
+                                );
+                            }
+                            entities.insert(name.clone(), child_vector);
                         }
                     });
                 }
@@ -303,14 +334,14 @@ impl Component for TransientAudioPallet {
                     entity_mut.get_mut::<TransientAudioPallet>()
                         .map(|pallet| pallet.entities.clone())
                 };
-        
-                // Step 2: Attempt to despawn each child entity
+                
                 if let Some(entities) = entities {
                     let mut commands = world.commands();
-                    for (_name, child_entity) in entities {
-                        // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
-                        if commands.get_entity(child_entity).is_some() {
-                            commands.entity(child_entity).despawn_recursive();
+                    for (_name, child_entities) in entities {
+                        for child_entity in child_entities {
+                            if commands.get_entity(child_entity).is_some() {
+                                commands.entity(child_entity).despawn_recursive();
+                            }
                         }
                     }
                 }
@@ -403,27 +434,6 @@ impl Component for OneShotAudioPallet {
                             );
                         }
                     } 
-                }
-            }
-        );
-        hooks.on_remove(
-            |mut world, entity, _component_id| {
-                // Step 1: Extract the entity map from the pallet
-                let entities = {
-                    let mut entity_mut = world.entity_mut(entity);
-                    entity_mut.get_mut::<TransientAudioPallet>()
-                        .map(|pallet| pallet.entities.clone())
-                };
-        
-                // Step 2: Attempt to despawn each child entity
-                if let Some(entities) = entities {
-                    let mut commands = world.commands();
-                    for (_name, child_entity) in entities {
-                        // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
-                        if commands.get_entity(child_entity).is_some() {
-                            commands.entity(child_entity).despawn_recursive();
-                        }
-                    }
                 }
             }
         );

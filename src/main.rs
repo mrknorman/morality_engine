@@ -33,6 +33,7 @@ mod sprites;
 mod common_ui;
 mod shaders;
 mod colors;
+mod physics;
 
 use crate::{
     game_states::{

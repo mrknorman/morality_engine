@@ -8,6 +8,7 @@ use bevy::{
 };
 
 use crate::{
+	person::PersonPlugin,
 	audio::{
 		play_sound_once, 
 		continuous_audio, 
@@ -27,7 +28,8 @@ use crate::{
 		Locomotion, PointToPointTranslation
 	}, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
-    }, track::Track, train::{
+    },
+	train::{
         Train,
         STEAM_TRAIN
     }
@@ -37,9 +39,8 @@ mod dilemma;
 use dilemma::{
 	Junction,
 	end_transition,
-	person_check_danger,
-	animate_person,
-	lever_motion,
+	check_if_person_in_path_of_train,
+	switch_junction,
 	update_timer,
 	cleanup_decision,
 	consequence_animation_tick_up,
@@ -78,9 +79,8 @@ impl Plugin for DilemmaPlugin {
                 Update,
                 (
                     check_level_pull,
-                    person_check_danger,
-                    animate_person,
-                    lever_motion,
+                    check_if_person_in_path_of_train,
+                    switch_junction,
                     update_timer
                 )
                     .run_if(in_state(GameState::Dilemma))
@@ -102,6 +102,9 @@ impl Plugin for DilemmaPlugin {
                     .run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
             );
 
+		if !app.is_plugin_added::<PersonPlugin>() {
+			app.add_plugins(PersonPlugin);
+		}
 		if !app.is_plugin_added::<InteractionPlugin>() {
 			app.add_plugins(InteractionPlugin);
 		}
@@ -177,12 +180,27 @@ pub fn setup_dilemma(
 					0.0
 				)
 			);
-			parent.spawn(
-				Junction{
-					dilemma : dilemma.clone()
-				}
+
+			let final_position = Vec3::new(
+				90.0 * dilemma.countdown_duration_seconds,
+				0.0, 
+				0.0
 			);
 
+			let main_track_translation_end: Vec3 = Vec3::new(-0.0, -40.0, 0.0);
+			let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
+
+			parent.spawn((
+				Junction{
+					dilemma : dilemma.clone()
+				},
+				Transform::from_translation(main_track_translation_start),
+				PointToPointTranslation::new(
+					main_track_translation_start, 
+					main_track_translation_end,
+					dilemma.countdown_duration_seconds
+				)
+			));
 		}
 	);
 
@@ -224,6 +242,34 @@ pub fn setup_dilemma_intro(
 			)
 		)
 	);
+}
+
+pub fn setup_dilemma_transition(
+	mut commands : Commands,
+	background_query : Query<&mut BackgroundSprite>,
+	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
+	locomotion_query : Query<&mut Locomotion, With<Train>>,
+	mut junction_query: Query<&mut PointToPointTranslation, With<Junction>>
+) {
+
+	let speed: f32 = -450.0;
+	let decision_position = -45.0 * dilemma.countdown_duration_seconds;
+	let duration_seconds = decision_position/speed;
+	BackgroundSprite::update_speed(background_query,2.0);
+	Train::update_speed(
+		locomotion_query,
+		speed
+	);
+	let transition_timer = TransitionCounter{
+		timer : Timer::from_seconds(duration_seconds, TimerMode::Once)
+	};
+
+	for mut track in junction_query.iter_mut() {
+		track.set_duration(duration_seconds);
+		track.start()
+	}
+
+	commands.insert_resource(transition_timer);
 }
 
 fn spawn_delayed_children(
@@ -284,13 +330,14 @@ fn spawn_delayed_children(
 						TransientAudioPallet::new(
 							vec![(
 								"click".to_string(),
-								TransientAudio::new(
-									"sounds/mech_click.ogg", 
-									&asset_server, 
-									0.1, 
-									true,
-									1.0
-								),
+								vec![
+									TransientAudio::new(
+										asset_server.load("sounds/mech_click.ogg"), 
+										0.1, 
+										true,
+										1.0
+									)
+								]
 							)]
 						),
 						NextButton::transform(&windows)
@@ -303,33 +350,7 @@ fn spawn_delayed_children(
     }
 }
 
-pub fn setup_dilemma_transition(
-	mut commands : Commands,
-	background_query : Query<&mut BackgroundSprite>,
-	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
-	locomotion_query : Query<&mut Locomotion, With<Train>>,
-	mut track_query: Query<&mut PointToPointTranslation, With<Track>>
-) {
 
-	let speed: f32 = -450.0;
-	let decision_position = -45.0 * dilemma.countdown_duration_seconds;
-	let duration_seconds = decision_position/speed;
-	BackgroundSprite::update_speed(background_query,2.0);
-	Train::update_speed(
-		locomotion_query,
-		speed
-	);
-	let transition_timer = TransitionCounter{
-		timer : Timer::from_seconds(duration_seconds, TimerMode::Once)
-	};
-
-	for mut track in track_query.iter_mut() {
-		track.set_duration(duration_seconds);
-		track.start()
-	}
-
-	commands.insert_resource(transition_timer);
-}
 
 pub fn setup_decision(
 		mut commands : Commands,

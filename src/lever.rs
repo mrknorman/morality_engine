@@ -48,11 +48,11 @@ pub enum LeverState{
 }
 
 impl LeverState {
-    pub fn to_int(&self) -> usize {
+    pub fn to_int(&self) -> Option<usize> {
         match self {
-            LeverState::Left => 1,
-            LeverState::Right => 2,
-            LeverState::Random => 0, // Associating Random with None or -1
+            LeverState::Left => Some(0),
+            LeverState::Right => Some(1),
+            LeverState::Random => None, // Associating Random with None or -1
         }
     }
 }

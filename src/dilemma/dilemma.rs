@@ -2,13 +2,13 @@ use std::{
 	fs::File, 
 	io::BufReader, 
 	path::PathBuf, 
-	time::Duration
+	iter::zip
 };
 use serde::{
 	Deserialize, 
 	Serialize
 };
-use rand::Rng;
+
 
 use bevy::{
 	prelude::*, 
@@ -17,35 +17,22 @@ use bevy::{
 	text::{
 		LineBreak, 
 		TextBounds
-	},
-	color::palettes::css::RED
+	}
 };
 
 use crate::{
-	audio::play_sound_once, 
-	lever::{
+	background::BackgroundSprite, game_states::DilemmaPhase, lever::{
 		Lever, 
 		LeverState, 
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
-	}, 
-	train::Train,
-	track::Track,
-	person::{
-		PERSON,
-		PERSON_IN_DANGER,
-		PersonSprite,
-		BounceAnimation,
-		EmoticonSprite,
-		EXCLAIMATION,
-		NEUTRAL
-	},
-	background::BackgroundSprite,
-	motion::{
-		PointToPointTranslation,
-		Locomotion
-	},
-	game_states::DilemmaPhase
+	}, motion::Locomotion, person::{
+		BounceAnimation, Emoticon, PersonSprite,
+	},  track::Track, train::Train, 
+	audio::{
+		TransientAudio, 
+		TransientAudioPallet
+	}
 };
 
 #[derive(Resource)]
@@ -61,7 +48,7 @@ impl DilemmaDashboard {
 			dilemma: &Res<Dilemma>
 		) {
 
-		let timer : Entity  = DilemmaTimer::spawn(
+		let timer : Entity = DilemmaTimer::spawn(
 			commands, 
 			dilemma.countdown_duration_seconds
 		);
@@ -75,7 +62,7 @@ impl DilemmaDashboard {
 
 		let start_state = match dilemma.default_option {
 			None => LeverState::Random,
-			Some(ref option) if *option == 1 => LeverState::Left,
+			Some(ref option) if *option == 0 => LeverState::Left,
 			Some(_) => LeverState::Right,
 		};
 
@@ -450,9 +437,14 @@ pub fn cleanup_decision(
 	dashboard.despawn(&mut commands);
 }
 
-pub fn lever_motion(
+#[derive(Component)]
+pub struct LeverTrackTransform{
+	pub track_y_positions : Vec<f32>
+}
+
+pub fn switch_junction(
 		mut movement_query: Query<(&mut LeverTrackTransform, &mut Transform)>,
-		mut track_query: Query<&mut TextColor, (With<Track>, Without<LeverTrackTransform>)>,
+		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
 		lever: Option<Res<Lever>>,
 		time: Res<Time>,  // Add time resource to manage frame delta time
 	) {
@@ -465,8 +457,8 @@ pub fn lever_motion(
 			lever_transform, 
 			mut transform
 		) in movement_query.iter_mut() {
-			let right_position: Vec3 = lever_transform.initial + lever_transform.right;
-			let left_position: Vec3 = lever_transform.initial + lever_transform.left;
+			let left_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.track_y_positions[0], 1.0);
+			let right_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.track_y_positions[1], 1.0);
 
 			let distance_threshold = 0.01; // Small threshold to determine when to snap to the final position
 			let proportional_speed_factor = 0.1; // Factor to adjust the proportional speed
@@ -504,184 +496,20 @@ pub fn lever_motion(
 	}
 }
 
-pub fn person_check_danger(
-    mut lever_query: Query<(&Children, &LeverTrackTransform)>,
-    mut text_query: Query<&mut PersonSprite>,
-    lever: Option<Res<Lever>>
+pub fn check_if_person_in_path_of_train(
+	mut lever_query: Query<(&Children, &BranchTrack)>,
+	mut text_query: Query<&mut PersonSprite>,
+	lever: Option<Res<Lever>>
 ) {
-
-	if lever.is_some() {
-		
-		let unwrapped_lever: Res<Lever> = lever.unwrap();
-
-		// Iterate through all lever queries
-		for (children, lever_transform) in lever_query.iter_mut() {
-			// Iterate through all children
+	if let Some(lever) = lever {		
+		for (children, track) in lever_query.iter_mut(){
 			for &child in children.iter() {
-				// Safely get the text and person associated with the child
 				if let Ok(mut person) = text_query.get_mut(child) {
-
-					let lever_state: &LeverState = &unwrapped_lever.state;
-
-					if *lever_state != LeverState::Random {
-						person.in_danger = lever_transform.index == unwrapped_lever.state.to_int();
-					}
+					person.in_danger = (Some(track.index) == lever.state.to_int()) && !(lever.state == LeverState::Random);
 				}
 			}
 		}
-	} else {
-		panic!("PersonSprite danger check with non-existant lever!")
 	}
-}
-
-pub fn animate_person(
-    time: Res<Time>,
-    mut query: Query<(&Children, &mut Text2d, &mut TextColor, &mut Transform, &mut PersonSprite, &mut BounceAnimation)>,
-	mut emoticon_query: Query<(&mut EmoticonSprite, &mut Transform, &mut Text2d, &mut TextColor), Without<PersonSprite>>,
-	mut commands : Commands,
-	asset_server: Res<AssetServer>
-) {
-    for (children, mut text, mut color,  mut transform, mut person, mut animation) in query.iter_mut() {
-
-		let emoticon_entity = children.iter().next();
-
-        if person.in_danger {
-
-			if animation.playing {
-
-				if let Some(emoticon_entity) = emoticon_entity {
-					if let Ok(mut query_result) = emoticon_query.get_mut(*emoticon_entity) {
-						
-						let duration_seconds = time.delta().as_millis() as f32 / 1000.0;
-
-						query_result.0.current_size += duration_seconds;
-						let mut transform = query_result.1;
-						let sprite: Mut<'_, EmoticonSprite> = query_result.0;
-						
-						let mut text = query_result.2;
-						let mut color = query_result.3;
-
-						//transform.translation.y += 15.0*duration_seconds;
-						transform.scale = Vec3::new(
-							sprite.current_size.clone(), 
-							sprite.current_size.clone(), 
-							1.0
-						);
-						text.0 = String::from(EXCLAIMATION);
-						color.0 = Color::from(RED);
-					}
-				}
-				
-				text.0 = String::from(PERSON_IN_DANGER);
-				transform.scale = Vec3::new(
-					1.0, 
-					1.0, 
-					1.0
-				);
-				color.0 = Color::from(RED);
-
-				if transform.translation.y >= animation.initial_position.y {
-					let duration_seconds = time.delta().as_millis() as f32 / 1000.0;
-					transform.translation.y += animation.current_velocity * duration_seconds;
-					animation.current_velocity -= 9.81*20.0 * duration_seconds;
-				} else {
-					animation.playing = false;
-					transform.translation.y = animation.initial_position.y;
-					animation.current_velocity = 0.0;
-
-					person.animaton_interval_timer.set_duration(
-						Duration::from_secs_f32(rand::random::<f32>() * 2.0 + 1.0)
-					);
-					person.animaton_interval_timer.reset();
-
-					if let Some(emoticon_entity) = emoticon_entity {
-						if let Ok(mut query_result) = emoticon_query.get_mut(*emoticon_entity) {
-	
-							query_result.0.current_size = query_result.0.initial_size;
-							let sprite = query_result.0;
-							let mut transform = query_result.1;
-							let mut text = query_result.2;
-
-							transform.translation.y = sprite.translation.y;
-							transform.scale = Vec3::new(
-								1.0, 
-								1.0, 
-								1.0
-							);
-							color.0 = Color::from(Color::WHITE);
-							text.0 = String::from(NEUTRAL);
-						}
-					}
-				}
-			
-			} else {
-
-				if let Some(emoticon_entity) = emoticon_entity {
-					if let Ok(mut query_result) = emoticon_query.get_mut(*emoticon_entity) {
-						query_result.0.current_size = query_result.0.initial_size;
-						let sprite = query_result.0;
-						let mut transform: Mut<Transform> = query_result.1;
-						let mut text = query_result.2;
-
-						transform.translation.y = sprite.translation.y;
-						transform.scale = Vec3::new(
-							1.0, 
-							1.0, 
-							1.0
-						);
-						color.0 = Color::from(Color::WHITE);
-						text.0 = String::from(NEUTRAL);
-					}
-				}
-
-				text.0 = String::from(PERSON);
-				transform.scale = Vec3::new(
-					1.0, 
-					1.0, 
-					1.0
-				);
-				let mut rng = rand::thread_rng();
-
-				person.animaton_interval_timer.tick(time.delta());
-				if person.animaton_interval_timer.finished() {
-					animation.playing = true;
-					transform.translation.y = animation.initial_position.y;
-					animation.current_velocity = rng.gen_range(animation.initial_velocity_min..animation.initial_velocity_max);
-
-					play_sound_once("./sounds/male_scream.ogg", &mut commands, &asset_server);
-				}
-			}
-        }
-		else {
-			animation.playing = false;
-			transform.translation.y = animation.initial_position.y;
-			text.0 = String::from(PERSON);
-			transform.scale = Vec3::new(
-				1.0, 
-				1.0, 
-				1.0
-			);
-
-			if let Some(emoticon_entity) = emoticon_entity {
-				if let Ok(mut query_result) = emoticon_query.get_mut(*emoticon_entity) {
-
-					query_result.0.current_size = query_result.0.initial_size;
-					let sprite = query_result.0;
-					let mut transform = query_result.1;
-					let mut text = query_result.2;
-
-					transform.translation.y = sprite.translation.y;
-					transform.scale = Vec3::new(
-						1.0, 
-						1.0, 
-						1.0
-					);
-					color.0 = Color::from(Color::WHITE);
-					text.0 = String::from(NEUTRAL);
-				}
-			}
-		}
-    }
 }
 
 pub fn update_timer(
@@ -799,13 +627,16 @@ pub fn consequence_animation_tick_up(
 }
 
 #[derive(Component)]
-pub struct LeverTrackTransform{
-	pub index : usize,
-	pub initial : Vec3,
-	pub left : Vec3,
-	pub right : Vec3,
-	pub random : Vec3
+pub struct TrunkTrack;
+
+#[derive(Component)]
+pub struct BranchTrack{
+	index : usize
 }
+
+#[derive(Component)]
+#[require(Visibility, Transform)]
+pub struct Turnout;
 
 #[derive(Clone)]
 pub struct Junction{
@@ -821,101 +652,98 @@ impl Component for Junction {
     ) {
         hooks.on_insert(
             |mut world, entity, _component_id| {
-				// Step 1: Extract components from the pallet
 				let junction: Option<Junction> = {
                     let entity_mut = world.entity(entity);
                     entity_mut.get::<Junction>()
                         .map(|train: &Junction| train.clone())
                 };
 
-				let mut commands = world.commands();
+				let asset_server = world.get_resource::<AssetServer>().unwrap();
+				let audio_vector = vec![											
+					TransientAudio::new(
+						asset_server.load("sounds/male_scream_1.ogg"),
+						1.0,
+						false,
+						1.0
+					),
+					TransientAudio::new(
+						asset_server.load("sounds/male_scream_2.ogg"),
+						1.0,
+						false,
+						1.0
+					),
+					TransientAudio::new(
+						asset_server.load("sounds/male_scream_3.ogg"),
+						1.0,
+						false,
+						1.0
+					)
+				];
 
+				let mut commands = world.commands();
 				if let Some(junction) = junction {
 					let dilemma = junction.dilemma; 
 
-					let final_position = Vec3::new(
-						90.0 * dilemma.countdown_duration_seconds,
-						0.0, 
-						0.0
-					);
-			
-					let color: Color = match dilemma.default_option {
-						None => Color::WHITE,
-						Some(ref option) if *option == 1 => OPTION_1_COLOR,
-						Some(_) =>  OPTION_2_COLOR,
+					let track_y_positions = vec![0.0, 100.0];				
+					let (color, initial_y_position) = match dilemma.default_option {
+						None => (Color::WHITE, 50.0),
+						Some(ref option) if *option == 0 => (OPTION_1_COLOR, track_y_positions[*option]),
+						Some(ref option) => (OPTION_2_COLOR, track_y_positions[*option]),
 					};
 			
-					let track_y_positions = vec![-40.0, 60.0];
-					let mut track = vec![];
-			
-					let main_track_translation_end: Vec3 = Vec3::new(-2000.0, track_y_positions[0], 0.0);
-					let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-
+					let mut track_entities = vec![];
 					commands.entity(entity).with_children(
-						|parent| {
-							track.push(parent.spawn((
-								Track::new(600),
-								Transform::from_translation(main_track_translation_start),
-								PointToPointTranslation::new(
-									main_track_translation_start, 
-									main_track_translation_end,
-									dilemma.countdown_duration_seconds
-								)
+						|junction| {
+							track_entities.push(
+								junction.spawn((
+									TrunkTrack,
+									Track::new(600),
+									TextColor(color),
+									Transform::from_xyz(-2000.0, initial_y_position, 1.0)
 							)).id());
 
-							
-							let person = String::from(PERSON);
-							for (i, y_position)  in track_y_positions.iter().enumerate() {
-								let track_translation_end: Vec3 = Vec3{x : 1240.0 , y : *y_position, z: 0.0};
-								let track_translation_start: Vec3= track_translation_end + final_position;
-								let num_fatalities = dilemma.options[i].consequences.total_fatalities;
-
-								track.push(parent.spawn((
-									Track::new(300),
-									Transform::from_translation(track_translation_start),
-									PointToPointTranslation::new(
-										track_translation_start, 
-										track_translation_end,
-										dilemma.countdown_duration_seconds
-									),
-									LeverTrackTransform{
-										index : 1, 
-										initial : track_translation_end,
-										left : Vec3{x: 0.0, y: 0.0, z: 0.0},
-										right : Vec3{x: 0.0, y: -100.0, z: 0.0},
-										random : Vec3{x: 0.0, y: -50.0, z: 0.0}
-									}		
-								)).with_children(|parent| {
-										for _ in 0..num_fatalities {
-											parent.spawn(
-												(
-													Text2d::new(person.clone()),
-													TextFont{
-														font_size : 12.0,
-														..default()
-													},
-													TextLayout{
-														justify : JustifyText::Left, 
-														linebreak: LineBreak::WordBoundary
-													},
-													Transform::from_xyz(
-														-800.0,
-														0.0,
-														0.0 
-													),
-													Anchor::BottomCenter,
-													PersonSprite::new(),
-													BounceAnimation::new(40.0, 60.0)
-												)
-											).with_children(
-												|parent| {
-													EmoticonSprite::new().spawn_with_parent(parent);
-												}
-											);	
+							let turnout_entity = junction.spawn((
+								Turnout,
+								Transform::from_xyz( 1240.0, 0.0, 0.0),
+								LeverTrackTransform{
+									track_y_positions : track_y_positions.clone()
+								}
+							)).with_children( |turnout| {
+								for (branch_index, (option, y_position)) in zip(dilemma.options, track_y_positions.clone()).enumerate() {
+									track_entities.push(turnout.spawn((
+										BranchTrack{index : branch_index},
+										Track::new(300),
+										Transform::from_xyz(0.0, y_position, 0.0)		
+									)).with_children(|track: &mut ChildBuilder<'_>| {
+											for fatality_index in 0..option.consequences.total_fatalities {
+												track.spawn(
+													(
+														PersonSprite::default(),
+														Transform::from_xyz(
+															-1060.0 + fatality_index as f32 * 10.0,
+															0.0,
+															0.0 
+														),
+														TransientAudioPallet::new(
+															vec![
+																("exclamation".to_string(),
+																audio_vector.clone()
+															)]
+														),
+														BounceAnimation::new(40.0, 60.0)
+													)
+												).with_children(
+													|parent| {
+														parent.spawn(Emoticon::default());
+													}
+												);	
+											}
 										}
-									}
-								).id());
-							}
+									).id());
+								}
+							}).id();
+
+							track_entities.push(turnout_entity);
 						}
 					);
 				}

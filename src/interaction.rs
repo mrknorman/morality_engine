@@ -73,7 +73,7 @@ fn activate_systems(
 }
 
 #[derive(Event)]
-pub struct AdvanceDialogue (u64);
+pub struct AdvanceDialogue;
 
 #[derive(Component, Clone)]
 pub struct Clickable {
@@ -245,7 +245,7 @@ fn trigger_audio(
         entity: Entity,
         handler: &mut T,
         pallet: &TransientAudioPallet,
-        mut commands: &mut Commands,
+        commands: &mut Commands,
         audio_query: &mut Query<&mut TransientAudio>,
     ) {
 
@@ -253,20 +253,13 @@ fn trigger_audio(
             let actions = handler.clone_actions();
             for action in actions {
                 if let InputAction::PlaySound(key) = action {
-                    if let Some(
-                        &audio_entity
-                    ) = pallet.entities.get(&key) {
-                        if let Ok(
-                            mut transient_audio
-                        ) = audio_query.get_mut(audio_entity) {
-                            TransientAudioPallet::play_transient_audio(
-                                &mut commands,
-                                entity,
-                                &mut transient_audio,
-                            );
-                        }
-                    }
-
+                    TransientAudioPallet::play_transient_audio(
+                        entity,
+                        commands,
+                        pallet,
+                        key,
+                        audio_query
+                    );
                     handler.increment();
                 }
             }
@@ -418,15 +411,8 @@ fn trigger_advance_dialogue(
         if handler.is_triggered() {
             let actions = handler.clone_actions();
             for action in actions {
-                if let InputAction::AdvanceDialogue(ref text) = action {
-                    // Compute the hash of the input string
-                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                    text.hash(&mut hasher);
-                    let hash = hasher.finish();
-
-                    // Send the AdvancedDialogue event with the hash
-                    event_writer.send(AdvanceDialogue(hash));
-
+                if let InputAction::AdvanceDialogue(ref _text) = action {
+                    event_writer.send(AdvanceDialogue);
                     handler.increment();
                 }
             }
