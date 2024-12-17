@@ -392,13 +392,14 @@ impl Dialogue {
                 TransientAudioPallet::new(
                     vec![(
                         "click".to_string(),
-                        TransientAudio::new(
-                            "sounds/mech_click.ogg", 
-                            asset_server, 
-                            0.1, 
-                            true,
-                            1.0
-                        ),
+                        vec![
+                            TransientAudio::new(
+                                asset_server.load("sounds/mech_click.ogg"), 
+                                0.1, 
+                                true,
+                                1.0
+                            )
+                        ],
                     )]
                 ),
                 NextButton::transform(windows)

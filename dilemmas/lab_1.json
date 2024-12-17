@@ -2,7 +2,7 @@
     "index" : "1",
     "name": "An Incompetent Bandit",
     "description" : "A very incompetent bandit has tied someone to the tracks up ahead just beyond a railway junction. Currently, the junction is set so that the train will pass on the opposite track, leaving them unharmed. Should you do nothing, no harm will arise.",
-    "default_option" : 1,
+    "default_option" : 0,
     "countdown_duration_seconds" : 15,
     "options": [
       {

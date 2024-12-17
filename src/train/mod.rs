@@ -75,13 +75,13 @@ impl Plugin for TrainPlugin {
 }
 
 fn activate_systems(
-	mut interaction_state: ResMut<NextState<TrainSystemsActive>>,
+	mut train_state: ResMut<NextState<TrainSystemsActive>>,
 	train_query: Query<&Train>
 ) {
 	if !train_query.is_empty() {
-		interaction_state.set(TrainSystemsActive::True)
+		train_state.set(TrainSystemsActive::True)
 	} else {
-		interaction_state.set(TrainSystemsActive::False)
+		train_state.set(TrainSystemsActive::False)
 	}
 }
 
@@ -192,8 +192,7 @@ impl Train {
 		let horn_audio: Option<TransientAudio> = train_type.horn_audio_path.map(
 			|path| {
 				TransientAudio::new(
-					path, 
-					asset_server, 
+					asset_server.load(path), 
 					2.0, 
 					false, 
 					1.0
@@ -280,7 +279,7 @@ impl Component for Train {
 							TransientAudioPallet::new(
 								vec![(
 									"horn".to_string(),
-									horn_audio,
+									vec![horn_audio],
 								)]
 							))
 						);
