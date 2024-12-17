@@ -61,9 +61,7 @@ impl Plugin for TrainPlugin {
 		).add_systems(
             Update,
             (
-				Animated::animate_text,
-                Wobble::wobble,
-				Locomotion::locomote,
+				Animated::animate_text
             )
             .run_if(in_state(TrainSystemsActive::True))
         );

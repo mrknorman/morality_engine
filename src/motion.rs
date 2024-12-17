@@ -1,7 +1,57 @@
 use bevy::prelude::*;
 
+use crate::physics::{
+    Velocity,
+    Gravity,
+    PhysicsPlugin
+};
+
 use rand::Rng;
 use std::time::Duration;
+
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MotionSystemsActive {
+    #[default]
+	False,
+    True
+}
+
+pub struct MotionPlugin;
+
+impl Plugin for MotionPlugin {
+    fn build(&self, app: &mut App) {	
+		app
+		.init_state::<MotionSystemsActive>()
+		.add_systems(
+			Update,
+			activate_systems
+		).add_systems(
+            Update,
+            (
+				Wobble::wobble,
+				Bouncy::bounce,
+				Locomotion::locomote,
+                PointToPointTranslation::translate
+            )
+            .run_if(in_state(MotionSystemsActive::True))
+        );
+
+		if !app.is_plugin_added::<PhysicsPlugin>() {
+			app.add_plugins(PhysicsPlugin);
+		}
+    }
+}
+
+fn activate_systems(
+	mut state: ResMut<NextState<MotionSystemsActive>>,
+	query: Query<(Option<&Bouncy>, Option<&Wobble>, Option<&Locomotion>, Option<&PointToPointTranslation>)>
+) {
+	if !query.is_empty() {
+		state.set(MotionSystemsActive::True)
+	} else {
+		state.set(MotionSystemsActive::False)
+	}
+}
 
 #[derive(Component)]
 pub struct PointToPointTranslation {
@@ -46,30 +96,31 @@ impl PointToPointTranslation {
             panic!("Cannot end motion that has not started!");
         }
     }
-}
 
-pub fn point_to_point_translations(
+    pub fn translate(
         time: Res<Time>, 
         mut query: Query<(&mut PointToPointTranslation, &mut Transform)>
     ) {
-
-    for (mut motion, mut transform) in query.iter_mut() {
-        if motion.has_started && !motion.has_finished {
-            let direction = (motion.end - motion.start).normalize();
-            let distance_to_travel = motion.speed * time.delta_secs();
-            let current_position = transform.translation;
-            
-            let distance_to_end = (motion.end - current_position).length();
-            
-            if distance_to_travel >= distance_to_end {
-                transform.translation = motion.end;
-                motion.has_finished = true;
-            } else {
-                transform.translation += direction * distance_to_travel;
+        for (mut motion, mut transform) in query.iter_mut() {
+            if motion.has_started && !motion.has_finished {
+                let direction = (motion.end - motion.start).normalize();
+                let distance_to_travel = motion.speed * time.delta_secs();
+                let current_position = transform.translation;
+                
+                let distance_to_end = (motion.end - current_position).length();
+                
+                if distance_to_travel >= distance_to_end {
+                    transform.translation = motion.end;
+                    motion.has_finished = true;
+                } else {
+                    transform.translation += direction * distance_to_travel;
+                }
             }
         }
     }
 }
+
+
 
 #[derive(Component, Clone)]
 pub struct TranslationAnchor{
@@ -130,6 +181,81 @@ impl Wobble {
 				// Apply the calculated offsets to the child's position
 				transform.translation.x = translation_anchor.translation.x + dx as f32;
 				transform.translation.y = translation_anchor.translation.y + dy as f32;
+			}
+		}
+	}
+}
+
+#[derive(Component)]
+pub struct Bouncy {
+	pub bouncing : bool,
+	pub is_mid_bounce : bool,
+	pub initial_velocity_min : f32,
+	pub initial_velocity_max : f32,
+	pub interval_min : f32,
+	pub interval_max : f32,
+	pub timer : Timer
+}
+
+impl Bouncy {
+	pub fn new(
+		initial_velocity_min : f32,
+		initial_velocity_max : f32,
+		interval_min : f32,
+		interval_max : f32
+	) -> Bouncy {
+
+		Bouncy {
+			bouncing : false,
+			is_mid_bounce : false,
+			initial_velocity_min,
+			initial_velocity_max,
+			interval_min,
+			interval_max,
+			timer : Timer::from_seconds(
+				rand::random::<f32>() + 0.5,
+				TimerMode::Repeating
+			) 
+		}
+	}
+
+    pub fn bounce(
+		time: Res<Time>,
+		mut query: Query<(
+			&mut Bouncy,
+			&mut Velocity,
+			&Gravity
+		)>
+	) {
+		let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
+		for (mut bounce, mut velocity, gravity) in query.iter_mut() {
+
+			if bounce.is_mid_bounce || !bounce.bouncing {
+				bounce.timer.pause();
+			} else {
+				bounce.timer.unpause();
+			}
+
+			bounce.timer.tick(time.delta());
+
+			if bounce.is_mid_bounce {
+				let interval_max = bounce.interval_max;
+				let interval_min  = bounce.interval_min;
+
+				if !gravity.is_falling {
+					bounce.is_mid_bounce = false;
+					bounce.timer.set_duration(
+						Duration::from_secs_f32(rand::random::<f32>()
+						* (interval_max - interval_min) 
+						+ interval_min)
+					);
+					bounce.timer.reset();
+				}
+			} else {
+				if bounce.timer.just_finished() && !gravity.is_falling && bounce.bouncing {
+					bounce.is_mid_bounce = true;
+					velocity.0 = Vec3::new(0.0, rng.gen_range(bounce.initial_velocity_min..bounce.initial_velocity_max), 0.0);
+				}
 			}
 		}
 	}

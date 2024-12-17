@@ -64,15 +64,15 @@ impl Plugin for GamePlugin {
             .enable_state_scoped_entities::<GameState>()
             .enable_state_scoped_entities::<DilemmaPhase>()
             .add_systems(Startup, setup)
-            .add_systems(Update, (
-                shortcuts::close_on_esc, 
-                motion::point_to_point_translations
-            ))
+            .add_systems(Update, 
+                shortcuts::close_on_esc
+            )
             .add_plugins(common_ui::CommonUIPlugin)
             .add_plugins(menu::MenuScreenPlugin)
             .add_plugins(loading::LoadingScreenPlugin)
             .add_plugins(dialogue::DialogueScreenPlugin)
             .add_plugins(dilemma::DilemmaPlugin)
+            .add_plugins(motion::MotionPlugin)
             ;
     }
 }
