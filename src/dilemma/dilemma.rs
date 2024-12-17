@@ -405,27 +405,6 @@ pub struct TransitionCounter{
 	pub timer : Timer
 }
 
-pub fn end_transition(
-	time : Res<Time>,
-	mut counter: ResMut<TransitionCounter>,
-	mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
-	locomotion_query : Query<&mut Locomotion, With<Train>>,
-	background_query : Query<&mut BackgroundSprite>
-) {
-
-	if counter.timer.tick(time.delta()).just_finished() {
-		next_sub_state.set(
-			DilemmaPhase::Decision
-		);
-
-		Train::update_speed(
-			locomotion_query, 
-			50.0
-		);
-		BackgroundSprite::update_speed(background_query,0.0);
-	}
-}
-
 pub fn cleanup_decision(
 		mut commands : Commands,
 		dashboard : ResMut<DilemmaDashboard>,

@@ -81,7 +81,6 @@ impl Gravity{
                     gravity.is_falling = true;
                     velocity.0 += gravity.acceleration*duration_seconds;
                 } else if gravity.is_falling && transform.translation.y < floor_level {
-                    //println!("Not falling!");
                     gravity.is_falling = false;
                     transform.translation.y = floor_level;
                     velocity.0 = Vec3::ZERO;
