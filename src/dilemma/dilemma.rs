@@ -2,7 +2,8 @@ use std::{
 	fs::File, 
 	io::BufReader, 
 	path::PathBuf, 
-	iter::zip
+	iter::zip,
+	time::Duration
 };
 use serde::{
 	Deserialize, 
@@ -50,7 +51,7 @@ impl DilemmaDashboard {
 
 		let timer : Entity = DilemmaTimer::spawn(
 			commands, 
-			dilemma.countdown_duration_seconds
+			dilemma.countdown_duration.as_secs_f32()
 		);
 
 		let mut info : Vec<Entity> = vec![];
@@ -307,7 +308,7 @@ pub struct Dilemma {
 	pub index : String,
     pub name : String,
     pub description : String,
-    pub countdown_duration_seconds : f32,
+    pub countdown_duration : Duration,
     pub options : Vec<DilemmaOption>,
     pub default_option : Option<usize>,
 }
@@ -327,7 +328,7 @@ impl Dilemma {
 			index : loaded_dilemma.index,
 			name : loaded_dilemma.name,
 			description : loaded_dilemma.description,
-			countdown_duration_seconds : loaded_dilemma.countdown_duration_seconds,
+			countdown_duration : Duration::from_secs_f32(loaded_dilemma.countdown_duration_seconds),
 			options,
 			default_option : loaded_dilemma.default_option
 		}

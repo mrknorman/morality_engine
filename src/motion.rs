@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{image::TranscodeFormat, prelude::*};
 
 use crate::physics::{
     Velocity,
@@ -55,69 +55,47 @@ fn activate_systems(
 
 #[derive(Component)]
 pub struct PointToPointTranslation {
-    start: Vec3,
-    end: Vec3,
-    speed: f32,
-    has_started: bool,
-    has_finished: bool
+    initial_position: Vec3,
+    final_position: Vec3,
+	timer : Timer
 }
 
 impl PointToPointTranslation {
-    pub fn new(start: Vec3, end: Vec3, duration_seconds: f32) -> PointToPointTranslation {
-        let distance: f32 = (end - start).length();
-        let speed: f32 = distance / duration_seconds;
+    pub fn new(initial_position: Vec3, final_position: Vec3, duration: Duration) -> PointToPointTranslation {
+		let mut translation = PointToPointTranslation {
+			initial_position,
+			final_position,
+			timer : Timer::new(
+				duration,
+				TimerMode::Once
+			)
+		};
 
-        PointToPointTranslation {
-            start,
-            end,
-            speed,
-            has_started: false,
-            has_finished: false,
-        }
-    }
+		translation.timer.pause();
+		translation
+	}
 
-    pub fn set_duration(
-            &mut self, 
-            new_duration_seconds : f32
-        ) {
+	pub fn translate(
+		time: Res<Time>, 
+		mut query: Query<(&mut PointToPointTranslation, &mut Transform)>
+	) {
+		for (mut motion, mut transform) in query.iter_mut() {
 
-        let distance: f32 = (self.end - self.start).length();
-        self.speed =  distance / new_duration_seconds;
-    }
+			motion.timer.tick(time.delta());
 
-    pub fn start(&mut self) {
-        self.has_started = true;
-    }
-    
-    pub fn end(&mut self) {
-        if self.has_started {
-            self.has_finished = true;
-        } else {
-            panic!("Cannot end motion that has not started!");
-        }
-    }
+			if !motion.timer.paused() {
 
-    pub fn translate(
-        time: Res<Time>, 
-        mut query: Query<(&mut PointToPointTranslation, &mut Transform)>
-    ) {
-        for (mut motion, mut transform) in query.iter_mut() {
-            if motion.has_started && !motion.has_finished {
-                let direction = (motion.end - motion.start).normalize();
-                let distance_to_travel = motion.speed * time.delta_secs();
-                let current_position = transform.translation;
-                
-                let distance_to_end = (motion.end - current_position).length();
-                
-                if distance_to_travel >= distance_to_end {
-                    transform.translation = motion.end;
-                    motion.has_finished = true;
-                } else {
-                    transform.translation += direction * distance_to_travel;
-                }
-            }
-        }
-    }
+				let fraction_complete = motion.timer.fraction();
+				let difference = motion.final_position - motion.initial_position;
+
+				transform.translation = motion.initial_position + difference*fraction_complete;
+			}
+		}
+	}
+
+	pub fn start(&mut self) {
+		self.timer.unpause();
+	}
 }
 
 

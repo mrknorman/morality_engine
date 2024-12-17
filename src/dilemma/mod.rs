@@ -1,5 +1,8 @@
 
-use std::path::PathBuf;
+use std::{
+	path::PathBuf,
+	time::Duration
+};
 
 use bevy::{
 	prelude::*,
@@ -172,34 +175,46 @@ pub fn setup_dilemma(
 				Anchor::TopCenter,
 				Transform::from_xyz(0.0,300.0, 1.0)
 			));	
-			parent.spawn(
+
+			let speed: f32 = -450.0;
+			let decision_position = -50.0 * dilemma.countdown_duration.as_secs_f32();
+			let transition_duration = Duration::from_secs_f32(decision_position/speed);
+			let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
+			let train_x_displacement = Vec3::new(-50.0 * dilemma.countdown_duration.as_secs_f32(), 0.0, 0.0);
+
+			parent.spawn((
 				Train::init(
 					&asset_server,
 					STEAM_TRAIN,
-					Vec3::new(120.0, -10.0, 1.0),
+					train_initial_position,
 					0.0
+				),
+				PointToPointTranslation::new(
+					train_initial_position, 
+					train_initial_position + train_x_displacement,
+					transition_duration
 				)
-			);
+			));
 
 			let final_position = Vec3::new(
-				90.0 * dilemma.countdown_duration_seconds,
+				100.0 * dilemma.countdown_duration.as_secs_f32(),
 				0.0, 
 				0.0
 			);
 
-			let main_track_translation_end: Vec3 = Vec3::new(-0.0, -40.0, 0.0);
+			let main_track_translation_end: Vec3 = Vec3::new(0.0, -40.0, 0.0);
 			let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
 
 			parent.spawn((
 				Junction{
 					dilemma : dilemma.clone()
 				},
-				Transform::from_translation(main_track_translation_start),
 				PointToPointTranslation::new(
 					main_track_translation_start, 
 					main_track_translation_end,
-					dilemma.countdown_duration_seconds
-				)
+					transition_duration
+				),
+				Transform::from_translation(main_track_translation_start),
 			));
 		}
 	);
@@ -248,24 +263,24 @@ pub fn setup_dilemma_transition(
 	mut commands : Commands,
 	background_query : Query<&mut BackgroundSprite>,
 	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
-	locomotion_query : Query<&mut Locomotion, With<Train>>,
-	mut junction_query: Query<&mut PointToPointTranslation, With<Junction>>
+	mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+	mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>
 ) {
 
 	let speed: f32 = -450.0;
-	let decision_position = -45.0 * dilemma.countdown_duration_seconds;
+	let decision_position = -50.0 * dilemma.countdown_duration.as_secs_f32();
 	let duration_seconds = decision_position/speed;
 	BackgroundSprite::update_speed(background_query,2.0);
-	Train::update_speed(
-		locomotion_query,
-		speed
-	);
-	let transition_timer = TransitionCounter{
+
+	let transition_timer: TransitionCounter = TransitionCounter{
 		timer : Timer::from_seconds(duration_seconds, TimerMode::Once)
 	};
 
+	for mut train in train_query.iter_mut() {
+		train.start()
+	}
+
 	for mut track in junction_query.iter_mut() {
-		track.set_duration(duration_seconds);
 		track.start()
 	}
 
