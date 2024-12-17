@@ -27,7 +27,7 @@ use crate::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
 	}, motion::Locomotion, person::{
-		BounceAnimation, Emoticon, PersonSprite,
+		Bounce, Emoticon, PersonSprite,
 	},  track::Track, train::Train, 
 	audio::{
 		TransientAudio, 
@@ -730,7 +730,12 @@ impl Component for Junction {
 																audio_vector.clone()
 															)]
 														),
-														BounceAnimation::new(40.0, 60.0)
+														Bounce::new(
+															40.0, 
+															60.0,
+															1.0,
+															2.0
+														)
 													)
 												).with_children(
 													|parent| {
