@@ -26,8 +26,8 @@ use crate::{
 		LeverState, 
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
-	}, motion::Locomotion, person::{
-		Bounce, Emoticon, PersonSprite,
+	}, motion::{Locomotion, Bouncy}, person::{
+		Emoticon, PersonSprite,
 	},  track::Track, train::Train, 
 	audio::{
 		TransientAudio, 
@@ -730,7 +730,7 @@ impl Component for Junction {
 																audio_vector.clone()
 															)]
 														),
-														Bounce::new(
+														Bouncy::new(
 															40.0, 
 															60.0,
 															1.0,
