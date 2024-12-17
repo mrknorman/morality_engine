@@ -1,4 +1,4 @@
-use bevy::{image::TranscodeFormat, prelude::*};
+use bevy::prelude::*;
 
 use crate::physics::{
     Velocity,
@@ -55,9 +55,9 @@ fn activate_systems(
 
 #[derive(Component)]
 pub struct PointToPointTranslation {
-    initial_position: Vec3,
-    final_position: Vec3,
-	timer : Timer
+    pub initial_position: Vec3,
+    pub final_position: Vec3,
+	pub timer : Timer
 }
 
 impl PointToPointTranslation {
@@ -83,11 +83,10 @@ impl PointToPointTranslation {
 
 			motion.timer.tick(time.delta());
 
-			if !motion.timer.paused() {
+			if !motion.timer.paused() && !motion.timer.finished() {
 
 				let fraction_complete = motion.timer.fraction();
 				let difference = motion.final_position - motion.initial_position;
-
 				transform.translation = motion.initial_position + difference*fraction_complete;
 			}
 		}
@@ -97,7 +96,6 @@ impl PointToPointTranslation {
 		self.timer.unpause();
 	}
 }
-
 
 
 #[derive(Component, Clone)]
@@ -114,7 +112,6 @@ impl Default for TranslationAnchor {
 }
 
 impl TranslationAnchor {
-
 	pub fn new(translation : Vec3) -> TranslationAnchor {
 		TranslationAnchor {
 			translation
@@ -192,8 +189,8 @@ impl Bouncy {
 			interval_max,
 			timer : Timer::from_seconds(
 				rand::random::<f32>() + 0.5,
-				TimerMode::Repeating
-			) 
+				TimerMode::Once
+			)
 		}
 	}
 
@@ -215,26 +212,26 @@ impl Bouncy {
 			}
 
 			bounce.timer.tick(time.delta());
+			if bounce.is_mid_bounce && !gravity.is_falling {
+				let new_duration_seconds = rand::random::<f32>()
+				* (bounce.interval_max - bounce.interval_min) 
+				+ bounce.interval_min;
 
-			if bounce.is_mid_bounce {
-				let interval_max = bounce.interval_max;
-				let interval_min  = bounce.interval_min;
-
-				if !gravity.is_falling {
-					bounce.is_mid_bounce = false;
-					bounce.timer.set_duration(
-						Duration::from_secs_f32(rand::random::<f32>()
-						* (interval_max - interval_min) 
-						+ interval_min)
-					);
-					bounce.timer.reset();
-				}
-			} else {
-				if bounce.timer.just_finished() && !gravity.is_falling && bounce.bouncing {
-					bounce.is_mid_bounce = true;
-					velocity.0 = Vec3::new(0.0, rng.gen_range(bounce.initial_velocity_min..bounce.initial_velocity_max), 0.0);
-				}
+				bounce.timer.set_duration(
+					Duration::from_secs_f32(new_duration_seconds)
+				);
+				bounce.timer.reset();
+			} else if bounce.timer.just_finished() && !gravity.is_falling && bounce.bouncing {
+				velocity.0 = Vec3::new(
+					0.0, 
+					rng.gen_range(
+						bounce.initial_velocity_min..bounce.initial_velocity_max
+					), 
+					0.0
+				);
 			}
+
+			bounce.is_mid_bounce = bounce.timer.finished() && gravity.is_falling;
 		}
 	}
 }

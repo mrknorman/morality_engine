@@ -27,9 +27,8 @@ use crate::{
 		DilemmaPhase, GameState, MainState, StateVector
 	}, interaction::{
 		InputAction, InteractionPlugin
-	}, lever::check_level_pull, motion::{
-		Locomotion, PointToPointTranslation
-	}, text::TextButton, timing::{
+	}, lever::check_level_pull, motion::PointToPointTranslation, text::TextButton, 
+	timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     },
 	train::{
@@ -41,7 +40,6 @@ use crate::{
 mod dilemma;
 use dilemma::{
 	Junction,
-	end_transition,
 	check_if_person_in_path_of_train,
 	switch_junction,
 	update_timer,
@@ -51,7 +49,6 @@ use dilemma::{
 	Dilemma,
 	DramaticPauseTimer,
 	DilemmaInfoPanel,
-	TransitionCounter,
 	DilemmaDashboard
 };
 pub struct DilemmaPlugin;
@@ -71,7 +68,7 @@ impl Plugin for DilemmaPlugin {
             ).add_systems(OnEnter(DilemmaPhase::IntroDecisionTransition), setup_dilemma_transition)
             .add_systems(
                 Update,
-                (end_transition)
+                (end_dilemma_transition)
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
             ).add_systems(
@@ -176,8 +173,8 @@ pub fn setup_dilemma(
 				Transform::from_xyz(0.0,300.0, 1.0)
 			));	
 
-			let speed: f32 = -450.0;
-			let decision_position = -50.0 * dilemma.countdown_duration.as_secs_f32();
+			let speed: f32 = -500.0;
+			let decision_position = -100.0 * dilemma.countdown_duration.as_secs_f32();
 			let transition_duration = Duration::from_secs_f32(decision_position/speed);
 			let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
 			let train_x_displacement = Vec3::new(-50.0 * dilemma.countdown_duration.as_secs_f32(), 0.0, 0.0);
@@ -260,31 +257,50 @@ pub fn setup_dilemma_intro(
 }
 
 pub fn setup_dilemma_transition(
-	mut commands : Commands,
 	background_query : Query<&mut BackgroundSprite>,
-	dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
 	mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
 	mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>
 ) {
-
-	let speed: f32 = -450.0;
-	let decision_position = -50.0 * dilemma.countdown_duration.as_secs_f32();
-	let duration_seconds = decision_position/speed;
 	BackgroundSprite::update_speed(background_query,2.0);
-
-	let transition_timer: TransitionCounter = TransitionCounter{
-		timer : Timer::from_seconds(duration_seconds, TimerMode::Once)
-	};
-
 	for mut train in train_query.iter_mut() {
 		train.start()
 	}
-
 	for mut track in junction_query.iter_mut() {
 		track.start()
 	}
+}
 
-	commands.insert_resource(transition_timer);
+pub fn end_dilemma_transition(
+		dilemma: Res<Dilemma>,
+		mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
+		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
+		background_query : Query<&mut BackgroundSprite>
+	) {
+	
+	let mut all_transitions_finished = true;
+	for translation in train_query.iter_mut() {
+		all_transitions_finished &= translation.timer.finished();
+	}
+	for translation in junction_query.iter_mut() {
+		all_transitions_finished &= translation.timer.finished();
+	}
+	
+	if all_transitions_finished {
+		BackgroundSprite::update_speed(background_query,0.0);
+		next_sub_state.set(
+			DilemmaPhase::Decision
+		);
+
+		for mut translation in train_query.iter_mut() {
+			translation.initial_position = translation.final_position;
+			translation.final_position = Vec3::new(0.0, 0.0, 0.0);
+			translation.timer = Timer::new(
+				dilemma.countdown_duration,
+				TimerMode::Once
+			);
+		}
+	}
 }
 
 fn spawn_delayed_children(
@@ -364,8 +380,6 @@ fn spawn_delayed_children(
         }
     }
 }
-
-
 
 pub fn setup_decision(
 		mut commands : Commands,
