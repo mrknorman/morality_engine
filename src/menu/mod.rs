@@ -1,5 +1,5 @@
 use bevy::{
-    audio::Volume, color, prelude::*
+    audio::Volume, prelude::*
 };
 
 use crate::{
@@ -141,10 +141,6 @@ fn setup_menu(
                     0.0
                 )
             );
-            parent.spawn((
-                Track::new(50),
-                Transform::from_translation(track_translation)
-            ));
 
             parent.spawn(
                 (

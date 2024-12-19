@@ -152,7 +152,7 @@ pub fn setup_dilemma(
 			);
 
 			parent.spawn((
-				AsciiString(format!("DILEMMA {}:", dilemma.index)),
+				AsciiString(format!("DILEMMA {}", dilemma.index)),
 				Transform::from_xyz(-300.0,300.0, 1.0)
 			));
 

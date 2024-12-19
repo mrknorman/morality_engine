@@ -160,20 +160,21 @@ impl BackgroundSprite {
 	) {
 
 		let window: &Window = windows.get_single().unwrap();
-		let screen_height = window.height();
+		let screen_height = window.height()/2.0;
 
 		let time_seconds: f32 = time.delta().as_secs_f32(); // Current time in seconds
 		let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
+		let random_offset = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
 
 		for (parent, mut transform) in background_query.iter_mut() {
 			if let Ok(master) = parent_query.get(parent.get()) {
 
 				let y : f32 = transform.translation.y;
 
-				transform.translation.x -= (screen_height/2.0 - y).max(0.0) * master.speed*time_seconds;
+				transform.translation.x -= (screen_height - y).max(0.0) * master.speed*time_seconds;
 
 				if transform.translation.x <= -2000.0 {
-					transform.translation.x = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
+					transform.translation.x = random_offset;
 				}
 			}
 		}
