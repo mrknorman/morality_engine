@@ -162,6 +162,7 @@ impl Wobble {
 }
 
 #[derive(Component)]
+#[require(Gravity)]
 pub struct Bouncy {
 	pub bouncing : bool,
 	pub is_mid_bounce : bool,
@@ -174,6 +175,7 @@ pub struct Bouncy {
 
 impl Bouncy {
 	pub fn new(
+		bouncing :  bool,
 		initial_velocity_min : f32,
 		initial_velocity_max : f32,
 		interval_min : f32,
@@ -181,7 +183,7 @@ impl Bouncy {
 	) -> Bouncy {
 
 		Bouncy {
-			bouncing : false,
+			bouncing,
 			is_mid_bounce : false,
 			initial_velocity_min,
 			initial_velocity_max,
@@ -233,6 +235,19 @@ impl Bouncy {
 
 			bounce.is_mid_bounce = bounce.timer.finished() && gravity.is_falling;
 		}
+	}
+}
+
+impl Default for Bouncy {
+	
+	fn default() -> Self {
+		Bouncy::new(
+			true,
+			40.0, 
+			60.0,
+			1.0,
+			2.0
+		)	
 	}
 }
 

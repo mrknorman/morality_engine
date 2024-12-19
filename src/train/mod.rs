@@ -68,7 +68,6 @@ impl Plugin for TrainPlugin {
 
 		app.register_required_components::<Train, Transform>();
         app.register_required_components::<Train, Visibility>();
-
     }
 }
 

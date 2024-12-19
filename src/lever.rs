@@ -1,8 +1,12 @@
 use bevy::prelude::*;
-use crate::audio::play_sound_once;
+use crate::{
+	audio::play_sound_once,
+	colors::{
+		OPTION_1_COLOR,
+		OPTION_2_COLOR
+	}
+};
 
-pub const OPTION_1_COLOR : Color = Color::WHITE;
-pub const OPTION_2_COLOR : Color = Color::WHITE;
 
 const LEVER_LEFT : &str = 
 "____(@)

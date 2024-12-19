@@ -57,6 +57,12 @@ impl Default for TextSprite {
 #[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout))]
 pub struct TextTitle;
 
+impl Default for TextTitle {
+    fn default() -> Self {
+        TextTitle
+    }
+}
+
 #[derive(Component, Deserialize)]
 pub struct TextFrames {
     pub frames: Vec<String>
@@ -149,16 +155,28 @@ fn default_button_font() -> TextFont {
     }
 }
 
+pub fn get_text_width(text : &String) -> f32 {
+    let text_length = match text.lines().next() {
+        Some(line) => line.len(),
+        None => text.len()
+    };
+    text_length as f32 * 7.92
+}
+
+pub fn get_text_height(text : &String) -> f32 {
+    text.lines().count() as f32 * 12.0
+}
+
+
 impl TextButton {
     pub fn new( 
         actions : Vec<InputAction>,
         keys : Vec<KeyCode>,
         text: impl Into<String>
     ) -> (TextButton, Clickable, Pressable, Text2d) {
-    
+        
         let text = text.into();
-        let text_length = text.clone().len();
-        let button_width = text_length as f32 * 7.92;
+        let button_width = get_text_width(&text);
         
         (
             TextButton, 

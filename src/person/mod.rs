@@ -92,7 +92,8 @@ impl PersonSprite {
 			&mut Text2d, 
 			&mut TextColor,
 			&mut Bouncy,
-		)>,
+			
+		), With<PersonSprite>>,
 	) {
 		for (mut text, mut color, bounce) in query.iter_mut() {
 
@@ -112,7 +113,7 @@ impl PersonSprite {
 			&TransientAudioPallet, 
 			&mut PersonSprite, 
 			&mut Bouncy
-		)>,
+		), With<PersonSprite>>,
 		mut commands : Commands,
 		mut audio_query: Query<&mut TransientAudio>
 	) {
@@ -166,7 +167,7 @@ impl Default for Emoticon {
 impl Emoticon {
 	pub fn animate(
 		time: Res<Time>,
-		person_query: Query<&mut Bouncy>,
+		person_query: Query<&mut Bouncy, With<PersonSprite>>,
 		mut emoticon_query: Query<(&Parent, &mut Emoticon, &mut Transform, &mut Text2d, &mut TextColor)>,
 	) {
 
