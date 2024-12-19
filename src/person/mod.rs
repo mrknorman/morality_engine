@@ -1,6 +1,3 @@
-use std::time::Duration;
-use rand::Rng;
-
 use bevy::{
 	prelude::*,
 	sprite::Anchor,

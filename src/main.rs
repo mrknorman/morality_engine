@@ -104,12 +104,18 @@ fn setup(
 /*
     Todo:
 
+    Debt:
+        - Rewrite background to allow for more precise placement of sprites
+
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
-        - Bouncy Letters (maybe bounce when clicked) - Done
+        - Make the letters flash decision colours when they jump
+        - Bouncy Letters (maybe bounce when clicked)
         - Letter glow when bounce ? (choice colors)
-        - Letters become more bloody if you take a bloody path
+        - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
     Dialogue:
+        - Number waterfall background, reacts to mouse movement
+        - Make the nodes flash decision colours
         - Some cooler graph animations - activation and in operation
         - Try dialogue narration
         - Clickable nodes in graph make tune
