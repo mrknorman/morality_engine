@@ -11,27 +11,15 @@ use bevy::{
 };
 
 use crate::{
-	person::PersonPlugin,
-	audio::{
-		play_sound_once, 
-		continuous_audio, 
-		one_shot_audio,
-		MusicAudio, 
-		NarrationAudio,
-		TransientAudioPallet,
-		TransientAudio
-	}, 
-	background::{Background, BackgroundPlugin, BackgroundSprite}, 
-	common_ui::NextButton, 
-	game_states::{
+	ascii_fonts::AsciiString, audio::{
+		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
+	}, background::{Background, BackgroundPlugin}, common_ui::NextButton, game_states::{
 		DilemmaPhase, GameState, MainState, StateVector
 	}, interaction::{
 		InputAction, InteractionPlugin
-	}, lever::check_level_pull, motion::PointToPointTranslation, text::TextButton, 
-	timing::{
+	}, lever::check_level_pull, motion::PointToPointTranslation, person::PersonPlugin, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
-    },
-	train::{
+    }, train::{
         Train,
         STEAM_TRAIN
     }
@@ -138,11 +126,6 @@ pub fn setup_dilemma(
 			DilemmaRoot,
 			StateScoped(GameState::Dilemma),
 			Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
-			Background::load_from_json(
-				"text/backgrounds/desert.json",	
-				20.0,
-				0.5
-			),
 			Visibility::default()
 		)
 	).with_children(
@@ -158,6 +141,21 @@ pub fn setup_dilemma(
 					..continuous_audio()
 				}
             ));
+
+			parent.spawn(
+				Background::load_from_json(
+					"text/backgrounds/desert.json",	
+					1.0,
+					20.0,
+					0.5
+				)
+			);
+
+			parent.spawn((
+				AsciiString(format!("DILEMMA {}:", dilemma.index)),
+				Transform::from_xyz(-300.0,300.0, 1.0)
+			));
+
 			parent.spawn((
 				DilemmaInfoPanel,
 				Text2d::new(&dilemma.name),
@@ -170,14 +168,14 @@ pub fn setup_dilemma(
 					linebreak  : LineBreak::WordBoundary
 				},
 				Anchor::TopCenter,
-				Transform::from_xyz(0.0,300.0, 1.0)
+				Transform::from_xyz(0.0,250.0, 1.0)
 			));	
 
-			let speed: f32 = -500.0;
-			let decision_position = -100.0 * dilemma.countdown_duration.as_secs_f32();
+			let speed: f32 = -700.0;
+			let decision_position = -70.0 * dilemma.countdown_duration.as_secs_f32();
 			let transition_duration = Duration::from_secs_f32(decision_position/speed);
 			let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
-			let train_x_displacement = Vec3::new(-50.0 * dilemma.countdown_duration.as_secs_f32(), 0.0, 0.0);
+			let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
 
 			parent.spawn((
 				Train::init(
@@ -254,53 +252,6 @@ pub fn setup_dilemma_intro(
 			)
 		)
 	);
-}
-
-pub fn setup_dilemma_transition(
-	background_query : Query<&mut BackgroundSprite>,
-	mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
-	mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>
-) {
-	BackgroundSprite::update_speed(background_query,2.0);
-	for mut train in train_query.iter_mut() {
-		train.start()
-	}
-	for mut track in junction_query.iter_mut() {
-		track.start()
-	}
-}
-
-pub fn end_dilemma_transition(
-		dilemma: Res<Dilemma>,
-		mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
-		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
-		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-		background_query : Query<&mut BackgroundSprite>
-	) {
-	
-	let mut all_transitions_finished = true;
-	for translation in train_query.iter_mut() {
-		all_transitions_finished &= translation.timer.finished();
-	}
-	for translation in junction_query.iter_mut() {
-		all_transitions_finished &= translation.timer.finished();
-	}
-	
-	if all_transitions_finished {
-		BackgroundSprite::update_speed(background_query,0.0);
-		next_sub_state.set(
-			DilemmaPhase::Decision
-		);
-
-		for mut translation in train_query.iter_mut() {
-			translation.initial_position = translation.final_position;
-			translation.final_position = Vec3::new(0.0, 0.0, 0.0);
-			translation.timer = Timer::new(
-				dilemma.countdown_duration,
-				TimerMode::Once
-			);
-		}
-	}
 }
 
 fn spawn_delayed_children(
@@ -381,38 +332,98 @@ fn spawn_delayed_children(
     }
 }
 
+pub fn setup_dilemma_transition(
+	background_query : Query<&mut Background>,
+	dilemma : Res<Dilemma>,
+	mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+	mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>
+) {
+
+	for mut train in train_query.iter_mut() {
+		train.start();
+	}
+	for mut track in junction_query.iter_mut() {
+		track.start()
+	}
+
+	Background::update_speed(background_query,dilemma.countdown_duration.as_secs_f32() / 5.0);
+}
+
+pub fn end_dilemma_transition(
+		dilemma: Res<Dilemma>,
+		mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
+		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
+		background_query : Query<&mut Background>
+	) {
+	
+	let mut all_translations_finished = true;
+	for translation in train_query.iter_mut() {
+		all_translations_finished &= translation.timer.finished();
+	}
+	for translation in junction_query.iter_mut() {
+		all_translations_finished &= translation.timer.finished();
+	}
+	
+	if all_translations_finished {
+		Background::update_speed(background_query,0.0);
+		next_sub_state.set(
+			DilemmaPhase::Decision
+		);
+
+		for mut translation in train_query.iter_mut() {
+			let initial_position = translation.initial_position;
+			translation.initial_position = translation.final_position;
+			translation.final_position = initial_position - Vec3::new(45.0, 0.0, 0.0);
+			translation.timer = Timer::new(
+				dilemma.countdown_duration,
+				TimerMode::Once
+			);
+		}
+	}
+}
+
+#[derive(Component)]
+struct DecisionRoot;
+
 pub fn setup_decision(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
-		dilemma: Res<Dilemma>,  // Add time resource to manage frame delta time
+		dilemma: Res<Dilemma>,
 	) {
-	
-	commands.spawn((
-		AudioPlayer::<AudioSource>(
-			asset_server.load(
-				PathBuf::from("./sounds/train_aproaching.ogg")
-			)
-		),
-		PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(1.0),
-			mode:  bevy::audio::PlaybackMode::Loop,
-			..default()
-		})
-	);
 
-	commands.spawn((
-		AudioPlayer::<AudioSource>(
-			asset_server.load(PathBuf::from("./sounds/clock.ogg"))
-		),
-		PlaybackSettings {
-			paused : false,
-			volume : bevy::audio::Volume::new(0.3),
-			mode:  bevy::audio::PlaybackMode::Loop,
-			..default()
-		})
-	);
-	
+	commands.spawn(
+		DecisionRoot
+	).with_children(
+        |parent| {
+            parent.spawn(
+                ContinuousAudioPallet::new(
+                    vec![
+                        (
+                            "train_aproaching".to_string(),
+                            AudioPlayer::<AudioSource>(asset_server.load(
+                                "./sounds/train_aproaching.ogg"
+                            )),
+                            PlaybackSettings{
+                                volume : Volume::new(1.0),
+                                ..continuous_audio()
+                            }
+                        ),
+                        (
+                            "office".to_string(),
+                            AudioPlayer::<AudioSource>(asset_server.load(
+                                "./sounds/clock.ogg"
+                            )),
+                            PlaybackSettings{
+                                volume : Volume::new(0.3),
+                                ..continuous_audio()
+                            }
+                        )
+                    ]
+                )
+            );
+		});
+
 	DilemmaDashboard::spawn(&mut commands, &dilemma);
 }
 

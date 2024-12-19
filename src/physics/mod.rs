@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    ecs::component::StorageType
+};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PhysicsSystemsActive {
@@ -24,7 +27,10 @@ impl Plugin for PhysicsPlugin {
             )
             .run_if(in_state(PhysicsSystemsActive::True))
         );
+
+        app.register_required_components::<Gravity, Velocity>();
     }
+
 }
 
 fn activate_systems(
@@ -60,8 +66,7 @@ impl Velocity {
     }
 }
 
-#[derive(Component)]
-#[require(Velocity)]
+#[derive(Clone)]
 pub struct Gravity {
     acceleration : Vec3,
     floor_level : Option<f32>,
@@ -99,4 +104,34 @@ impl Default for Gravity {
         }
     }
 
+}
+
+
+impl Component for Gravity {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+
+
+                let transform: Option<Transform> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Transform>()
+                        .map(|transform: &Transform| transform.clone())
+                };
+
+                if let Some(transform) = transform {
+                    if let Some(mut gravity) = world.entity_mut(entity).get_mut::<Gravity>() {
+                        gravity.floor_level = Some(transform.translation.y);
+                    } else {
+                        eprintln!("Warning: Entity does not contain a Gravity component!");
+                    }
+                }
+
+            }
+        );
+    }
 }

@@ -1,38 +1,24 @@
 use bevy::{
-    prelude::*,
-    audio::Volume
+    audio::Volume, color, prelude::*
 };
 
 use crate::{
-    audio::{
-        continuous_audio,
-        ContinuousAudioPallet,
-        MusicAudio,
-        BackgroundAudio,
-        TransientAudioPallet,
-        TransientAudio
-    }, 
-    game_states::{
+    ascii_fonts::{
+        AsciiString,
+        AsciiPlugin
+    }, audio::{
+        continuous_audio, BackgroundAudio, ContinuousAudioPallet, MusicAudio, TransientAudio, TransientAudioPallet
+    }, common_ui::NextButton, game_states::{
         MainState, 
         StateVector
-    }, 
-    interaction::{
-        InteractionPlugin,
-        InputAction
-    }, 
-    text::{
+    }, interaction::{
+        InputAction, InteractionPlugin
+    }, io::IOPlugin, text::{
         TextButton, 
-        TextRaw, 
-        TextTitle
-    }, 
-    track::Track, 
-    train::{
-        TrainPlugin,
-        Train, 
-        STEAM_TRAIN
-    },
-    io::IOPlugin,
-    common_ui::NextButton
+        TextRaw
+    }, track::Track, train::{
+        Train, TrainPlugin, STEAM_TRAIN
+    }, background::{Background, BackgroundPlugin}
 };
 
 pub struct MenuScreenPlugin;
@@ -50,6 +36,12 @@ impl Plugin for MenuScreenPlugin {
         if !app.is_plugin_added::<IOPlugin>() {
             app.add_plugins(IOPlugin);
         }
+        if !app.is_plugin_added::<AsciiPlugin>() {
+            app.add_plugins(AsciiPlugin);
+        }
+        if !app.is_plugin_added::<BackgroundPlugin>() {
+			app.add_plugins(BackgroundPlugin);
+		}
     }
 }
 
@@ -58,27 +50,9 @@ fn setup_menu(
         asset_server: Res<AssetServer>,
         windows: Query<&Window>
     ) {
-    
-    let text = r#"
-     ___________  __    __    _______     ___________  _______     ______    ___      ___       _______  ___  ___ 
-    ("     _   ")/" |  | "\  /"     "|   ("     _   ")/"      \   /    " \  |"  |    |"  |     /"     "||"  \/"  |
-     )__/  \\__/(:  (__)  :)(: ______)    )__/  \\__/|:        | // ____  \ ||  |    ||  |    (: ______) \   \  / 
-        \\_ /    \/      \/  \/    |         \\_ /   |_____/   )/  /    ) :)|:  |    |:  |     \/    |    \\  \/  
-        |.  |    //  __  \\  // ___)_        |.  |    //      /(: (____/ //  \  |___  \  |___  // ___)_   /   /   
-        \:  |   (:  (  )  :)(:      "|       \:  |   |:  __   \ \        /  ( \_|:  \( \_|:  \(:      "| /   /    
-         \__|    \__|  |__/  \_______)        \__|   |__|  \___) \"_____/    \_______)\_______)\_______)|___/     
-                                                                                                                  
-              __      ___       _______     ______     _______    __  ___________  __    __   ___      ___            
-             /""\    |"  |     /" _   "|   /    " \   /"      \  |" \("     _   ")/" |  | "\ |"  \    /"  |           
-            /    \   ||  |    (: ( \___)  // ____  \ |:        | ||  |)__/  \\__/(:  (__)  :) \   \  //   |           
-           /' /\  \  |:  |     \/ \      /  /    ) :)|_____/   ) |:  |   \\_ /    \/      \/  /\\  \/.    |           
-          //  __'  \  \  |___  //  \ ___(: (____/ //  //      /  |.  |   |.  |    //  __  \\ |: \.        |           
-         /   /  \\  \( \_|:  \(:   _(  _|\        /  |:  __   \  /\  |\  \:  |   (:  (  )  :)|.  \    /:  |           
-        (___/    \___)\_______)\_______)  \"_____/   |__|  \___)(__\_|_)  \__|    \__|  |__/ |___|\__/|___|           
-"#;
 
     let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
-    let title_translation : Vec3 = Vec3::new(0.0, 150.0, 1.0);
+    let title_translation : Vec3 = Vec3::new(-370.0, 225.0, 1.0);
     let train_translation: Vec3 = Vec3::new(110.0, -35.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
@@ -93,8 +67,8 @@ fn setup_menu(
     commands.spawn(
         (
             StateScoped(MainState::Menu),
+            Visibility::default(),
             Transform::from_translation(menu_translation),
-            Visibility::default()
         )
     ).with_children(
         |parent| {
@@ -126,6 +100,21 @@ fn setup_menu(
                 )
             ));
 
+            let background_brightness = 0.3;
+            parent.spawn(            
+                Background::load_from_json(
+                    "text/backgrounds/desert.json",	
+                    background_brightness,
+                    10.0,
+                    0.5
+                )
+            );
+            parent.spawn((
+                Track::new(600),
+                TextColor(Color::srgb(background_brightness, background_brightness, background_brightness)),
+                Transform::from_translation(track_translation)
+            ));
+
             parent.spawn((
                 MusicAudio,
                 AudioPlayer::<AudioSource>(asset_server.load(
@@ -139,11 +128,11 @@ fn setup_menu(
 
             parent.spawn(
                 (
-                    TextTitle,
-                    Text2d::new(text),
+                    AsciiString("THE TROLLEY\n ALGORITHM".to_string()),
                     Transform::from_translation(title_translation)
                 )
             );
+
             parent.spawn(
                 Train::init(
                     &asset_server,
@@ -156,6 +145,7 @@ fn setup_menu(
                 Track::new(50),
                 Transform::from_translation(track_translation)
             ));
+
             parent.spawn(
                 (
                     TextRaw,

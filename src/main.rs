@@ -1,11 +1,8 @@
 use bevy::{
-    prelude::*,
-    color::palettes::css::BLACK,
-    sprite::Material2dPlugin,
-    core_pipeline::{
+    color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }
+    }, prelude::*, sprite::Material2dPlugin, window::{PrimaryMonitor, WindowMode}
 };
 
 #[forbid(unsafe_code)]
@@ -34,6 +31,7 @@ mod common_ui;
 mod shaders;
 mod colors;
 mod physics;
+mod ascii_fonts;
 
 use crate::{
     game_states::{
@@ -46,7 +44,14 @@ use crate::{
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resizable: false,
+                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                ..default()
+                }),
+                ..default()
+        }))
         .add_plugins(GamePlugin)
         .add_plugins(Material2dPlugin::<PulsingMaterial>::default())
         .run();
@@ -55,7 +60,6 @@ fn main() {
 struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-
         app
             .init_state::<MainState>()
             .add_sub_state::<GameState>()
@@ -100,20 +104,30 @@ fn setup(
 /*
     Todo:
 
-    PluginCreate helper functions - Lots of repeat code
-    Separate LoadingScreenPlugin and LoadingPlugin
-
+    Title:
+        - IMPORTANT - Change way Components are added to Ascii letters
+        - Bouncy Letters (maybe bounce when clicked) - Done
+        - Letter glow when bounce ? (choice colors)
+        - Letters become more bloody if you take a bloody path
     Dialogue:
-        - Implement Line End Event and Update Text Button
-        - Refactor Dialouge
-        - Dialgue Border, Text Colours, AI lines, Animated Logo
-        - First Impementation of Time Dilation
+        - Some cooler graph animations - activation and in operation
+        - Try dialogue narration
+        - Clickable nodes in graph make tune
         - System Startup Text
         - Simulation Loading Text and Bar in small window
     Dillema:
-        - Refactor States to include substates
+        - Change decision music 
         - Physics bodypart destruction
         - Train painted red
+        - Flashy Selector
+        - Flashy Countdown
+        - Hover
+        - This train will not stop appears when click on train
+        - Background fade out
+        - Background colours
+        - Move sounds to right place
+        - Refactor lever and timer
+
 
     Long Term:
     - Pause Menu

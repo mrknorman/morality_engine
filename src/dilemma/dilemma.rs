@@ -25,14 +25,16 @@ use crate::{
 	background::BackgroundSprite, game_states::DilemmaPhase, lever::{
 		Lever, 
 		LeverState, 
-		OPTION_1_COLOR, 
-		OPTION_2_COLOR
 	}, motion::{Locomotion, Bouncy}, person::{
 		Emoticon, PersonSprite,
 	},  track::Track, train::Train, 
 	audio::{
 		TransientAudio, 
 		TransientAudioPallet
+	},
+	colors::{		
+		OPTION_1_COLOR, 
+		OPTION_2_COLOR
 	}
 };
 
@@ -400,11 +402,6 @@ impl DilemmaOptionInfoPanel {
 	}
 }
 
-#[derive(Resource)]
-pub struct TransitionCounter{
-	pub timer : Timer
-}
-
 pub fn cleanup_decision(
 		mut commands : Commands,
 		dashboard : ResMut<DilemmaDashboard>,
@@ -419,7 +416,7 @@ pub fn cleanup_decision(
 
 #[derive(Component)]
 pub struct LeverTrackTransform{
-	pub track_y_positions : Vec<f32>
+	pub branch_y_positions : Vec<f32>
 }
 
 pub fn switch_junction(
@@ -437,8 +434,8 @@ pub fn switch_junction(
 			lever_transform, 
 			mut transform
 		) in movement_query.iter_mut() {
-			let left_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.track_y_positions[0], 1.0);
-			let right_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.track_y_positions[1], 1.0);
+			let left_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.branch_y_positions[0], 1.0);
+			let right_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.branch_y_positions[1], 1.0);
 
 			let distance_threshold = 0.01; // Small threshold to determine when to snap to the final position
 			let proportional_speed_factor = 0.1; // Factor to adjust the proportional speed
@@ -660,15 +657,17 @@ impl Component for Junction {
 					)
 				];
 
+				
+
 				let mut commands = world.commands();
 				if let Some(junction) = junction {
 					let dilemma = junction.dilemma; 
 
-					let track_y_positions = vec![0.0, 100.0];				
+					let track_colors = vec![OPTION_1_COLOR, OPTION_2_COLOR];
+					let branch_y_positions = vec![0.0, 100.0];				
 					let (color, initial_y_position) = match dilemma.default_option {
 						None => (Color::WHITE, 50.0),
-						Some(ref option) if *option == 0 => (OPTION_1_COLOR, track_y_positions[*option]),
-						Some(ref option) => (OPTION_2_COLOR, track_y_positions[*option]),
+						Some(ref option) => (track_colors[*option], branch_y_positions[*option]),
 					};
 			
 					let mut track_entities = vec![];
@@ -686,13 +685,14 @@ impl Component for Junction {
 								Turnout,
 								Transform::from_xyz( 1240.0, 0.0, 0.0),
 								LeverTrackTransform{
-									track_y_positions : track_y_positions.clone()
+									branch_y_positions : branch_y_positions.clone()
 								}
 							)).with_children( |turnout| {
-								for (branch_index, (option, y_position)) in zip(dilemma.options, track_y_positions.clone()).enumerate() {
+								for (branch_index, ((option, y_position), color)) in zip(zip(dilemma.options, branch_y_positions.clone()), track_colors).enumerate() {
 									track_entities.push(turnout.spawn((
 										BranchTrack{index : branch_index},
 										Track::new(300),
+										TextColor(color),
 										Transform::from_xyz(0.0, y_position, 0.0)		
 									)).with_children(|track: &mut ChildBuilder<'_>| {
 											for fatality_index in 0..option.consequences.total_fatalities {
@@ -711,6 +711,7 @@ impl Component for Junction {
 															)]
 														),
 														Bouncy::new(
+															false,
 															40.0, 
 															60.0,
 															1.0,

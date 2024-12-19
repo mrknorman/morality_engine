@@ -9,6 +9,7 @@ use bevy::{
 	sprite::Anchor, 
 	text::LineBreak,
 	ecs::component::StorageType,
+	window::WindowResized
 };
 use rand::Rng;
 use serde::{
@@ -33,10 +34,14 @@ impl Plugin for BackgroundPlugin {
             ).add_systems(
 				Update,
 				(
-					BackgroundSprite::update_positions
+					BackgroundSprite::update_positions,
+					Background::on_resize
 				)
 				.run_if(in_state(BackgroundSystemsActive::True))
 			);
+
+		app.register_required_components::<Background, Transform>();
+		app.register_required_components::<Background, Visibility>();
     }
 }
 
@@ -61,13 +66,16 @@ pub struct BackgroundSpriteType{
 #[derive(Clone)]
 pub struct Background{
 	sprites : Vec<BackgroundSpriteType>,
+	brightness : f32,
 	pub density : f32,
 	pub speed : f32
 }
 
 impl Background {
+
     pub fn load_from_json<P: Into<PathBuf>>(
         file_path: P,
+		brightness : f32,
         density: f32,
         speed: f32,
     ) -> Self {
@@ -85,26 +93,70 @@ impl Background {
 
         Background {
             sprites,
+			brightness,
             density,
             speed,
         }
     }
+
+	pub fn update_speed( 
+		mut background_query : Query<&mut Background>,
+		new_speed : f32
+	) {
+		for mut background in background_query.iter_mut() {
+			background.speed = new_speed;
+		}
+	}
+
+	fn on_resize(
+		mut commands : Commands,
+		background_query : Query<(Entity,  Option<&Parent>, &Background)>,
+		parent_query : Query<Entity>,
+		mut resize_reader: EventReader<WindowResized>,
+	) {
+
+		let mut removed_backgrounds = vec![];
+		for _ in resize_reader.read() {	
+			for (entity, parent, background) in background_query.iter() {
+				if let Some(entity) = commands.get_entity(entity) {
+					entity.despawn_recursive();
+					removed_backgrounds.push((parent, background.clone()));
+				}
+			}
+		}
+
+		for (parent, background) in removed_backgrounds {
+			if let Some(parent) = parent {
+				if let Ok(parent_entity) = parent_query.get(parent.get()) {
+					commands.entity(parent_entity).with_children(|parent| {
+						parent.spawn(
+							background
+						);
+					});
+				}
+			} else {
+				commands.spawn(
+					background
+				);
+			}
+		} 
+	}
+	
 }
 
 const BACKGROUND_SIZE : f32 = 2000.0;
 const SPAWN_VARIANCE : f32 = 500.0;
 
 #[derive(Component)]
-pub struct BackgroundSprite {
-	pub speed : f32
-}
+pub struct BackgroundSprite;
 
 impl BackgroundSprite {
 
 	pub fn update_positions(
 		windows: Query<&Window>,
 		time: Res<Time>, // Inject the Time resource to access the game time
-		mut background_query : Query<(&mut Transform, &BackgroundSprite)>
+		mut background_query : Query<(&Parent, &mut Transform), With<BackgroundSprite>>,
+		parent_query : Query<&Background>
 	) {
 
 		let window: &Window = windows.get_single().unwrap();
@@ -113,54 +165,20 @@ impl BackgroundSprite {
 		let time_seconds: f32 = time.delta().as_secs_f32(); // Current time in seconds
 		let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
 
-		for (mut transform, sprite) in background_query.iter_mut() {
-			let y : f32 = transform.translation.y;
+		for (parent, mut transform) in background_query.iter_mut() {
+			if let Ok(master) = parent_query.get(parent.get()) {
 
-			transform.translation.x -= (screen_height/2.0 - y).max(0.0) * sprite.speed*time_seconds;
+				let y : f32 = transform.translation.y;
 
-			if transform.translation.x <= -2000.0 {
-				transform.translation.x = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
+				transform.translation.x -= (screen_height/2.0 - y).max(0.0) * master.speed*time_seconds;
+
+				if transform.translation.x <= -2000.0 {
+					transform.translation.x = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
+				}
 			}
 		}
 	}
-
-	pub fn update_speed( 
-		mut background_query : Query<&mut BackgroundSprite>,
-		new_speed : f32
-	) {
-		for mut sprite in background_query.iter_mut() {
-			sprite.speed = new_speed;
-		}
-	}
-
-	pub fn spawn(
-		parent: &mut ChildBuilder<'_>,
-		text : &str,
-		speed : f32,
-		translation: Vec3
-	) {
-
-		parent.spawn((
-			Text2d::new(text),
-			Transform::from_translation(
-				translation
-			),
-			TextFont{
-				font_size: 12.0,
-				..default()
-			},
-			TextLayout{
-				justify : JustifyText::Left,
-				linebreak : LineBreak::WordBoundary
-			},
-			BackgroundSprite{
-				speed
-			},
-			Anchor::BottomCenter
-		));
-	}
 }
-
 
 impl Component for Background {
     const STORAGE_TYPE: StorageType = StorageType::Table;
@@ -201,13 +219,30 @@ impl Component for Background {
 									
 									let mut commands = world.commands();
 
+									let translation = Vec3::new(x_range, y_range, 0.0);
+									let text = lod.to_string();
+									let brightness = scene.brightness;
+
 									commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-										BackgroundSprite::spawn(
-											parent,
-											lod.as_str(),
-											scene.speed,
-											Vec3::new(x_range, y_range, 0.0),
-										);	
+										parent.spawn(
+											(
+												BackgroundSprite,
+												Anchor::BottomCenter,
+												Text2d::new(text),
+												Transform::from_translation(
+													translation
+												),
+												TextColor(Color::Srgba(Srgba::new(1.0, 1.0, 1.0, brightness))),
+												TextFont{
+													font_size: 12.0,
+													..default()
+												},
+												TextLayout{
+													justify : JustifyText::Left,
+													linebreak : LineBreak::WordBoundary
+												},
+											)
+										);
 									});
 								}
 							}
