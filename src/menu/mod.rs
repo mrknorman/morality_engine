@@ -4,21 +4,20 @@ use bevy::{
 
 use crate::{
     ascii_fonts::{
-        AsciiString,
-        AsciiPlugin
+        AsciiPlugin, AsciiString
     }, audio::{
         continuous_audio, BackgroundAudio, ContinuousAudioPallet, MusicAudio, TransientAudio, TransientAudioPallet
-    }, common_ui::NextButton, game_states::{
+    }, background::{Background, BackgroundPlugin}, colors::{DIM_BACKGROUND_COLOR, MENU_COLOR}, common_ui::NextButton, game_states::{
         MainState, 
         StateVector
     }, interaction::{
-        InputAction, InteractionPlugin
+        ClickableColors, InputAction, InteractionPlugin
     }, io::IOPlugin, text::{
         TextButton, 
         TextRaw
     }, track::Track, train::{
         Train, TrainPlugin, STEAM_TRAIN
-    }, background::{Background, BackgroundPlugin}
+    }
 };
 
 pub struct MenuScreenPlugin;
@@ -100,18 +99,18 @@ fn setup_menu(
                 )
             ));
 
-            let background_brightness = 0.3;
-            parent.spawn(            
+            parent.spawn((         
                 Background::load_from_json(
                     "text/backgrounds/desert.json",	
-                    background_brightness,
                     10.0,
                     0.5
+                ),
+                TextColor(DIM_BACKGROUND_COLOR)
                 )
             );
             parent.spawn((
                 Track::new(600),
-                TextColor(Color::srgb(background_brightness, background_brightness, background_brightness)),
+                TextColor(DIM_BACKGROUND_COLOR),
                 Transform::from_translation(track_translation)
             ));
 
@@ -128,23 +127,28 @@ fn setup_menu(
 
             parent.spawn(
                 (
-                    AsciiString("THE TROLLEY\n ALGORITHM".to_string()),
+                    AsciiString("THE TROLLEY\n  ALGORITHM".to_string()),
+                    TextColor(MENU_COLOR),
                     Transform::from_translation(title_translation)
                 )
             );
 
             parent.spawn(
-                Train::init(
-                    &asset_server,
-                    STEAM_TRAIN,
-                    train_translation,
-                    0.0
-                )
+                (                    
+                    Train::init(
+                        &asset_server,
+                        STEAM_TRAIN,
+                        0.0
+                    ),
+                    Transform::from_translation(train_translation),
+                    TextColor(MENU_COLOR),
+                )  
             );
 
             parent.spawn(
                 (
                     TextRaw,
+                    TextColor(MENU_COLOR),
                     Text2d::new("A game by Michael Norman"),
                     Transform::from_translation(signature_translation)
                 )
@@ -160,6 +164,11 @@ fn setup_menu(
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
                     ),
+                    ClickableColors{
+                        default : MENU_COLOR,
+                        ..default()
+                    },
+                    TextColor(MENU_COLOR),
                     TransientAudioPallet::new(
                         vec![(
                             "click".to_string(),

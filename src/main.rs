@@ -32,6 +32,7 @@ mod shaders;
 mod colors;
 mod physics;
 mod ascii_fonts;
+mod inheritance;
 
 use crate::{
     game_states::{
@@ -77,6 +78,8 @@ impl Plugin for GamePlugin {
             .add_plugins(dialogue::DialogueScreenPlugin)
             .add_plugins(dilemma::DilemmaPlugin)
             .add_plugins(motion::MotionPlugin)
+            .add_plugins(colors::ColorsPlugin)
+            .add_plugins(inheritance::InheritancePlugin)
             ;
     }
 }
@@ -106,7 +109,7 @@ fn setup(
 
     Debt:
         - Rewrite background to allow for more precise placement of sprites
-
+        - Update Train Locomotion and Background to use velocity instead...
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
         - Make the letters flash decision colours when they jump

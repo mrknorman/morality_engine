@@ -12,10 +12,13 @@ use bevy::{
 	window::WindowResized
 };
 use rand::Rng;
+use rand::SeedableRng;
+use rand_pcg::Pcg64Mcg;
 use serde::{
 	Deserialize, 
 	Serialize
 };
+use crate::text::TextSprite;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BackgroundSystemsActive {
@@ -66,7 +69,6 @@ pub struct BackgroundSpriteType{
 #[derive(Clone)]
 pub struct Background{
 	sprites : Vec<BackgroundSpriteType>,
-	brightness : f32,
 	pub density : f32,
 	pub speed : f32
 }
@@ -75,7 +77,6 @@ impl Background {
 
     pub fn load_from_json<P: Into<PathBuf>>(
         file_path: P,
-		brightness : f32,
         density: f32,
         speed: f32,
     ) -> Self {
@@ -93,44 +94,37 @@ impl Background {
 
         Background {
             sprites,
-			brightness,
             density,
             speed,
         }
     }
 
-	pub fn update_speed( 
-		mut background_query : Query<&mut Background>,
-		new_speed : f32
-	) {
-		for mut background in background_query.iter_mut() {
-			background.speed = new_speed;
-		}
-	}
-
 	fn on_resize(
 		mut commands : Commands,
-		background_query : Query<(Entity,  Option<&Parent>, &Background)>,
+		background_query : Query<(Entity, Option<&Parent>, &Background, &TextColor)>,
 		parent_query : Query<Entity>,
 		mut resize_reader: EventReader<WindowResized>,
 	) {
 
 		let mut removed_backgrounds = vec![];
 		for _ in resize_reader.read() {	
-			for (entity, parent, background) in background_query.iter() {
+			for (entity, parent, background, color) in background_query.iter() {
 				if let Some(entity) = commands.get_entity(entity) {
 					entity.despawn_recursive();
-					removed_backgrounds.push((parent, background.clone()));
+					removed_backgrounds.push((parent, background.clone(), color.clone()));
 				}
 			}
 		}
 
-		for (parent, background) in removed_backgrounds {
+		for (parent, background, color) in removed_backgrounds {
 			if let Some(parent) = parent {
 				if let Ok(parent_entity) = parent_query.get(parent.get()) {
 					commands.entity(parent_entity).with_children(|parent| {
 						parent.spawn(
-							background
+					(
+								color,
+								background
+							)
 						);
 					});
 				}
@@ -148,6 +142,7 @@ const BACKGROUND_SIZE : f32 = 2000.0;
 const SPAWN_VARIANCE : f32 = 500.0;
 
 #[derive(Component)]
+#[require(TextSprite)]
 pub struct BackgroundSprite;
 
 impl BackgroundSprite {
@@ -163,8 +158,7 @@ impl BackgroundSprite {
 		let screen_height = window.height()/2.0;
 
 		let time_seconds: f32 = time.delta().as_secs_f32(); // Current time in seconds
-		let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
-		let random_offset = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
+		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 
 		for (parent, mut transform) in background_query.iter_mut() {
 			if let Ok(master) = parent_query.get(parent.get()) {
@@ -174,6 +168,7 @@ impl BackgroundSprite {
 				transform.translation.x -= (screen_height - y).max(0.0) * master.speed*time_seconds;
 
 				if transform.translation.x <= -2000.0 {
+					let random_offset: f32 = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
 					transform.translation.x = random_offset;
 				}
 			}
@@ -192,6 +187,11 @@ impl Component for Background {
                 let scene: Option<Background> = {
                     let entity_ref: EntityRef<'_> = world.entity(entity);
                     entity_ref.get::<Background>().cloned()
+                };
+
+				let color: Option<TextColor> = {
+                    let entity_ref: EntityRef<'_> = world.entity(entity);
+                    entity_ref.get::<TextColor>().cloned()
                 };
 
 				let window: Option<Window> = world
@@ -222,10 +222,9 @@ impl Component for Background {
 
 									let translation = Vec3::new(x_range, y_range, 0.0);
 									let text = lod.to_string();
-									let brightness = scene.brightness;
 
 									commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-										parent.spawn(
+										let mut entity = parent.spawn(
 											(
 												BackgroundSprite,
 												Anchor::BottomCenter,
@@ -233,7 +232,6 @@ impl Component for Background {
 												Transform::from_translation(
 													translation
 												),
-												TextColor(Color::Srgba(Srgba::new(1.0, 1.0, 1.0, brightness))),
 												TextFont{
 													font_size: 12.0,
 													..default()
@@ -244,6 +242,10 @@ impl Component for Background {
 												},
 											)
 										);
+
+										if let Some(color) = color {
+											entity.insert(color);
+										}
 									});
 								}
 							}

@@ -12,27 +12,20 @@ use serde::Deserialize;
 
 use crate::{
     audio::{
-		AudioPlugin, 
-		ContinuousAudioPallet, 
-		continuous_audio, 
-		TransientAudio, 
-		TransientAudioPallet
+		continuous_audio, AudioPlugin, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
 	}, 
 	interaction::{
-		Clickable, InputAction, InteractionPlugin
+		Clickable, ClickableColors, InputAction, InteractionPlugin
 	}, motion::{
 		Locomotion, 
 		TranslationAnchor, 
 		Wobble
 	}, 
 	text::{
-		Animated, 
-		TextSprite,
-		TextFrames
+		Animated, TextFrames, TextSprite
 	}
 };
 
-pub static STEAM_TRAIN: &str = "text/trains/steam_train.json";
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TrainSystemsActive {
@@ -81,6 +74,8 @@ fn activate_systems(
 		train_state.set(TrainSystemsActive::False)
 	}
 }
+
+pub static STEAM_TRAIN: &str = "text/trains/steam_train.json";
 
 #[derive(Deserialize)]
 pub struct TrainType{
@@ -149,9 +144,8 @@ impl Train {
 	pub fn init(
 		asset_server: &Res<AssetServer>,
 		train_file_path : &str,
-		translation : Vec3,
 		speed : f32
-	) -> (Train, Locomotion, Transform, ContinuousAudioPallet, ) {
+	) -> (Train, Locomotion, ContinuousAudioPallet, ) {
 
 		let train_type = TrainType::load_from_json(
 			train_file_path.to_string()
@@ -160,7 +154,6 @@ impl Train {
 		(
 			Train::new(asset_server, train_file_path), 
 			Locomotion::new(speed), 
-			Transform::from_translation(translation), 
 			ContinuousAudioPallet::new(
 				vec![(
 					"tracks".to_string(),
@@ -228,6 +221,12 @@ impl Component for Train {
                         .map(|train: &Train| train.clone())
                 };
 
+				let color: Option<TextColor> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<TextColor>()
+                        .map(|train: &TextColor| train.clone())
+                };
+
 				// Step 2: Spawn child entities and collect their IDs
                 let mut commands = world.commands();
                 let mut carriage_entities: Vec<Entity> = vec![];
@@ -238,16 +237,24 @@ impl Component for Train {
 
 						let mut carriage_translation = Vec3::default();
                         for carriage in train.carriages {
+
+							let mut entity = parent.spawn(				
+							TrainCarriage::new(
+								carriage,
+								carriage_translation
+							));
+
+							if let Some(color) = color {
+								entity.insert(color);
+							}
+
 							carriage_entities.push(
-								parent.spawn(				
-								TrainCarriage::new(
-									carriage,
-									carriage_translation
-								)).id()
+								entity.id()
 							);
 							carriage_translation.x -= 85.0;
 						}
-						parent.spawn((
+
+						let mut entity = parent.spawn((
 							TrainSmoke,
 							Text2d(train.smoke_frames[0].clone()),
 							TextFrames::new(train.smoke_frames),
@@ -257,6 +264,10 @@ impl Component for Train {
 								1.0
 							)
 						));
+
+						if let Some(color) = color {
+							entity.insert(color);
+						}
                     });
 
 					if let Some(horn_audio) = train.horn_audio{
@@ -280,6 +291,17 @@ impl Component for Train {
 								)]
 							))
 						);
+
+						if let Some(color) = color {
+							engine.insert(
+								ClickableColors{
+									default : color.0,
+									..default()
+								}
+							);
+						}
+
+
 					};
                 }
             }

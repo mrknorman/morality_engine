@@ -75,7 +75,25 @@ fn activate_systems(
 #[derive(Event)]
 pub struct AdvanceDialogue;
 
+#[derive(Component)]
+pub struct ClickableColors {
+    pub default : Color,
+    pub hover : Color,
+    pub clicked : Color
+}
+
+impl Default for ClickableColors {
+   fn default() -> Self {
+        Self {
+            default : PRIMARY_COLOR,
+            hover : HOVERED_BUTTON,
+            clicked: PRESSED_BUTTON
+        }
+    }
+}
+
 #[derive(Component, Clone)]
+#[require(ClickableColors)]
 pub struct Clickable {
     pub actions: Vec<InputAction>,
     pub size: Vec2, // Width and height of the clickable area
@@ -132,6 +150,7 @@ pub fn clickable_system(
     mut clickable_q: Query<(
         &GlobalTransform, 
         &mut Clickable,
+        &ClickableColors,
         &Children, 
         Option<&mut TextColor>
     ), Without<TextSpan>>,
@@ -144,6 +163,7 @@ pub fn clickable_system(
     for (
         transform, 
         mut clickable,
+        colors,
         children,
         text_color
     ) in clickable_q.iter_mut() {
@@ -161,12 +181,12 @@ pub fn clickable_system(
             }
 
             if mouse_input.pressed(MouseButton::Left) {
-                color = PRESSED_BUTTON;
+                color = colors.clicked;
             } else {
-                color = HOVERED_BUTTON;
+                color = colors.hover;
             }
         } else {
-            color = PRIMARY_COLOR;
+            color = colors.default;
         }
 
         if let Some(mut text_color) = text_color {

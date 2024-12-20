@@ -7,6 +7,8 @@ use crate::physics::{
 };
 
 use rand::Rng;
+use rand::SeedableRng;
+use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -54,6 +56,7 @@ fn activate_systems(
 }
 
 #[derive(Component)]
+#[require(Transform)]
 pub struct PointToPointTranslation {
     pub initial_position: Vec3,
     pub final_position: Vec3,
@@ -144,9 +147,7 @@ impl Wobble {
 		time: Res<Time>, // Inject the Time resource to access the game time
 		mut wobble_query: Query<(&mut Transform, &mut Wobble, &TranslationAnchor)>
 	) {
-
-		let mut rng = rand::thread_rng(); // Random number generator
-
+		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 		for (mut transform, mut wobble, translation_anchor) in wobble_query.iter_mut() {
 			if wobble.timer.tick(time.delta()).finished() {
 				// Calculate offset using sine and cosine functions for smooth oscillation
@@ -204,7 +205,7 @@ impl Bouncy {
 			&Gravity
 		)>
 	) {
-		let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
+		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 		for (mut bounce, mut velocity, gravity) in query.iter_mut() {
 
 			if bounce.is_mid_bounce || !bounce.bouncing {
