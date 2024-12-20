@@ -13,11 +13,14 @@ use bevy::{
 use crate::{
 	ascii_fonts::AsciiString, audio::{
 		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
-	}, background::{Background, BackgroundPlugin}, common_ui::NextButton, game_states::{
+	}, background::{Background, BackgroundPlugin}, colors::{ColorTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, MENU_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR}, common_ui::NextButton, game_states::{
 		DilemmaPhase, GameState, MainState, StateVector
-	}, interaction::{
+	}, inheritance::BequeathTextColor, interaction::{
 		InputAction, InteractionPlugin
-	}, lever::check_level_pull, motion::PointToPointTranslation, person::PersonPlugin, text::TextButton, timing::{
+	}, lever::check_level_pull, motion::PointToPointTranslation, person::PersonPlugin, text::{
+		TextButton, 
+		TextTitle
+	}, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     }, train::{
         Train,
@@ -37,7 +40,8 @@ use dilemma::{
 	Dilemma,
 	DramaticPauseTimer,
 	DilemmaInfoPanel,
-	DilemmaDashboard
+	DilemmaDashboard,
+	TrunkTrack
 };
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
@@ -142,22 +146,33 @@ pub fn setup_dilemma(
 				}
             ));
 
-			parent.spawn(
-				Background::load_from_json(
-					"text/backgrounds/desert.json",	
-					1.0,
-					20.0,
-					0.5
-				)
-			);
+			let speed: f32 = -1000.0;
+			let decision_position = -70.0 * dilemma.countdown_duration.as_secs_f32();
+			let transition_duration = Duration::from_secs_f32(decision_position/speed);
+			let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
+			let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
+			
 
 			parent.spawn((
+				TextColor(PRIMARY_COLOR),
 				AsciiString(format!("DILEMMA {}", dilemma.index)),
-				Transform::from_xyz(-300.0,300.0, 1.0)
+				BequeathTextColor,
+				ColorTranslation::new(
+					PRIMARY_COLOR,
+					Color::srgba(0.0, 0.0, 0.0, 0.0),
+					transition_duration
+				),
+				Transform::from_xyz(-400.0,300.0, 1.0)
 			));
 
 			parent.spawn((
-				DilemmaInfoPanel,
+				TextColor(PRIMARY_COLOR),
+				BequeathTextColor,
+				ColorTranslation::new(
+					PRIMARY_COLOR,
+					Color::srgba(0.0, 0.0, 0.0, 0.0),
+					transition_duration
+				),
 				Text2d::new(&dilemma.name),
 				TextFont{
 					font_size : 60.0,
@@ -171,19 +186,30 @@ pub fn setup_dilemma(
 				Transform::from_xyz(0.0,250.0, 1.0)
 			));	
 
-			let speed: f32 = -700.0;
-			let decision_position = -70.0 * dilemma.countdown_duration.as_secs_f32();
-			let transition_duration = Duration::from_secs_f32(decision_position/speed);
-			let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
-			let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
+			
+
+			parent.spawn((
+				TextColor(BACKGROUND_COLOR),
+				Background::load_from_json(
+					"text/backgrounds/desert.json",	
+					20.0,
+					0.5
+				),
+				BequeathTextColor,
+				ColorTranslation::new(
+					BACKGROUND_COLOR,
+					DIM_BACKGROUND_COLOR,
+					transition_duration
+				))
+			);
 
 			parent.spawn((
 				Train::init(
 					&asset_server,
 					STEAM_TRAIN,
-					train_initial_position,
 					0.0
 				),
+				Transform::from_translation(train_initial_position), 
 				PointToPointTranslation::new(
 					train_initial_position, 
 					train_initial_position + train_x_displacement,
@@ -192,7 +218,7 @@ pub fn setup_dilemma(
 			));
 
 			let final_position = Vec3::new(
-				100.0 * dilemma.countdown_duration.as_secs_f32(),
+				150.0 * dilemma.countdown_duration.as_secs_f32(),
 				0.0, 
 				0.0
 			);
@@ -200,16 +226,28 @@ pub fn setup_dilemma(
 			let main_track_translation_end: Vec3 = Vec3::new(0.0, -40.0, 0.0);
 			let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
 
+			let track_colors = vec![OPTION_1_COLOR, OPTION_2_COLOR];
+			let initial_color = match dilemma.default_option {
+				None => Color::WHITE,
+				Some(ref option) => track_colors[*option]
+			};
+
 			parent.spawn((
 				Junction{
 					dilemma : dilemma.clone()
 				},
+				TextColor(BACKGROUND_COLOR),
+				ColorTranslation::new(
+					BACKGROUND_COLOR,
+					initial_color,
+					transition_duration
+				),
+				Transform::from_translation(main_track_translation_start),
 				PointToPointTranslation::new(
 					main_track_translation_start, 
 					main_track_translation_end,
 					transition_duration
-				),
-				Transform::from_translation(main_track_translation_start),
+				)
 			));
 		}
 	);
@@ -333,20 +371,25 @@ fn spawn_delayed_children(
 }
 
 pub fn setup_dilemma_transition(
-	background_query : Query<&mut Background>,
-	dilemma : Res<Dilemma>,
-	mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
-	mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>
-) {
-
+		dilemma : Res<Dilemma>,
+		mut background_query : Query<(&mut Background, &mut ColorTranslation), Without<TrunkTrack>>,
+		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
+		mut color_query: Query<&mut ColorTranslation, Without<Background>>
+	) {
 	for mut train in train_query.iter_mut() {
 		train.start();
 	}
-	for mut track in junction_query.iter_mut() {
-		track.start()
+	for mut junction in junction_query.iter_mut() {
+		junction.start()
 	}
-
-	Background::update_speed(background_query,dilemma.countdown_duration.as_secs_f32() / 5.0);
+	for mut color in color_query.iter_mut() {
+		color.start()
+	}
+	for (mut background, mut color) in background_query.iter_mut() {
+		color.start();
+		background.speed = dilemma.countdown_duration.as_secs_f32() / 5.0;
+	}
 }
 
 pub fn end_dilemma_transition(
@@ -354,7 +397,7 @@ pub fn end_dilemma_transition(
 		mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
 		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
 		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-		background_query : Query<&mut Background>
+		mut background_query : Query<&mut Background>
 	) {
 	
 	let mut all_translations_finished = true;
@@ -366,7 +409,11 @@ pub fn end_dilemma_transition(
 	}
 	
 	if all_translations_finished {
-		Background::update_speed(background_query,0.0);
+
+		for mut background in background_query.iter_mut() {
+			background.speed = 0.0;
+		}
+		
 		next_sub_state.set(
 			DilemmaPhase::Decision
 		);

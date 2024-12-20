@@ -61,7 +61,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (________/  
             "#,
 
-'E' => r#"  _______  
+'E' => r#"  _______   
  /"     "| 
 (: ______) 
  \/    |   
@@ -142,7 +142,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 |___|\__/|___|
               "#,
 
-'N' => r#" _____  ___   
+'N' => r#" _____  ___  
 (\"   \|"  \  
 |.\\   \    | 
 |: \.   \\  | 

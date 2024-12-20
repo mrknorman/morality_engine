@@ -9,7 +9,7 @@ use bevy::{
 
 use crate::{
     motion::Bouncy, text::{
-        get_text_height, get_text_width, TextTitle
+       get_text_height, get_text_width, TextTitle
     }
 };
 
@@ -66,14 +66,18 @@ impl Component for AsciiString {
                         .map(|text: &AsciiString| text.clone())
                 };
 
+                let color: Option<TextColor> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<TextColor>()
+                        .map(|text: &TextColor| text.clone())
+                };
+
                 let mut commands = world.commands();
 
                 if let Some(text) = text {
-
                     let mut translation = Vec3::new(0.0, 0.0, 1.0); 
 
                     for line in text.0.lines() {
-                        
                         let word_vector: Vec<String> = merlin::get_vector(line.to_string());
                         let line_height = get_text_height(&word_vector[0]) + 15.0;
 
@@ -81,14 +85,16 @@ impl Component for AsciiString {
                             let char_width = get_text_width(&ascii_char);
 
                             commands.entity(entity).with_children(|parent| {
-                                parent.spawn(
-                                    (
-                                        AsciiChar,
-                                        Bouncy::default(),
-                                        Text2d::new(ascii_char),
-                                        Transform::from_translation(translation)
-                                    )
-                                );
+                                let mut entity = parent.spawn((
+                                    AsciiChar,
+                                    Bouncy::default(),
+                                    Text2d::new(ascii_char),
+                                    Transform::from_translation(translation),
+                                ));
+                                
+                                if let Some(color) = color {
+                                    entity.insert(color);
+                                }
                             });
                             translation += Vec3::new(char_width - 15.0, 0.0, 0.0);
                         }

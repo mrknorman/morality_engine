@@ -22,20 +22,17 @@ use bevy::{
 };
 
 use crate::{
-	background::BackgroundSprite, game_states::DilemmaPhase, lever::{
-		Lever, 
-		LeverState, 
-	}, motion::{Locomotion, Bouncy}, person::{
-		Emoticon, PersonSprite,
-	},  track::Track, train::Train, 
 	audio::{
 		TransientAudio, 
 		TransientAudioPallet
-	},
-	colors::{		
-		OPTION_1_COLOR, 
-		OPTION_2_COLOR
-	}
+	}, background::BackgroundSprite, colors::{		
+		ColorTranslation, OPTION_1_COLOR, OPTION_2_COLOR
+	}, game_states::DilemmaPhase, lever::{
+		Lever, 
+		LeverState, 
+	}, motion::{Bouncy, Locomotion}, person::{
+		Emoticon, PersonSprite,
+	}, track::Track, train::Train
 };
 
 #[derive(Resource)]
@@ -635,6 +632,19 @@ impl Component for Junction {
                         .map(|train: &Junction| train.clone())
                 };
 
+				let color: Option<TextColor> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<TextColor>()
+                        .map(|color: &TextColor| color.clone())
+                };
+				
+				let color_translation: Option<ColorTranslation> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<ColorTranslation>()
+                        .map(|translation: &ColorTranslation| translation.clone())
+                };
+
+
 				let asset_server = world.get_resource::<AssetServer>().unwrap();
 				let audio_vector = vec![											
 					TransientAudio::new(
@@ -657,29 +667,35 @@ impl Component for Junction {
 					)
 				];
 
-				
-
 				let mut commands = world.commands();
 				if let Some(junction) = junction {
 					let dilemma = junction.dilemma; 
 
 					let track_colors = vec![OPTION_1_COLOR, OPTION_2_COLOR];
-					let branch_y_positions = vec![0.0, 100.0];				
-					let (color, initial_y_position) = match dilemma.default_option {
-						None => (Color::WHITE, 50.0),
-						Some(ref option) => (track_colors[*option], branch_y_positions[*option]),
-					};
+					let branch_y_positions = vec![0.0, 100.0];			
+
+					let initial_y_position = match dilemma.default_option {
+						None =>  50.0,
+						Some(ref option) => branch_y_positions[*option],
+					};	
 			
 					let mut track_entities = vec![];
 					commands.entity(entity).with_children(
 						|junction| {
-							track_entities.push(
-								junction.spawn((
-									TrunkTrack,
-									Track::new(600),
-									TextColor(color),
-									Transform::from_xyz(-2000.0, initial_y_position, 1.0)
-							)).id());
+							let mut junction_entity = junction.spawn((
+								TrunkTrack,
+								Track::new(600),
+								Transform::from_xyz(-2000.0, initial_y_position, 1.0),			
+							));
+							
+							if let Some(color) = color {
+								junction_entity.insert(color);
+							}
+							if let Some(color_translation) = color_translation {
+								junction_entity.insert(color_translation);
+							}
+
+							track_entities.push(junction_entity.id());
 
 							let turnout_entity = junction.spawn((
 								Turnout,
