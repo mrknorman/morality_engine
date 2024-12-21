@@ -1,7 +1,7 @@
 [
     {
         "name" : "cactus",
-        "frequency" : 0.1,
+        "frequency" : 1,
         "lods" : [
             "        _    _\n       | |  | |\n      -| |  | |-\n  _    | |- | |\n-| |   | |  | |-\n |.|  -| ||/  |\n | |-  |  ___/\n-|.|   | | |\n |  \\_|| |\n  \\____  |\n   |   | |-\n       | |\n      -| |    \n       |_|",
             "    _  _\n   | || | _\n  -| || || |\n   | || || |-\n    \\_  || |\n      |  _/\n     -| |\n      |_|-    \n",
@@ -20,14 +20,14 @@
     },
     {
         "name" : "ground_cover",
-        "frequency" : 70.0,
+        "frequency" : 100.0,
         "lods" : [
             "."
         ]
     },
     {
         "name" : "stack",
-        "frequency" : 0.1,
+        "frequency" : 1.0,
         "lods" : [
             "",
             "",

@@ -57,19 +57,44 @@ fn activate_systems(
 		state.set(MotionSystemsActive::False)
 	}
 }
-
-#[derive(Component)]
-#[require(Transform)]
 pub struct PointToPointTranslation {
     pub initial_position: Vec3,
     pub final_position: Vec3,
 	pub timer : Timer
 }
 
+impl Component for PointToPointTranslation {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+                let transform: Option<Transform> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Transform>().cloned()
+                };
+
+                match transform {
+                    Some(transform) => {
+                        if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<PointToPointTranslation>() {
+                            transform_anchor.initial_position = transform.translation;
+                        } else {
+                            warn!("Failed to retrieve TransformAnchor component for entity: {:?}", entity);
+                        }
+                    }
+                    None => {
+                        warn!("Transform anchor should be inserted after transform! Unable to find Transform.");
+                    }
+                }
+            }
+        );
+    }
+}
+
 impl PointToPointTranslation {
-    pub fn new(initial_position: Vec3, final_position: Vec3, duration: Duration) -> PointToPointTranslation {
+    pub fn new(final_position: Vec3, duration: Duration) -> PointToPointTranslation {
 		let mut translation = PointToPointTranslation {
-			initial_position,
+			initial_position : Vec3::default(),
 			final_position,
 			timer : Timer::new(
 				duration,
@@ -142,7 +167,6 @@ impl Component for TranslationAnchor {
         );
     }
 }
-
 
 #[derive(Component, Clone)]
 #[require(TranslationAnchor)]

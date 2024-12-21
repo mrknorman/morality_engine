@@ -138,8 +138,7 @@ impl Background {
 	
 }
 
-const BACKGROUND_SIZE : f32 = 2000.0;
-const SPAWN_VARIANCE : f32 = 500.0;
+const SPAWN_VARIANCE : f32 = 100.0;
 
 #[derive(Component)]
 #[require(TextSprite)]
@@ -156,8 +155,9 @@ impl BackgroundSprite {
 
 		let window: &Window = windows.get_single().unwrap();
 		let screen_height = window.height()/2.0;
+		let screen_width = window.width()/2.0 + 100.0;
 
-		let time_seconds: f32 = time.delta().as_secs_f32(); // Current time in seconds
+		let time_seconds: f32 = time.delta().as_secs_f32();
 		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 
 		for (parent, mut transform) in background_query.iter_mut() {
@@ -167,8 +167,8 @@ impl BackgroundSprite {
 
 				transform.translation.x -= (screen_height - y).max(0.0) * master.speed*time_seconds;
 
-				if transform.translation.x <= -2000.0 {
-					let random_offset: f32 = rng.gen_range(BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
+				if transform.translation.x <= -screen_width {
+					let random_offset: f32 = rng.gen_range(screen_width..screen_width + SPAWN_VARIANCE);
 					transform.translation.x = random_offset;
 				}
 			}
@@ -203,20 +203,22 @@ impl Component for Background {
 
 					if let Some(window) = window {
 
+						let screen_width = window.width()/2.0 + 100.0;
 						let screen_height = window.height();
 						let mut rng = rand::thread_rng();
 
 						for sprite_type in scene.sprites {
-							let density: i32 = (scene.density*sprite_type.frequency) as i32;
-
+							let density: i32 = (scene.density*screen_width*screen_height*sprite_type.frequency) as i32;
 							let size_per_range = screen_height / (sprite_type.lods.len() as f32);
 
 							for (i, lod) in sprite_type.lods.into_iter().enumerate() {
 
 								let density = density*(((i as i32 + 1)).pow(2));
 								for _ in 0..density {
-									let x_range: f32 =  rng.gen_range(-BACKGROUND_SIZE..BACKGROUND_SIZE + SPAWN_VARIANCE);
-									let y_range: f32 = rng.gen_range(size_per_range*(i as f32)..size_per_range*(i as f32 + 1.0)) - (screen_height/2.0);
+									let x_range: f32 =  rng.gen_range(-screen_width..screen_width + SPAWN_VARIANCE);
+									let y_range: f32 = rng.gen_range(
+										size_per_range*(i as f32)..size_per_range*(i as f32 + 1.0)
+									) - (screen_height/2.0);
 									
 									let mut commands = world.commands();
 

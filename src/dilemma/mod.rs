@@ -17,12 +17,12 @@ use crate::{
 		DilemmaPhase, GameState, MainState, StateVector
 	}, inheritance::BequeathTextColor, interaction::{
 		InputAction, InteractionPlugin
-	}, lever::check_level_pull, motion::PointToPointTranslation, person::PersonPlugin, text::TextButton, timing::{
+	}, lever::{check_level_pull, Lever, LeverState}, motion::{Bouncy, PointToPointTranslation}, person::PersonPlugin, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     }, train::{
         Train,
         STEAM_TRAIN
-    }, lever::{Lever, LeverState}
+    }
 };
 
 mod dilemma;
@@ -176,12 +176,11 @@ pub fn setup_dilemma(
 				TextColor(BACKGROUND_COLOR),
 				Background::load_from_json(
 					"text/backgrounds/desert.json",	
-					20.0,
+					0.000002,
 					0.5
 				),
 				BequeathTextColor,
 				ColorTranslation::new(
-					BACKGROUND_COLOR,
 					DIM_BACKGROUND_COLOR,
 					transition_duration
 				))
@@ -195,7 +194,6 @@ pub fn setup_dilemma(
 				),
 				Transform::from_translation(train_initial_position), 
 				PointToPointTranslation::new(
-					train_initial_position, 
 					train_initial_position + train_x_displacement,
 					transition_duration
 				)
@@ -221,13 +219,11 @@ pub fn setup_dilemma(
 				},
 				TextColor(BACKGROUND_COLOR),
 				ColorTranslation::new(
-					BACKGROUND_COLOR,
 					initial_color,
 					transition_duration
 				),
 				Transform::from_translation(main_track_translation_start),
 				PointToPointTranslation::new(
-					main_track_translation_start, 
 					main_track_translation_end,
 					transition_duration
 				)
