@@ -13,15 +13,12 @@ use serde::Deserialize;
 use crate::{
     audio::{
 		continuous_audio, AudioPlugin, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
-	}, 
-	interaction::{
-		Clickable, ClickableColors, InputAction, InteractionPlugin
+	}, colors::ColorAnchor, interaction::{
+		Clickable,InputAction, InteractionPlugin
 	}, motion::{
 		Locomotion, 
-		TranslationAnchor, 
 		Wobble
-	}, 
-	text::{
+	}, text::{
 		Animated, TextFrames, TextSprite
 	}
 };
@@ -108,23 +105,8 @@ impl TrainType {
 }
 
 #[derive(Component)]
-#[require(Wobble, TextSprite, Text2d, TranslationAnchor)]
+#[require(Wobble, TextSprite, Text2d)]
 pub struct TrainCarriage;
-
-impl TrainCarriage{
-	pub fn new(
-		text : String,
-		translation : Vec3
-	) -> (TrainCarriage, TranslationAnchor, Text2d, Transform) {
-
-		(
-			TrainCarriage,
-			TranslationAnchor(translation),
-			Text2d::new(text),
-			Transform::from_translation(translation)
-		)
-	}
-}
 
 #[derive(Component)]
 #[require(Animated)]
@@ -236,10 +218,10 @@ impl Component for Train {
 						let mut carriage_translation = Vec3::default();
                         for carriage in train.carriages {
 
-							let mut entity = parent.spawn(				
-							TrainCarriage::new(
-								carriage,
-								carriage_translation
+							let mut entity = parent.spawn((
+								TrainCarriage,
+								Text2d::new(carriage),
+								Transform::from_translation(carriage_translation)
 							));
 
 							if let Some(color) = color {
@@ -264,7 +246,10 @@ impl Component for Train {
 						));
 
 						if let Some(color) = color {
-							entity.insert(color);
+							entity.insert((
+								color,
+								ColorAnchor(color.0)
+							));
 						}
                     });
 
@@ -279,8 +264,7 @@ impl Component for Train {
 									InputAction::PlaySound(
 										"horn".to_string()
 									)
-								],
-								Vec2::new(110.0, 60.0),
+								]
 							), 
 							TransientAudioPallet::new(
 								vec![(
@@ -289,17 +273,6 @@ impl Component for Train {
 								)]
 							))
 						);
-
-						if let Some(color) = color {
-							engine.insert(
-								ClickableColors{
-									default : color.0,
-									..default()
-								}
-							);
-						}
-
-
 					};
                 }
             }

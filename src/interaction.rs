@@ -1,15 +1,10 @@
-use std::hash::{
-    Hash, 
-    Hasher
-};
+use std::hash::Hash;
 use bevy::{
-    prelude::*, window::PrimaryWindow
+    prelude::*, render::primitives::Aabb, window::PrimaryWindow, math::Vec3A
 };
 use crate::{
     audio::{
-        AudioPlugin, AudioSystemsActive, TransientAudio, TransientAudioPallet
-    }, colors::{
-        HOVERED_BUTTON, PRESSED_BUTTON, PRIMARY_COLOR
+        AudioPlugin, AudioSystemsActive, TransientAudio, TransientAudioPallet, 
     }, game_states::{
         DilemmaPhase, GameState, MainState, StateVector
     }
@@ -75,37 +70,17 @@ fn activate_systems(
 #[derive(Event)]
 pub struct AdvanceDialogue;
 
-#[derive(Component)]
-pub struct ClickableColors {
-    pub default : Color,
-    pub hover : Color,
-    pub clicked : Color
-}
-
-impl Default for ClickableColors {
-   fn default() -> Self {
-        Self {
-            default : PRIMARY_COLOR,
-            hover : HOVERED_BUTTON,
-            clicked: PRESSED_BUTTON
-        }
-    }
-}
-
 #[derive(Component, Clone)]
-#[require(ClickableColors)]
 pub struct Clickable {
     pub actions: Vec<InputAction>,
-    pub size: Vec2, // Width and height of the clickable area
     pub clicked : bool,
     actions_completed : u32
 }
 
 impl Clickable {
-    pub fn new(actions: Vec<InputAction>, size: Vec2) -> Clickable {
+    pub fn new(actions: Vec<InputAction>) -> Clickable {
         Clickable {
             actions,
-            size,
             clicked : false,
             actions_completed : 0
         }
@@ -148,54 +123,29 @@ pub fn clickable_system(
     mouse_input: Res<ButtonInput<MouseButton>>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut clickable_q: Query<(
-        &GlobalTransform, 
-        &mut Clickable,
-        &ClickableColors,
-        &Children, 
-        Option<&mut TextColor>
+        &Aabb, 
+        &GlobalTransform,
+        &mut Clickable
     ), Without<TextSpan>>,
-    mut span_q : Query<&mut TextColor, With<TextSpan>>
 ) {
     let Some(cursor_position) = get_cursor_world_position(
         &windows, &camera_q
     ) else { return };
 
     for (
-        transform, 
+        bound, 
+        transform,
         mut clickable,
-        colors,
-        children,
-        text_color
     ) in clickable_q.iter_mut() {
 
-        let color;
-
         if is_cursor_within_bounds(
-                cursor_position, transform, clickable.size
+                cursor_position, transform, &bound
             ) {
             
             if mouse_input.just_pressed(MouseButton::Left) {
                 clickable.clicked = true;
             } else {
                 clickable.clicked = false;
-            }
-
-            if mouse_input.pressed(MouseButton::Left) {
-                color = colors.clicked;
-            } else {
-                color = colors.hover;
-            }
-        } else {
-            color = colors.default;
-        }
-
-        if let Some(mut text_color) = text_color {
-            text_color.0 = color;
-        }
-
-        for child in children.iter() {
-            if let Ok(mut span) = span_q.get_mut(*child) {
-                span.0 = color;
             }
         }
     }
@@ -218,7 +168,7 @@ pub fn pressable_system (
     }
 }
 
-fn get_cursor_world_position(
+pub fn get_cursor_world_position(
     windows: &Query<&Window, With<PrimaryWindow>>,
     camera_q: &Query<(&Camera, &GlobalTransform)>,
 ) -> Option<Vec2> {
@@ -230,26 +180,23 @@ fn get_cursor_world_position(
     Some(world_position.origin.truncate())
 }
 
-fn is_cursor_within_bounds(
-        cursor: Vec2, 
-        transform: &GlobalTransform, 
-        size: Vec2
-    ) -> bool {
+pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
+    // Adjust the Aabb's center by the transform's translation
+    let transformed_center = aabb.center + Vec3A::from(transform.translation());
 
-    let entity_position = transform.translation().truncate();
-    let half_size = size / 2.0;
     let bounds = (
-        entity_position.x - half_size.x,
-        entity_position.x + half_size.x,
-        entity_position.y - half_size.y,
-        entity_position.y + half_size.y,
+        transformed_center.x - aabb.half_extents.x,
+        transformed_center.x + aabb.half_extents.x,
+        transformed_center.y - aabb.half_extents.y,
+        transformed_center.y + aabb.half_extents.y,
     );
 
-       cursor.x >= bounds.0 
-    && cursor.x <= bounds.1 
-    && cursor.y >= bounds.2
-    && cursor.y <= bounds.3
+    cursor.x >= bounds.0
+        && cursor.x <= bounds.1
+        && cursor.y >= bounds.2
+        && cursor.y <= bounds.3
 }
+
 
 fn trigger_audio(
     mut commands: Commands,
@@ -452,7 +399,6 @@ fn trigger_advance_dialogue(
         handle_actions(&mut *pressable, &mut event_writer);
     }
 }
-
 
 fn trigger_despawn(
     mut commands: Commands,

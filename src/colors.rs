@@ -1,26 +1,23 @@
 use bevy::{
-    prelude::*,
-    ecs::component::StorageType
+    ecs::component::StorageType, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 use std::time::Duration;
 
-use crate::motion::Bouncy;
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::Bouncy};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(2.0, 5.0, 2.0, 1.0));
 pub const HIGHLIGHT_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0)); 
 pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 6.0, 6.0);
-pub const PRESSED_BUTTON: Color = Color::srgb(8.0, 8.0, 0.0);
+pub const CLICKED_BUTTON: Color = Color::srgb(8.0, 8.0, 0.0);
 pub const DANGER_COLOR: Color = Color::srgb(8.0, 0.0, 0.0);
 
 pub const DIM_BACKGROUND_COLOR: Color = Color::Srgba(Srgba::new(1.0, 1.0, 1.0, 0.2));
 pub const BACKGROUND_COLOR: Color = Color::Srgba(Srgba::new(1.0, 1.0, 1.0, 0.8));
 
-
 pub const OPTION_GLOW : f32 = 2.0;
 pub const OPTION_1_COLOR : Color = Color::srgb(0.1015*OPTION_GLOW, 0.5195*OPTION_GLOW, 0.9961*OPTION_GLOW);
 pub const OPTION_2_COLOR : Color = Color::srgb(0.8314*OPTION_GLOW, 0.0664*OPTION_GLOW, 0.3477*OPTION_GLOW);
-
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ColorsSystemsActive {
@@ -37,7 +34,7 @@ impl Plugin for ColorsPlugin {
                 (activate_systems,
                 ColorTranslation::translate,
                 Fade::despawn_after_fade,
-                ColorChangeOn::color_change_on_bounce
+                ColorChangeOn::color_change_on
             )
             )           
             .init_resource::<ColorPallet>()
@@ -73,7 +70,7 @@ impl Default for ColorPallet {
             primary : PRIMARY_COLOR,
             highlight : HIGHLIGHT_COLOR,
             hovered : HOVERED_BUTTON,
-            pressed : PRESSED_BUTTON,
+            pressed : CLICKED_BUTTON,
             danger : DANGER_COLOR,
             options : vec![
                 OPTION_1_COLOR,
@@ -193,7 +190,7 @@ impl Component for Fade{
                         .map(|fade: &TextColor| fade.clone())
                 };
 
-                let mut commands = world.commands();
+                let mut commands= world.commands();
 
                 if let (Some(fade), Some(color)) = (fade, color) {
                     commands.entity(entity).insert(
@@ -210,12 +207,40 @@ impl Component for Fade{
     }
 }
 
-#[derive(Component, Clone)]
-pub struct ColourAnchor(pub Color);
+#[derive(Clone)]
+pub struct ColorAnchor(pub Color);
 
-impl Default for ColourAnchor {
+impl Default for ColorAnchor {
     fn default() -> Self {
-        ColourAnchor(Color::WHITE)
+        ColorAnchor(Color::WHITE)
+    }
+}
+
+impl Component for ColorAnchor {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+                let color: Option<TextColor> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<TextColor>().cloned()
+                };
+
+                match color {
+                    Some(color) => {
+                        if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<ColorAnchor>() {
+                            color_anchor.0 = color.0;
+                        } else {
+                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                        }
+                    }
+                    None => {
+                        warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
+                    }
+                }
+            }
+        );
     }
 }
 
@@ -228,25 +253,71 @@ pub enum ColorChangeEvent {
 
 #[derive(Clone, Component)]
 #[require(TextColor)]
-pub struct ColorChangeOn(Vec<ColorChangeEvent>);
+pub struct ColorChangeOn(pub Vec<ColorChangeEvent>);
 
 impl ColorChangeOn {
-    fn color_change_on_bounce(
-        mut bounce_query : Query<(&ColorChangeOn, &ColourAnchor, &mut TextColor, &Bouncy)>
+    fn color_change_on(
+        windows: Query<&Window, With<PrimaryWindow>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
+        camera_q: Query<(&Camera, &GlobalTransform)>,
+        mut bounce_query: Query<(
+            &ColorChangeOn,
+            &mut TextColor,
+            &Aabb,
+            &GlobalTransform,
+            Option<&ColorAnchor>,
+            Option<&Bouncy>
+        )>,
     ) {
-
-        for (color_change_on, anchor, mut text_color, bounce) in bounce_query.iter_mut() {
+        for (color_change_on, mut text_color, bound, transform, anchor, bounce) in bounce_query.iter_mut() {
+            let mut event_handled = false;
 
             for event in color_change_on.0.iter() {
-
-                if let ColorChangeEvent::Bounce(color) = event {                    
-                    if bounce.is_mid_bounce {
-                        text_color.0 = *color;
-                    } else {
-                        text_color.0 = anchor.0;
+                match event {
+                    ColorChangeEvent::Bounce(color) => {
+                        if let Some(bounce) = bounce {
+                            if bounce.is_mid_bounce {
+                                text_color.0 = *color;
+                                event_handled = true;
+                                break; 
+                            }
+                        } else {
+                            warn_once!("Entity with color change on bounce has no bounce!");
+                        }
+                    }
+                    ColorChangeEvent::Hover(color) => {
+                        if let Some(cursor_position) =
+                            get_cursor_world_position(&windows, &camera_q)
+                        {
+                            if is_cursor_within_bounds(cursor_position, transform,&bound) {
+                                text_color.0 = *color;
+                                event_handled = true;
+                                break;
+                            }
+                        }
+                    } 
+                    ColorChangeEvent::Click(color) => {
+                        if let Some(cursor_position) =
+                            get_cursor_world_position(&windows, &camera_q)
+                        {
+                            if is_cursor_within_bounds(cursor_position, transform, &bound)
+                                && mouse_input.pressed(MouseButton::Left)
+                            {
+                                text_color.0 = *color;
+                                event_handled = true;
+                                break; // Exit the inner loop
+                            }
+                        }
                     }
                 }
             }
-		}
+
+            // If no event was handled, reset the color to the anchor's value
+            if !event_handled {
+                if let Some(anchor) = anchor {
+                    text_color.0 = anchor.0;
+                }
+            }
+        }
     }
 }

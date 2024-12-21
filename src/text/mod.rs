@@ -5,11 +5,10 @@ use std::{
 };
 use serde::Deserialize;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, text::TextBounds};
 
 use crate::{
-    interaction::{InputAction, Clickable, Pressable},
-    colors::PRIMARY_COLOR
+    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR}, interaction::{Clickable, InputAction, Pressable}
 };
 
 fn default_font() -> TextFont {
@@ -140,8 +139,20 @@ impl Animated {
     }
 }
 
+pub fn get_text_width(text : &String) -> f32 {
+    let text_length = match text.lines().next() {
+        Some(line) => line.len(),
+        None => text.len()
+    };
+    text_length as f32 * 7.92
+}
+
+pub fn get_text_height(text : &String) -> f32 {
+    text.lines().count() as f32 * 12.0
+}
+
 #[derive(Component)]
-#[require(Text2d(default_button_text), TextFont(default_button_font), TextColor(default_font_color), TextLayout(default_text_layout))]
+#[require(Text2d(default_button_text), TextFont(default_button_font), TextColor(default_font_color), TextBounds(default_button_bounds), ColorAnchor)]
 pub struct TextButton;
 
 fn default_button_text() -> Text2d {
@@ -155,52 +166,34 @@ fn default_button_font() -> TextFont {
     }
 }
 
-pub fn get_text_width(text : &String) -> f32 {
-    let text_length = match text.lines().next() {
-        Some(line) => line.len(),
-        None => text.len()
-    };
-    text_length as f32 * 7.92
-}
 
-pub fn get_text_height(text : &String) -> f32 {
-    text.lines().count() as f32 * 12.0
+pub fn default_button_bounds() -> TextBounds {
+    TextBounds{
+        width : Some(1000.0),
+        ..default()
+    }
 }
-
 
 impl TextButton {
     pub fn new( 
         actions : Vec<InputAction>,
         keys : Vec<KeyCode>,
         text: impl Into<String>
-    ) -> (TextButton, Clickable, Pressable, Text2d) {
+    ) -> (TextButton, Clickable, Pressable, ColorChangeOn, Text2d) {
         
         let text = text.into();
-        let button_width = get_text_width(&text);
-        
         (
             TextButton, 
-            Clickable::new(actions.clone(), Vec2::new(button_width, 20.0)),
+            Clickable::new(actions.clone()),
             Pressable::new(
                 keys,
                 actions
             ),
-            Text2d::new(text)
+            ColorChangeOn(vec![
+                ColorChangeEvent::Click(CLICKED_BUTTON),
+                ColorChangeEvent::Hover(HOVERED_BUTTON),
+            ]),
+            Text2d::new(text),
         )
-    }
-
-    pub fn change_text( 
-        new_text : impl Into<String>,
-        mut text : Mut<Text>,
-        mut clickable : Mut<Clickable>
-    ){
-        let new_text = new_text.into();
-        let text_length = new_text.clone().len();
-        let button_width = text_length as f32 * 7.92;
-
-        text.0 = new_text;
-
-        let old_size =  clickable.size;
-        clickable.size = Vec2::new(button_width, old_size.y);
     }
 }
