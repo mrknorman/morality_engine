@@ -51,7 +51,7 @@ fn setup_menu(
     ) {
 
     let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
-    let title_translation : Vec3 = Vec3::new(-370.0, 225.0, 1.0);
+    let title_translation : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
     let train_translation: Vec3 = Vec3::new(110.0, -35.0, 1.0);
     let track_displacement: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
@@ -102,7 +102,7 @@ fn setup_menu(
             parent.spawn((         
                 Background::load_from_json(
                     "text/backgrounds/desert.json",	
-                    10.0,
+                    0.000001,
                     0.5
                 ),
                 TextColor(DIM_BACKGROUND_COLOR)

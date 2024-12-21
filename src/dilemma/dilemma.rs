@@ -202,6 +202,12 @@ pub struct DilemmaTimer {
 
 impl DilemmaTimer {
 
+	pub fn new(duration : Duration) -> Self { 
+		Self{
+			timer : Timer::new(duration, TimerMode::Once)
+		}
+	}
+
 	pub fn spawn(
 			commands : &mut Commands,
 			max_time_seconds : f32
@@ -668,7 +674,7 @@ impl Component for Junction {
 															1.0,
 															2.0
 														),
-														ColorChangeOn(vec![ColorChangeEvent::Bounce(DANGER_COLOR)]),
+														ColorChangeOn::new(vec![ColorChangeEvent::Bounce(vec![DANGER_COLOR])]),
 														ColorAnchor::default(),
 														BequeathTextColor
 													)

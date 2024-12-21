@@ -189,9 +189,9 @@ impl TextButton {
                 keys,
                 actions
             ),
-            ColorChangeOn(vec![
-                ColorChangeEvent::Click(CLICKED_BUTTON),
-                ColorChangeEvent::Hover(HOVERED_BUTTON),
+            ColorChangeOn::new(vec![
+                ColorChangeEvent::Click(vec![CLICKED_BUTTON]),
+                ColorChangeEvent::Hover(vec![HOVERED_BUTTON]),
             ]),
             Text2d::new(text),
         )
