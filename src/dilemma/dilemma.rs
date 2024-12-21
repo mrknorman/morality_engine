@@ -9,13 +9,8 @@ use serde::{
 	Deserialize, 
 	Serialize
 };
-
-
 use bevy::{
-	prelude::*, 
-	sprite::Anchor, 
-	ecs::component::StorageType,
-	text::{
+	ecs::{component::StorageType, component::StorageType::Table}, prelude::*, sprite::Anchor, text::{
 		LineBreak, 
 		TextBounds
 	}
@@ -194,58 +189,77 @@ impl DilemmaOption {
 	}
 }
 
-
-#[derive(Component)]
-pub struct DilemmaTimer {
-	timer : Timer
-}
+pub struct DilemmaTimer(pub Timer);
 
 impl DilemmaTimer {
 
 	pub fn new(duration : Duration) -> Self { 
-		Self{
-			timer : Timer::new(duration, TimerMode::Once)
+		Self(Timer::new(duration, TimerMode::Once))
+	}
+
+	pub fn update(
+		time: Res<Time>,
+		mut timer_query: Query<(&mut DilemmaTimer, &mut Text2d)>,
+		mut next_game_state: ResMut<NextState<DilemmaPhase>>
+	) {
+	
+		for (mut timer, mut text) in timer_query.iter_mut() {
+
+			timer.0.tick(time.delta());
+
+			let time_remaining = timer.0.remaining_secs();
+
+			text.0 = format!("{:.2}\n", time_remaining);
+
+			if timer.0.finished() {
+				next_game_state.set(
+					DilemmaPhase::ConsequenceAnimation
+				)
+			}
 		}
 	}
 
-	pub fn spawn(
-			commands : &mut Commands,
-			max_time_seconds : f32
-		) -> Entity {
+}
 
-		commands.spawn(
-			(
-			DilemmaTimer {
-				timer : Timer::from_seconds(
-					max_time_seconds,
-					TimerMode::Once
-				)
-			},
-			Text2d::new(format!("{:.2}\n", max_time_seconds)),
-			TextFont {
-				font_size: 50.0,
-				..default()
-			},
-			TextLayout{
-				justify : JustifyText::Center, 
-				linebreak : LineBreak::WordBoundary
-			},
-			Transform::from_xyz(0.0, -100.0, 1.0),
-			Anchor::Center
-		)).with_children( | parent | {
-			parent.spawn(
-				(
-					TextSpan::new(
-						"seconds remaining.\n".to_string()
-					), 
-					TextFont {
-						font_size: 12.0,
+impl Component for DilemmaTimer{
+
+	const STORAGE_TYPE: StorageType = Table;
+
+	fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+
+				let timer_duration_seconds = world.entity(entity).get::<DilemmaTimer>().unwrap().0.duration().as_secs_f32();
+
+				let mut commands = world.commands();
+				commands.entity(entity).insert(
+					Text2d::new(format!("{:.2}\n", timer_duration_seconds ))
+				);
+
+				commands.entity(entity).insert(
+					TextFont{
+						font_size : 50.0,
 						..default()
 					}
-				)
-			);
-		}).id()
-	}
+				);
+
+				commands.entity(entity).with_children( | parent | {
+					parent.spawn(
+						(
+							TextSpan::new(
+								"seconds remaining.\n".to_string()
+							), 
+							TextFont {
+								font_size: 12.0,
+								..default()
+							}
+						)
+					);
+				});
+			});
+		} 
 }
 
 #[derive(Resource, Clone)]
@@ -427,28 +441,6 @@ pub fn check_if_person_in_path_of_train(
 	}
 }
 
-pub fn update_timer(
-		time: Res<Time>,
-		mut timer_query: Query<(&mut DilemmaTimer, &mut Text2d)>,
-		mut next_game_state: ResMut<NextState<DilemmaPhase>>
-	) {
-	
-	for (mut timer, mut text) in timer_query.iter_mut() {
-
-		timer.timer.tick(time.delta());
-
-		let time_remaining = timer.timer.remaining_secs();
-
-		text.0 = format!("{:.2}\n", time_remaining);
-
-		if timer.timer.just_finished() {
-			next_game_state.set(
-				DilemmaPhase::ConsequenceAnimation
-			)
-		}
-	}
-}
-
 #[derive(Resource)]
 pub struct DramaticPauseTimer{
 	pub speed_up_timer: Timer,
@@ -584,7 +576,6 @@ impl Component for Junction {
                     entity_mut.get::<ColorTranslation>()
                         .map(|translation: &ColorTranslation| translation.clone())
                 };
-
 
 				let asset_server = world.get_resource::<AssetServer>().unwrap();
 				let audio_vector = vec![											

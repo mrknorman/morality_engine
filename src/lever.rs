@@ -108,13 +108,6 @@ impl Lever {
 
 		text_entity
 	}
-
-	pub fn despawn(
-		&self,
-		commands : &mut Commands
-	) {
-		commands.entity(self.text_entity).despawn_recursive();
-	}
 }
 
 pub fn check_level_pull(

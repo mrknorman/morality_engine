@@ -30,7 +30,6 @@ use dilemma::{
 	Junction,
 	check_if_person_in_path_of_train,
 	switch_junction,
-	update_timer,
 	cleanup_decision,
 	consequence_animation_tick_up,
 	consequence_animation_tick_down,
@@ -48,15 +47,13 @@ impl Plugin for DilemmaPlugin {
 			)
             .add_systems(
                 Update,
-                (
-					spawn_delayed_children
-                )
+                spawn_delayed_children
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::Intro)),
             ).add_systems(OnEnter(DilemmaPhase::IntroDecisionTransition), setup_dilemma_transition)
             .add_systems(
                 Update,
-                (end_dilemma_transition)
+                end_dilemma_transition
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
             ).add_systems(
@@ -69,12 +66,11 @@ impl Plugin for DilemmaPlugin {
                     check_level_pull,
                     check_if_person_in_path_of_train,
                     switch_junction,
-                    update_timer
+                    DilemmaTimer::update
                 )
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::Decision)),
             )
-			
 			.add_systems(OnExit(DilemmaPhase::Decision), cleanup_decision)
             .add_systems(
                 OnEnter(DilemmaPhase::ConsequenceAnimation),
@@ -105,6 +101,8 @@ impl Plugin for DilemmaPlugin {
 
 		app.register_required_components::<Junction, Transform>();
         app.register_required_components::<Junction, Visibility>();
+
+		app.register_required_components::<DilemmaTimer, Text2d>();
     }
 }
 
@@ -151,7 +149,6 @@ pub fn setup_dilemma(
 			parent.spawn((
 				TextColor(PRIMARY_COLOR),
 				AsciiString(format!("DILEMMA {}", dilemma.index)),
-				BequeathTextColor,
 				Fade(transition_duration),
 				Transform::from_xyz(-400.0,300.0, 1.0)
 			));
@@ -351,10 +348,11 @@ fn spawn_delayed_children(
 
 pub fn setup_dilemma_transition(
 		dilemma : Res<Dilemma>,
+		mut commands : Commands,
 		mut background_query : Query<(&mut Background, &mut ColorTranslation), Without<TrunkTrack>>,
 		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
 		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-		mut color_query: Query<&mut ColorTranslation, Without<Background>>
+		mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
 	) {
 	for mut train in train_query.iter_mut() {
 		train.start();
@@ -362,7 +360,10 @@ pub fn setup_dilemma_transition(
 	for mut junction in junction_query.iter_mut() {
 		junction.start()
 	}
-	for mut color in color_query.iter_mut() {
+	for (entity, mut color) in title_query.iter_mut() {
+		commands.entity(entity).insert(BequeathTextColor);
+		commands.entity(entity).remove::<Bouncy>();
+
 		color.start()
 	}
 	for (mut background, mut color) in background_query.iter_mut() {
@@ -410,6 +411,7 @@ pub fn end_dilemma_transition(
 }
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
 struct DecisionRoot;
 
 pub fn setup_decision(
@@ -448,13 +450,13 @@ pub fn setup_decision(
                     ]
                 )
             );
+
+			parent.spawn((
+				DilemmaTimer::new(dilemma.countdown_duration),
+				Transform::from_xyz(0.0, -100.0, 1.0)
+			));
 		});
-
-	DilemmaTimer::spawn(
-		&mut commands, 
-		dilemma.countdown_duration.as_secs_f32()
-	);
-
+	
 	let start_state = match dilemma.default_option {
 		None => LeverState::Random,
 		Some(ref option) if *option == 0 => LeverState::Left,

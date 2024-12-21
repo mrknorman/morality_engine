@@ -324,3 +324,13 @@ impl Locomotion{
 		}
 	}
 }
+
+#[derive(Component)]
+#[require(Transform)]
+pub struct Pulse{
+	active : bool,
+	timer : Timer,
+	diverging : bool,
+	scale : f32
+};
+
