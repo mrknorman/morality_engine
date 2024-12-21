@@ -273,13 +273,13 @@ pub fn spawn_delayed_children(
 fn update_button_text(
     next_state_button: Res<NextButtonConfig>,
     loading_query: Query<(&TimerPallet, &LoadingRoot)>,
-    mut text_query: Query<(&mut Text, &TextFrames, &mut Clickable)>,
+    mut text_query: Query<(&mut Text2d, &TextFrames)>,
 ) {
     let Some(button_entity) = next_state_button.entity() else {
         return;
     };
 
-    let (text, frames, clickable) = match text_query.get_mut(button_entity) {
+    let (mut text, frames) = match text_query.get_mut(button_entity) {
         Ok(components) => components,
         Err(_) => return,
     };
@@ -293,7 +293,8 @@ fn update_button_text(
         if update_button_timer.just_finished() {
             let index = update_button_timer.times_finished() as usize;
             if let Some(message) = frames.frames.get(index) {
-                TextButton::change_text(message, text, clickable);
+
+                text.0 = message.clone();
             }
         }
     }

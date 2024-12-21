@@ -10,8 +10,8 @@ use crate::{
     }, background::{Background, BackgroundPlugin}, colors::{DIM_BACKGROUND_COLOR, MENU_COLOR}, common_ui::NextButton, game_states::{
         MainState, 
         StateVector
-    }, interaction::{
-        ClickableColors, InputAction, InteractionPlugin
+    }, interaction::{ 
+        InputAction, InteractionPlugin
     }, io::IOPlugin, text::{
         TextButton, 
         TextRaw
@@ -156,6 +156,7 @@ fn setup_menu(
             parent.spawn(
                 (
                     NextButton,
+                    TextColor(MENU_COLOR),
                     TextButton::new(
                         vec![
                             InputAction::PlaySound(String::from("click")),
@@ -164,11 +165,6 @@ fn setup_menu(
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
                     ),
-                    ClickableColors{
-                        default : MENU_COLOR,
-                        ..default()
-                    },
-                    TextColor(MENU_COLOR),
                     TransientAudioPallet::new(
                         vec![(
                             "click".to_string(),

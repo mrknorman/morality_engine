@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::ecs::component::StorageType;
+use bevy::{
+	prelude::*
+};
 
 use crate::physics::{
     Velocity,
@@ -103,9 +106,8 @@ impl PointToPointTranslation {
 }
 
 
-#[derive(Component, Clone)]
+#[derive(Clone)]
 pub struct TranslationAnchor(pub Vec3);
-
 
 impl Default for TranslationAnchor {
     fn default() -> Self {
@@ -113,7 +115,37 @@ impl Default for TranslationAnchor {
     }
 }
 
+impl Component for TranslationAnchor {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+                let transform: Option<Transform> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Transform>().cloned()
+                };
+
+                match transform {
+                    Some(transform) => {
+                        if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<TranslationAnchor>() {
+                            transform_anchor.0 = transform.translation;
+                        } else {
+                            warn!("Failed to retrieve TransformAnchor component for entity: {:?}", entity);
+                        }
+                    }
+                    None => {
+                        warn!("Transform anchor should be inserted after transform! Unable to find Transform.");
+                    }
+                }
+            }
+        );
+    }
+}
+
+
 #[derive(Component, Clone)]
+#[require(TranslationAnchor)]
 pub struct Wobble{
 	pub timer: Timer
 }

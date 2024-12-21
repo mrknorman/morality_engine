@@ -85,19 +85,15 @@ impl PersonSprite {
 	pub fn animate(
 		mut query: Query<(
 			&mut Text2d, 
-			&mut TextColor,
 			&mut Bouncy,
-			
 		), With<PersonSprite>>,
 	) {
-		for (mut text, mut color, bounce) in query.iter_mut() {
+		for (mut text, bounce) in query.iter_mut() {
 
 			if bounce.is_mid_bounce {
 				text.0 = String::from(PERSON_IN_DANGER);
-				color.0 = DANGER_COLOR;
 			} else {
 				text.0 = String::from(PERSON);
-				color.0 = PRIMARY_COLOR;
 			}
 		}
 	}
@@ -163,11 +159,11 @@ impl Emoticon {
 	pub fn animate(
 		time: Res<Time>,
 		person_query: Query<&mut Bouncy, With<PersonSprite>>,
-		mut emoticon_query: Query<(&Parent, &mut Emoticon, &mut Transform, &mut Text2d, &mut TextColor)>,
+		mut emoticon_query: Query<(&Parent, &mut Emoticon, &mut Transform, &mut Text2d)>,
 	) {
 
 		let duration_seconds = time.delta().as_secs_f32();
-		for (parent, mut sprite, mut transform, mut text, mut color) in emoticon_query.iter_mut() {
+		for (parent, mut sprite, mut transform, mut text) in emoticon_query.iter_mut() {
 			if let Ok(animation) = person_query.get(parent.get()) {
 				if animation.is_mid_bounce {
 					sprite.current_size += duration_seconds*2.0;
@@ -178,12 +174,10 @@ impl Emoticon {
 						1.0
 					);
 					text.0 = String::from(EXCLAMATION);
-					color.0 = DANGER_COLOR;
 				} else {
 					sprite.current_size = sprite.initial_size;
 					transform.translation.y = sprite.translation.y;
 					transform.scale = Vec3::ONE;
-					color.0 = PRIMARY_COLOR;
 					text.0 = String::from(NEUTRAL);
 				}
 			}

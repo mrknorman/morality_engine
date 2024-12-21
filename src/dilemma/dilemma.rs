@@ -26,8 +26,8 @@ use crate::{
 		TransientAudio, 
 		TransientAudioPallet
 	}, background::BackgroundSprite, colors::{		
-		ColorTranslation, OPTION_1_COLOR, OPTION_2_COLOR
-	}, game_states::DilemmaPhase, lever::{
+		ColorChangeEvent, ColorChangeOn, ColorTranslation, ColorAnchor, DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR
+	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, lever::{
 		Lever, 
 		LeverState, 
 	}, motion::{Bouncy, Locomotion}, person::{
@@ -667,11 +667,16 @@ impl Component for Junction {
 															60.0,
 															1.0,
 															2.0
-														)
+														),
+														ColorChangeOn(vec![ColorChangeEvent::Bounce(DANGER_COLOR)]),
+														ColorAnchor::default(),
+														BequeathTextColor
 													)
 												).with_children(
 													|parent| {
-														parent.spawn(Emoticon::default());
+														parent.spawn(
+															Emoticon::default()
+														);
 													}
 												);	
 											}
