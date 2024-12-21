@@ -127,12 +127,10 @@ fn setup(
     Dillema:
         - Change decision music 
         - Physics bodypart destruction
-        - Train painted red
         - Flashy Selector
         - Flashy Countdown
         - Hover
         - This train will not stop appears when click on train
-        - Background fade out
         - Background colours
         - Move sounds to right place
         - Refactor lever and timer

@@ -91,6 +91,8 @@ impl PointToPointTranslation {
 				let fraction_complete = motion.timer.fraction();
 				let difference = motion.final_position - motion.initial_position;
 				transform.translation = motion.initial_position + difference*fraction_complete;
+			} else if motion.timer.just_finished() {
+				transform.translation = motion.final_position;
 			}
 		}
 	}
@@ -102,24 +104,13 @@ impl PointToPointTranslation {
 
 
 #[derive(Component, Clone)]
-pub struct TranslationAnchor{
-	pub translation : Vec3
-}
+pub struct TranslationAnchor(pub Vec3);
+
 
 impl Default for TranslationAnchor {
     fn default() -> Self {
-        TranslationAnchor {
-            translation : Vec3::default()
-        }
+        TranslationAnchor(Vec3::default())
     }
-}
-
-impl TranslationAnchor {
-	pub fn new(translation : Vec3) -> TranslationAnchor {
-		TranslationAnchor {
-			translation
-		}
-	}
 }
 
 #[derive(Component, Clone)]
@@ -155,8 +146,8 @@ impl Wobble {
 				let dy = rng.gen_range(-1.0..=1.0);  
 
 				// Apply the calculated offsets to the child's position
-				transform.translation.x = translation_anchor.translation.x + dx as f32;
-				transform.translation.y = translation_anchor.translation.y + dy as f32;
+				transform.translation.x = translation_anchor.0.x + dx as f32;
+				transform.translation.y = translation_anchor.0.y + dy as f32;
 			}
 		}
 	}

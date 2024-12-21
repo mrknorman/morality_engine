@@ -35,66 +35,6 @@ use crate::{
 	}, track::Track, train::Train
 };
 
-#[derive(Resource)]
-pub struct DilemmaDashboard{
-	timer : Entity,
-	info  : Vec<Entity>,
-	lever : Entity
-}
-
-impl DilemmaDashboard {
-	pub fn spawn(
-			commands : &mut Commands,
-			dilemma: &Res<Dilemma>
-		) {
-
-		let timer : Entity = DilemmaTimer::spawn(
-			commands, 
-			dilemma.countdown_duration.as_secs_f32()
-		);
-
-		let mut info : Vec<Entity> = vec![];
-		for (index, option) in dilemma.options.clone().into_iter().enumerate() {
-			info.push(
-				DilemmaOptionInfoPanel::spawn(commands, &option, index)
-			);
-		}
-
-		let start_state = match dilemma.default_option {
-			None => LeverState::Random,
-			Some(ref option) if *option == 0 => LeverState::Left,
-			Some(_) => LeverState::Right,
-		};
-
-		let lever = Lever::spawn(
-			Vec3::new(0.0, -200.0, 0.0), 
-			start_state, 
-			commands
-		);
-
-		let dashboard: DilemmaDashboard = DilemmaDashboard{
-			timer,
-			info,
-			lever
-		};
-		commands.insert_resource(dashboard);
-	}
-
-	fn despawn(
-		&self, 			
-		commands : &mut Commands
-	) {		
-		commands.entity(self.timer).despawn_recursive();
-
-		for entity in self.info.clone() {
-			commands.entity(entity).despawn_recursive();
-		}
-
-		commands.entity(self.lever).despawn_recursive();
-	}
-
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 enum Culpability {
     Uninvolved,
@@ -335,9 +275,6 @@ impl Dilemma {
 }
 
 #[derive(Component)]
-pub struct DilemmaInfoPanel;
-
-#[derive(Component)]
 pub struct DilemmaOptionInfoPanel;
 
 impl DilemmaOptionInfoPanel {
@@ -401,14 +338,12 @@ impl DilemmaOptionInfoPanel {
 
 pub fn cleanup_decision(
 		mut commands : Commands,
-		dashboard : ResMut<DilemmaDashboard>,
 		background_query : Query<Entity, With<BackgroundSprite>>
 	){
 
 	for entity in background_query.iter() {
 		commands.entity(entity).despawn();
 	}
-	dashboard.despawn(&mut commands);
 }
 
 #[derive(Component)]
