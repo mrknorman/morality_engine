@@ -13,19 +13,16 @@ use bevy::{
 use crate::{
 	ascii_fonts::AsciiString, audio::{
 		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
-	}, background::{Background, BackgroundPlugin}, colors::{ColorTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, MENU_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR}, common_ui::NextButton, game_states::{
+	}, background::{Background, BackgroundPlugin}, colors::{ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR}, common_ui::NextButton, game_states::{
 		DilemmaPhase, GameState, MainState, StateVector
 	}, inheritance::BequeathTextColor, interaction::{
 		InputAction, InteractionPlugin
-	}, lever::check_level_pull, motion::PointToPointTranslation, person::PersonPlugin, text::{
-		TextButton, 
-		TextTitle
-	}, timing::{
+	}, lever::check_level_pull, motion::PointToPointTranslation, person::PersonPlugin, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     }, train::{
         Train,
         STEAM_TRAIN
-    }
+    }, lever::{Lever, LeverState}
 };
 
 mod dilemma;
@@ -39,8 +36,7 @@ use dilemma::{
 	consequence_animation_tick_down,
 	Dilemma,
 	DramaticPauseTimer,
-	DilemmaInfoPanel,
-	DilemmaDashboard,
+	DilemmaTimer,
 	TrunkTrack
 };
 pub struct DilemmaPlugin;
@@ -115,7 +111,6 @@ impl Plugin for DilemmaPlugin {
 
 #[derive(Component)]
 struct DilemmaRoot;
-
 pub fn setup_dilemma(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>
@@ -157,22 +152,13 @@ pub fn setup_dilemma(
 				TextColor(PRIMARY_COLOR),
 				AsciiString(format!("DILEMMA {}", dilemma.index)),
 				BequeathTextColor,
-				ColorTranslation::new(
-					PRIMARY_COLOR,
-					Color::srgba(0.0, 0.0, 0.0, 0.0),
-					transition_duration
-				),
+				Fade(transition_duration),
 				Transform::from_xyz(-400.0,300.0, 1.0)
 			));
 
 			parent.spawn((
 				TextColor(PRIMARY_COLOR),
-				BequeathTextColor,
-				ColorTranslation::new(
-					PRIMARY_COLOR,
-					Color::srgba(0.0, 0.0, 0.0, 0.0),
-					transition_duration
-				),
+				Fade(transition_duration),
 				Text2d::new(&dilemma.name),
 				TextFont{
 					font_size : 60.0,
@@ -185,9 +171,7 @@ pub fn setup_dilemma(
 				Anchor::TopCenter,
 				Transform::from_xyz(0.0,250.0, 1.0)
 			));	
-
 			
-
 			parent.spawn((
 				TextColor(BACKGROUND_COLOR),
 				Background::load_from_json(
@@ -225,7 +209,6 @@ pub fn setup_dilemma(
 
 			let main_track_translation_end: Vec3 = Vec3::new(0.0, -40.0, 0.0);
 			let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-
 			let track_colors = vec![OPTION_1_COLOR, OPTION_2_COLOR];
 			let initial_color = match dilemma.default_option {
 				None => Color::WHITE,
@@ -471,7 +454,32 @@ pub fn setup_decision(
             );
 		});
 
-	DilemmaDashboard::spawn(&mut commands, &dilemma);
+	DilemmaTimer::spawn(
+		&mut commands, 
+		dilemma.countdown_duration.as_secs_f32()
+	);
+
+	let start_state = match dilemma.default_option {
+		None => LeverState::Random,
+		Some(ref option) if *option == 0 => LeverState::Left,
+		Some(_) => LeverState::Right,
+	};
+
+	Lever::spawn(
+		Vec3::new(0.0, -200.0, 0.0), 
+		start_state, 
+		&mut commands
+	);
+
+	
+	/*
+	let mut info : Vec<Entity> = vec![];
+	for (index, option) in dilemma.options.clone().into_iter().enumerate() {
+		info.push(
+			DilemmaOptionInfoPanel::spawn(commands, &option, index)
+		);
+	}
+	*/
 }
 
 pub fn setup_dilemma_consequence_animation(

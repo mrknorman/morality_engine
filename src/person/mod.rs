@@ -71,14 +71,12 @@ fn default_person() -> Text2d {
 #[require(Anchor(default_person_anchor), Gravity, TextSprite, Text2d(default_person))]
 pub struct PersonSprite{
 	pub in_danger : bool,
-	pub just_screamed : bool
 }
 
 impl Default for PersonSprite {
 	fn default() -> Self {
 		PersonSprite {
 			in_danger : false,
-			just_screamed : false
 		}
 	}
 }

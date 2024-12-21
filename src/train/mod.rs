@@ -119,9 +119,7 @@ impl TrainCarriage{
 
 		(
 			TrainCarriage,
-			TranslationAnchor::new(
-				translation
-			),
+			TranslationAnchor(translation),
 			Text2d::new(text),
 			Transform::from_translation(translation)
 		)

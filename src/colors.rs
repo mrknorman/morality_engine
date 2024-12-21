@@ -1,5 +1,10 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    ecs::component::StorageType
+};
 use std::time::Duration;
+
+use crate::motion::Bouncy;
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(2.0, 5.0, 2.0, 1.0));
@@ -30,7 +35,10 @@ impl Plugin for ColorsPlugin {
             .init_state::<ColorsSystemsActive>()
             .add_systems(Update, 
                 (activate_systems,
-                ColorTranslation::translate)
+                ColorTranslation::translate,
+                Fade::despawn_after_fade,
+                ColorChangeOn::color_change_on_bounce
+            )
             )           
             .init_resource::<ColorPallet>()
             .insert_resource(ColorPallet::default());
@@ -125,17 +133,120 @@ impl ColorTranslation {
 				let difference = motion.final_color - motion.initial_color;
 
                 let new_color = motion.initial_color + difference*fraction_complete;
-				color.0 =  Color::LinearRgba(LinearRgba{
+				color.0 = Color::LinearRgba(LinearRgba{
                     red : new_color.x,
                     green : new_color.y,
                     blue : new_color.z,
                     alpha : new_color.w
                 });
-			}
+			} else if motion.timer.just_finished() {
+                let new_color = motion.final_color;
+                color.0 = Color::LinearRgba(LinearRgba{
+                    red : new_color.x,
+                    green : new_color.y,
+                    blue : new_color.z,
+                    alpha : new_color.w
+                });
+            }
 		}
 	}
 
 	pub fn start(&mut self) {
 		self.timer.unpause();
 	}
+}
+
+#[derive(Clone)]
+pub struct Fade(pub Duration);
+
+impl Fade {
+    fn despawn_after_fade(
+        mut commands : Commands,
+        mut query : Query<(Entity, &ColorTranslation), With<Fade>>
+    ) {
+        for (entity, transition) in query.iter_mut() {
+            if transition.timer.just_finished() {
+                commands.entity(entity).despawn_recursive();    
+            }
+        }   
+    }
+}
+
+impl Component for Fade{
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+				// Step 1: Extract components from the pallet
+				let fade: Option<Fade> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<Fade>()
+                        .map(|fade: &Fade| fade.clone())
+                };
+
+                let color: Option<TextColor> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<TextColor>()
+                        .map(|fade: &TextColor| fade.clone())
+                };
+
+                let mut commands = world.commands();
+
+                if let (Some(fade), Some(color)) = (fade, color) {
+                    commands.entity(entity).insert(
+                        ColorTranslation::new(
+                            color.0,
+                            Color::NONE,
+                            fade.0
+                        )
+                    );
+                }
+
+            }
+        );
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct ColourAnchor(pub Color);
+
+impl Default for ColourAnchor {
+    fn default() -> Self {
+        ColourAnchor(Color::WHITE)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColorChangeEvent {
+    Bounce(Color),
+    Hover(Color),
+    Click(Color)
+}
+
+#[derive(Clone, Component)]
+#[require(TextColor)]
+pub struct ColorChangeOn(Vec<ColorChangeEvent>);
+
+impl ColorChangeOn {
+    fn color_change_on_bounce(
+        mut bounce_query : Query<(&ColorChangeOn, &ColourAnchor, &mut TextColor, &Bouncy)>
+    ) {
+
+        for (color_change_on, anchor, mut text_color, bounce) in bounce_query.iter_mut() {
+
+            for event in color_change_on.0.iter() {
+
+                if let ColorChangeEvent::Bounce(color) = event {                    
+                    if bounce.is_mid_bounce {
+                        text_color.0 = *color;
+                    } else {
+                        text_color.0 = anchor.0;
+                    }
+                }
+            }
+		}
+    }
 }
