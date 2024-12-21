@@ -332,5 +332,5 @@ pub struct Pulse{
 	timer : Timer,
 	diverging : bool,
 	scale : f32
-};
+}
 
