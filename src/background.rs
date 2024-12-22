@@ -1,24 +1,26 @@
 use std::{
 	fs::File,
 	io::BufReader, 
-	path::PathBuf
+	path::PathBuf,
+	collections::HashMap
 };
-
 use bevy::{
 	prelude::*, 
 	sprite::Anchor, 
 	text::LineBreak,
-	ecs::component::StorageType,
+	ecs::{
+		component::StorageType,
+		system::SystemId
+	},
 	window::WindowResized
 };
 use rand::Rng;
-use rand::SeedableRng;
-use rand_pcg::Pcg64Mcg;
 use serde::{
 	Deserialize, 
 	Serialize
 };
 use crate::text::TextSprite;
+use crate::GlobalRng;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BackgroundSystemsActive {
@@ -41,10 +43,10 @@ impl Plugin for BackgroundPlugin {
 					Background::on_resize
 				)
 				.run_if(in_state(BackgroundSystemsActive::True))
-			);
-
-		app.register_required_components::<Background, Transform>();
-		app.register_required_components::<Background, Visibility>();
+			)
+			.init_resource::<BackgroundSystems>()
+			.register_required_components::<Background, Transform>()
+			.register_required_components::<Background, Visibility>();
     }
 }
 
@@ -57,6 +59,22 @@ fn activate_systems(
     } else {
         BackgroundSystemsActive::True
     });
+}
+
+#[derive(Resource)]
+pub struct BackgroundSystems(pub HashMap<String, SystemId>);
+
+impl FromWorld for BackgroundSystems {
+    fn from_world(world: &mut World) -> Self {
+        let mut my_item_systems = BackgroundSystems(HashMap::new());
+
+        my_item_systems.0.insert(
+            "update_background_speeds".into(),
+            world.register_system(Background::update_speeds)
+        );
+
+        my_item_systems
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -74,7 +92,6 @@ pub struct Background{
 }
 
 impl Background {
-
     pub fn load_from_json<P: Into<PathBuf>>(
         file_path: P,
         density: f32,
@@ -135,42 +152,59 @@ impl Background {
 			}
 		} 
 	}
+
+	pub fn update_speeds(
+		windows: Query<&Window>,
+		background_query: Query<(&Children, &Background), Without<BackgroundSprite>>,
+		mut children_query: Query<(&mut BackgroundSprite, &Transform), Without<Background>>,
+	) {
+
+		let window: &Window = windows.get_single().unwrap();
+		let screen_height = window.height();
+
+		// Loop over all parents
+		for (children, background) in background_query.iter() {
+			// Extract the parent's speed
+			let parent_speed = background.speed;
 	
+			// Loop over each child entity
+			for &child_entity in children.iter() {
+				// If we can get a mutable reference to the child's BackgroundSprite
+				if let Ok((mut child_sprite, transform)) = children_query.get_mut(child_entity) {
+					// Update the child's speed
+					child_sprite.speed = (screen_height - transform.translation.y).max(0.0)*parent_speed;
+				}
+			}
+		}
+	}
 }
 
 const SPAWN_VARIANCE : f32 = 100.0;
 
 #[derive(Component)]
 #[require(TextSprite)]
-pub struct BackgroundSprite;
+pub struct BackgroundSprite {
+	screen_width : f32,
+	screen_width_max : f32,
+	speed : f32
+}
 
 impl BackgroundSprite {
 
 	pub fn update_positions(
-		windows: Query<&Window>,
-		time: Res<Time>, // Inject the Time resource to access the game time
-		mut background_query : Query<(&Parent, &mut Transform), With<BackgroundSprite>>,
-		parent_query : Query<&Background>
+		time: Res<Time>,
+		mut rng : ResMut<GlobalRng>,
+		mut background_query : Query<(&BackgroundSprite, &mut Transform)>
 	) {
 
-		let window: &Window = windows.get_single().unwrap();
-		let screen_height = window.height()/2.0;
-		let screen_width = window.width()/2.0 + 100.0;
-
 		let time_seconds: f32 = time.delta().as_secs_f32();
-		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 
-		for (parent, mut transform) in background_query.iter_mut() {
-			if let Ok(master) = parent_query.get(parent.get()) {
+		for (sprite, mut transform) in background_query.iter_mut() {
+			transform.translation.x -= sprite.speed*time_seconds;
 
-				let y : f32 = transform.translation.y;
-
-				transform.translation.x -= (screen_height - y).max(0.0) * master.speed*time_seconds;
-
-				if transform.translation.x <= -screen_width {
-					let random_offset: f32 = rng.gen_range(screen_width..screen_width + SPAWN_VARIANCE);
-					transform.translation.x = random_offset;
-				}
+			if transform.translation.x <= -sprite.screen_width {
+				let random_offset: f32 = rng.0.gen_range(sprite.screen_width..sprite.screen_width_max);
+				transform.translation.x = random_offset;
 			}
 		}
 	}
@@ -228,7 +262,11 @@ impl Component for Background {
 									commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
 										let mut entity = parent.spawn(
 											(
-												BackgroundSprite,
+												BackgroundSprite{
+													screen_width,
+													screen_width_max : screen_width + SPAWN_VARIANCE,
+													speed : (screen_height - translation.y).max(0.0)*scene.speed
+												},
 												Anchor::BottomCenter,
 												Text2d::new(text),
 												Transform::from_translation(

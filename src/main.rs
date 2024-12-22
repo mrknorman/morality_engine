@@ -4,6 +4,9 @@ use bevy::{
         tonemapping::Tonemapping,
     }, prelude::*, sprite::Material2dPlugin, window::{PrimaryMonitor, WindowMode}
 };
+use rand::Rng;
+use rand::SeedableRng;
+use rand_pcg::Pcg64Mcg;
 
 #[forbid(unsafe_code)]
 
@@ -33,6 +36,7 @@ mod colors;
 mod physics;
 mod ascii_fonts;
 mod inheritance;
+mod random;
 
 use crate::{
     game_states::{
@@ -62,16 +66,16 @@ struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_systems(Startup, setup)
+            .add_systems(Update, 
+                shortcuts::close_on_esc
+            )
             .init_state::<MainState>()
             .add_sub_state::<GameState>()
             .add_sub_state::<DilemmaPhase>()
             .enable_state_scoped_entities::<MainState>()
             .enable_state_scoped_entities::<GameState>()
             .enable_state_scoped_entities::<DilemmaPhase>()
-            .add_systems(Startup, setup)
-            .add_systems(Update, 
-                shortcuts::close_on_esc
-            )
             .add_plugins(common_ui::CommonUIPlugin)
             .add_plugins(menu::MenuScreenPlugin)
             .add_plugins(loading::LoadingScreenPlugin)
@@ -83,6 +87,9 @@ impl Plugin for GamePlugin {
             ;
     }
 }
+
+#[derive(Resource)]
+struct GlobalRng(pub Pcg64Mcg);
 
 fn setup(
         mut commands: Commands,
@@ -100,6 +107,8 @@ fn setup(
         Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
         Bloom::default(), // 3. Enable bloom for the camera
     ));
+
+    commands.insert_resource(GlobalRng(Pcg64Mcg::seed_from_u64(12345)));
 }
 
 //
