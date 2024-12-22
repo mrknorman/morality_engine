@@ -333,4 +333,3 @@ pub struct Pulse{
 	diverging : bool,
 	scale : f32
 }
-

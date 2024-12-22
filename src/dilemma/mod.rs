@@ -13,11 +13,11 @@ use bevy::{
 use crate::{
 	ascii_fonts::AsciiString, audio::{
 		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
-	}, background::{Background, BackgroundPlugin}, colors::{ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR}, common_ui::NextButton, game_states::{
+	}, background::{Background, BackgroundPlugin, BackgroundSystems}, colors::{ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR}, common_ui::NextButton, game_states::{
 		DilemmaPhase, GameState, MainState, StateVector
 	}, inheritance::BequeathTextColor, interaction::{
 		InputAction, InteractionPlugin
-	}, lever::{check_level_pull, Lever, LeverState}, motion::{Bouncy, PointToPointTranslation}, person::PersonPlugin, text::TextButton, timing::{
+	}, lever::{check_level_pull, Lever, LeverState}, motion::{Bouncy, MotionSystemsActive, PointToPointTranslation}, person::PersonPlugin, text::TextButton, timing::{
         TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
     }, train::{
         Train,
@@ -349,6 +349,7 @@ fn spawn_delayed_children(
 pub fn setup_dilemma_transition(
 		dilemma : Res<Dilemma>,
 		mut commands : Commands,
+		systems: Res<BackgroundSystems>,
 		mut background_query : Query<(&mut Background, &mut ColorTranslation), Without<TrunkTrack>>,
 		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
 		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
@@ -369,11 +370,14 @@ pub fn setup_dilemma_transition(
 	for (mut background, mut color) in background_query.iter_mut() {
 		color.start();
 		background.speed = dilemma.countdown_duration.as_secs_f32() / 5.0;
+		commands.run_system(systems.0["update_background_speeds"]);
 	}
 }
 
 pub fn end_dilemma_transition(
 		dilemma: Res<Dilemma>,
+		mut commands : Commands,
+		systems: Res<BackgroundSystems>,
 		mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
 		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
 		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
@@ -392,6 +396,7 @@ pub fn end_dilemma_transition(
 
 		for mut background in background_query.iter_mut() {
 			background.speed = 0.0;
+			commands.run_system(systems.0["update_background_speeds"]);
 		}
 		
 		next_sub_state.set(
