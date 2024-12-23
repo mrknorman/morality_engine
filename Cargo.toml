@@ -18,6 +18,10 @@ rand_xorshift = "0.3.0"
 rand_core = "0.6.4"
 rand_pcg = "0.3.1"
 
+# Enable only a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3

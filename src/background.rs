@@ -265,7 +265,7 @@ impl Component for Background {
 												BackgroundSprite{
 													screen_width,
 													screen_width_max : screen_width + SPAWN_VARIANCE,
-													speed : (screen_height - translation.y).max(0.0)*scene.speed
+													speed : (screen_height/2.0 - translation.y).max(0.0)*scene.speed
 												},
 												Anchor::BottomCenter,
 												Text2d::new(text),
