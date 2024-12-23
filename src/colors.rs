@@ -5,7 +5,7 @@ use std::time::Duration;
 use rand::seq::SliceRandom; // For shuffling
 use rand::thread_rng;
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::Bouncy};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::Bounce};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -314,7 +314,7 @@ impl ColorChangeOn {
             &Aabb,
             &GlobalTransform,
             Option<&ColorAnchor>,
-            Option<&Bouncy>
+            Option<&Bounce>
         )>,
     ) {
         for (mut color_change_on, mut text_color, bound, transform, anchor, bounce) in bounce_query.iter_mut() {
@@ -324,7 +324,7 @@ impl ColorChangeOn {
                 match event {
                     ColorChangeEvent::Bounce(color) => {
                         if let Some(bounce) = bounce {
-                            if bounce.is_mid_bounce {
+                            if bounce.enacting {
                                 text_color.0 = color[0];
                                 event_handled = true;
                                 break; 

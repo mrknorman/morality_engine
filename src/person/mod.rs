@@ -7,7 +7,7 @@ use crate::{
 	colors::{PRIMARY_COLOR, DANGER_COLOR},
 	audio::{TransientAudioPallet, TransientAudio},
 	physics::{Gravity, PhysicsPlugin},
-	motion::Bouncy
+	motion::Bounce
 }; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -85,12 +85,12 @@ impl PersonSprite {
 	pub fn animate(
 		mut query: Query<(
 			&mut Text2d, 
-			&mut Bouncy,
+			&mut Bounce,
 		), With<PersonSprite>>,
 	) {
 		for (mut text, bounce) in query.iter_mut() {
 
-			if bounce.is_mid_bounce {
+			if bounce.enacting {
 				text.0 = String::from(PERSON_IN_DANGER);
 			} else {
 				text.0 = String::from(PERSON);
@@ -103,7 +103,7 @@ impl PersonSprite {
 			Entity,  
 			&TransientAudioPallet, 
 			&mut PersonSprite, 
-			&mut Bouncy
+			&mut Bounce
 		), With<PersonSprite>>,
 		mut commands : Commands,
 		mut audio_query: Query<&mut TransientAudio>
@@ -118,7 +118,7 @@ impl PersonSprite {
 					&mut audio_query
 				);
 			}
-			bounce.bouncing = person.in_danger;
+			bounce.active = person.in_danger;
 		}
 	}
 }
@@ -158,14 +158,14 @@ impl Default for Emoticon {
 impl Emoticon {
 	pub fn animate(
 		time: Res<Time>,
-		person_query: Query<&mut Bouncy, With<PersonSprite>>,
+		person_query: Query<&mut Bounce, With<PersonSprite>>,
 		mut emoticon_query: Query<(&Parent, &mut Emoticon, &mut Transform, &mut Text2d)>,
 	) {
 
 		let duration_seconds = time.delta().as_secs_f32();
 		for (parent, mut sprite, mut transform, mut text) in emoticon_query.iter_mut() {
 			if let Ok(animation) = person_query.get(parent.get()) {
-				if animation.is_mid_bounce {
+				if animation.enacting {
 					sprite.current_size += duration_seconds*2.0;
 					transform.translation.y += duration_seconds*15.0;
 					transform.scale = Vec3::new(

@@ -51,8 +51,8 @@ use crate::{
 		LeverState
 	}, 
 	motion::{
-		Bouncy, 
-		PointToPointTranslation
+		Bounce, 
+		PointToPointTranslation, Pulse
 	}, 
 	person::PersonPlugin, 
 	text::TextButton, 
@@ -405,7 +405,7 @@ pub fn setup_dilemma_transition(
 	}
 	for (entity, mut color) in title_query.iter_mut() {
 		commands.entity(entity).insert(BequeathTextColor);
-		commands.entity(entity).remove::<Bouncy>();
+		commands.entity(entity).remove::<Bounce>();
 
 		color.start()
 	}
@@ -499,8 +499,9 @@ pub fn setup_decision(
             );
 
 			parent.spawn((
-				DilemmaTimer::new(dilemma.countdown_duration),
-				Transform::from_xyz(0.0, -100.0, 1.0)
+				DilemmaTimer::new(dilemma.countdown_duration, Duration::from_secs_f32(5.0)),
+				Transform::from_xyz(0.0, -100.0, 1.0),
+				Pulse::default()
 			));
 		});
 	

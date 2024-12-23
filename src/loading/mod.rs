@@ -251,7 +251,9 @@ pub fn spawn_delayed_children(
                                     "click".to_string(),
                                     vec![
                                         TransientAudio::new(
-                                            asset_server.load("sounds/mech_click.ogg"), 
+                                            asset_server.load(
+                                                "sounds/mech_click.ogg"
+                                            ), 
                                             0.1, 
                                             true,
                                             1.0

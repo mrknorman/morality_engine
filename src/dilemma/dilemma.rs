@@ -25,7 +25,7 @@ use crate::{
 	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, lever::{
 		Lever, 
 		LeverState, 
-	}, motion::{Bouncy, Locomotion}, person::{
+	}, motion::{Bounce, Locomotion}, person::{
 		Emoticon, PersonSprite,
 	}, track::Track, train::Train
 };
@@ -189,12 +189,18 @@ impl DilemmaOption {
 	}
 }
 
-pub struct DilemmaTimer(pub Timer);
+pub struct DilemmaTimer{
+	pub timer : Timer,
+	pulse_time : Duration
+}
 
 impl DilemmaTimer {
 
-	pub fn new(duration : Duration) -> Self { 
-		Self(Timer::new(duration, TimerMode::Once))
+	pub fn new(duration : Duration, pulse_time : Duration) -> Self { 
+		Self{
+			timer : Timer::new(duration, TimerMode::Once),
+			pulse_time : pulse_time
+		}
 	}
 
 	pub fn update(
@@ -205,19 +211,17 @@ impl DilemmaTimer {
 	
 		for (mut timer, mut text) in timer_query.iter_mut() {
 
-			timer.0.tick(time.delta());
-
-			let time_remaining = timer.0.remaining_secs();
-
-			text.0 = format!("{:.2}\n", time_remaining);
-
-			if timer.0.finished() {
+			timer.timer.tick(time.delta());
+			text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
+			if timer.timer.finished() {
 				next_game_state.set(
 					DilemmaPhase::ConsequenceAnimation
 				)
 			}
 		}
 	}
+
+	pub fn start_pulse() {}
 
 }
 
@@ -231,7 +235,7 @@ impl Component for DilemmaTimer{
         hooks.on_insert(
             |mut world, entity, _component_id| {
 
-				let timer_duration_seconds = world.entity(entity).get::<DilemmaTimer>().unwrap().0.duration().as_secs_f32();
+				let timer_duration_seconds = world.entity(entity).get::<DilemmaTimer>().unwrap().timer.duration().as_secs_f32();
 
 				let mut commands = world.commands();
 				commands.entity(entity).insert(
@@ -658,7 +662,7 @@ impl Component for Junction {
 																audio_vector.clone()
 															)]
 														),
-														Bouncy::new(
+														Bounce::new(
 															false,
 															40.0, 
 															60.0,

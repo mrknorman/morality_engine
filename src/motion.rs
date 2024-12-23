@@ -1,18 +1,20 @@
-use bevy::ecs::component::StorageType;
+use std::time::Duration;
+
 use bevy::{
-	prelude::*
+	prelude::*,
+	ecs::component::StorageType
 };
+use rand:: {
+	Rng,
+	SeedableRng
+};
+use rand_pcg::Pcg64Mcg;
 
 use crate::physics::{
     Velocity,
     Gravity,
     PhysicsPlugin
 };
-
-use rand::Rng;
-use rand::SeedableRng;
-use rand_pcg::Pcg64Mcg;
-use std::time::Duration;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MotionSystemsActive {
@@ -33,13 +35,16 @@ impl Plugin for MotionPlugin {
 		).add_systems(
             Update,
             (
-				Wobble::wobble,
-				Bouncy::bounce,
-				Locomotion::locomote,
-                PointToPointTranslation::translate
+				Wobble::enact,
+				Bounce::enact,
+				Locomotion::enact,
+				Pulse::enact,
+                PointToPointTranslation::enact
             )
             .run_if(in_state(MotionSystemsActive::True))
-        );
+        )
+		.register_required_components::<TransformAnchor, Transform>()
+		;
 
 		if !app.is_plugin_added::<PhysicsPlugin>() {
 			app.add_plugins(PhysicsPlugin);
@@ -49,7 +54,7 @@ impl Plugin for MotionPlugin {
 
 fn activate_systems(
 	mut state: ResMut<NextState<MotionSystemsActive>>,
-	query: Query<(Option<&Bouncy>, Option<&Wobble>, Option<&Locomotion>, Option<&PointToPointTranslation>)>
+	query: Query<(Option<&Bounce>, Option<&Wobble>, Option<&Locomotion>, Option<&PointToPointTranslation>, Option<&Pulse>)>
 ) {
 	if !query.is_empty() {
 		state.set(MotionSystemsActive::True)
@@ -57,6 +62,7 @@ fn activate_systems(
 		state.set(MotionSystemsActive::False)
 	}
 }
+
 pub struct PointToPointTranslation {
     pub initial_position: Vec3,
     pub final_position: Vec3,
@@ -79,11 +85,16 @@ impl Component for PointToPointTranslation {
                         if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<PointToPointTranslation>() {
                             transform_anchor.initial_position = transform.translation;
                         } else {
-                            warn!("Failed to retrieve TransformAnchor component for entity: {:?}", entity);
+                            warn!(
+								"Failed to retrieve TransformAnchor component for entity: {:?}", 
+								entity
+							);
                         }
                     }
                     None => {
-                        warn!("Transform anchor should be inserted after transform! Unable to find Transform.");
+                        warn!(
+
+							"Transform anchor should be inserted after transform! Unable to find Transform.");
                     }
                 }
             }
@@ -106,7 +117,7 @@ impl PointToPointTranslation {
 		translation
 	}
 
-	pub fn translate(
+	pub fn enact(
 		time: Res<Time>, 
 		mut query: Query<(&mut PointToPointTranslation, &mut Transform)>
 	) {
@@ -130,17 +141,15 @@ impl PointToPointTranslation {
 	}
 }
 
-
 #[derive(Clone)]
-pub struct TranslationAnchor(pub Vec3);
-
-impl Default for TranslationAnchor {
+pub struct TransformAnchor(pub Transform);
+impl Default for TransformAnchor {
     fn default() -> Self {
-        TranslationAnchor(Vec3::default())
+        TransformAnchor(Transform::default())
     }
 }
 
-impl Component for TranslationAnchor {
+impl Component for TransformAnchor {
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
@@ -153,8 +162,8 @@ impl Component for TranslationAnchor {
 
                 match transform {
                     Some(transform) => {
-                        if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<TranslationAnchor>() {
-                            transform_anchor.0 = transform.translation;
+                        if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<TransformAnchor>() {
+                            transform_anchor.0.clone_from(&transform);
                         } else {
                             warn!("Failed to retrieve TransformAnchor component for entity: {:?}", entity);
                         }
@@ -169,7 +178,7 @@ impl Component for TranslationAnchor {
 }
 
 #[derive(Component, Clone)]
-#[require(TranslationAnchor)]
+#[require(TransformAnchor)]
 pub struct Wobble{
 	pub timer: Timer
 }
@@ -190,20 +199,18 @@ impl Wobble {
 		}
 	}
 
-	pub fn wobble(
+	pub fn enact(
 		time: Res<Time>, // Inject the Time resource to access the game time
-		mut wobble_query: Query<(&mut Transform, &mut Wobble, &TranslationAnchor)>
+		mut wobble_query: Query<(&mut Transform, &mut Wobble, &TransformAnchor)>
 	) {
 		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 		for (mut transform, mut wobble, translation_anchor) in wobble_query.iter_mut() {
 			if wobble.timer.tick(time.delta()).finished() {
-				// Calculate offset using sine and cosine functions for smooth oscillation
 				let dx = rng.gen_range(-1.0..=1.0);
 				let dy = rng.gen_range(-1.0..=1.0);  
 
-				// Apply the calculated offsets to the child's position
-				transform.translation.x = translation_anchor.0.x + dx as f32;
-				transform.translation.y = translation_anchor.0.y + dy as f32;
+				transform.translation.x = translation_anchor.0.translation.x + dx as f32;
+				transform.translation.y = translation_anchor.0.translation.y + dy as f32;
 			}
 		}
 	}
@@ -211,9 +218,9 @@ impl Wobble {
 
 #[derive(Component)]
 #[require(Gravity)]
-pub struct Bouncy {
-	pub bouncing : bool,
-	pub is_mid_bounce : bool,
+pub struct Bounce {
+	pub active : bool,
+	pub enacting : bool,
 	pub initial_velocity_min : f32,
 	pub initial_velocity_max : f32,
 	pub interval_min : f32,
@@ -221,18 +228,18 @@ pub struct Bouncy {
 	pub timer : Timer
 }
 
-impl Bouncy {
+impl Bounce {
 	pub fn new(
-		bouncing :  bool,
+		active :  bool,
 		initial_velocity_min : f32,
 		initial_velocity_max : f32,
 		interval_min : f32,
 		interval_max : f32
-	) -> Bouncy {
+	) -> Self {
 
-		Bouncy {
-			bouncing,
-			is_mid_bounce : false,
+		Self {
+			active,
+			enacting : false,
 			initial_velocity_min,
 			initial_velocity_max,
 			interval_min,
@@ -244,10 +251,10 @@ impl Bouncy {
 		}
 	}
 
-    pub fn bounce(
+    pub fn enact(
 		time: Res<Time>,
 		mut query: Query<(
-			&mut Bouncy,
+			&mut Bounce,
 			&mut Velocity,
 			&Gravity
 		)>
@@ -255,14 +262,14 @@ impl Bouncy {
 		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 		for (mut bounce, mut velocity, gravity) in query.iter_mut() {
 
-			if bounce.is_mid_bounce || !bounce.bouncing {
+			if bounce.enacting || !bounce.active {
 				bounce.timer.pause();
 			} else {
 				bounce.timer.unpause();
 			}
 
 			bounce.timer.tick(time.delta());
-			if bounce.is_mid_bounce && !gravity.is_falling {
+			if bounce.enacting && !gravity.is_falling {
 				let new_duration_seconds = rand::random::<f32>()
 				* (bounce.interval_max - bounce.interval_min) 
 				+ bounce.interval_min;
@@ -271,7 +278,7 @@ impl Bouncy {
 					Duration::from_secs_f32(new_duration_seconds)
 				);
 				bounce.timer.reset();
-			} else if bounce.timer.just_finished() && !gravity.is_falling && bounce.bouncing {
+			} else if bounce.timer.just_finished() && !gravity.is_falling && bounce.active {
 				velocity.0 = Vec3::new(
 					0.0, 
 					rng.gen_range(
@@ -281,15 +288,14 @@ impl Bouncy {
 				);
 			}
 
-			bounce.is_mid_bounce = bounce.timer.finished() && gravity.is_falling;
+			bounce.enacting = bounce.timer.finished() && gravity.is_falling;
 		}
 	}
 }
 
-impl Default for Bouncy {
-	
+impl Default for Bounce {
 	fn default() -> Self {
-		Bouncy::new(
+		Bounce::new(
 			true,
 			40.0, 
 			60.0,
@@ -312,7 +318,7 @@ impl Locomotion{
 		}
 	}
 
-	pub fn locomote(
+	pub fn enact(
 		time: Res<Time>,
 		mut locomotion_query: Query<(&Locomotion, &mut Transform)>
 	) {
@@ -326,10 +332,104 @@ impl Locomotion{
 }
 
 #[derive(Component)]
-#[require(Transform)]
+#[require(TransformAnchor)]
 pub struct Pulse{
 	active : bool,
-	timer : Timer,
+	enacting : bool,
 	diverging : bool,
-	scale : f32
+	scale : f32,
+	timer : Timer,
+	pulse_timer : Timer,
+}
+
+impl Pulse {
+	pub fn new(
+		active : bool,
+		scale : f32,
+		interval_duration : Duration, 
+		duration : Duration
+	) -> Self {
+
+		let half_duration = duration / 2;
+		let separation_duration = interval_duration - duration;
+
+		Self {
+			active,
+			enacting : false,
+			diverging : true,
+			scale,
+			timer : Timer::new(
+				separation_duration,
+				TimerMode::Once
+			),
+			pulse_timer : Timer::new(
+				half_duration,
+				TimerMode::Repeating
+			)
+		}
+	}
+
+	pub fn enact(
+		time : Res<Time>,
+		mut query : Query<(&mut Self, &mut Transform, &mut TransformAnchor)>
+	) {
+
+		for (
+			mut pulse, 
+			mut transform, 
+			anchor
+		) in query.iter_mut() {
+
+			pulse.timer.tick(time.delta());
+			pulse.pulse_timer.tick(time.delta());
+
+			if pulse.enacting || !pulse.active {
+				pulse.timer.pause();
+			} else {
+				pulse.timer.unpause();
+			}
+
+			if pulse.enacting {
+				pulse.pulse_timer.unpause();
+
+				if pulse.pulse_timer.just_finished() {
+					pulse.diverging = !pulse.diverging;
+
+					if !pulse.diverging {
+						pulse.diverging = true;
+	
+						transform.scale = anchor.0.scale;
+						pulse.pulse_timer.pause();
+						pulse.pulse_timer.reset();
+	
+						pulse.timer.reset();
+						pulse.timer.unpause();
+					}
+				}
+
+				let fraction = pulse.pulse_timer.fraction();
+				let scale_factor = if pulse.diverging {
+					1.0 + pulse.scale * fraction
+				} else {
+					1.0 + pulse.scale * (1.0 - fraction)
+				};
+				transform.scale = anchor.0.scale * scale_factor;
+			} else {
+				transform.scale = anchor.0.scale;
+			}
+
+			pulse.enacting = pulse.timer.finished();
+		}
+	}
+} 
+
+impl Default for Pulse {
+	fn default() -> Self {
+		Pulse::new(
+			true,
+			0.2,
+			Duration::from_secs_f32(1.0),
+			Duration::from_secs_f32(0.2)
+		)	
+	}
 }
