@@ -288,9 +288,12 @@ impl Dialogue {
                         TimerMode::Repeating
                     );
 				} else {
-                    *writer.text(entity, dialogue.num_spans - 1) = line.raw_text.clone();
-					dialogue.current_char_index = line.raw_text.len();
-					dialogue.skip_count += 1;
+                    if let Some(mut text) = writer.get_text(entity, dialogue.num_spans - 1) {
+                        (*text).clone_from(&line.raw_text);
+
+                        dialogue.current_char_index = line.raw_text.len();
+                        dialogue.skip_count += 1;
+                    };
 				}
 			}
 		}
@@ -317,14 +320,16 @@ impl Dialogue {
     
             match next_char {
                 Some(c) => {
-
-                    writer.text(entity, span_index).push(c);
+                    if let Some(mut text) = writer.get_text(entity, span_index) {
+                        (*text).push(c);
+                    };
                     dialogue.current_char_index += 1;
                 }
                 None => {
                     Self::stop_audio_if_playing(&audio_pallet, &audio_query, &line.character.name);
-
-                    writer.text(entity, span_index).push('\n');
+                    if let Some(mut text) = writer.get_text(entity, span_index) {
+                        (*text).push('\n');
+                    };
 
                     let next_action = if dialogue.current_line_index >= dialogue.lines.len() - 1 {
                         InputAction::ChangeState(StateVector::new(

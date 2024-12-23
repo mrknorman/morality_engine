@@ -1,24 +1,66 @@
-
 use std::{
 	path::PathBuf,
 	time::Duration
 };
-
 use bevy::{
 	prelude::*,
 	audio::Volume,
 	sprite::Anchor
 };
-
 use crate::{
-	ascii_fonts::AsciiString, audio::{
-		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
-	}, background::{Background, BackgroundPlugin, BackgroundSystems}, colors::{ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR}, common_ui::NextButton, game_states::{
-		DilemmaPhase, GameState, MainState, StateVector
-	}, inheritance::BequeathTextColor, interaction::{
-		InputAction, InteractionPlugin
-	}, lever::{check_level_pull, Lever, LeverState}, motion::{Bouncy, MotionSystemsActive, PointToPointTranslation}, person::PersonPlugin, text::TextButton, timing::{
-        TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
+	ascii_fonts::AsciiString, 
+	audio::{
+		continuous_audio, 
+		one_shot_audio, 
+		play_sound_once,
+		ContinuousAudioPallet,
+		MusicAudio, 
+		NarrationAudio,
+		TransientAudio,
+		TransientAudioPallet
+	}, 
+	background::{
+		Background, 
+		BackgroundPlugin, 
+		BackgroundSystems
+	}, 
+	colors::{
+		ColorTranslation, 
+		Fade, 
+		BACKGROUND_COLOR, 
+		DIM_BACKGROUND_COLOR, 
+		OPTION_1_COLOR, 
+		OPTION_2_COLOR, 
+		PRIMARY_COLOR
+	}, 
+	common_ui::NextButton, 
+	game_states::{
+		DilemmaPhase, 
+		GameState, 
+		MainState, 
+		StateVector
+	},
+	inheritance::BequeathTextColor, 
+	interaction::{
+		InputAction, 
+		InteractionPlugin
+	}, 
+	lever::{
+		check_level_pull, 
+		Lever, 
+		LeverState
+	}, 
+	motion::{
+		Bouncy, 
+		PointToPointTranslation
+	}, 
+	person::PersonPlugin, 
+	text::TextButton, 
+	timing::{
+        TimerConfig, 
+		TimerPallet, 
+		TimerStartCondition,
+		TimingPlugin
     }, train::{
         Train,
         STEAM_TRAIN
@@ -38,6 +80,7 @@ use dilemma::{
 	DilemmaTimer,
 	TrunkTrack
 };
+
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
@@ -105,7 +148,6 @@ impl Plugin for DilemmaPlugin {
 		app.register_required_components::<DilemmaTimer, Text2d>();
     }
 }
-
 
 #[derive(Component)]
 struct DilemmaRoot;
