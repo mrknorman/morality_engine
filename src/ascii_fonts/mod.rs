@@ -8,7 +8,7 @@ use bevy::{
 };
 
 use crate::{
-    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, OPTION_1_COLOR, OPTION_2_COLOR}, motion::Bouncy, text::{
+    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, OPTION_1_COLOR, OPTION_2_COLOR}, motion::Bounce, text::{
        get_text_height, get_text_width, TextTitle
     }
 };
@@ -87,7 +87,7 @@ impl Component for AsciiString {
                             commands.entity(entity).with_children(|parent| {
                                 let mut entity = parent.spawn((
                                     AsciiChar,
-                                    Bouncy::default(),
+                                    Bounce::default(),
                                     ColorChangeOn::new(vec![ColorChangeEvent::Bounce(vec![OPTION_1_COLOR, OPTION_2_COLOR])]),
                                     ColorAnchor::default(),
                                     Text2d::new(ascii_char),

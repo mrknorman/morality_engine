@@ -2,9 +2,9 @@ use bevy::{
     color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, prelude::*, sprite::Material2dPlugin, window::{PrimaryMonitor, WindowMode}
+    }, prelude::*, sprite::Material2dPlugin, window::{PrimaryMonitor, WindowMode, PresentMode}
 };
-use rand::Rng;
+
 use rand::SeedableRng;
 use rand_pcg::Pcg64Mcg;
 
@@ -53,6 +53,7 @@ fn main() {
             primary_window: Some(Window {
                 resizable: false,
                 mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                present_mode: PresentMode::Immediate,
                 ..default()
                 }),
                 ..default()
@@ -87,10 +88,12 @@ impl Plugin for GamePlugin {
             ;
 
 
+            /* 
             use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
             app
             .add_plugins(FrameTimeDiagnosticsPlugin)
             .add_plugins(LogDiagnosticsPlugin::default());
+            */
     }
 }
 

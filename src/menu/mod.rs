@@ -103,7 +103,7 @@ fn setup_menu(
                 Background::load_from_json(
                     "text/backgrounds/desert.json",	
                     0.000001,
-                    0.3
+                    0.5
                 ),
                 TextColor(DIM_BACKGROUND_COLOR)
                 )
