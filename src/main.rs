@@ -2,7 +2,7 @@ use bevy::{
     color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, prelude::*, sprite::Material2dPlugin, window::{PrimaryMonitor, WindowMode, PresentMode}
+    }, prelude::*, sprite::Material2dPlugin, window::{WindowMode, PresentMode}
 };
 
 use rand::SeedableRng;
@@ -15,7 +15,6 @@ mod background;
 mod dialogue;
 mod dilemma;
 mod game_states;
-mod lever;
 mod loading;
 mod menu;
 mod person;
@@ -36,7 +35,6 @@ mod colors;
 mod physics;
 mod ascii_fonts;
 mod inheritance;
-mod random;
 
 use crate::{
     game_states::{
@@ -126,13 +124,13 @@ fn setup(
     Todo:
 
     Debt:
+        - Make dialogue more robust
+        - Fix dialogue fadeout
         - Rewrite background to allow for more precise placement of sprites
         - Update Train Locomotion and Background to use velocity instead...
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
-        - Make the letters flash decision colours when they jump
         - Bouncy Letters (maybe bounce when clicked)
-        - Letter glow when bounce ? (choice colors)
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
     Dialogue:
         - Number waterfall background, reacts to mouse movement

@@ -145,7 +145,15 @@ impl PointToPointTranslation {
 pub struct TransformAnchor(pub Transform);
 impl Default for TransformAnchor {
     fn default() -> Self {
-        TransformAnchor(Transform::default())
+        Self(Transform::default())
+    }
+}
+
+#[derive(Clone)]
+pub struct TransformMultiAnchor(pub Vec<Transform>);
+impl Default for TransformMultiAnchor {
+    fn default() -> Self {
+        Self(vec![Transform::default()])
     }
 }
 
@@ -334,31 +342,31 @@ impl Locomotion{
 #[derive(Component)]
 #[require(TransformAnchor)]
 pub struct Pulse{
-	active : bool,
-	enacting : bool,
+	pub active : bool,
+	pub enacting : bool,
 	diverging : bool,
 	scale : f32,
-	timer : Timer,
-	pulse_timer : Timer,
+	pub interval_timer : Timer,
+	pub pulse_timer : Timer,
 }
 
 impl Pulse {
 	pub fn new(
 		active : bool,
 		scale : f32,
-		interval_duration : Duration, 
+		interval: Duration, 
 		duration : Duration
 	) -> Self {
 
-		let half_duration = duration / 2;
-		let separation_duration = interval_duration - duration;
+		let half_duration = duration.div_f32(2.0);
+		let separation_duration = interval - duration;
 
 		Self {
 			active,
 			enacting : false,
 			diverging : true,
 			scale,
-			timer : Timer::new(
+			interval_timer : Timer::new(
 				separation_duration,
 				TimerMode::Once
 			),
@@ -380,45 +388,41 @@ impl Pulse {
 			anchor
 		) in query.iter_mut() {
 
-			pulse.timer.tick(time.delta());
-			pulse.pulse_timer.tick(time.delta());
-
 			if pulse.enacting || !pulse.active {
-				pulse.timer.pause();
+				pulse.interval_timer.pause();
 			} else {
-				pulse.timer.unpause();
+				pulse.interval_timer.unpause();
 			}
 
+			pulse.interval_timer.tick(time.delta());
+			pulse.pulse_timer.tick(time.delta());
+
 			if pulse.enacting {
-				pulse.pulse_timer.unpause();
-
 				if pulse.pulse_timer.just_finished() {
-					pulse.diverging = !pulse.diverging;
-
-					if !pulse.diverging {
-						pulse.diverging = true;
-	
-						transform.scale = anchor.0.scale;
+					if !pulse.diverging {	
 						pulse.pulse_timer.pause();
-						pulse.pulse_timer.reset();
-	
-						pulse.timer.reset();
-						pulse.timer.unpause();
+						pulse.interval_timer.reset();
+						pulse.enacting = false;
 					}
+
+					pulse.diverging = !pulse.diverging;
 				}
 
-				let fraction = pulse.pulse_timer.fraction();
-				let scale_factor = if pulse.diverging {
-					1.0 + pulse.scale * fraction
+				if pulse.diverging {
+					transform.scale = anchor.0.scale * (1.0 + pulse.scale * pulse.pulse_timer.fraction());
 				} else {
-					1.0 + pulse.scale * (1.0 - fraction)
+					transform.scale = anchor.0.scale * (1.0 + pulse.scale * pulse.pulse_timer.fraction_remaining());
 				};
-				transform.scale = anchor.0.scale * scale_factor;
 			} else {
 				transform.scale = anchor.0.scale;
 			}
 
-			pulse.enacting = pulse.timer.finished();
+			if pulse.interval_timer.just_finished() {
+				pulse.enacting = true;
+				pulse.interval_timer.pause();
+				pulse.pulse_timer.reset();
+				pulse.pulse_timer.unpause();
+			}
 		}
 	}
 } 
@@ -429,7 +433,7 @@ impl Default for Pulse {
 			true,
 			0.2,
 			Duration::from_secs_f32(1.0),
-			Duration::from_secs_f32(0.2)
+			Duration::from_secs_f32(0.4)
 		)	
 	}
 }

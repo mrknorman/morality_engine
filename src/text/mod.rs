@@ -42,13 +42,19 @@ fn default_nowrap_layout() -> TextLayout {
 #[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_text_layout))]
 pub struct TextRaw;
 
+impl Default for TextRaw {
+    fn default() -> Self {
+        Self
+    }
+}
+
 #[derive(Component)]
 #[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout))]
 pub struct TextSprite;
 
 impl Default for TextSprite {
     fn default() -> Self {
-        TextSprite
+        Self
     }
 }
 
@@ -58,7 +64,7 @@ pub struct TextTitle;
 
 impl Default for TextTitle {
     fn default() -> Self {
-        TextTitle
+        Self
     }
 }
 
@@ -69,7 +75,7 @@ pub struct TextFrames {
 
 impl Default for TextFrames {
     fn default() -> Self {
-        TextFrames{
+        Self{
             frames : vec![]
         }
     }
@@ -111,7 +117,7 @@ pub struct Animated{
 
 impl Default for Animated {
     fn default() -> Self {
-        Animated {
+        Self {
             current_frame: 0,
             timer: Timer::from_seconds(
                 0.1, 

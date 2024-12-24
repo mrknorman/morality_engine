@@ -200,12 +200,7 @@ pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: 
 
 fn trigger_audio(
     mut commands: Commands,
-    mut pallet_query_mouse: Query<(
-        Entity, &mut Clickable, &TransientAudioPallet
-    )>,
-    mut pallet_query_keys: Query<(
-        Entity, &mut Pressable, &TransientAudioPallet
-    )>,
+    mut query: Query<(Entity, Option<&mut Clickable>, Option<&mut Pressable>, &TransientAudioPallet)>,
     mut audio_query: Query<&mut TransientAudio>
 ) {
     fn handle_actions<T: InputActionHandler>(
@@ -237,27 +232,28 @@ fn trigger_audio(
     }
 
     for (
-        entity, mut clickable, pallet
-    ) in pallet_query_mouse.iter_mut() {
-        handle_actions(
-            entity, 
-            &mut *clickable, 
-            pallet, 
-            &mut commands, 
-            &mut audio_query
-        );
-    }
+        entity, clickable, pressable, pallet
+    ) in query.iter_mut() {
 
-    for (
-        entity, mut pressable, pallet
-    ) in pallet_query_keys.iter_mut() {
-        handle_actions(
-            entity, 
-            &mut *pressable, 
-            pallet, 
-            &mut commands, 
-            &mut audio_query
-        );
+        if let Some(mut handle) = clickable {
+            handle_actions(
+                entity, 
+                &mut *handle, 
+                pallet, 
+                &mut commands, 
+                &mut audio_query
+            );
+        }
+
+        if let Some(mut handle) = pressable {
+            handle_actions(
+                entity, 
+                &mut *handle, 
+                pallet, 
+                &mut commands, 
+                &mut audio_query
+            );
+        }
     }
 }
 

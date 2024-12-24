@@ -25,11 +25,15 @@ use crate::{
 		BackgroundSystems
 	}, 
 	colors::{
+		ColorAnchor, 
+		ColorChangeEvent, 
+		ColorChangeOn, 
 		ColorTranslation, 
 		Fade, 
 		BACKGROUND_COLOR, 
+		DANGER_COLOR,
 		DIM_BACKGROUND_COLOR, 
-		OPTION_1_COLOR, 
+		OPTION_1_COLOR,
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
 	}, 
@@ -45,17 +49,12 @@ use crate::{
 		InputAction, 
 		InteractionPlugin
 	}, 
-	lever::{
-		check_level_pull, 
-		Lever, 
-		LeverState
-	}, 
 	motion::{
 		Bounce, 
 		PointToPointTranslation, Pulse
 	}, 
 	person::PersonPlugin, 
-	text::TextButton, 
+	text::{TextButton, TextRaw}, 
 	timing::{
         TimerConfig, 
 		TimerPallet, 
@@ -69,17 +68,25 @@ use crate::{
 
 mod dilemma;
 use dilemma::{
-	Junction,
-	check_if_person_in_path_of_train,
-	switch_junction,
 	cleanup_decision,
 	consequence_animation_tick_up,
 	consequence_animation_tick_down,
 	Dilemma,
 	DramaticPauseTimer,
 	DilemmaTimer,
+};
+mod lever;
+use lever::{
+	Lever, LeverPlugin, LeverState, LEVER_LEFT, LEVER_MIDDLE, LEVER_RIGHT
+};
+mod junction;
+use junction::{
+	Junction,
+	check_if_person_in_path_of_train,
+	switch_junction,
 	TrunkTrack
 };
+
 
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
@@ -106,10 +113,10 @@ impl Plugin for DilemmaPlugin {
             .add_systems(
                 Update,
                 (
-                    check_level_pull,
                     check_if_person_in_path_of_train,
                     switch_junction,
-                    DilemmaTimer::update
+                    DilemmaTimer::update,
+					DilemmaTimer::start_pulse
                 )
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::Decision)),
@@ -127,8 +134,16 @@ impl Plugin for DilemmaPlugin {
                 )
                     .run_if(in_state(GameState::Dilemma))
                     .run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
-            );
+            )
+			.register_required_components::<Junction, Transform>()
+			.register_required_components::<Junction, Visibility>()
+			.register_required_components::<DilemmaTimer, Text2d>()
+			.register_required_components::<DilemmaTimer, Pulse>()
+			.register_required_components::<DilemmaTimer, TextRaw>();
 
+			if !app.is_plugin_added::<LeverPlugin>() {
+				app.add_plugins(LeverPlugin);
+			}
 		if !app.is_plugin_added::<PersonPlugin>() {
 			app.add_plugins(PersonPlugin);
 		}
@@ -142,10 +157,7 @@ impl Plugin for DilemmaPlugin {
 			app.add_plugins(BackgroundPlugin);
 		}
 
-		app.register_required_components::<Junction, Transform>();
-        app.register_required_components::<Junction, Visibility>();
 
-		app.register_required_components::<DilemmaTimer, Text2d>();
     }
 }
 
@@ -186,7 +198,6 @@ pub fn setup_dilemma(
 			let transition_duration = Duration::from_secs_f32(decision_position/speed);
 			let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
 			let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
-			
 
 			parent.spawn((
 				TextColor(PRIMARY_COLOR),
@@ -467,6 +478,14 @@ pub fn setup_decision(
 		dilemma: Res<Dilemma>,
 	) {
 
+	let (start_text, state, color) = match dilemma.default_option {
+		None => (LEVER_MIDDLE, LeverState::Random, Color::WHITE),
+		Some(ref option) if *option == 0 => (LEVER_LEFT, LeverState::Left, OPTION_1_COLOR),
+		Some(_) => (LEVER_RIGHT, LeverState::Right, OPTION_2_COLOR),
+	};
+
+	commands.insert_resource(Lever(state.clone()));
+
 	commands.spawn(
 		DecisionRoot
 	).with_children(
@@ -499,33 +518,49 @@ pub fn setup_decision(
             );
 
 			parent.spawn((
-				DilemmaTimer::new(dilemma.countdown_duration, Duration::from_secs_f32(5.0)),
-				Transform::from_xyz(0.0, -100.0, 1.0),
-				Pulse::default()
+				DilemmaTimer::new(
+					dilemma.countdown_duration, 
+					Duration::from_secs_f32(5.0),
+					Duration::from_secs_f32(2.0)
+				
+				),
+				ColorAnchor::default(),
+				ColorChangeOn::new(vec![ColorChangeEvent::Pulse(vec![DANGER_COLOR])]),
+				Transform::from_xyz(0.0, -100.0, 1.0)
+			));
+
+			parent.spawn((
+				Lever(state.clone()),
+				Text2d::new(start_text), 
+				TextFont{
+					font_size : 25.0,
+					..default()
+				},
+				TextColor(color),
+				TextLayout{
+					justify : JustifyText::Center, 
+					..default()
+				},
+				Transform { 
+					translation : Vec3::new(0.0, -200.0, 0.0),
+					rotation: Quat::from_rotation_z(std::f32::consts::PI / 2.0), 
+					..default()
+				},
+				TransientAudioPallet::new(
+					vec![(
+						"lever".to_string(),
+						vec![
+							TransientAudio::new(
+								asset_server.load("sounds/switch.ogg"), 
+								0.1, 
+								true,
+								1.0
+							)
+						]
+					)]
+				),
 			));
 		});
-	
-	let start_state = match dilemma.default_option {
-		None => LeverState::Random,
-		Some(ref option) if *option == 0 => LeverState::Left,
-		Some(_) => LeverState::Right,
-	};
-
-	Lever::spawn(
-		Vec3::new(0.0, -200.0, 0.0), 
-		start_state, 
-		&mut commands
-	);
-
-	
-	/*
-	let mut info : Vec<Entity> = vec![];
-	for (index, option) in dilemma.options.clone().into_iter().enumerate() {
-		info.push(
-			DilemmaOptionInfoPanel::spawn(commands, &option, index)
-		);
-	}
-	*/
 }
 
 pub fn setup_dilemma_consequence_animation(
