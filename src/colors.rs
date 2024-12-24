@@ -5,7 +5,7 @@ use std::time::Duration;
 use rand::seq::SliceRandom; // For shuffling
 use rand::thread_rng;
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::Bounce};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -270,6 +270,7 @@ impl Component for ColorAnchor {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorChangeEvent {
     Bounce(Vec<Color>),
+    Pulse(Vec<Color>),
     Hover(Vec<Color>),
     Click(Vec<Color>)
 }
@@ -294,6 +295,9 @@ impl ColorChangeOn {
                 ColorChangeEvent::Bounce(colors) => {
                     colors.shuffle(&mut thread_rng());
                 }
+                ColorChangeEvent::Pulse(colors) => {
+                    colors.shuffle(&mut thread_rng());
+                }
                 ColorChangeEvent::Hover(colors) => {
                     colors.shuffle(&mut thread_rng());
                 }
@@ -314,10 +318,11 @@ impl ColorChangeOn {
             &Aabb,
             &GlobalTransform,
             Option<&ColorAnchor>,
-            Option<&Bounce>
+            Option<&Bounce>,
+            Option<&Pulse>,
         )>,
     ) {
-        for (mut color_change_on, mut text_color, bound, transform, anchor, bounce) in bounce_query.iter_mut() {
+        for (mut color_change_on, mut text_color, bound, transform, anchor, bounce, pulse) in bounce_query.iter_mut() {
             let mut event_handled = false;
 
             for event in color_change_on.events.iter() {
@@ -325,6 +330,17 @@ impl ColorChangeOn {
                     ColorChangeEvent::Bounce(color) => {
                         if let Some(bounce) = bounce {
                             if bounce.enacting {
+                                text_color.0 = color[0];
+                                event_handled = true;
+                                break; 
+                            }
+                        } else {
+                            warn_once!("Entity with color change on bounce has no bounce!");
+                        }
+                    }
+                    ColorChangeEvent::Pulse(color) => {
+                        if let Some(pulse) = pulse {
+                            if pulse.enacting {
                                 text_color.0 = color[0];
                                 event_handled = true;
                                 break; 

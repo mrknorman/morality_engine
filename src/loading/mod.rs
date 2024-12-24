@@ -262,7 +262,7 @@ pub fn spawn_delayed_children(
                                 )]
                             ),
                             NextButton::transform(&windows)
-                        )); // Capture the entity ID of the spawned child
+                        ));
                     });
                 }
             }

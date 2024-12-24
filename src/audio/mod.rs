@@ -257,6 +257,7 @@ impl TransientAudioPallet {
             transient_audio.cooldown_timer.reset();
         }
     }
+
     pub fn play_transient_audio(
         entity: Entity,
         mut commands: &mut Commands,
@@ -283,7 +284,6 @@ impl TransientAudioPallet {
             }
         }
     }
-
 }
 
 impl Component for TransientAudioPallet {
