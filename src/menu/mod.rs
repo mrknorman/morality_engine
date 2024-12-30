@@ -46,8 +46,7 @@ impl Plugin for MenuScreenPlugin {
 
 fn setup_menu(
         mut commands: Commands, 
-        asset_server: Res<AssetServer>,
-        windows: Query<&Window>
+        asset_server: Res<AssetServer>
     ) {
 
     let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
@@ -178,7 +177,6 @@ fn setup_menu(
                             ]
                         )]
                     ),
-                    NextButton::transform(&windows)
                 )
             );
         }
