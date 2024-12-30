@@ -97,7 +97,7 @@ impl LeverState {
         match self {
             LeverState::Left => Some(0),
             LeverState::Right => Some(1),
-            LeverState::Random => None,
+            LeverState::Random => None, // Associating Random with None or -1
         }
     }
 }
@@ -112,12 +112,7 @@ impl Lever {
         mut commands: Commands,
         lever: Option<Res<Lever>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
-        mut lever_text_query: Query<(
-            Entity,
-            &mut Text2d, 
-            &mut TextColor,
-            &TransientAudioPallet
-        ), With<Lever>>,
+        mut lever_text_query: Query<(Entity, &mut Text2d, &mut TextColor, &TransientAudioPallet), With<Lever>>,
         mut audio_query: Query<&mut TransientAudio>
     ) {
         let lever = match lever {
@@ -130,12 +125,7 @@ impl Lever {
                 KeyCode::Digit1 if lever.0 != LeverState::Left => {
                     commands.insert_resource(Lever(LeverState::Left));
     
-                    if let Ok((
-                        entity, 
-                        mut text, 
-                        mut color, 
-                        pallet)
-                    ) = lever_text_query.get_single_mut() {
+                    if let Ok((entity, mut text, mut color, pallet)) = lever_text_query.get_single_mut() {
                         TransientAudioPallet::play_transient_audio(
                             entity,
                             &mut commands,
@@ -147,21 +137,14 @@ impl Lever {
                         text.0 = LEVER_LEFT.to_string();
                         color.0 = OPTION_1_COLOR;
                     } else {
-                        warn!(
-                            "No single lever Text2d entity found to update."
-                        );
+                        warn!("No single lever Text2d entity found to update.");
                     }
                 }
     
                 KeyCode::Digit2 if lever.0 != LeverState::Right => {
                     commands.insert_resource(Lever(LeverState::Right));
     
-                    if let Ok((
-                        entity, 
-                        mut text, 
-                        mut color,
-                         pallet)
-                    ) = lever_text_query.get_single_mut() {
+                    if let Ok((entity, mut text, mut color, pallet)) = lever_text_query.get_single_mut() {
                         TransientAudioPallet::play_transient_audio(
                             entity,
                             &mut commands,
@@ -173,9 +156,7 @@ impl Lever {
                         text.0 = LEVER_RIGHT.to_string();
                         color.0 = OPTION_2_COLOR;
                     } else {
-                        warn!(
-                            "No single lever Text2d entity found to update."
-                        );
+                        warn!("No single lever Text2d entity found to update.");
                     }
                 }
     

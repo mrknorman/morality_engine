@@ -99,7 +99,7 @@ impl Default for CenterLeverConfig {
 pub struct CenterLever;
 impl CenterLever {
 	pub fn transform(window: &Window) -> Transform {
-		let button_distance = 100.0;
+		let button_distance = 200.0;
 		let screen_height = window.height();
 		let button_y = -screen_height / 2.0 + button_distance; 
         Transform { 
@@ -141,12 +141,9 @@ impl Component for CenterLever {
                 if let Some(transform) = transform {
                     commands.entity(entity).insert(transform);
                 }
-
-                let mut commands = world.commands();
                 if let Some(entity) = previous_entity {
                     commands.entity(entity).despawn_recursive();
                 }
-                
                 if let Some(mut config) = world.get_resource_mut::<CenterLeverConfig>() {
                     config.0 = Some(entity);
                 }
@@ -168,7 +165,7 @@ impl Default for DilemmaTimerConfig {
 pub struct DilemmaTimerPosition;
 impl DilemmaTimerPosition {
 	pub fn transform(window: &Window) -> Transform {
-		let button_distance = 200.0;
+		let button_distance = 300.0;
 		let screen_height = window.height();
 		let button_y = -screen_height / 2.0 + button_distance; 
         Transform { 
@@ -209,8 +206,6 @@ impl Component for DilemmaTimerPosition {
                 if let Some(transform) = transform {
                     commands.entity(entity).insert(transform);
                 }
-
-                let mut commands = world.commands();
                 if let Some(entity) = previous_entity {
                     commands.entity(entity).despawn_recursive();
                 }
