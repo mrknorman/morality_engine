@@ -120,11 +120,13 @@ fn setup(
 
 /*
     Todo:
-
+    
+    Background:
+        - Fix resizing bug!
+        - Rewrite background to allow for more precise placement of sprites
     Debt:
         - Make dialogue more robust
         - Fix dialogue fadeout
-        - Rewrite background to allow for more precise placement of sprites
         - Update Train Locomotion and Background to use velocity instead...
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
@@ -132,7 +134,7 @@ fn setup(
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
     Dialogue:
         - Number waterfall background, reacts to mouse movement
-        - Make the nodes flash decision colours
+        - Make the nodes flash decision colors
         - Some cooler graph animations - activation and in operation
         - Try dialogue narration
         - Clickable nodes in graph make tune
