@@ -305,7 +305,6 @@ impl Dialogue {
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
-        windows: Query<&Window>,
         time: Res<Time>
     ) {
         for (entity, mut dialogue, audio_pallet) in query.iter_mut() {
@@ -345,7 +344,6 @@ impl Dialogue {
                         &mut commands, 
                         entity,   // Pass the dialogue entity as the parent
                         &asset_server, 
-                        &windows, 
                         next_action, 
                         &line.instruction
                     );
@@ -376,7 +374,6 @@ impl Dialogue {
         commands: &mut Commands,
         dialogue_entity: Entity,  // Add parent entity parameter
         asset_server: &Res<AssetServer>,
-        windows: &Query<&Window>,
         next_action: InputAction,
         instruction: &str
     ) {
@@ -406,8 +403,7 @@ impl Dialogue {
                             )
                         ],
                     )]
-                ),
-                NextButton::transform(windows)
+                )
             ));
         });
     }

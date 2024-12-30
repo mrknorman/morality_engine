@@ -162,12 +162,16 @@ impl Component for ContinuousAudioPallet {
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
-        hooks.on_insert(
-            |mut world, entity, _component_id| {
+        hooks.on_insert(|
+            mut world, 
+            entity, 
+            _component_id| {
         
                 // Step 1: Extract components from the pallet
                 let components = {
-                    let mut entity_mut = world.entity_mut(entity);
+                    let mut entity_mut = world.entity_mut(
+                        entity
+                    );
                     entity_mut.get_mut::<ContinuousAudioPallet>()
                         .map(
                             |pallet| 
@@ -195,7 +199,9 @@ impl Component for ContinuousAudioPallet {
                 }
         
                 // Step 3: Update the pallet with the new entity map
-                if let Some(mut pallet) = world.entity_mut(entity).get_mut::<ContinuousAudioPallet>() {
+                if let Some(
+                    mut pallet
+                ) = world.entity_mut(entity).get_mut::<ContinuousAudioPallet>() {
                     pallet.entities = entities;
                 }
             }

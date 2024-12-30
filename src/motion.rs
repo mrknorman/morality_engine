@@ -149,7 +149,7 @@ impl Default for TransformAnchor {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
 pub struct TransformMultiAnchor(pub Vec<Transform>);
 impl Default for TransformMultiAnchor {
     fn default() -> Self {

@@ -16,11 +16,12 @@ use bevy::{
 };
 
 use crate::{
-	 background::BackgroundSprite, colors::{		
+	 background::Background, colors::{		
 		OPTION_1_COLOR, OPTION_2_COLOR
 	}, game_states::DilemmaPhase, 
 	dilemma::lever::Lever, motion::{Locomotion, Pulse}, 
-	train::Train
+	train::Train,
+	track::Track
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -378,17 +379,16 @@ impl DilemmaOptionInfoPanel {
 
 pub fn cleanup_decision(
 		mut commands : Commands,
-		background_query : Query<Entity, With<BackgroundSprite>>
+		background_query : Query<Entity, With<Background>>,
+		track_query : Query<Entity, With<Track>>
 	){
 
 	for entity in background_query.iter() {
+		commands.entity(entity).despawn_recursive();
+	}
+	for entity in track_query.iter() {
 		commands.entity(entity).despawn();
 	}
-}
-
-#[derive(Component)]
-pub struct LeverTrackTransform{
-	pub branch_y_positions : Vec<f32>
 }
 
 #[derive(Resource)]

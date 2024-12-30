@@ -37,7 +37,9 @@ use crate::{
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
 	}, 
-	common_ui::NextButton, 
+	common_ui::{
+		CenterLever, DilemmaTimerPosition, NextButton
+	}, 
 	game_states::{
 		DilemmaPhase, 
 		GameState, 
@@ -137,9 +139,11 @@ impl Plugin for DilemmaPlugin {
             )
 			.register_required_components::<Junction, Transform>()
 			.register_required_components::<Junction, Visibility>()
+			.register_required_components::<DilemmaTimer, TextRaw>()
 			.register_required_components::<DilemmaTimer, Text2d>()
+			.register_required_components::<DilemmaTimer, BequeathTextColor>()
 			.register_required_components::<DilemmaTimer, Pulse>()
-			.register_required_components::<DilemmaTimer, TextRaw>();
+			;
 
 			if !app.is_plugin_added::<LeverPlugin>() {
 				app.add_plugins(LeverPlugin);
@@ -388,8 +392,7 @@ fn spawn_delayed_children(
 									)
 								]
 							)]
-						),
-						NextButton::transform(&windows)
+						)
 					)); // Capture the entity ID of the spawned child
 				});
             }
@@ -486,9 +489,10 @@ pub fn setup_decision(
 
 	commands.insert_resource(Lever(state.clone()));
 
-	commands.spawn(
+	commands.spawn((
+		StateScoped(DilemmaPhase::Decision),
 		DecisionRoot
-	).with_children(
+	)).with_children(
         |parent| {
             parent.spawn(
                 ContinuousAudioPallet::new(
@@ -518,6 +522,7 @@ pub fn setup_decision(
             );
 
 			parent.spawn((
+				DilemmaTimerPosition,
 				DilemmaTimer::new(
 					dilemma.countdown_duration, 
 					Duration::from_secs_f32(5.0),
@@ -531,6 +536,7 @@ pub fn setup_decision(
 
 			parent.spawn((
 				Lever(state.clone()),
+				CenterLever,
 				Text2d::new(start_text), 
 				TextFont{
 					font_size : 25.0,
@@ -539,11 +545,6 @@ pub fn setup_decision(
 				TextColor(color),
 				TextLayout{
 					justify : JustifyText::Center, 
-					..default()
-				},
-				Transform { 
-					translation : Vec3::new(0.0, -200.0, 0.0),
-					rotation: Quat::from_rotation_z(std::f32::consts::PI / 2.0), 
 					..default()
 				},
 				TransientAudioPallet::new(

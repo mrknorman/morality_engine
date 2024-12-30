@@ -20,7 +20,7 @@ use crate::{
     }, game_states::{
         DilemmaPhase, GameState, MainState, StateVector
     }, interaction::{
-        Clickable, InputAction, InteractionPlugin
+        InputAction, InteractionPlugin
     }, io::IOPlugin, text::{
         TextButton,
         TextFrames 
@@ -260,8 +260,7 @@ pub fn spawn_delayed_children(
                                         )
                                     ]
                                 )]
-                            ),
-                            NextButton::transform(&windows)
+                            )
                         ));
                     });
                 }
@@ -277,7 +276,7 @@ fn update_button_text(
     loading_query: Query<(&TimerPallet, &LoadingRoot)>,
     mut text_query: Query<(&mut Text2d, &TextFrames)>,
 ) {
-    let Some(button_entity) = next_state_button.entity() else {
+    let Some(button_entity) = next_state_button.0 else {
         return;
     };
 
