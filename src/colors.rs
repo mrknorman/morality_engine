@@ -192,7 +192,7 @@ impl Fade {
         mut query : Query<(Entity, &ColorTranslation), With<Fade>>
     ) {
         for (entity, transition) in query.iter_mut() {
-            if transition.timer.just_finished() {
+            if transition.timer.finished() {
                 commands.entity(entity).despawn_recursive();    
             }
         }   
