@@ -50,7 +50,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resizable: false,
-                mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+                //mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
                 present_mode: PresentMode::Immediate,
                 ..default()
                 }),
