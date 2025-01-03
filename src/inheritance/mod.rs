@@ -56,3 +56,9 @@ impl BequeathTextColor {
         }
     }
 }
+
+impl Default for BequeathTextColor {
+    fn default() -> Self {
+        Self
+    }
+}
