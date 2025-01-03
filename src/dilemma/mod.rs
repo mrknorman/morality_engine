@@ -83,71 +83,79 @@ use lever::{
 };
 mod junction;
 use junction::{
-	Junction,
-	check_if_person_in_path_of_train,
-	switch_junction,
-	TrunkTrack
+	Junction, JunctionPlugin, TrunkTrack
 };
 
 
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Dilemma), setup_dilemma)
-			.add_systems(OnEnter(DilemmaPhase::Intro), setup_dilemma_intro
-				.run_if(in_state(GameState::Dilemma))
+        app
+		.add_systems(
+			OnEnter(GameState::Dilemma), 
+			setup_dilemma
+		)
+		.add_systems(
+			OnEnter(DilemmaPhase::Intro), 
+			setup_dilemma_intro
+			.run_if(in_state(GameState::Dilemma))
+		)
+		.add_systems(
+			Update,
+			spawn_delayed_children
+			.run_if(in_state(GameState::Dilemma))
+			.run_if(in_state(DilemmaPhase::Intro))
+		).add_systems(
+			OnEnter(DilemmaPhase::IntroDecisionTransition), 
+			setup_dilemma_transition
+		)
+		.add_systems(
+			Update,
+			end_dilemma_transition
+			.run_if(in_state(GameState::Dilemma))
+			.run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
+		).add_systems(
+			OnEnter(DilemmaPhase::Decision),
+			setup_decision
+			.run_if(in_state(GameState::Dilemma)),
+		)
+		.add_systems(
+			Update,
+			(
+				DilemmaTimer::update,
+				DilemmaTimer::start_pulse
 			)
-            .add_systems(
-                Update,
-                spawn_delayed_children
-                    .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(DilemmaPhase::Intro)),
-            ).add_systems(OnEnter(DilemmaPhase::IntroDecisionTransition), setup_dilemma_transition)
-            .add_systems(
-                Update,
-                end_dilemma_transition
-                    .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
-            ).add_systems(
-                OnEnter(DilemmaPhase::Decision),
-                setup_decision.run_if(in_state(GameState::Dilemma)),
-            )
-            .add_systems(
-                Update,
-                (
-                    check_if_person_in_path_of_train,
-                    switch_junction,
-                    DilemmaTimer::update,
-					DilemmaTimer::start_pulse
-                )
-                    .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(DilemmaPhase::Decision)),
-            )
-			.add_systems(OnExit(DilemmaPhase::Decision), cleanup_decision)
-            .add_systems(
-                OnEnter(DilemmaPhase::ConsequenceAnimation),
-                setup_dilemma_consequence_animation,
-            )
-            .add_systems(
-                Update,
-                (
-                    consequence_animation_tick_up,
-                    consequence_animation_tick_down,
-                )
-                    .run_if(in_state(GameState::Dilemma))
-                    .run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
-            )
-			.register_required_components::<Junction, Transform>()
-			.register_required_components::<Junction, Visibility>()
-			.register_required_components::<DilemmaTimer, TextRaw>()
-			.register_required_components::<DilemmaTimer, Text2d>()
-			.register_required_components::<DilemmaTimer, BequeathTextColor>()
-			.register_required_components::<DilemmaTimer, Pulse>()
-			;
+			.run_if(in_state(GameState::Dilemma))
+			.run_if(in_state(DilemmaPhase::Decision)),
+		)
+		.add_systems(
+			OnExit(DilemmaPhase::Decision), 
+			cleanup_decision
+		)
+		.add_systems(
+			OnEnter(DilemmaPhase::ConsequenceAnimation),
+			setup_dilemma_consequence_animation,
+		)
+		.add_systems(
+			Update,
+			(
+				consequence_animation_tick_up,
+				consequence_animation_tick_down,
+			)
+			.run_if(in_state(GameState::Dilemma))
+			.run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
+		)
+		.register_required_components::<Junction, Transform>()
+		.register_required_components::<Junction, Visibility>()
+		.register_required_components::<DilemmaTimer, TextRaw>()
+		.register_required_components::<DilemmaTimer, Text2d>()
+		.register_required_components::<DilemmaTimer, BequeathTextColor>()
+		.register_required_components::<DilemmaTimer, Pulse>()
+		;
 
-			if !app.is_plugin_added::<LeverPlugin>() {
-				app.add_plugins(LeverPlugin);
-			}
+		if !app.is_plugin_added::<LeverPlugin>() {
+			app.add_plugins(LeverPlugin);
+		}
 		if !app.is_plugin_added::<PersonPlugin>() {
 			app.add_plugins(PersonPlugin);
 		}
@@ -160,8 +168,9 @@ impl Plugin for DilemmaPlugin {
 		if !app.is_plugin_added::<BackgroundPlugin>() {
 			app.add_plugins(BackgroundPlugin);
 		}
-
-
+		if !app.is_plugin_added::<JunctionPlugin>() {
+			app.add_plugins(JunctionPlugin);
+		}
     }
 }
 

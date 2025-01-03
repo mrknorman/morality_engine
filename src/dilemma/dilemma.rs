@@ -386,11 +386,6 @@ pub fn cleanup_decision(
 	}
 }
 
-#[derive(Component)]
-pub struct LeverTrackTransform{
-	pub branch_y_positions : Vec<f32>
-}
-
 #[derive(Resource)]
 pub struct DramaticPauseTimer{
 	pub speed_up_timer: Timer,

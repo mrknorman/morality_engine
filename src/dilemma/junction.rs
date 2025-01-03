@@ -5,37 +5,56 @@ use bevy::{
 };
 
 use crate::{
-    dilemma::{
-        Dilemma,
-        dilemma::LeverTrackTransform
-    },
-    dilemma::lever::{
+    audio::{
+        TransientAudio, TransientAudioPallet
+    }, colors::{
+        ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR
+    }, dilemma::{lever::{
 	    Lever, 
         LeverState
-    },
-    person::{
-        PersonSprite,
-        Emoticon
-    },
-    colors::{
-        ColorTranslation,
-        ColorChangeOn,
-        ColorChangeEvent,
-        ColorAnchor,
-        OPTION_1_COLOR,
-        OPTION_2_COLOR,
-        DANGER_COLOR
-    },
-    audio::{
-        TransientAudioPallet,
-        TransientAudio
-    },
-    track::Track,
-    motion::Bounce,
-    inheritance::BequeathTextColor
+    }, Dilemma}, inheritance::BequeathTextColor, motion::{Bounce, TransformMultiAnchor}, person::{
+        Emoticon, PersonSprite
+    }, track::Track
 };
 
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum JunctionSystemsActive {
+    #[default]
+	False,
+    True
+}
 
+pub struct JunctionPlugin;
+
+impl Plugin for JunctionPlugin {
+    fn build(&self, app: &mut App) {	
+		app
+		.init_state::<JunctionSystemsActive>()
+		.add_systems(
+			Update,
+			activate_systems
+		).add_systems(
+            Update,
+            (
+				Junction::switch_junction,
+				Junction::check_if_person_in_path_of_train
+			)
+            .run_if(in_state(JunctionSystemsActive::True))
+        );
+    }
+}
+
+fn activate_systems(
+        mut state: ResMut<NextState<JunctionSystemsActive>>,
+        query: Query<&Junction>
+    ) {
+        
+	if !query.is_empty() {
+		state.set(JunctionSystemsActive::True)
+	} else {
+		state.set(JunctionSystemsActive::False)
+	}
+}
 #[derive(Component)]
 pub struct TrunkTrack;
 
@@ -105,13 +124,18 @@ impl Component for Junction {
 				if let Some(junction) = junction {
 					let dilemma = junction.dilemma; 
 
-					let track_colors = vec![OPTION_1_COLOR, OPTION_2_COLOR];
-					let branch_y_positions = vec![0.0, 100.0];			
+					let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
+					let branch_y_positions = vec![
+						Transform::from_xyz(0.0, 0.0, 1.0),
+						Transform::from_xyz(0.0, 100.0, 1.0)	
+					];
 
-					let initial_y_position = match dilemma.default_option {
-						None =>  50.0,
+					let mut initial_y_position = match dilemma.default_option {
+						None =>  Transform::from_xyz(0.0, 50.0, 1.0),
 						Some(ref option) => branch_y_positions[*option],
 					};	
+
+					initial_y_position.translation.x -= 2000.0;
 			
 					let mut track_entities = vec![];
 					commands.entity(entity).with_children(
@@ -119,7 +143,7 @@ impl Component for Junction {
 							let mut junction_entity = junction.spawn((
 								TrunkTrack,
 								Track::new(600),
-								Transform::from_xyz(-2000.0, initial_y_position, 1.0),			
+								initial_y_position
 							));
 							
 							if let Some(color) = color {
@@ -128,15 +152,12 @@ impl Component for Junction {
 							if let Some(color_translation) = color_translation {
 								junction_entity.insert(color_translation);
 							}
-
 							track_entities.push(junction_entity.id());
 
 							let turnout_entity = junction.spawn((
 								Turnout,
 								Transform::from_xyz( 1240.0, 0.0, 0.0),
-								LeverTrackTransform{
-									branch_y_positions : branch_y_positions.clone()
-								}
+								TransformMultiAnchor(branch_y_positions.clone())
 							)).with_children( |turnout| {
 								for (branch_index, ((option, y_position), color)) in zip(
                                     zip(dilemma.options, branch_y_positions.clone()), track_colors
@@ -145,7 +166,7 @@ impl Component for Junction {
 										BranchTrack{index : branch_index},
 										Track::new(300),
 										TextColor(color),
-										Transform::from_xyz(0.0, y_position, 0.0)		
+										y_position		
 									)).with_children(|track: &mut ChildBuilder<'_>| {
 											for fatality_index in 0..option.consequences.total_fatalities {
 												track.spawn(
@@ -195,70 +216,74 @@ impl Component for Junction {
     }
 }
 
-pub fn switch_junction(
-    mut movement_query: Query<(&mut LeverTrackTransform, &mut Transform)>,
-    mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
-    lever: Option<Res<Lever>>,
-    time: Res<Time>,  // Add time resource to manage frame delta time
-) {
+impl Junction  {
+	
+	pub fn switch_junction(
+		mut movement_query: Query<(&TransformMultiAnchor, &mut Transform), With<Turnout>>,
+		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
+		lever: Option<Res<Lever>>,
+	) {
+		// Early return if lever is missing
+		let Some(lever) = lever else {
+			warn!("Missing trunk track for switch junction");
+			return;
+		};
+		
+		// Get main track once before the loop
+		let Ok(mut main_track) = track_query.get_single_mut() else {
+			warn!("Missing trunk track for switch junction");
+			return;
+		};
+	
+		const DISTANCE_THRESHOLD: f32 = 0.01;
+		const PROPORTIONAL_SPEED_FACTOR: f32 = 0.1;
+	
+		for (lever_transform, mut transform) in movement_query.iter_mut() {
+			let target_position = match lever.0 {
+				LeverState::Right => {
+					main_track.0 = OPTION_2_COLOR;
+					Vec3::new(
+						transform.translation.x,
+						-lever_transform.0[1].translation.y,
+						1.0,
+					)
+				}
+				LeverState::Left => {
+					main_track.0 = OPTION_1_COLOR;
+					Vec3::new(
+						transform.translation.x,
+						-lever_transform.0[0].translation.y,
+						1.0,
+					)
+				}
+				LeverState::Random => return
+			};
+	
+			let distance = (target_position - transform.translation).length();
+			
+			if distance > DISTANCE_THRESHOLD {
+				let direction = (target_position - transform.translation).normalize();
+				let movement_speed = distance * PROPORTIONAL_SPEED_FACTOR;
+				transform.translation += direction * movement_speed;
+			} else {
+				transform.translation = target_position;
+			}
+		}
+	}
 
-if lever.is_some() {
-
-    let unwrapped_lever: Res<Lever> = lever.unwrap();
-
-    for (
-        lever_transform, 
-        mut transform
-    ) in movement_query.iter_mut() {
-        let left_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.branch_y_positions[0], 1.0);
-        let right_position: Vec3 = Vec3::new(transform.translation.x, -lever_transform.branch_y_positions[1], 1.0);
-
-        let distance_threshold = 0.01; // Small threshold to determine when to snap to the final position
-        let proportional_speed_factor = 0.1; // Factor to adjust the proportional speed
-        let bounce_amplitude = 0.02; // Amplitude of the bounce effect
-        let bounce_frequency = 10.0; // Frequency of the bounce effect
-
-        let main_track = track_query.get_single_mut(); 
-
-        if unwrapped_lever.0 == LeverState::Right {
-            main_track.unwrap().0 = OPTION_2_COLOR;
-            let distance = (right_position - transform.translation).length();
-            if distance > distance_threshold {
-                let direction = (right_position - transform.translation).normalize();
-                let movement_speed = distance * proportional_speed_factor;
-                transform.translation += direction * movement_speed;
-            } else {
-                transform.translation = right_position;
-            }
-        } else if unwrapped_lever.0 == LeverState::Left {
-            main_track.unwrap().0 = OPTION_1_COLOR;
-            let distance = (left_position - transform.translation).length();
-            if distance > distance_threshold {
-                let direction = (left_position - transform.translation).normalize();
-                let movement_speed: f32 = distance * proportional_speed_factor;
-                transform.translation += direction * movement_speed;
-            } else {
-                transform.translation = left_position;
-            }
-        }
-    }
-} else {
-    panic!("Lever motion check with non-existant lever!")
-}
-}
-
-pub fn check_if_person_in_path_of_train(
-mut lever_query: Query<(&Children, &BranchTrack)>,
-mut text_query: Query<&mut PersonSprite>,
-lever: Option<Res<Lever>>
-) {
-if let Some(lever) = lever {		
-    for (children, track) in lever_query.iter_mut(){
-        for &child in children.iter() {
-            if let Ok(mut person) = text_query.get_mut(child) {
-                person.in_danger = (Some(track.index) == lever.0.to_int()) && !(lever.0 == LeverState::Random);
-            }
-        }
-    }
-}
+	pub fn check_if_person_in_path_of_train(
+		mut lever_query: Query<(&Children, &BranchTrack)>,
+		mut text_query: Query<&mut PersonSprite>,
+	lever: Option<Res<Lever>>
+	) {
+		if let Some(lever) = lever {		
+			for (children, track) in lever_query.iter_mut(){
+				for &child in children.iter() {
+					if let Ok(mut person) = text_query.get_mut(child) {
+						person.in_danger = (Some(track.index) == lever.0.to_int()) && !(lever.0 == LeverState::Random);
+					}
+				}
+			}
+		}
+	}
 }
