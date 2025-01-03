@@ -99,7 +99,7 @@ impl Default for CenterLeverConfig {
 pub struct CenterLever;
 impl CenterLever {
 	pub fn transform(window: &Window) -> Transform {
-		let button_distance = 200.0;
+		let button_distance = 150.0;
 		let screen_height = window.height();
 		let button_y = -screen_height / 2.0 + button_distance; 
         Transform { 
@@ -165,7 +165,7 @@ impl Default for DilemmaTimerConfig {
 pub struct DilemmaTimerPosition;
 impl DilemmaTimerPosition {
 	pub fn transform(window: &Window) -> Transform {
-		let button_distance = 300.0;
+		let button_distance = 250.0;
 		let screen_height = window.height();
 		let button_y = -screen_height / 2.0 + button_distance; 
         Transform { 

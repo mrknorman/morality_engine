@@ -228,19 +228,17 @@ if lever.is_some() {
                 let movement_speed = distance * proportional_speed_factor;
                 transform.translation += direction * movement_speed;
             } else {
-                let bounce_offset = bounce_amplitude * (time.elapsed_secs() * bounce_frequency).sin();
-                transform.translation = right_position + Vec3::new(bounce_offset, 0.0, 0.0);
+                transform.translation = right_position;
             }
         } else if unwrapped_lever.0 == LeverState::Left {
             main_track.unwrap().0 = OPTION_1_COLOR;
             let distance = (left_position - transform.translation).length();
             if distance > distance_threshold {
                 let direction = (left_position - transform.translation).normalize();
-                let movement_speed = distance * proportional_speed_factor;
+                let movement_speed: f32 = distance * proportional_speed_factor;
                 transform.translation += direction * movement_speed;
             } else {
-                let bounce_offset = bounce_amplitude * (time.elapsed_secs() * bounce_frequency).sin();
-                transform.translation = left_position + Vec3::new(bounce_offset, 0.0, 0.0);
+                transform.translation = left_position;
             }
         }
     }

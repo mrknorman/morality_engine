@@ -385,12 +385,10 @@ fn trigger_advance_dialogue(
         }
     }
 
-    // Handle actions for Clickable components
     for mut clickable in clickable_query.iter_mut() {
         handle_actions(&mut *clickable, &mut event_writer);
     }
 
-    // Handle actions for Pressable components
     for mut pressable in pressable_query.iter_mut() {
         handle_actions(&mut *pressable, &mut event_writer);
     }
