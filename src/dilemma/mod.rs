@@ -400,7 +400,7 @@ fn spawn_delayed_children(
 								]
 							)]
 						)
-					)); // Capture the entity ID of the spawned child
+					));
 				});
             }
         } else {
