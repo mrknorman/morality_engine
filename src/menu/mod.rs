@@ -8,12 +8,7 @@ use crate::{
         AsciiString
     }, 
     audio::{
-        continuous_audio, 
-        BackgroundAudio, 
-        ContinuousAudioPallet, 
-        MusicAudio, 
-        TransientAudio, 
-        TransientAudioPallet
+        continuous_audio, BackgroundAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet
     }, 
     background::{
         Background, 
@@ -107,7 +102,8 @@ fn setup_menu(
                             PlaybackSettings{
                                 volume : Volume::new(0.1),
                                 ..continuous_audio()
-                            }
+                            },
+                            None
                         ),
                         (
                             "office".to_string(),
@@ -117,7 +113,8 @@ fn setup_menu(
                             PlaybackSettings{
                                 volume : Volume::new(0.5),
                                 ..continuous_audio()
-                            }
+                            },
+                            Some(DilatableAudio)
                         )
                     ]
                 )

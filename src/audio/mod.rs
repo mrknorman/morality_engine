@@ -11,6 +11,8 @@ use bevy::{
     prelude::*,
 };
 
+use crate::time::Dilation;
+
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AudioSystemsActive {
     #[default]
@@ -42,9 +44,17 @@ impl Plugin for AudioPlugin {
             .run_if(
                 in_state(AudioSystemsActive::True)
             )
+        ).add_systems(
+            Update,
+            (
+                DilatableAudio::dilate
+            )
+            .run_if(resource_changed::<Dilation>)
         );
     }
 }
+
+
 
 fn activate_systems(
 	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
@@ -142,12 +152,12 @@ impl TransientAudio {
 
 pub struct ContinuousAudioPallet {
     pub entities: HashMap<String, Entity>,
-    pub components: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
+    pub components: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)>
 }
 
 impl ContinuousAudioPallet {
     pub fn new(
-        components : Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)>
+        components : Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)>
     ) -> ContinuousAudioPallet {
         ContinuousAudioPallet {
             entities : HashMap::new(),
@@ -186,13 +196,20 @@ impl Component for ContinuousAudioPallet {
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent| {
                         for (
-                            name, audio_component, playback_settings
+                            name, audio_component, playback_settings, dilatable
                         ) in components.iter() {
                             
-                            let child_entity = parent.spawn((
+                            let mut entity_commands = parent.spawn((
                                 audio_component.clone(),
                                 *playback_settings
-                            )).id();
+                            ));
+
+                            if dilatable.is_some() {
+                                entity_commands.insert(DilatableAudio);
+                            }
+
+                            let child_entity = entity_commands.id();
+
                             entities.insert(name.clone(), child_entity);
                         }
                     });
@@ -638,5 +655,18 @@ impl AudioLayer for EffectAudioConfig {
 
     fn set_volume(&mut self, volume: f32) {
         self.volume = volume;
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct DilatableAudio;
+impl DilatableAudio {
+    fn dilate(
+        dilation : Res<Dilation>,
+        mut audio_query : Query<&mut AudioSink, With<Self>>
+    ) {
+        for audio in audio_query.iter_mut() {
+            audio.set_speed(dilation.0);
+        }
     }
 }

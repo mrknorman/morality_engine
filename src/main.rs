@@ -81,7 +81,7 @@ impl Plugin for GamePlugin {
             .add_plugins(menu::MenuScreenPlugin)
             .add_plugins(loading::LoadingScreenPlugin)
             .add_plugins(dialogue::DialogueScreenPlugin)
-            .add_plugins(dilemma::DilemmaPlugin)
+            .add_plugins(dilemma::DilemmaScreenPlugin)
             .add_plugins(motion::MotionPlugin)
             .add_plugins(colors::ColorsPlugin)
             .add_plugins(inheritance::InheritancePlugin)

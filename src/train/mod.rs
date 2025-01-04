@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::{
     audio::{
-		continuous_audio, AudioPlugin, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
+		continuous_audio, AudioPlugin, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet
 	}, colors::ColorAnchor, interaction::{
 		Clickable,InputAction, InteractionPlugin
 	}, motion::Wobble, physics::Velocity, text::{
@@ -140,7 +140,8 @@ impl Train {
 					PlaybackSettings{
 						volume : Volume::new(0.1),
 						..continuous_audio()
-					}
+					},
+					Some(DilatableAudio)
 				)]
 			)
 		)
