@@ -19,7 +19,7 @@ use serde::{
 	Deserialize, 
 	Serialize
 };
-use crate::text::TextSprite;
+use crate::{physics::Velocity, text::TextSprite, time::Dilation};
 use crate::GlobalRng;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -39,7 +39,7 @@ impl Plugin for BackgroundPlugin {
             ).add_systems(
 				Update,
 				(
-					BackgroundSprite::update_positions,
+					BackgroundSprite::wrap_sprites,
 					Background::on_resize
 				)
 				.run_if(in_state(BackgroundSystemsActive::True))
@@ -156,7 +156,7 @@ impl Background {
 	pub fn update_speeds(
 		windows: Query<&Window>,
 		background_query: Query<(&Children, &Background), Without<BackgroundSprite>>,
-		mut children_query: Query<(&mut BackgroundSprite, &Transform), Without<Background>>,
+		mut children_query: Query<(&mut Velocity, &Transform), Without<Background>>,
 	) {
 
 		let window: &Window = windows.get_single().unwrap();
@@ -172,7 +172,7 @@ impl Background {
 				// If we can get a mutable reference to the child's BackgroundSprite
 				if let Ok((mut child_sprite, transform)) = children_query.get_mut(child_entity) {
 					// Update the child's speed
-					child_sprite.speed = (screen_height - transform.translation.y).max(0.0)*parent_speed;
+					child_sprite.0 = Vec3::new((screen_height - transform.translation.y).max(0.0)*parent_speed, 0.0, 0.0);
 				}
 			}
 		}
@@ -185,26 +185,16 @@ const SPAWN_VARIANCE : f32 = 100.0;
 #[require(TextSprite)]
 pub struct BackgroundSprite {
 	screen_width : f32,
-	screen_width_max : f32,
-	speed : f32
+	random_offset : f32
 }
 
 impl BackgroundSprite {
-
-	pub fn update_positions(
-		time: Res<Time>,
-		mut rng : ResMut<GlobalRng>,
+	pub fn wrap_sprites(
 		mut background_query : Query<(&BackgroundSprite, &mut Transform)>
 	) {
-
-		let time_seconds: f32 = time.delta().as_secs_f32();
-
 		for (sprite, mut transform) in background_query.iter_mut() {
-			transform.translation.x -= sprite.speed*time_seconds;
-
 			if transform.translation.x <= -sprite.screen_width {
-				let random_offset: f32 = rng.0.gen_range(sprite.screen_width..sprite.screen_width_max);
-				transform.translation.x = random_offset;
+				transform.translation.x = sprite.random_offset;
 			}
 		}
 	}
@@ -233,66 +223,76 @@ impl Component for Background {
                     .filter_map(|entity| entity.get::<Window>().cloned())
                     .next();
 
-                if let Some(scene) = scene {
+                if let (Some(scene), Some(window)) = (scene, window) {
 
-					if let Some(window) = window {
+					let screen_width = window.width()/2.0 + 100.0;
+					let screen_height = window.height();
 
-						let screen_width = window.width()/2.0 + 100.0;
-						let screen_height = window.height();
-						let mut rng = rand::thread_rng();
+					for sprite_type in scene.sprites {
+						let density: i32 = (scene.density*screen_width*screen_height*sprite_type.frequency) as i32;
+						let size_per_range = screen_height / (sprite_type.lods.len() as f32);
 
-						for sprite_type in scene.sprites {
-							let density: i32 = (scene.density*screen_width*screen_height*sprite_type.frequency) as i32;
-							let size_per_range = screen_height / (sprite_type.lods.len() as f32);
+						for (i, lod) in sprite_type.lods.into_iter().enumerate() {
 
-							for (i, lod) in sprite_type.lods.into_iter().enumerate() {
+							let density = density*(((i as i32 + 1)).pow(2));
+							for _ in 0..density {
+								
+								let (
+									x_range, 
+									y_range, 
+									random_offset
+								) = if let Some(mut rng) = world.get_resource_mut::<GlobalRng>() {
+									(
+										rng.0.gen_range(-screen_width..screen_width + SPAWN_VARIANCE),
+										rng.0.gen_range(
+											size_per_range * (i as f32)..size_per_range * (i as f32 + 1.0)
+										) - (screen_height / 2.0),
+										rng.0.gen_range(screen_width..screen_width + SPAWN_VARIANCE),
+									)
+								} else {
+									warn!("GlobalRng not found! Cannot spawn background.");
+									return
+								};
 
-								let density = density*(((i as i32 + 1)).pow(2));
-								for _ in 0..density {
-									let x_range: f32 =  rng.gen_range(-screen_width..screen_width + SPAWN_VARIANCE);
-									let y_range: f32 = rng.gen_range(
-										size_per_range*(i as f32)..size_per_range*(i as f32 + 1.0)
-									) - (screen_height/2.0);
-									
-									let mut commands = world.commands();
+								let translation = Vec3::new(x_range, y_range, 0.0);
+								let text = lod.to_string();	
 
-									let translation = Vec3::new(x_range, y_range, 0.0);
-									let text = lod.to_string();
+								let mut commands = world.commands();
+								commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
+									let mut entity = parent.spawn(
+										(
+											BackgroundSprite{
+												screen_width,
+												random_offset
+											},
+											Velocity(
+												Vec3::new((screen_height/2.0 - translation.y).max(0.0)*scene.speed, 0.0, 0.0)
+											),
+											Anchor::BottomCenter,
+											Text2d::new(text),
+											Transform::from_translation(
+												translation
+											),
+											TextFont{
+												font_size: 12.0,
+												..default()
+											},
+											TextLayout{
+												justify : JustifyText::Left,
+												linebreak : LineBreak::WordBoundary
+											},
+										)
+									);
 
-									commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-										let mut entity = parent.spawn(
-											(
-												BackgroundSprite{
-													screen_width,
-													screen_width_max : screen_width + SPAWN_VARIANCE,
-													speed : (screen_height/2.0 - translation.y).max(0.0)*scene.speed
-												},
-												Anchor::BottomCenter,
-												Text2d::new(text),
-												Transform::from_translation(
-													translation
-												),
-												TextFont{
-													font_size: 12.0,
-													..default()
-												},
-												TextLayout{
-													justify : JustifyText::Left,
-													linebreak : LineBreak::WordBoundary
-												},
-											)
-										);
-
-										if let Some(color) = color {
-											entity.insert(color);
-										}
-									});
-								}
+									if let Some(color) = color {
+										entity.insert(color);
+									}
+								});
 							}
 						}
 					}
+				}
 
-                }
             },
         );
     }

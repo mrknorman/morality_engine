@@ -3,11 +3,7 @@ use bevy::{
 	sprite::Anchor,
 };
 use crate::{
-	text::TextSprite,
-	colors::{PRIMARY_COLOR, DANGER_COLOR},
-	audio::{TransientAudioPallet, TransientAudio},
-	physics::{Gravity, PhysicsPlugin},
-	motion::Bounce
+	audio::{TransientAudio, TransientAudioPallet}, colors::{DANGER_COLOR, PRIMARY_COLOR}, motion::Bounce, physics::{Gravity, PhysicsPlugin}, text::TextSprite, time::Dilation
 }; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -158,11 +154,12 @@ impl Default for Emoticon {
 impl Emoticon {
 	pub fn animate(
 		time: Res<Time>,
+		dilation : Res<Dilation>,
 		person_query: Query<&mut Bounce, With<PersonSprite>>,
 		mut emoticon_query: Query<(&Parent, &mut Emoticon, &mut Transform, &mut Text2d)>,
 	) {
 
-		let duration_seconds = time.delta().as_secs_f32();
+		let duration_seconds = time.delta_secs()*dilation.0;
 		for (parent, mut sprite, mut transform, mut text) in emoticon_query.iter_mut() {
 			if let Ok(animation) = person_query.get(parent.get()) {
 				if animation.enacting {

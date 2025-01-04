@@ -14,7 +14,7 @@ use crate::{
         LeverState
     }, Dilemma}, inheritance::BequeathTextColor, motion::{Bounce, TransformMultiAnchor}, person::{
         Emoticon, PersonSprite
-    }, track::Track
+    }, time::Dilation, track::Track
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -219,24 +219,24 @@ impl Component for Junction {
 impl Junction  {
 	
 	pub fn switch_junction(
+		time : Res<Time>,
+		dilation : Res<Dilation>,
 		mut movement_query: Query<(&TransformMultiAnchor, &mut Transform), With<Turnout>>,
 		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
 		lever: Option<Res<Lever>>,
 	) {
 		// Early return if lever is missing
 		let Some(lever) = lever else {
-			warn!("Missing trunk track for switch junction");
 			return;
 		};
 		
 		// Get main track once before the loop
 		let Ok(mut main_track) = track_query.get_single_mut() else {
-			warn!("Missing trunk track for switch junction");
 			return;
 		};
 	
 		const DISTANCE_THRESHOLD: f32 = 0.01;
-		const PROPORTIONAL_SPEED_FACTOR: f32 = 0.1;
+		const PROPORTIONAL_SPEED_FACTOR: f32 = 10.0;
 	
 		for (lever_transform, mut transform) in movement_query.iter_mut() {
 			let target_position = match lever.0 {
@@ -263,7 +263,7 @@ impl Junction  {
 			
 			if distance > DISTANCE_THRESHOLD {
 				let direction = (target_position - transform.translation).normalize();
-				let movement_speed = distance * PROPORTIONAL_SPEED_FACTOR;
+				let movement_speed = distance * PROPORTIONAL_SPEED_FACTOR * time.delta_secs()*dilation.0;
 				transform.translation += direction * movement_speed;
 			} else {
 				transform.translation = target_position;

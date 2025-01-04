@@ -15,10 +15,7 @@ use crate::{
 		continuous_audio, AudioPlugin, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
 	}, colors::ColorAnchor, interaction::{
 		Clickable,InputAction, InteractionPlugin
-	}, motion::{
-		Locomotion, 
-		Wobble
-	}, text::{
+	}, motion::Wobble, physics::Velocity, text::{
 		Animated, TextFrames, TextSprite
 	}
 };
@@ -125,7 +122,7 @@ impl Train {
 		asset_server: &Res<AssetServer>,
 		train_file_path : &str,
 		speed : f32
-	) -> (Train, Locomotion, ContinuousAudioPallet, ) {
+	) -> (Train, Velocity, ContinuousAudioPallet) {
 
 		let train_type = TrainType::load_from_json(
 			train_file_path.to_string()
@@ -133,7 +130,7 @@ impl Train {
 
 		(
 			Train::new(asset_server, train_file_path), 
-			Locomotion::new(speed), 
+			Velocity(Vec3::new(speed, 0.0, 0.0)),
 			ContinuousAudioPallet::new(
 				vec![(
 					"tracks".to_string(),
@@ -177,11 +174,11 @@ impl Train {
 	}
 
 	pub fn update_speed(
-		mut locomotion_query : Query<&mut Locomotion, With<Train>>,
+		mut velocity_query : Query<&mut Velocity, With<Train>>,
 		new_speed :f32
 	) {
-		for mut locomotion in locomotion_query.iter_mut() {
-			locomotion.speed = new_speed;
+		for mut velocity in velocity_query.iter_mut() {
+			velocity.0 = Vec3::new(new_speed, 0.0, 0.0);
 		}
 	}
 }

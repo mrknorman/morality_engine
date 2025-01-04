@@ -14,14 +14,14 @@ use bevy::{
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    audio::{continuous_audio, ContinuousAudioPallet, TransientAudioPallet, TransientAudio}, 
+    audio::{continuous_audio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet}, 
     character::Character, 
     colors::PRIMARY_COLOR, 
     common_ui::NextButton, 
     game_states::{GameState, MainState, StateVector}, 
     graph::GraphPlugin, 
     interaction::{AdvanceDialogue, InputAction}, 
-    text::TextButton
+    text::TextButton, time::Dilation
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -249,6 +249,7 @@ impl Dialogue {
 		audio_query: Query<&AudioSink>,
         mut writer: Text2dWriter,
 		keyboard_input: Res<ButtonInput<KeyCode>>,
+        mut dilation : ResMut<Dilation>
 	) {
 		if !keyboard_input.just_pressed(KeyCode::Enter) {
 			return;
@@ -281,12 +282,7 @@ impl Dialogue {
 	
 				if dialogue.skip_count == 0 {
 					dialogue.skip_count += 1;
-					dialogue.timer = Timer::new(
-                        Duration::from_millis(
-                            dialogue.char_duration_millis / 4
-                        ), 
-                        TimerMode::Repeating
-                    );
+					dilation.0 = 4.0;
 				} else {
                     if let Some(mut text) = writer.get_text(entity, dialogue.num_spans - 1) {
                         (*text).clone_from(&line.raw_text);
@@ -305,10 +301,11 @@ impl Dialogue {
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
-        time: Res<Time>
+        time: Res<Time>,
+        mut dilation : ResMut<Dilation>
     ) {
         for (entity, mut dialogue, audio_pallet) in query.iter_mut() {
-            if !dialogue.playing || (!dialogue.timer.tick(time.delta()).finished() && dialogue.skip_count <= 1) {
+            if !dialogue.playing || (!dialogue.timer.tick(time.delta().mul_f32(dilation.0)).finished() && dialogue.skip_count <= 1) {
                 continue;
             }
     
@@ -347,7 +344,8 @@ impl Dialogue {
                         next_action, 
                         &line.instruction
                     );
-    
+
+                    dilation.0 = 1.0;
                     dialogue.current_line_index += 1;
                     dialogue.current_char_index = 0;
                     dialogue.skip_count = 0;

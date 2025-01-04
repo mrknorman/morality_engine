@@ -32,7 +32,7 @@ impl Plugin for LeverPlugin {
 
 fn activate_systems(
         mut state: ResMut<NextState<LeverSystemsActive>>,
-        query: Query<Option<&Lever>>
+        query: Query<&Lever>
     ) {
         
 	if !query.is_empty() {

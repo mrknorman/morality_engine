@@ -8,7 +8,7 @@ use serde::Deserialize;
 use bevy::{prelude::*, text::TextBounds};
 
 use crate::{
-    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR}, interaction::{Clickable, InputAction, Pressable}
+    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR}, interaction::{Clickable, InputAction, Pressable}, time::Dilation
 };
 
 fn default_font() -> TextFont {
@@ -130,12 +130,13 @@ impl Default for Animated {
 impl Animated {
     pub fn animate_text(
         time: Res<Time>,
+        dilation : Res<Dilation>,
         mut query: Query<(&mut Animated, &TextFrames, &mut Text2d)>,
     ) {
         for (
                 mut animation, frames, mut text
             ) in query.iter_mut() {
-                animation.timer.tick(time.delta());
+                animation.timer.tick(time.delta().mul_f32(dilation.0));
             if animation.timer.just_finished() {
                 animation.current_frame = 
                     (animation.current_frame + 1) % frames.frames.len();

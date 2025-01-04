@@ -2,7 +2,7 @@ use bevy::{
     color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, prelude::*, sprite::Material2dPlugin, window::{WindowMode, PresentMode}
+    }, prelude::*, sprite::Material2dPlugin, window::{PresentMode, WindowMode}
 };
 
 use rand::SeedableRng;
@@ -35,6 +35,7 @@ mod colors;
 mod physics;
 mod ascii_fonts;
 mod inheritance;
+mod time;
 
 use crate::{
     game_states::{
@@ -42,7 +43,8 @@ use crate::{
         MainState, 
         DilemmaPhase
     },
-    shaders::PulsingMaterial
+    shaders::PulsingMaterial,
+    time::DilationPLugin
 };
 
 fn main() {
@@ -88,7 +90,9 @@ impl Plugin for GamePlugin {
             use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
             app
             .add_plugins(FrameTimeDiagnosticsPlugin)
-            .add_plugins(LogDiagnosticsPlugin::default());
+            .add_plugins(LogDiagnosticsPlugin::default())
+            .add_plugins(DilationPLugin)
+            ;
             
     }
 }

@@ -5,7 +5,7 @@ use std::time::Duration;
 use rand::seq::SliceRandom; // For shuffling
 use rand::thread_rng;
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}, time::Dilation};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -148,11 +148,12 @@ impl ColorTranslation {
 
 	pub fn translate(
 		time: Res<Time>, 
+        dilation : Res<Dilation>,
 		mut query: Query<(&mut ColorTranslation, &mut TextColor)>
 	) {
 		for (mut motion, mut color) in query.iter_mut() {
 
-			motion.timer.tick(time.delta());
+			motion.timer.tick(time.delta().mul_f32(dilation.0));
 
 			if !motion.timer.paused() && !motion.timer.finished() {
 

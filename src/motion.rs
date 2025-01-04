@@ -10,11 +10,9 @@ use rand:: {
 };
 use rand_pcg::Pcg64Mcg;
 
-use crate::physics::{
-    Velocity,
-    Gravity,
-    PhysicsPlugin
-};
+use crate::{physics::{
+    Gravity, PhysicsPlugin, Velocity
+}, time::Dilation, GlobalRng};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MotionSystemsActive {
@@ -37,7 +35,6 @@ impl Plugin for MotionPlugin {
             (
 				Wobble::enact,
 				Bounce::enact,
-				Locomotion::enact,
 				Pulse::enact,
                 PointToPointTranslation::enact
             )
@@ -52,15 +49,21 @@ impl Plugin for MotionPlugin {
     }
 }
 
+
 fn activate_systems(
-	mut state: ResMut<NextState<MotionSystemsActive>>,
-	query: Query<(Option<&Bounce>, Option<&Wobble>, Option<&Locomotion>, Option<&PointToPointTranslation>, Option<&Pulse>)>
+    mut state: ResMut<NextState<MotionSystemsActive>>,
+    query: Query<(), Or<(
+        With<Bounce>,
+        With<Wobble>,
+        With<PointToPointTranslation>,
+        With<Pulse>
+    )>>
 ) {
-	if !query.is_empty() {
-		state.set(MotionSystemsActive::True)
-	} else {
-		state.set(MotionSystemsActive::False)
-	}
+    if !query.is_empty() {
+        state.set(MotionSystemsActive::True)
+    } else {
+        state.set(MotionSystemsActive::False)
+    }
 }
 
 pub struct PointToPointTranslation {
@@ -119,11 +122,12 @@ impl PointToPointTranslation {
 
 	pub fn enact(
 		time: Res<Time>, 
+		dilation : Res<Dilation>,
 		mut query: Query<(&mut PointToPointTranslation, &mut Transform)>
 	) {
 		for (mut motion, mut transform) in query.iter_mut() {
 
-			motion.timer.tick(time.delta());
+			motion.timer.tick(time.delta().mul_f32(dilation.0));
 
 			if !motion.timer.paused() && !motion.timer.finished() {
 
@@ -209,13 +213,14 @@ impl Wobble {
 
 	pub fn enact(
 		time: Res<Time>, // Inject the Time resource to access the game time
+		dilation : Res<Dilation>,
+		mut rng : ResMut<GlobalRng>,
 		mut wobble_query: Query<(&mut Transform, &mut Wobble, &TransformAnchor)>
 	) {
-		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 		for (mut transform, mut wobble, translation_anchor) in wobble_query.iter_mut() {
-			if wobble.timer.tick(time.delta()).finished() {
-				let dx = rng.gen_range(-1.0..=1.0);
-				let dy = rng.gen_range(-1.0..=1.0);  
+			if wobble.timer.tick(time.delta().mul_f32(dilation.0)).finished() {
+				let dx = rng.0.gen_range(-1.0..=1.0);
+				let dy = rng.0.gen_range(-1.0..=1.0);  
 
 				transform.translation.x = translation_anchor.0.translation.x + dx as f32;
 				transform.translation.y = translation_anchor.0.translation.y + dy as f32;
@@ -261,13 +266,13 @@ impl Bounce {
 
     pub fn enact(
 		time: Res<Time>,
+		mut rng : ResMut<GlobalRng>,
 		mut query: Query<(
 			&mut Bounce,
 			&mut Velocity,
 			&Gravity
 		)>
 	) {
-		let mut rng = Pcg64Mcg::seed_from_u64(time.delta().as_micros() as u64);
 		for (mut bounce, mut velocity, gravity) in query.iter_mut() {
 
 			if bounce.enacting || !bounce.active {
@@ -289,7 +294,7 @@ impl Bounce {
 			} else if bounce.timer.just_finished() && !gravity.is_falling && bounce.active {
 				velocity.0 = Vec3::new(
 					0.0, 
-					rng.gen_range(
+					rng.0.gen_range(
 						bounce.initial_velocity_min..bounce.initial_velocity_max
 					), 
 					0.0
@@ -310,32 +315,6 @@ impl Default for Bounce {
 			1.0,
 			2.0
 		)	
-	}
-}
-
-#[derive(Component, Clone)] 
-pub struct Locomotion{
-	pub speed: f32
-} 
-
-impl Locomotion{
-
-	pub fn new(speed: f32) -> Locomotion  {
-		Locomotion{
-			speed
-		}
-	}
-
-	pub fn enact(
-		time: Res<Time>,
-		mut locomotion_query: Query<(&Locomotion, &mut Transform)>
-	) {
-		let time_seconds: f32 = time.delta().as_secs_f32(); // Current time in seconds
-
-		for (locomotion, mut transform) in locomotion_query.iter_mut() {
-			let dx = locomotion.speed*time_seconds;
-			transform.translation.x += dx;
-		}
 	}
 }
 
@@ -379,6 +358,7 @@ impl Pulse {
 
 	pub fn enact(
 		time : Res<Time>,
+		dilation : Res<Dilation>,
 		mut query : Query<(&mut Self, &mut Transform, &mut TransformAnchor)>
 	) {
 
@@ -394,8 +374,10 @@ impl Pulse {
 				pulse.interval_timer.unpause();
 			}
 
-			pulse.interval_timer.tick(time.delta());
-			pulse.pulse_timer.tick(time.delta());
+			let time_delta = time.delta().mul_f32(dilation.0);
+
+			pulse.interval_timer.tick(time_delta);
+			pulse.pulse_timer.tick(time_delta);
 
 			if pulse.enacting {
 				if pulse.pulse_timer.just_finished() {

@@ -14,12 +14,9 @@ use bevy::{
 };
 
 use crate::{
-    text::TextFrames,
-    sprites::{
-        SpriteFactory,
-        SpriteBox
-    },
-    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}
+    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, sprites::{
+        SpriteBox, SpriteFactory
+    }, text::TextFrames, time::Dilation
 };
 
 pub struct LoadingBarPlugin;
@@ -108,6 +105,7 @@ impl LoadingBar {
 
     pub fn fill(
         time: Res<Time>,
+        dilation : Res<Dilation>,
         mut loading_query: Query<(&Children, &mut LoadingBar, &TextFrames)>,      
         mut sprite_query: Query<&mut Sprite, With<ProgressIndicator>>,
         mut text_query: Query<Entity, With<LoadingText>>,
@@ -116,7 +114,7 @@ impl LoadingBar {
         let mut rng = rand::thread_rng();
 
         for (children, mut bar, frames) in loading_query.iter_mut() {
-            if bar.timer.tick(time.delta()).just_finished() {
+            if bar.timer.tick(time.delta().mul_f32(dilation.0)).just_finished() {
                 bar.index += 1;
 
                 let secs = rng.gen_range(0.5..=2.0) as f32;

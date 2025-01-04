@@ -86,7 +86,6 @@ use junction::{
 	Junction, JunctionPlugin, TrunkTrack
 };
 
-
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
@@ -240,7 +239,7 @@ pub fn setup_dilemma(
 				Background::load_from_json(
 					"text/backgrounds/desert.json",	
 					0.000002,
-					0.5
+					-0.5
 				),
 				BequeathTextColor,
 				ColorTranslation::new(
@@ -337,8 +336,7 @@ pub fn setup_dilemma_intro(
 fn spawn_delayed_children(
     mut commands: Commands,
     loading_query: Query<(Entity, &TimerPallet), With<DilemmaIntroRoot>>,
-    asset_server: Res<AssetServer>,
-    windows: Query<&Window>
+    asset_server: Res<AssetServer>
 ) {
     for (entity, timers) in loading_query.iter() {
 
@@ -434,7 +432,7 @@ pub fn setup_dilemma_transition(
 	}
 	for (mut background, mut color) in background_query.iter_mut() {
 		color.start();
-		background.speed = dilemma.countdown_duration.as_secs_f32() / 5.0;
+		background.speed = -dilemma.countdown_duration.as_secs_f32() / 5.0;
 		commands.run_system(systems.0["update_background_speeds"]);
 	}
 }
@@ -471,7 +469,7 @@ pub fn end_dilemma_transition(
 		for mut translation in train_query.iter_mut() {
 			let initial_position = translation.initial_position;
 			translation.initial_position = translation.final_position;
-			translation.final_position = initial_position - Vec3::new(45.0, 0.0, 0.0);
+			translation.final_position = initial_position - Vec3::new(60.0, 0.0, 0.0);
 			translation.timer = Timer::new(
 				dilemma.countdown_duration,
 				TimerMode::Once

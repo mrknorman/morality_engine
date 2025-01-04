@@ -9,18 +9,23 @@ use serde::{
 	Serialize
 };
 use bevy::{
-	ecs::{component::StorageType, component::StorageType::Table}, prelude::*, sprite::Anchor, text::{
+	ecs::{
+		component::StorageType, 
+		component::StorageType::Table
+	}, 
+	prelude::*, 
+	sprite::Anchor, 
+	text::{
 		LineBreak, 
 		TextBounds
 	}
 };
 
 use crate::{
-	 background::BackgroundSprite, colors::{		
-		OPTION_1_COLOR, OPTION_2_COLOR
-	}, game_states::DilemmaPhase, 
-	dilemma::lever::Lever, motion::{Locomotion, Pulse}, 
-	train::Train
+	background::BackgroundSprite, colors::{		
+		OPTION_1_COLOR, 
+		OPTION_2_COLOR
+	}, dilemma::lever::Lever, game_states::DilemmaPhase, motion::Pulse, physics::Velocity, time::Dilation, track::Track, train::Train
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -207,13 +212,14 @@ impl DilemmaTimer {
 
 	pub fn update(
 		time: Res<Time>,
+		dilation : Res<Dilation>,
 		mut timer_query: Query<(&mut DilemmaTimer, &mut Text2d)>,
 		mut next_game_state: ResMut<NextState<DilemmaPhase>>
 	) {
 	
 		for (mut timer, mut text) in timer_query.iter_mut() {
 
-			timer.timer.tick(time.delta());
+			timer.timer.tick(time.delta().mul_f32(dilation.0));
 			text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
 			if timer.timer.finished() {
 				next_game_state.set(
@@ -378,10 +384,14 @@ impl DilemmaOptionInfoPanel {
 
 pub fn cleanup_decision(
 		mut commands : Commands,
-		background_query : Query<Entity, With<BackgroundSprite>>
+		background_query : Query<Entity, With<BackgroundSprite>>,
+		track_query : Query<Entity, With<Track>>
 	){
-
+	
 	for entity in background_query.iter() {
+		commands.entity(entity).despawn();
+	}
+	for entity in track_query.iter() {
 		commands.entity(entity).despawn();
 	}
 }
@@ -400,7 +410,7 @@ pub fn consequence_animation_tick_down(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
 		mut timer: ResMut<DramaticPauseTimer>,
-		locomotion_query : Query<&mut Locomotion, With<Train>>,
+		locomotion_query : Query<&mut Velocity, With<Train>>,
 		lever: Option<Res<Lever>>,
 	) {
 
@@ -445,7 +455,7 @@ pub fn consequence_animation_tick_down(
 pub fn consequence_animation_tick_up(
 	time: Res<Time>,
 	mut timer: ResMut<DramaticPauseTimer>,
-	locomotion_query : Query<&mut Locomotion, With<Train>>,
+	locomotion_query : Query<&mut Velocity, With<Train>>,
 	mut audio : Query<&mut AudioSink, With<LongScream>>
 ) {
 	timer.scream_timer.tick(time.delta());

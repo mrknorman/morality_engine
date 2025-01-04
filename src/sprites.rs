@@ -5,7 +5,10 @@ use crate::colors::PRIMARY_COLOR;
 pub struct SpriteFactory;
 
 impl SpriteFactory {
-    pub fn create_sprite_bundle(size: Vec2, position: Vec3) -> (Sprite, Transform) {
+    pub fn create_sprite_bundle(
+        size: Vec2, 
+        position: Vec3
+    ) -> (Sprite, Transform) {
         (
             Sprite{
                 custom_size: Some(size),
@@ -33,17 +36,17 @@ impl SpriteBox {
         let border_thickness = 2.0;
 
         let sprite_sizes = vec![
-            Vec2::new(width, border_thickness),  // Top
-            Vec2::new(width, border_thickness),  // Bottom
-            Vec2::new(border_thickness, height), // Left
-            Vec2::new(border_thickness, height), // Right
+            Vec2::new(width, border_thickness),
+            Vec2::new(width, border_thickness),  
+            Vec2::new(border_thickness, height),
+            Vec2::new(border_thickness, height), 
         ];
         
         let sprite_positions = vec![
-            Vec3::new(position.x, position.y + height / 2.0, position.z), // Top
-            Vec3::new(position.x, position.y - height / 2.0, position.z), // Bottom
-            Vec3::new(position.x - width / 2.0, position.y, position.z),  // Left
-            Vec3::new(position.x + width / 2.0, position.y, position.z),  // Right
+            Vec3::new(position.x, position.y + height / 2.0, position.z), 
+            Vec3::new(position.x, position.y - height / 2.0, position.z), 
+            Vec3::new(position.x - width / 2.0, position.y, position.z),  
+            Vec3::new(position.x + width / 2.0, position.y, position.z), 
         ];
         
         sprite_sizes.into_iter().zip(sprite_positions.into_iter())
