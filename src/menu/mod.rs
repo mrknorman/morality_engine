@@ -4,19 +4,44 @@ use bevy::{
 
 use crate::{
     ascii_fonts::{
-        AsciiPlugin, AsciiString
-    }, audio::{
-        continuous_audio, BackgroundAudio, ContinuousAudioPallet, MusicAudio, TransientAudio, TransientAudioPallet
-    }, background::{Background, BackgroundPlugin}, colors::{DIM_BACKGROUND_COLOR, MENU_COLOR}, common_ui::NextButton, game_states::{
+        AsciiPlugin, 
+        AsciiString
+    }, 
+    audio::{
+        continuous_audio, 
+        BackgroundAudio, 
+        ContinuousAudioPallet, 
+        MusicAudio, 
+        TransientAudio, 
+        TransientAudioPallet
+    }, 
+    background::{
+        Background, 
+        BackgroundPlugin
+    }, 
+    colors::{
+        DIM_BACKGROUND_COLOR, 
+        MENU_COLOR
+    }, 
+    common_ui::NextButton, 
+    game_states::{
         MainState, 
         StateVector
-    }, interaction::{ 
-        InputAction, InteractionPlugin
-    }, io::IOPlugin, text::{
+    }, 
+    interaction::{ 
+        InputAction, 
+        InteractionPlugin
+    }, 
+    io::IOPlugin, 
+    text::{
         TextButton, 
         TextRaw
-    }, track::Track, train::{
-        Train, TrainPlugin, STEAM_TRAIN
+    }, 
+    track::Track, 
+    train::{
+        Train, 
+        TrainPlugin, 
+        STEAM_TRAIN
     }
 };
 
@@ -102,7 +127,7 @@ fn setup_menu(
                 Background::load_from_json(
                     "text/backgrounds/desert.json",	
                     0.000001,
-                    0.5
+                    -0.5
                 ),
                 TextColor(DIM_BACKGROUND_COLOR)
                 )

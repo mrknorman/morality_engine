@@ -3,6 +3,8 @@ use bevy::{
     ecs::component::StorageType
 };
 
+use crate::time::Dilation;
+
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PhysicsSystemsActive {
     #[default]
@@ -57,9 +59,10 @@ impl Default for Velocity {
 impl Velocity {
     fn enact(
         time: Res<Time>,
+        dilation : Res<Dilation>,
         mut query : Query<(&mut Transform, &mut Velocity)>, 
     ) {
-        let duration_seconds = time.delta().as_secs_f32();
+        let duration_seconds = time.delta_secs()*dilation.0;
         for (mut transform, velocity) in query.iter_mut() {
             transform.translation += velocity.0*duration_seconds;
         }
@@ -76,9 +79,10 @@ pub struct Gravity {
 impl Gravity{
     fn enact(
         time: Res<Time>,
+        dilation : Res<Dilation>,
         mut query : Query<(&mut Gravity, &mut Velocity, &mut Transform)>, 
     ) {
-        let duration_seconds = time.delta().as_secs_f32();
+        let duration_seconds = time.delta_secs()*dilation.0;
         for (mut gravity, mut velocity, mut transform) in query.iter_mut() {
 
             if let Some(floor_level) = gravity.floor_level {
