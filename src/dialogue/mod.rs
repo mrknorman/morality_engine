@@ -9,14 +9,8 @@ use bevy::{
 
 use crate::{
     audio:: {
-        ContinuousAudioPallet,
-        continuous_audio
-    },
-    game_states::GameState,
-    character::Character,
-    io::IOPlugin, 
-    interaction::InteractionPlugin,
-    graph::Graph
+        continuous_audio, ContinuousAudioPallet, DilatableAudio
+    }, character::Character, game_states::GameState, graph::Graph, interaction::InteractionPlugin, io::IOPlugin
 };
 
 mod dialogue;
@@ -77,7 +71,8 @@ pub fn setup_dialogue(
                         PlaybackSettings{
                             volume : Volume::new(0.1),
                             ..continuous_audio()
-                        }
+                        },
+                        None
                     ),
                     (
                         "office".to_string(),
@@ -87,7 +82,8 @@ pub fn setup_dialogue(
                         PlaybackSettings{
                             volume : Volume::new(0.5),
                             ..continuous_audio()
-                        }
+                        },
+                        Some(DilatableAudio)
                     ),
                     (
                         "music".to_string(),
@@ -97,7 +93,8 @@ pub fn setup_dialogue(
                         PlaybackSettings{
                             volume : Volume::new(0.3),
                             ..continuous_audio()
-                        }
+                        },
+                        None
                     )
                 ]
             )

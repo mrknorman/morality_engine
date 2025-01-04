@@ -25,8 +25,51 @@ use crate::{
 	background::BackgroundSprite, colors::{		
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
-	}, dilemma::lever::Lever, game_states::DilemmaPhase, motion::Pulse, physics::Velocity, time::Dilation, track::Track, train::Train
+	}, dilemma::lever::Lever, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::Pulse, physics::Velocity, text::TextRaw, time::Dilation, track::Track, train::Train
 };
+
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DilemmaSystemsActive {
+    #[default]
+	False,
+    True
+}
+
+pub struct DilemmaPlugin;
+impl Plugin for DilemmaPlugin {
+    fn build(&self, app: &mut App) {	
+		app
+		.init_state::<DilemmaSystemsActive>()
+		.add_systems(
+			Update,
+			activate_systems
+		).add_systems(
+            Update,
+            (
+				DilemmaTimer::update,
+				DilemmaTimer::start_pulse
+			)
+            .run_if(in_state(DilemmaSystemsActive::True))
+        )
+		.register_required_components::<DilemmaTimer, TextRaw>()
+		.register_required_components::<DilemmaTimer, Text2d>()
+		.register_required_components::<DilemmaTimer, BequeathTextColor>()
+		.register_required_components::<DilemmaTimer, Pulse>()
+		;
+    }
+}
+
+fn activate_systems(
+        mut state: ResMut<NextState<DilemmaSystemsActive>>,
+        query: Query<&DilemmaTimer>
+    ) {
+        
+	if !query.is_empty() {
+		state.set(DilemmaSystemsActive::True)
+	} else {
+		state.set(DilemmaSystemsActive::False)
+	}
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 enum Culpability {
@@ -418,9 +461,6 @@ pub fn consequence_animation_tick_down(
 	timer.speed_up_timer.tick(time.delta());
 
 	if timer.scream_timer.just_finished() {
-		if lever.is_some() {
-
-		}
 		commands.spawn((
 			LongScream,
 			AudioPlayer::<AudioSource>(asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg"))),
@@ -464,7 +504,6 @@ pub fn consequence_animation_tick_up(
 	if timer.scream_timer.finished() {
 		let total_time: f32 = timer.speed_up_timer.duration().as_secs_f32() - timer.scream_timer.duration().as_secs_f32();
 		let elapsed_time: f32 = timer.speed_up_timer.elapsed_secs() - timer.scream_timer.duration().as_secs_f32();
-
 		let fraction: f32 = elapsed_time/total_time;
 
 		let initial_speed: f32 = 5.0;

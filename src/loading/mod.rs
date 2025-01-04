@@ -5,15 +5,7 @@ use bevy::{
 };
 use crate::{
     audio::{
-        continuous_audio, 
-        one_shot_audio, 
-        ContinuousAudioPallet, 
-        MusicAudio,
-        NarrationAudio,
-        OneShotAudio, 
-        OneShotAudioPallet,
-        TransientAudioPallet,
-        TransientAudio
+        continuous_audio, one_shot_audio, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
     }, common_ui::{
         NextButton,
         NextButtonConfig
@@ -126,7 +118,8 @@ pub fn setup_loading(
                         paused : false,
                         volume : Volume::new(0.1),
                         ..continuous_audio()
-                    }
+                    },
+                    None
                 ),
                 (
                     "office".to_string(),
@@ -137,7 +130,8 @@ pub fn setup_loading(
                         paused : false,
                         volume : Volume::new(0.5),
                         ..continuous_audio()
-                    }
+                    },
+                    Some(DilatableAudio)
                 ),
             ]
         ),
@@ -162,11 +156,10 @@ pub fn setup_loading(
 }
 
 pub fn spawn_delayed_children(
-    mut commands: Commands,
-    loading_query: Query<(Entity, &TimerPallet), With<LoadingRoot>>,
-    asset_server: Res<AssetServer>,
-    windows: Query<&Window>
-) {
+        mut commands: Commands,
+        loading_query: Query<(Entity, &TimerPallet), With<LoadingRoot>>,
+        asset_server: Res<AssetServer>
+    ) {
 
     for (entity, timers) in loading_query.iter() {
         // Handle narration timer

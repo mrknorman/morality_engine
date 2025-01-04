@@ -14,7 +14,7 @@ use bevy::{
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    audio::{continuous_audio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet}, 
+    audio::{continuous_audio, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet}, 
     character::Character, 
     colors::PRIMARY_COLOR, 
     common_ui::NextButton, 
@@ -142,7 +142,7 @@ impl Dialogue {
     ) -> (ContinuousAudioPallet, Dialogue) {
         let dialogue = Dialogue::load(dialogue_path.into(), user_map);
 
-        let character_audio: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings)> = dialogue.lines.iter()
+        let character_audio: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)> = dialogue.lines.iter()
             .map(|line| (
                 line.character.name.clone(),
                 AudioPlayer::<AudioSource>(asset_server.load(
@@ -152,7 +152,8 @@ impl Dialogue {
                     paused : true,
                     volume : Volume::new(0.3),
                     ..continuous_audio()
-                }
+                },
+                Some(DilatableAudio)
             ))
             .collect();
 
@@ -269,21 +270,20 @@ impl Dialogue {
                 dialogue.current_line_index
             ) {
 
-				if let Some(&audio_entity) = audio_pallet.entities.get(
-                    &line.character.name
-                ) {
-					if let Ok(audio_sink) = audio_query.get(audio_entity) {
-						match dialogue.skip_count {
-							0 => audio_sink.set_speed(4.0),
-							_ => audio_sink.pause(),
-						}
-					}
-				}
-	
 				if dialogue.skip_count == 0 {
 					dialogue.skip_count += 1;
+                    println!("Up!");
 					dilation.0 = 4.0;
 				} else {
+
+                    if let Some(&audio_entity) = audio_pallet.entities.get(
+                        &line.character.name
+                    ) {
+                        if let Ok(audio_sink) = audio_query.get(audio_entity) {
+                            audio_sink.pause();
+                        }
+                    }
+
                     if let Some(mut text) = writer.get_text(entity, dialogue.num_spans - 1) {
                         (*text).clone_from(&line.raw_text);
 
@@ -363,7 +363,6 @@ impl Dialogue {
         if let Some(&audio_entity) = audio_pallet.entities.get(character_name) {
             if let Ok(audio_sink) = audio_query.get(audio_entity) {
                 audio_sink.pause();
-                audio_sink.set_speed(1.0); // Reset the audio playback speed
             }
         }
     }

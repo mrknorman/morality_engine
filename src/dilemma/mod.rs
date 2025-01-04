@@ -10,14 +10,7 @@ use bevy::{
 use crate::{
 	ascii_fonts::AsciiString, 
 	audio::{
-		continuous_audio, 
-		one_shot_audio, 
-		play_sound_once,
-		ContinuousAudioPallet,
-		MusicAudio, 
-		NarrationAudio,
-		TransientAudio,
-		TransientAudioPallet
+		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
 	}, 
 	background::{
 		Background, 
@@ -70,12 +63,7 @@ use crate::{
 
 mod dilemma;
 use dilemma::{
-	cleanup_decision,
-	consequence_animation_tick_up,
-	consequence_animation_tick_down,
-	Dilemma,
-	DramaticPauseTimer,
-	DilemmaTimer,
+	cleanup_decision, consequence_animation_tick_down, consequence_animation_tick_up, Dilemma, DilemmaPlugin, DilemmaTimer, DramaticPauseTimer
 };
 mod lever;
 use lever::{
@@ -86,8 +74,8 @@ use junction::{
 	Junction, JunctionPlugin, TrunkTrack
 };
 
-pub struct DilemmaPlugin;
-impl Plugin for DilemmaPlugin {
+pub struct DilemmaScreenPlugin;
+impl Plugin for DilemmaScreenPlugin {
     fn build(&self, app: &mut App) {
         app
 		.add_systems(
@@ -119,15 +107,6 @@ impl Plugin for DilemmaPlugin {
 			.run_if(in_state(GameState::Dilemma)),
 		)
 		.add_systems(
-			Update,
-			(
-				DilemmaTimer::update,
-				DilemmaTimer::start_pulse
-			)
-			.run_if(in_state(GameState::Dilemma))
-			.run_if(in_state(DilemmaPhase::Decision)),
-		)
-		.add_systems(
 			OnExit(DilemmaPhase::Decision), 
 			cleanup_decision
 		)
@@ -143,14 +122,7 @@ impl Plugin for DilemmaPlugin {
 			)
 			.run_if(in_state(GameState::Dilemma))
 			.run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
-		)
-		.register_required_components::<Junction, Transform>()
-		.register_required_components::<Junction, Visibility>()
-		.register_required_components::<DilemmaTimer, TextRaw>()
-		.register_required_components::<DilemmaTimer, Text2d>()
-		.register_required_components::<DilemmaTimer, BequeathTextColor>()
-		.register_required_components::<DilemmaTimer, Pulse>()
-		;
+		);
 
 		if !app.is_plugin_added::<LeverPlugin>() {
 			app.add_plugins(LeverPlugin);
@@ -169,6 +141,9 @@ impl Plugin for DilemmaPlugin {
 		}
 		if !app.is_plugin_added::<JunctionPlugin>() {
 			app.add_plugins(JunctionPlugin);
+		}
+		if !app.is_plugin_added::<DilemmaPlugin>() {
+			app.add_plugins(DilemmaPlugin);
 		}
     }
 }
@@ -512,7 +487,8 @@ pub fn setup_decision(
                             PlaybackSettings{
                                 volume : Volume::new(1.0),
                                 ..continuous_audio()
-                            }
+                            },
+							Some(DilatableAudio)
                         ),
                         (
                             "office".to_string(),
@@ -522,7 +498,8 @@ pub fn setup_decision(
                             PlaybackSettings{
                                 volume : Volume::new(0.3),
                                 ..continuous_audio()
-                            }
+                            }, 
+							Some(DilatableAudio)
                         )
                     ]
                 )

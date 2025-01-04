@@ -25,7 +25,6 @@ pub enum JunctionSystemsActive {
 }
 
 pub struct JunctionPlugin;
-
 impl Plugin for JunctionPlugin {
     fn build(&self, app: &mut App) {	
 		app
@@ -40,7 +39,10 @@ impl Plugin for JunctionPlugin {
 				Junction::check_if_person_in_path_of_train
 			)
             .run_if(in_state(JunctionSystemsActive::True))
-        );
+        )
+		.register_required_components::<Junction, Transform>()
+		.register_required_components::<Junction, Visibility>()
+		;
     }
 }
 
