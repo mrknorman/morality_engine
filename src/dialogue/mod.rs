@@ -18,7 +18,6 @@ use dialogue::{
     DialoguePlugin,
     Dialogue
 };
-
 pub struct DialogueScreenPlugin;
 impl Plugin for DialogueScreenPlugin {
     fn build(&self, app: &mut App) {

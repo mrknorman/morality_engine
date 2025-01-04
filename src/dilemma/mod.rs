@@ -8,16 +8,13 @@ use bevy::{
 	sprite::Anchor
 };
 use crate::{
-	ascii_fonts::AsciiString, 
-	audio::{
+	ascii_fonts::AsciiString, audio::{
 		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
-	}, 
-	background::{
+	}, background::{
 		Background, 
 		BackgroundPlugin, 
 		BackgroundSystems
-	}, 
-	colors::{
+	}, colors::{
 		ColorAnchor, 
 		ColorChangeEvent, 
 		ColorChangeOn, 
@@ -29,28 +26,20 @@ use crate::{
 		OPTION_1_COLOR,
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
-	}, 
-	common_ui::{
+	}, common_ui::{
 		CenterLever, DilemmaTimerPosition, NextButton
-	}, 
-	game_states::{
+	}, game_states::{
 		DilemmaPhase, 
 		GameState, 
 		MainState, 
 		StateVector
-	},
-	inheritance::BequeathTextColor, 
-	interaction::{
+	}, inheritance::BequeathTextColor, interaction::{
 		InputAction, 
 		InteractionPlugin
-	}, 
-	motion::{
+	}, motion::{
 		Bounce, 
 		PointToPointTranslation, Pulse
-	}, 
-	person::PersonPlugin, 
-	text::{TextButton, TextRaw}, 
-	timing::{
+	}, person::PersonPlugin, physics::Velocity, text::{TextButton, TextRaw}, time::Dilation, timing::{
         TimerConfig, 
 		TimerPallet, 
 		TimerStartCondition,
@@ -549,13 +538,40 @@ pub fn setup_decision(
 }
 
 pub fn setup_dilemma_consequence_animation(
+	mut dilation : ResMut<Dilation>,
 	mut commands : Commands,
+	mut velocity_query : Query<&mut Velocity, With<Train>>,
 	asset_server: Res<AssetServer>
 ){
-	play_sound_once("./sounds/slowmo.ogg", &mut commands, &asset_server);
 
-	commands.insert_resource(DramaticPauseTimer{
-		speed_up_timer: Timer::from_seconds(4.0, TimerMode::Once),
-		scream_timer: Timer::from_seconds(3.0, TimerMode::Once)
-	});
+	for mut velocity in velocity_query.iter_mut() {
+		velocity.0 = Vec3::new(10.0, 0.0, 0.0);
+	}
+
+	dilation.0 = 0.1;
+	play_sound_once("./sounds/slowmo.ogg", &mut commands, &asset_server);
+	commands.spawn(
+		TimerPallet::new(
+            vec![
+                (
+                    "dramatic_pause".to_string(),
+                    TimerConfig::new(
+                        TimerStartCondition::Immediate, 
+                        4.0,
+                        None
+                    )
+                ),
+				(
+                    "scream".to_string(),
+                    TimerConfig::new(
+                        TimerStartCondition::Immediate, 
+                        3.0,
+                        None
+                    )
+                )
+            ]
+        ),
+	);
+
+
 }
