@@ -51,7 +51,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                resizable: false,
+                resizable: true,
                 //mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
                 present_mode: PresentMode::Immediate,
                 ..default()
@@ -119,7 +119,7 @@ fn setup(
         Bloom::default(), // 3. Enable bloom for the camera
     ));
 
-    commands.insert_resource(GlobalRng(Pcg64Mcg::seed_from_u64(12345)));
+    commands.insert_resource(GlobalRng(Pcg64Mcg::seed_from_u64(12345))); //??
 }
 
 //

@@ -29,6 +29,9 @@ pub enum BackgroundSystemsActive {
     True
 }
 
+#[derive(Resource)]
+pub struct ResizeTimer(timer);
+
 pub struct BackgroundPlugin;
 impl Plugin for BackgroundPlugin {
     fn build(&self, app: &mut App) {
@@ -116,41 +119,29 @@ impl Background {
         }
     }
 
+	//TODO: Rewrite this to actually make sense 
 	fn on_resize(
 		mut commands : Commands,
-		background_query : Query<(Entity, Option<&Parent>, &Background, &TextColor)>,
-		parent_query : Query<Entity>,
+		sprite_query : Query<Entity, With<BackgroundSprite>>,
+		background_query : Query<(Entity, &Background)>,
 		mut resize_reader: EventReader<WindowResized>,
 	) {
 
-		let mut removed_backgrounds = vec![];
-		for _ in resize_reader.read() {	
-			for (entity, parent, background, color) in background_query.iter() {
+		if !resize_reader.is_empty() {
+
+			resize_reader.clear();	
+			for entity in  sprite_query.iter() {
 				if let Some(entity) = commands.get_entity(entity) {
 					entity.despawn_recursive();
-					removed_backgrounds.push((parent, background.clone(), color.clone()));
+				}
+			}
+
+			for (entity, background) in  background_query.iter() {
+				if let Some(mut entity) = commands.get_entity(entity) {
+					entity.insert(background.clone());
 				}
 			}
 		}
-
-		for (parent, background, color) in removed_backgrounds {
-			if let Some(parent) = parent {
-				if let Ok(parent_entity) = parent_query.get(parent.get()) {
-					commands.entity(parent_entity).with_children(|parent| {
-						parent.spawn(
-					(
-								color,
-								background
-							)
-						);
-					});
-				}
-			} else {
-				commands.spawn(
-					background
-				);
-			}
-		} 
 	}
 
 	pub fn update_speeds(

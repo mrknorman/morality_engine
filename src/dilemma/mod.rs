@@ -8,8 +8,10 @@ use bevy::{
 	sprite::Anchor
 };
 use crate::{
-	ascii_fonts::AsciiString, 
-	audio::{
+	ascii_fonts::{
+		AsciiPlugin, 
+		AsciiString
+	}, audio::{
 		continuous_audio, 
 		one_shot_audio, 
 		ContinuousAudioPallet, 
@@ -20,58 +22,36 @@ use crate::{
 		OneShotAudioPallet, 
 		TransientAudio, 
 		TransientAudioPallet
-	}, 
-	background::{
+	}, background::{
 		Background, 
 		BackgroundPlugin, 
 		BackgroundSystems
-	}, 
-	colors::{
-		ColorAnchor, 
-		ColorChangeEvent, 
-		ColorChangeOn, 
-		ColorTranslation, 
-		Fade, 
-		BACKGROUND_COLOR, 
-		DANGER_COLOR,
-		DIM_BACKGROUND_COLOR, 
-		OPTION_1_COLOR,
-		OPTION_2_COLOR, 
-		PRIMARY_COLOR
-	}, 
-	common_ui::{
+	}, colors::{
+		ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, Fade, BACKGROUND_COLOR, DANGER_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
+	}, common_ui::{
 		CenterLever, 
 		DilemmaTimerPosition, 
 		NextButton
-	}, 
-	game_states::{
+	}, game_states::{
 		DilemmaPhase, 
 		GameState, 
 		MainState, 
 		StateVector
-	}, 
-	inheritance::BequeathTextColor, 
-	interaction::{
+	}, inheritance::{BequeathTextColor}, interaction::{
 		InputAction, 
 		InteractionPlugin
-	}, 
-	motion::{
+	}, io::IOPlugin, motion::{
 		Bounce, 
 		PointToPointTranslation,
-	}, 
-	person::PersonPlugin, 
-	physics::Velocity, 
-	text::TextButton, 
-	time::DilationTranslation, 
-	timing::{
+	}, person::PersonPlugin, physics::Velocity, text::TextButton, time::DilationTranslation, timing::{
         TimerConfig, 
 		TimerPallet, 
 		TimerStartCondition,
 		TimingPlugin
-    }, 
-	train::{
-        Train,
-        STEAM_TRAIN
+    }, train::{
+        Train, 
+		TrainPlugin, 
+		STEAM_TRAIN
     }
 };
 
@@ -94,8 +74,7 @@ use lever::{
 mod junction;
 use junction::{
 	Junction, 
-	JunctionPlugin, 
-	TrunkTrack
+	JunctionPlugin
 };
 
 pub struct DilemmaScreenPlugin;
@@ -145,6 +124,12 @@ impl Plugin for DilemmaScreenPlugin {
 			.run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
 		);
 
+		if !app.is_plugin_added::<TrainPlugin>() {
+			app.add_plugins(TrainPlugin);
+		}
+		if !app.is_plugin_added::<AsciiPlugin>() {
+			app.add_plugins(AsciiPlugin);
+		}
 		if !app.is_plugin_added::<LeverPlugin>() {
 			app.add_plugins(LeverPlugin);
 		}
@@ -166,6 +151,9 @@ impl Plugin for DilemmaScreenPlugin {
 		if !app.is_plugin_added::<DilemmaPlugin>() {
 			app.add_plugins(DilemmaPlugin);
 		}
+        if !app.is_plugin_added::<IOPlugin>() {
+            app.add_plugins(IOPlugin);
+        }
     }
 }
 
@@ -238,7 +226,7 @@ pub fn setup_dilemma(
 					-0.5
 				),
 				BequeathTextColor,
-				ColorTranslation::new(
+				ColorTranslation::new( //something to do with this???
 					DIM_BACKGROUND_COLOR,
 					transition_duration
 				))
@@ -427,7 +415,6 @@ pub fn setup_dilemma_transition(
 		color.start()
 	}
 	for (mut background, mut color) in background_query.iter_mut() {
-		println!("Here!");
 		color.start();
 		background.speed = -dilemma.countdown_duration.as_secs_f32() / 5.0;
 		commands.run_system(systems.0["update_background_speeds"]);

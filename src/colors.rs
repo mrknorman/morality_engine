@@ -46,13 +46,13 @@ impl Plugin for ColorsPlugin {
 }
 
 fn activate_systems(
-	mut colors_state: ResMut<NextState<ColorsSystemsActive>>,
-	colors_query: Query<&ColorTranslation>
+	mut state: ResMut<NextState<ColorsSystemsActive>>,
+	query: Query<&ColorTranslation>
 ) {
-	if !colors_query.is_empty() {
-		colors_state.set(ColorsSystemsActive::True)
+	if !query.is_empty() {
+		state.set(ColorsSystemsActive::True)
 	} else {
-		colors_state.set(ColorsSystemsActive::False)
+		state.set(ColorsSystemsActive::False)
 	}
 }
 
