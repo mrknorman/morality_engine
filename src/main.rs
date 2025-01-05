@@ -85,14 +85,16 @@ impl Plugin for GamePlugin {
             .add_plugins(motion::MotionPlugin)
             .add_plugins(colors::ColorsPlugin)
             .add_plugins(inheritance::InheritancePlugin)
+            .add_plugins(DilationPLugin)
             ;
             
+            /*
             use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
             app
             .add_plugins(FrameTimeDiagnosticsPlugin)
             .add_plugins(LogDiagnosticsPlugin::default())
-            .add_plugins(DilationPLugin)
             ;
+            */
             
     }
 }

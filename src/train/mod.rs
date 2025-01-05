@@ -173,15 +173,6 @@ impl Train {
 			horn_audio
 		}
 	}
-
-	pub fn update_speed(
-		mut velocity_query : Query<&mut Velocity, With<Train>>,
-		new_speed :f32
-	) {
-		for mut velocity in velocity_query.iter_mut() {
-			velocity.0 = Vec3::new(new_speed, 0.0, 0.0);
-		}
-	}
 }
 
 impl Component for Train {
