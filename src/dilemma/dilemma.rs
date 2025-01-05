@@ -25,7 +25,13 @@ use crate::{
 	background::BackgroundSprite, colors::{		
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
-	}, dilemma::lever::Lever, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::Pulse, physics::Velocity, text::TextRaw, time::Dilation, track::Track, train::Train
+	}, 
+	game_states::DilemmaPhase,
+	inheritance::BequeathTextColor, 
+	motion::Pulse, 
+	text::TextRaw, 
+	time::Dilation, 
+	track::Track
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -436,93 +442,5 @@ pub fn cleanup_decision(
 	}
 	for entity in track_query.iter() {
 		commands.entity(entity).despawn();
-	}
-}
-
-#[derive(Resource)]
-pub struct DramaticPauseTimer{
-	pub speed_up_timer: Timer,
-	pub scream_timer: Timer
-}
-
-#[derive(Component)]
-pub struct LongScream;
-
-pub fn consequence_animation_tick_down(
-		time: Res<Time>,
-		mut commands : Commands,
-		asset_server: Res<AssetServer>,
-		mut timer: ResMut<DramaticPauseTimer>,
-		locomotion_query : Query<&mut Velocity, With<Train>>,
-		lever: Option<Res<Lever>>,
-	) {
-
-	timer.scream_timer.tick(time.delta());
-	timer.speed_up_timer.tick(time.delta());
-
-	if timer.scream_timer.just_finished() {
-		commands.spawn((
-			LongScream,
-			AudioPlayer::<AudioSource>(asset_server.load(PathBuf::from("./sounds/male_scream_long.ogg"))),
-            PlaybackSettings {
-				paused : false,
-				mode:  bevy::audio::PlaybackMode::Despawn,
-				volume :bevy::audio::Volume::new(0.3),
-				speed : 0.1,
-				..default()
-            }
-		));
-	} else if ! timer.scream_timer.finished() {
-
-		let total_time: f32 = timer.scream_timer.duration().as_secs_f32();
-		let elapsed_time: f32 = timer.scream_timer.elapsed_secs();
-
-		let fraction: f32 = elapsed_time/total_time;
-
-		let initial_speed: f32 = 50.0;
-		let final_speed: f32 = 5.0;
-		let speed_reduction: f32  = initial_speed - final_speed;
-
-		let current_speed: f32 = initial_speed - fraction*speed_reduction;
-
-		Train::update_speed(
-			locomotion_query, 
-			current_speed
-		);
-	}
-}
-
-pub fn consequence_animation_tick_up(
-	time: Res<Time>,
-	mut timer: ResMut<DramaticPauseTimer>,
-	locomotion_query : Query<&mut Velocity, With<Train>>,
-	mut audio : Query<&mut AudioSink, With<LongScream>>
-) {
-	timer.scream_timer.tick(time.delta());
-	timer.speed_up_timer.tick(time.delta());
-
-	if timer.scream_timer.finished() {
-		let total_time: f32 = timer.speed_up_timer.duration().as_secs_f32() - timer.scream_timer.duration().as_secs_f32();
-		let elapsed_time: f32 = timer.speed_up_timer.elapsed_secs() - timer.scream_timer.duration().as_secs_f32();
-		let fraction: f32 = elapsed_time/total_time;
-
-		let initial_speed: f32 = 5.0;
-		let final_speed: f32 = 500.0;
-		let speed_reduction: f32  = initial_speed - final_speed;
-		let current_speed: f32 = initial_speed - fraction*speed_reduction;
-
-		Train::update_speed(
-			locomotion_query,
-			current_speed
-		);
-
-		let initial_speed: f32 = 0.1;
-		let final_speed: f32 = 1.0;
-		let speed_reduction: f32 = initial_speed - final_speed;
-		let current_speed: f32 = initial_speed - fraction*speed_reduction;
-
-		for sink in audio.iter_mut() {
-			sink.set_speed(current_speed);
-		}
 	}
 }

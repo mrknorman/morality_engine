@@ -137,13 +137,14 @@ pub fn setup_loading(
         ),
         OneShotAudioPallet::new(
             vec![
-                OneShotAudio{
+                (OneShotAudio{
                     source: asset_server.load(
                             "./sounds/startup_beep.ogg"
                         ),
                     persistent : true,
                     volume : 1.0
-                }
+                },
+                None)
             ]
         ),
     )).with_children(

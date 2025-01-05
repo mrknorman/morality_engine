@@ -4,15 +4,17 @@ use bevy::{
 	prelude::*,
 	ecs::component::StorageType
 };
-use rand:: {
-	Rng,
-	SeedableRng
-};
-use rand_pcg::Pcg64Mcg;
+use rand:: Rng;
 
-use crate::{physics::{
-    Gravity, PhysicsPlugin, Velocity
-}, time::Dilation, GlobalRng};
+use crate::{
+	physics::{
+    	Gravity, 
+		PhysicsPlugin, 
+		Velocity
+	}, 
+	time::Dilation, 
+	GlobalRng
+};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MotionSystemsActive {

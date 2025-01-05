@@ -8,13 +8,25 @@ use bevy::{
 	sprite::Anchor
 };
 use crate::{
-	ascii_fonts::AsciiString, audio::{
-		continuous_audio, one_shot_audio, play_sound_once, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, TransientAudio, TransientAudioPallet
-	}, background::{
+	ascii_fonts::AsciiString, 
+	audio::{
+		continuous_audio, 
+		one_shot_audio, 
+		ContinuousAudioPallet, 
+		DilatableAudio,
+		MusicAudio, 
+		NarrationAudio, 
+		OneShotAudio, 
+		OneShotAudioPallet, 
+		TransientAudio, 
+		TransientAudioPallet
+	}, 
+	background::{
 		Background, 
 		BackgroundPlugin, 
 		BackgroundSystems
-	}, colors::{
+	}, 
+	colors::{
 		ColorAnchor, 
 		ColorChangeEvent, 
 		ColorChangeOn, 
@@ -26,25 +38,38 @@ use crate::{
 		OPTION_1_COLOR,
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
-	}, common_ui::{
-		CenterLever, DilemmaTimerPosition, NextButton
-	}, game_states::{
+	}, 
+	common_ui::{
+		CenterLever, 
+		DilemmaTimerPosition, 
+		NextButton
+	}, 
+	game_states::{
 		DilemmaPhase, 
 		GameState, 
 		MainState, 
 		StateVector
-	}, inheritance::BequeathTextColor, interaction::{
+	}, 
+	inheritance::BequeathTextColor, 
+	interaction::{
 		InputAction, 
 		InteractionPlugin
-	}, motion::{
+	}, 
+	motion::{
 		Bounce, 
-		PointToPointTranslation, Pulse
-	}, person::PersonPlugin, physics::Velocity, text::{TextButton, TextRaw}, time::Dilation, timing::{
+		PointToPointTranslation,
+	}, 
+	person::PersonPlugin, 
+	physics::Velocity, 
+	text::TextButton, 
+	time::DilationTranslation, 
+	timing::{
         TimerConfig, 
 		TimerPallet, 
 		TimerStartCondition,
 		TimingPlugin
-    }, train::{
+    }, 
+	train::{
         Train,
         STEAM_TRAIN
     }
@@ -52,15 +77,25 @@ use crate::{
 
 mod dilemma;
 use dilemma::{
-	cleanup_decision, consequence_animation_tick_down, consequence_animation_tick_up, Dilemma, DilemmaPlugin, DilemmaTimer, DramaticPauseTimer
+	cleanup_decision,
+	Dilemma, 
+	DilemmaPlugin, 
+	DilemmaTimer
 };
 mod lever;
 use lever::{
-	Lever, LeverPlugin, LeverState, LEVER_LEFT, LEVER_MIDDLE, LEVER_RIGHT
+	Lever, 
+	LeverPlugin, 
+	LeverState, 
+	LEVER_LEFT, 
+	LEVER_MIDDLE, 
+	LEVER_RIGHT
 };
 mod junction;
 use junction::{
-	Junction, JunctionPlugin, TrunkTrack
+	Junction, 
+	JunctionPlugin, 
+	TrunkTrack
 };
 
 pub struct DilemmaScreenPlugin;
@@ -105,10 +140,7 @@ impl Plugin for DilemmaScreenPlugin {
 		)
 		.add_systems(
 			Update,
-			(
-				consequence_animation_tick_up,
-				consequence_animation_tick_down,
-			)
+			spawn_delayed_children_consequence
 			.run_if(in_state(GameState::Dilemma))
 			.run_if(in_state(DilemmaPhase::ConsequenceAnimation)),
 		);
@@ -377,7 +409,7 @@ pub fn setup_dilemma_transition(
 		dilemma : Res<Dilemma>,
 		mut commands : Commands,
 		systems: Res<BackgroundSystems>,
-		mut background_query : Query<(&mut Background, &mut ColorTranslation), Without<TrunkTrack>>,
+		mut background_query : Query<(&mut Background, &mut ColorTranslation)>,
 		mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
 		mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
 		mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
@@ -395,6 +427,7 @@ pub fn setup_dilemma_transition(
 		color.start()
 	}
 	for (mut background, mut color) in background_query.iter_mut() {
+		println!("Here!");
 		color.start();
 		background.speed = -dilemma.countdown_duration.as_secs_f32() / 5.0;
 		commands.run_system(systems.0["update_background_speeds"]);
@@ -433,7 +466,7 @@ pub fn end_dilemma_transition(
 		for mut translation in train_query.iter_mut() {
 			let initial_position = translation.initial_position;
 			translation.initial_position = translation.final_position;
-			translation.final_position = initial_position - Vec3::new(60.0, 0.0, 0.0);
+			translation.final_position = initial_position + Vec3::new(-100.0, 0.0, 0.0);
 			translation.timer = Timer::new(
 				dilemma.countdown_duration,
 				TimerMode::Once
@@ -503,7 +536,9 @@ pub fn setup_decision(
 				
 				),
 				ColorAnchor::default(),
-				ColorChangeOn::new(vec![ColorChangeEvent::Pulse(vec![DANGER_COLOR])]),
+				ColorChangeOn::new(vec![
+					ColorChangeEvent::Pulse(vec![DANGER_COLOR])
+				]),
 				Transform::from_xyz(0.0, -100.0, 1.0)
 			));
 
@@ -537,41 +572,136 @@ pub fn setup_decision(
 		});
 }
 
+
+#[derive(Component)]
+pub struct DilemmaConsequenceRoot;
+
 pub fn setup_dilemma_consequence_animation(
-	mut dilation : ResMut<Dilation>,
 	mut commands : Commands,
 	mut velocity_query : Query<&mut Velocity, With<Train>>,
 	asset_server: Res<AssetServer>
 ){
 
 	for mut velocity in velocity_query.iter_mut() {
-		velocity.0 = Vec3::new(10.0, 0.0, 0.0);
+		velocity.0 = Vec3::new(100.0, 0.0, 0.0);
 	}
-
-	dilation.0 = 0.1;
-	play_sound_once("./sounds/slowmo.ogg", &mut commands, &asset_server);
-	commands.spawn(
+	
+	commands.spawn((
+		DilemmaConsequenceRoot,
 		TimerPallet::new(
-            vec![
-                (
-                    "dramatic_pause".to_string(),
-                    TimerConfig::new(
-                        TimerStartCondition::Immediate, 
-                        4.0,
-                        None
-                    )
-                ),
+			vec![
 				(
-                    "scream".to_string(),
-                    TimerConfig::new(
-                        TimerStartCondition::Immediate, 
-                        3.0,
-                        None
-                    )
-                )
-            ]
-        ),
+					"speedup".to_string(),
+					TimerConfig::new(
+						TimerStartCondition::Immediate, 
+						3.0,
+						None
+					)
+				),
+				(
+					"scream".to_string(),
+					TimerConfig::new(
+						TimerStartCondition::Immediate, 
+						1.0,
+						None
+					)
+				)
+			]
+		))
+	).with_children( 
+		|parent| 
+		{
+			parent.spawn(
+				OneShotAudioPallet::new(
+					vec![
+						(OneShotAudio {
+							source : asset_server.load(
+								PathBuf::from("./sounds/slowmo.ogg")
+							),
+							persistent : false,
+							volume :1.0
+						}, None)
+					]
+				)
+			);
+
+			parent.spawn(
+				DilationTranslation::new(
+					0.1, 
+					Duration::from_secs_f32(1.0)
+				)
+			);
+		}
 	);
+}
 
+fn spawn_delayed_children_consequence(
+    mut commands: Commands,
+    loading_query: Query<(Entity, &TimerPallet), With<DilemmaConsequenceRoot>>,
+    asset_server: Res<AssetServer>
+) {
+    for (entity, timers) in loading_query.iter() {
+		if let Some(timer) = timers.timers.get(
+            "scream"
+        ) {
+            if timer.just_finished() {
+				commands.entity(entity).with_children(
+                    |parent| {
+                    
+					parent.spawn(
+						OneShotAudioPallet::new(
+							vec![
+								(OneShotAudio {
+									source : asset_server.load(
+										PathBuf::from(
+											"./sounds/male_scream_long.ogg"
+										)
+									),
+									persistent : false,
+									volume :1.0
+								}, Some(DilatableAudio))
+							]
+						)
+					);
+                });
 
+            }
+        } else {
+            warn!("Entity {:?} is missing the 'scream' timer", entity);
+        }
+
+		if let Some(timer) = timers.timers.get(
+            "speedup"
+        ) {
+            if timer.just_finished() {
+				commands.entity(entity).with_children(
+                    |parent| {
+
+					parent.spawn(
+						DilationTranslation::new(
+							1.0, 
+							Duration::from_secs_f32(1.057)
+						)
+					);
+                    
+					parent.spawn(
+						OneShotAudioPallet::new(
+							vec![
+								(OneShotAudio {
+									source : asset_server.load(
+										PathBuf::from("./sounds/speedup.ogg")
+									),
+									persistent : false,
+									volume :1.0
+								}, None)
+							]
+						)
+					);
+                });
+
+            }
+        } else {
+            warn!("Entity {:?} is missing the 'speedup' timer", entity);
+        }
+    }
 }

@@ -38,13 +38,13 @@ impl Plugin for TimingPlugin {
 }
 
 fn activate_systems(
-	mut audio_state: ResMut<NextState<TimingSystemsActive>>,
-	delay_query: Query<&TimerPallet>,
+	mut state: ResMut<NextState<TimingSystemsActive>>,
+	query: Query<&TimerPallet>,
 ) {
-	if !delay_query.is_empty() {
-		audio_state.set(TimingSystemsActive::True)
+	if !query.is_empty() {
+		state.set(TimingSystemsActive::True)
 	} else {
-		audio_state.set(TimingSystemsActive::False)
+		state.set(TimingSystemsActive::False)
 	}
 }
 

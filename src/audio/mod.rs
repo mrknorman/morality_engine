@@ -190,6 +190,7 @@ impl Component for ContinuousAudioPallet {
                 };
         
                 // Step 2: Spawn child entities and collect their IDs
+                let dilation = world.get_resource::<Dilation>().map(|d| d.0);
                 let mut commands = world.commands();
                 let mut entities = HashMap::new();
                 
@@ -198,10 +199,17 @@ impl Component for ContinuousAudioPallet {
                         for (
                             name, audio_component, playback_settings, dilatable
                         ) in components.iter() {
+
+                            let mut playback_settings = playback_settings.clone();
+                            if dilatable.is_some() {
+                                if let Some(dilation) = dilation {
+                                    playback_settings.speed = dilation;
+                                }
+                            }
                             
                             let mut entity_commands = parent.spawn((
                                 audio_component.clone(),
-                                *playback_settings
+                                playback_settings
                             ));
 
                             if dilatable.is_some() {
@@ -249,7 +257,8 @@ impl Component for ContinuousAudioPallet {
 
 pub struct TransientAudioPallet {
     pub entities: HashMap<String, Vec<Entity>>,
-    pub components: Vec<(String, Vec<TransientAudio>)>
+    pub components: Vec<(String, Vec<TransientAudio>
+    )>
 }
 
 impl TransientAudioPallet {
@@ -389,12 +398,12 @@ pub fn one_shot_audio() -> PlaybackSettings {
 }
 
 pub struct OneShotAudioPallet {
-    pub components: Vec<OneShotAudio>
+    pub components: Vec<(OneShotAudio, Option<DilatableAudio>)>
 }
 
 impl OneShotAudioPallet {
     pub fn new(
-        components : Vec<OneShotAudio>
+        components : Vec<(OneShotAudio, Option<DilatableAudio>)>
     ) -> Self {
         Self {
             components
@@ -418,27 +427,30 @@ impl Component for OneShotAudioPallet {
                         .map(|pallet| pallet.components.clone())
                 };
                 // Step 2: Spawn child entities and collect their IDs
+                let dilation = world.get_resource::<Dilation>().map(|d| d.0);
                 let mut commands = world.commands();
                 if let Some(components) = components {
                     
-                    for audio_component in components.iter() {
+                    for (audio_component, dilatable) in components.iter() {
 
                         if !audio_component.persistent {
                             commands.entity(entity).with_children(
                                 |parent| {
-                                    parent.spawn(
-                                        (
-                                            AudioPlayer::<AudioSource>(audio_component.source.clone()), 
-                                            PlaybackSettings {
-                                                paused : false,
-                                                mode: PlaybackMode::Despawn,
-                                                volume: Volume::new(
-                                                    audio_component.volume
-                                                ),
-                                                ..default()
-                                            }
-                                        )
-                                    );
+
+                                    let mut entity_commands = parent.spawn((
+                                        AudioPlayer::<AudioSource>(audio_component.source.clone()),
+                                        PlaybackSettings {
+                                            paused: false,
+                                            mode: PlaybackMode::Despawn,
+                                            volume: Volume::new(audio_component.volume),
+                                            speed: dilation.filter(|_| dilatable.is_some()).unwrap_or(1.0),
+                                            ..default()
+                                        }
+                                    ));
+                                    
+                                    if dilatable.is_some() {
+                                        entity_commands.insert(DilatableAudio);
+                                    } 
                                 }
                             );
                         } else {
