@@ -19,7 +19,7 @@ use serde::{
 	Deserialize, 
 	Serialize
 };
-use crate::{physics::Velocity, text::TextSprite, time::Dilation};
+use crate::{physics::Velocity, text::TextSprite};
 use crate::GlobalRng;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -28,9 +28,6 @@ pub enum BackgroundSystemsActive {
     False,
     True
 }
-
-#[derive(Resource)]
-pub struct ResizeTimer(timer);
 
 pub struct BackgroundPlugin;
 impl Plugin for BackgroundPlugin {

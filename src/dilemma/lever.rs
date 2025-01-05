@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use crate::{
-	audio::{TransientAudio, TransientAudioPallet},
+	audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
 	colors::{
 		OPTION_1_COLOR,
 		OPTION_2_COLOR
-	}
+	}, time::Dilation
 };
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LeverSystemsActive {
@@ -110,10 +110,11 @@ pub struct Lever(pub LeverState);
 impl Lever {
     pub fn update(
         mut commands: Commands,
+        dilation : Res<Dilation>,
         lever: Option<Res<Lever>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
         mut lever_text_query: Query<(Entity, &mut Text2d, &mut TextColor, &TransientAudioPallet), With<Lever>>,
-        mut audio_query: Query<&mut TransientAudio>
+        mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>
     ) {
         let lever = match lever {
             Some(lever) => lever,
@@ -131,6 +132,7 @@ impl Lever {
                             &mut commands,
                             pallet,
                             "lever".to_string(),
+                            dilation.0,
                             &mut audio_query
                         );
     
@@ -150,6 +152,7 @@ impl Lever {
                             &mut commands,
                             pallet,
                             "lever".to_string(),
+                            dilation.0,
                             &mut audio_query
                         );
     

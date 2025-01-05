@@ -3,7 +3,7 @@ use bevy::{
 	sprite::Anchor,
 };
 use crate::{
-	audio::{TransientAudio, TransientAudioPallet}, colors::{DANGER_COLOR, PRIMARY_COLOR}, motion::Bounce, physics::{Gravity, PhysicsPlugin}, text::TextSprite, time::Dilation
+	audio::{DilatableAudio, TransientAudio, TransientAudioPallet}, colors::{DANGER_COLOR, PRIMARY_COLOR}, motion::Bounce, physics::{Gravity, PhysicsPlugin}, text::TextSprite, time::Dilation
 }; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -101,8 +101,9 @@ impl PersonSprite {
 			&mut PersonSprite, 
 			&mut Bounce
 		), With<PersonSprite>>,
+		dilation : Res<Dilation>,
 		mut commands : Commands,
-		mut audio_query: Query<&mut TransientAudio>
+		mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>
 	) {
 		for (entity,  pallet, person, mut bounce) in query.iter_mut() {
 			if person.in_danger && bounce.timer.just_finished() {
@@ -111,6 +112,7 @@ impl PersonSprite {
 					&mut commands,
 					pallet,
 					"exclamation".to_string(),
+					dilation.0,
 					&mut audio_query
 				);
 			}

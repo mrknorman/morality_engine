@@ -4,10 +4,10 @@ use bevy::{
 };
 use crate::{
     audio::{
-        AudioPlugin, AudioSystemsActive, TransientAudio, TransientAudioPallet, 
+        AudioPlugin, AudioSystemsActive, DilatableAudio, TransientAudio, TransientAudioPallet 
     }, game_states::{
         DilemmaPhase, GameState, MainState, StateVector
-    }
+    }, time::Dilation
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -201,14 +201,16 @@ pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: 
 fn trigger_audio(
     mut commands: Commands,
     mut query: Query<(Entity, Option<&mut Clickable>, Option<&mut Pressable>, &TransientAudioPallet)>,
-    mut audio_query: Query<&mut TransientAudio>
+    dilation : Res<Dilation>,
+    mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>
 ) {
     fn handle_actions<T: InputActionHandler>(
         entity: Entity,
         handler: &mut T,
         pallet: &TransientAudioPallet,
         commands: &mut Commands,
-        audio_query: &mut Query<&mut TransientAudio>,
+        dilation: f32,
+        audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>
     ) {
 
         if handler.is_triggered() {
@@ -220,6 +222,7 @@ fn trigger_audio(
                         commands,
                         pallet,
                         key,
+                        dilation,
                         audio_query
                     );
                     handler.increment();
@@ -241,6 +244,7 @@ fn trigger_audio(
                 &mut *handle, 
                 pallet, 
                 &mut commands, 
+                dilation.0,
                 &mut audio_query
             );
         }
@@ -251,6 +255,7 @@ fn trigger_audio(
                 &mut *handle, 
                 pallet, 
                 &mut commands, 
+                dilation.0,
                 &mut audio_query
             );
         }

@@ -67,26 +67,6 @@ fn activate_systems(
 	}
 }
 
-#[derive(Component)]
-struct SingleSound;
-
-pub fn play_sound_once(
-    audio_path: impl Into<AssetPath<'static>>,
-    commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
-) -> Entity {
-    commands
-        .spawn((
-            SingleSound,
-            AudioPlayer::<AudioSource>(asset_server.load(audio_path)),
-            PlaybackSettings {
-                mode: PlaybackMode::Despawn,
-                volume: Volume::new(0.5),
-                ..default()
-            }
-        )).id()
-}
-
 pub fn continuous_audio() -> PlaybackSettings {
     PlaybackSettings {
         paused : false,
@@ -128,12 +108,13 @@ impl TransientAudio {
         }
     }
 
-    pub fn play(&self) -> (AudioPlayer::<AudioSource>, PlaybackSettings) {
+    pub fn play(&self, dilation : f32) -> (AudioPlayer::<AudioSource>, PlaybackSettings) {
         (
             AudioPlayer::<AudioSource>(self.source.clone()), 
             PlaybackSettings {
                 mode: PlaybackMode::Despawn,
                 volume: Volume::new(self.volume),
+                speed : dilation,
                 ..default()
             }
         )
@@ -257,63 +238,76 @@ impl Component for ContinuousAudioPallet {
 
 pub struct TransientAudioPallet {
     pub entities: HashMap<String, Vec<Entity>>,
-    pub components: Vec<(String, Vec<TransientAudio>
-    )>
+    pub components: Vec<(String, Vec<TransientAudio>, Option<DilatableAudio>)>
 }
 
 impl TransientAudioPallet {
-    pub fn new(
-        components : Vec<(String,  Vec<TransientAudio>)>
-    ) -> TransientAudioPallet {
-        TransientAudioPallet {
-            entities : HashMap::new(),
-            components
+    pub fn new(components: Vec<(String, Vec<TransientAudio>, Option<DilatableAudio>)>) -> Self {
+        Self {
+            entities: HashMap::new(),
+            components,
         }
     }
 
     pub fn play(
         commands: &mut Commands,
         entity: Entity,
-        transient_audio: &mut TransientAudio
+        transient_audio: &mut TransientAudio,
+        dilatable: bool,
+        dilation: f32,
     ) {
-        if transient_audio.cooldown_timer.finished() {
-
-            if !transient_audio.persistent {
-                commands.entity(entity).with_children(|parent| {
-                    parent.spawn(transient_audio.play());
-                });
-            } else {
-                commands.spawn(transient_audio.play());
-            }
-
-            transient_audio.cooldown_timer.reset();
+        if !transient_audio.cooldown_timer.finished() {
+            return;
         }
-    }
 
+        let audio = if dilatable {
+            transient_audio.play(dilation)
+        } else {
+            transient_audio.play(1.0)
+        };
+
+        if !transient_audio.persistent {
+            commands.entity(entity).with_children(|parent| {
+                if dilatable {
+                    parent.spawn((audio, DilatableAudio));
+                } else {
+                    parent.spawn(audio);
+                }
+            });
+        } else {
+            if dilatable {
+                commands.spawn((audio, DilatableAudio));
+            } else {
+                commands.spawn(audio);
+            }
+        }
+
+        transient_audio.cooldown_timer.reset();
+    }
     pub fn play_transient_audio(
         entity: Entity,
-        mut commands: &mut Commands,
-        pallet : &TransientAudioPallet,
-        key : String,
-        audio_query: &mut Query<&mut TransientAudio>
+        commands: &mut Commands,
+        pallet: &TransientAudioPallet,
+        key: String,
+        dilation: f32,
+        audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     ) {
+        let Some(audio_entity) = pallet.entities.get(&key) else {
+            return;
+        };
 
-        if let Some(
-            audio_entity
-        ) = pallet.entities.get(&key) {
+        let Some(random_sound) = audio_entity.choose(&mut thread_rng()).cloned() else {
+            return;
+        };
 
-            let random_sound = audio_entity.choose(&mut thread_rng()).clone();
-            if let Some(random_sound) = random_sound {
-                if let Ok(
-                    mut transient_audio
-                ) = audio_query.get_mut(*random_sound) {
-                    Self::play(
-                        &mut commands,
-                        entity,
-                        &mut transient_audio,
-                    );
-                }
-            }
+        if let Ok((mut transient_audio, dilatable)) = audio_query.get_mut(random_sound) {
+            Self::play(
+                commands,
+                entity,
+                &mut transient_audio,
+                dilatable.is_some(),
+                dilation,
+            );
         }
     }
 }
@@ -340,12 +334,23 @@ impl Component for TransientAudioPallet {
                 
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-                        for (name, audio_components) in components.iter() {
+                        for (name, audio_components, dilatable) in components.iter() {
                             let mut child_vector = vec![];
                             for component in audio_components.iter() {
-                                child_vector.push(
-                                    parent.spawn(component.clone()).id()
-                                );
+
+                                if dilatable.is_some() {
+                                    child_vector.push(
+                                        parent.spawn((
+                                            component.clone(),
+                                            DilatableAudio
+                                        )).id()
+                                    );
+                                } else {
+                                    child_vector.push(
+                                        parent.spawn(component.clone()).id()
+                                    );
+                                }
+      
                             }
                             entities.insert(name.clone(), child_vector);
                         }

@@ -252,7 +252,8 @@ pub fn spawn_delayed_children(
                                             true,
                                             1.0
                                         )
-                                    ]
+                                    ],
+                                    Some(DilatableAudio)
                                 )]
                             )
                         ));
