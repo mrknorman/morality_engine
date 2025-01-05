@@ -196,7 +196,8 @@ fn setup_menu(
                                     true,
                                     1.0
                                 )
-                            ]
+                            ],
+                            Some(DilatableAudio)
                         )]
                     ),
                 )

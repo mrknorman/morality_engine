@@ -272,7 +272,6 @@ impl Dialogue {
 
 				if dialogue.skip_count == 0 {
 					dialogue.skip_count += 1;
-                    println!("Up!");
 					dilation.0 = 4.0;
 				} else {
 
@@ -399,6 +398,7 @@ impl Dialogue {
                                 1.0
                             )
                         ],
+                        Some(DilatableAudio)
                     )]
                 )
             ));

@@ -6,7 +6,7 @@ use bevy::{
 
 use crate::{
     audio::{
-        TransientAudio, TransientAudioPallet
+        DilatableAudio, TransientAudio, TransientAudioPallet
     }, colors::{
         ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR
     }, dilemma::{lever::{
@@ -182,7 +182,8 @@ impl Component for Junction {
 														TransientAudioPallet::new(
 															vec![
 																("exclamation".to_string(),
-																audio_vector.clone()
+																audio_vector.clone(),
+																Some(DilatableAudio)
 															)]
 														),
 														Bounce::new(

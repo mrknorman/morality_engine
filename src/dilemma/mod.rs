@@ -381,7 +381,8 @@ fn spawn_delayed_children(
 										true,
 										1.0
 									)
-								]
+								],
+								Some(DilatableAudio)
 							)]
 						)
 					));
@@ -552,7 +553,8 @@ pub fn setup_decision(
 								true,
 								1.0
 							)
-						]
+						],
+						Some(DilatableAudio)
 					)]
 				),
 			));

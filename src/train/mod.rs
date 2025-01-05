@@ -259,6 +259,7 @@ impl Component for Train {
 								vec![(
 									"horn".to_string(),
 									vec![horn_audio],
+									Some(DilatableAudio)
 								)]
 							))
 						);
