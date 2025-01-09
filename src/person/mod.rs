@@ -3,7 +3,18 @@ use bevy::{
 	sprite::Anchor,
 };
 use crate::{
-	audio::{DilatableAudio, TransientAudio, TransientAudioPallet}, colors::{DANGER_COLOR, PRIMARY_COLOR}, motion::Bounce, physics::{Gravity, PhysicsPlugin}, text::TextSprite, time::Dilation
+	audio::{
+		DilatableAudio, 
+		TransientAudio, 
+		TransientAudioPallet
+	}, 
+	motion::Bounce, 
+	physics::{
+		Gravity, 
+		PhysicsPlugin
+	}, 
+	text::TextSprite, 
+	time::Dilation
 }; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]

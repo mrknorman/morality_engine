@@ -27,7 +27,17 @@ use crate::{
 		BackgroundPlugin, 
 		BackgroundSystems
 	}, colors::{
-		ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, Fade, BACKGROUND_COLOR, DANGER_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
+		ColorAnchor, 
+		ColorChangeEvent, 
+		ColorChangeOn, 
+		ColorTranslation, 
+		Fade,
+		BACKGROUND_COLOR, 
+		DANGER_COLOR,
+		DIM_BACKGROUND_COLOR, 
+		OPTION_1_COLOR, 
+		OPTION_2_COLOR, 
+		PRIMARY_COLOR
 	}, common_ui::{
 		CenterLever, 
 		DilemmaTimerPosition, 
@@ -37,18 +47,25 @@ use crate::{
 		GameState, 
 		MainState, 
 		StateVector
-	}, inheritance::{BequeathTextColor}, interaction::{
-		InputAction, 
-		InteractionPlugin
+	}, 
+	inheritance::BequeathTextColor, 
+	interaction::{
+		Clickable, ClickablePong, InputAction, InteractionPlugin
 	}, io::IOPlugin, motion::{
 		Bounce, 
 		PointToPointTranslation,
-	}, person::PersonPlugin, physics::Velocity, text::TextButton, time::DilationTranslation, timing::{
+	}, 
+	person::PersonPlugin, 
+	physics::Velocity, 
+	text::TextButton, 
+	time::DilationTranslation, 
+	timing::{
         TimerConfig, 
 		TimerPallet, 
 		TimerStartCondition,
 		TimingPlugin
-    }, train::{
+    }, 
+	train::{
         Train, 
 		TrainPlugin, 
 		STEAM_TRAIN
@@ -62,7 +79,7 @@ use dilemma::{
 	DilemmaPlugin, 
 	DilemmaTimer
 };
-mod lever;
+pub mod lever;
 use lever::{
 	Lever, 
 	LeverPlugin, 
@@ -479,7 +496,7 @@ pub fn setup_decision(
 		Some(_) => (LEVER_RIGHT, LeverState::Right, OPTION_2_COLOR),
 	};
 
-	commands.insert_resource(Lever(state.clone()));
+	commands.insert_resource(Lever(state));
 
 	commands.spawn((
 		StateScoped(DilemmaPhase::Decision),
@@ -531,7 +548,18 @@ pub fn setup_decision(
 			));
 
 			parent.spawn((
-				Lever(state.clone()),
+				Lever(state),
+				ClickablePong::new(vec![
+						vec![
+							InputAction::ChangeLeverState(LeverState::Left),
+							InputAction::PlaySound("lever".to_string())
+						],
+						vec![
+							InputAction::ChangeLeverState(LeverState::Right),
+							InputAction::PlaySound("lever".to_string())
+						]
+					]					
+				),
 				CenterLever,
 				Text2d::new(start_text), 
 				TextFont{

@@ -3,14 +3,10 @@ use bevy::{
 	ecs::component::StorageType
 };
 
-use crate::io::{BottomAnchor, CenterXAnchor}; 
-
-#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum CommonUISystemsActive {
-    #[default]
-    False,
-    True
-}
+use crate::io::{
+    BottomAnchor,
+    CenterXAnchor
+}; 
 
 pub struct CommonUIPlugin;
 impl Plugin for CommonUIPlugin {
