@@ -3,8 +3,8 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MainState {
-    #[default]
     Menu,
+    #[default]
     InGame
 }
 
@@ -12,9 +12,9 @@ pub enum MainState {
     Deserialize)]
 #[source(MainState = MainState::InGame)]
 pub enum GameState {
-    #[default]
     Loading,
     Dialogue,
+    #[default]
     Dilemma,
 }
 

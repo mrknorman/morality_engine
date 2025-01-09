@@ -1,6 +1,10 @@
 use bevy::{
     audio::Volume, prelude::*
 };
+use enum_map::{
+    Enum, 
+    enum_map
+};
 
 use crate::{
     ascii_fonts::{
@@ -24,8 +28,7 @@ use crate::{
         StateVector
     }, 
     interaction::{ 
-        InputAction, 
-        InteractionPlugin
+        ActionPallet, InputAction, InteractionPlugin
     }, 
     io::IOPlugin, 
     text::{
@@ -39,6 +42,11 @@ use crate::{
         STEAM_TRAIN
     }
 };
+
+#[derive(Enum, Debug, Clone, Copy)]
+enum MenuButtonActions {
+    EnterGame
+}
 
 pub struct MenuScreenPlugin;
 impl Plugin for MenuScreenPlugin {
@@ -181,10 +189,18 @@ fn setup_menu(
                     TextButton::new(
                         vec![
                             InputAction::PlaySound(String::from("click")),
-                            InputAction::ChangeState(next_state_vector)
+                            InputAction::ChangeState(next_state_vector.clone())
                         ],
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
+                    ),
+                    ActionPallet::<MenuButtonActions>(
+                        enum_map!(
+                            MenuButtonActions::EnterGame => vec![
+                                InputAction::PlaySound(String::from("click")),
+                                InputAction::ChangeState(next_state_vector.clone())
+                            ]
+                        )
                     ),
                     TransientAudioPallet::new(
                         vec![(

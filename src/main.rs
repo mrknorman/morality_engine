@@ -2,7 +2,7 @@ use bevy::{
     color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, prelude::*, sprite::Material2dPlugin, window::{PresentMode, WindowMode}
+    }, prelude::*, sprite::Material2dPlugin, window::PresentMode
 };
 
 use rand::SeedableRng;
@@ -52,7 +52,6 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resizable: true,
-                //mode: WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
                 present_mode: PresentMode::Immediate,
                 ..default()
                 }),
@@ -128,12 +127,10 @@ fn setup(
     Todo:
     
     Background:
-        - Fix resizing bug!
         - Rewrite background to allow for more precise placement of sprites
     Debt:
         - Make dialogue more robust
         - Fix dialogue fadeout
-        - Update Train Locomotion and Background to use velocity instead...
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
         - Bouncy Letters (maybe bounce when clicked)
@@ -154,9 +151,7 @@ fn setup(
         - Hover
         - This train will not stop appears when click on train
         - Background colours
-        - Move sounds to right place
-        - Refactor lever and timer
-
+        - Refactor lever
 
     Long Term:
     - Pause Menu

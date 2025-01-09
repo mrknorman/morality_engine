@@ -6,15 +6,35 @@ use bevy::{
 
 use crate::{
     audio::{
-        DilatableAudio, TransientAudio, TransientAudioPallet
+        DilatableAudio, 
+		TransientAudio, 
+		TransientAudioPallet
     }, colors::{
-        ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR
-    }, dilemma::{lever::{
-	    Lever, 
-        LeverState
-    }, Dilemma}, inheritance::BequeathTextColor, motion::{Bounce, TransformMultiAnchor}, person::{
-        Emoticon, PersonSprite
-    }, time::Dilation, track::Track
+        ColorAnchor, 
+		ColorChangeEvent, 
+		ColorChangeOn, 
+		ColorTranslation, 
+		DANGER_COLOR,
+		OPTION_1_COLOR, 
+		OPTION_2_COLOR
+    }, dilemma::{
+		lever::{
+	    	Lever, 
+       		LeverState
+    	}, 
+		Dilemma
+	}, 
+	inheritance::BequeathTextColor, 
+	motion::{
+		Bounce, 
+		TransformMultiAnchor
+	}, 
+	person::{
+        Emoticon, 
+		PersonSprite
+    }, 
+	time::Dilation, 
+	track::Track
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
