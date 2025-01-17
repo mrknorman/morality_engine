@@ -3,6 +3,11 @@ use bevy::{
     prelude::*,
     audio::Volume
 };
+use enum_map::{
+    enum_map, 
+    Enum
+};
+
 use crate::{
     audio::{
         continuous_audio, one_shot_audio, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
@@ -12,7 +17,7 @@ use crate::{
     }, game_states::{
         DilemmaPhase, GameState, MainState, StateVector
     }, interaction::{
-        InputAction, InteractionPlugin
+        ActionPallet, InputAction, InteractionPlugin
     }, io::IOPlugin, text::{
         TextButton,
         TextFrames 
@@ -23,6 +28,12 @@ use crate::{
 
 mod loading_bar;
 use loading_bar::{LoadingBar, LoadingBarPlugin};
+
+#[derive(Enum, Debug, Clone, Copy)]
+enum LoadingActions {
+    ExitLoading
+}
+
 
 pub struct LoadingScreenPlugin;
 impl Plugin for LoadingScreenPlugin {
@@ -235,10 +246,18 @@ pub fn spawn_delayed_children(
                             TextButton::new(
                                 vec![
                                     InputAction::PlaySound(String::from("click")),
-                                    InputAction::ChangeState(next_state_vector),
+                                    InputAction::ChangeState(next_state_vector.clone()),
                                 ],
                                 vec![KeyCode::Enter],
                                 first_message
+                            ),
+                            ActionPallet::<LoadingActions>(
+                                enum_map!(
+                                    LoadingActions::ExitLoading => vec![
+                                        InputAction::PlaySound(String::from("click")),
+                                        InputAction::ChangeState(next_state_vector.clone())
+                                    ]
+                                )
                             ),
                             TransientAudioPallet::new(
                                 vec![(

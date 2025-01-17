@@ -14,14 +14,28 @@ use bevy::{
 use serde::{Serialize, Deserialize};
 
 use crate::{
-    audio::{continuous_audio, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet}, 
+    audio::{
+        continuous_audio, 
+        ContinuousAudioPallet, 
+        DilatableAudio, 
+        TransientAudio, 
+        TransientAudioPallet
+    }, 
     character::Character, 
     colors::PRIMARY_COLOR, 
     common_ui::NextButton, 
-    game_states::{GameState, MainState, StateVector}, 
+    game_states::{
+        GameState, 
+        MainState, 
+        StateVector
+    }, 
     graph::GraphPlugin, 
-    interaction::{AdvanceDialogue, InputAction}, 
-    text::TextButton, time::Dilation
+    interaction::{
+        AdvanceDialogue, 
+        InputAction
+    }, 
+    text::TextButton, 
+    time::Dilation
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]

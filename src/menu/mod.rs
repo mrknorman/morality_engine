@@ -44,7 +44,7 @@ use crate::{
 };
 
 #[derive(Enum, Debug, Clone, Copy)]
-enum MenuButtonActions {
+enum MenuActions {
     EnterGame
 }
 
@@ -194,9 +194,9 @@ fn setup_menu(
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
                     ),
-                    ActionPallet::<MenuButtonActions>(
+                    ActionPallet::<MenuActions>(
                         enum_map!(
-                            MenuButtonActions::EnterGame => vec![
+                            MenuActions::EnterGame => vec![
                                 InputAction::PlaySound(String::from("click")),
                                 InputAction::ChangeState(next_state_vector.clone())
                             ]
