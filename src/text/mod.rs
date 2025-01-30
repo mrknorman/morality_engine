@@ -182,15 +182,17 @@ pub fn default_button_bounds() -> TextBounds {
 }
 
 impl TextButton {
-    pub fn new( 
-        actions : Vec<InputAction>,
-        keys : Vec<KeyCode>,
+    pub fn new<T>(
+        actions: Vec<T>,
+        keys: Vec<KeyCode>,
         text: impl Into<String>
-    ) -> (TextButton, Clickable, Pressable, ColorChangeOn, Text2d) {
-        
+    ) -> (TextButton, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d) 
+    where 
+        T: Clone + std::fmt::Debug + std::fmt::Display + std::cmp::Eq
+    {
         let text = text.into();
         (
-            TextButton, 
+            TextButton,
             Clickable::new(actions.clone()),
             Pressable::new(
                 keys,

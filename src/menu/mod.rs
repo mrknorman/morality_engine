@@ -43,7 +43,7 @@ use crate::{
     }
 };
 
-#[derive(Enum, Debug, Clone, Copy)]
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 enum MenuActions {
     EnterGame
 }
