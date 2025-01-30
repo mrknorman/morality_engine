@@ -4,7 +4,6 @@ use bevy::{
     sprite::Material2d
 };
 
-
 // This is the struct that will be passed to your shader
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct PulsingMaterial {

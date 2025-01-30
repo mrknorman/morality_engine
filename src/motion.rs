@@ -51,7 +51,6 @@ impl Plugin for MotionPlugin {
     }
 }
 
-
 fn activate_systems(
     mut state: ResMut<NextState<MotionSystemsActive>>,
     query: Query<(), Or<(
