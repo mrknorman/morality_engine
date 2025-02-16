@@ -85,7 +85,7 @@ impl Default for LeverText {
 	}
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LeverState{
 	Left,
 	Right,

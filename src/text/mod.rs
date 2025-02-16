@@ -8,7 +8,9 @@ use serde::Deserialize;
 use bevy::{prelude::*, text::TextBounds};
 
 use crate::{
-    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR}, interaction::{Clickable, InputAction, Pressable}, time::Dilation
+    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
+    interaction::{Clickable, Pressable},
+    time::Dilation
 };
 
 fn default_font() -> TextFont {
@@ -75,17 +77,15 @@ pub struct TextFrames {
 
 impl Default for TextFrames {
     fn default() -> Self {
-        Self{
-            frames : vec![]
+        Self {
+            frames: vec![]
         }
     }
 }
 
 impl TextFrames {
     pub fn new(frames: Vec<String>) -> Self {
-        Self {
-            frames 
-        }
+        Self { frames }
     }
 
     pub fn load<P: AsRef<Path>>(file_path: P) -> Result<Self, Box<dyn std::error::Error>> {
@@ -110,19 +110,16 @@ impl TextFrames {
 
 #[derive(Component)]
 #[require(TextSprite, Text2d, TextFrames)]
-pub struct Animated{
+pub struct Animated {
     pub current_frame: usize,
-    pub timer: Timer
+    pub timer: Timer,
 }
 
 impl Default for Animated {
     fn default() -> Self {
         Self {
             current_frame: 0,
-            timer: Timer::from_seconds(
-                0.1, 
-                TimerMode::Repeating
-            )
+            timer: Timer::from_seconds(0.1, TimerMode::Repeating),
         }
     }
 }
@@ -130,31 +127,28 @@ impl Default for Animated {
 impl Animated {
     pub fn animate_text(
         time: Res<Time>,
-        dilation : Res<Dilation>,
+        dilation: Res<Dilation>,
         mut query: Query<(&mut Animated, &TextFrames, &mut Text2d)>,
     ) {
-        for (
-                mut animation, frames, mut text
-            ) in query.iter_mut() {
-                animation.timer.tick(time.delta().mul_f32(dilation.0));
+        for (mut animation, frames, mut text) in query.iter_mut() {
+            animation.timer.tick(time.delta().mul_f32(dilation.0));
             if animation.timer.just_finished() {
-                animation.current_frame = 
-                    (animation.current_frame + 1) % frames.frames.len();
+                animation.current_frame = (animation.current_frame + 1) % frames.frames.len();
                 text.0 = frames.frames[animation.current_frame].clone();
             }
         }
     }
 }
 
-pub fn get_text_width(text : &String) -> f32 {
+pub fn get_text_width(text: &String) -> f32 {
     let text_length = match text.lines().next() {
         Some(line) => line.len(),
-        None => text.len()
+        None => text.len(),
     };
     text_length as f32 * 7.92
 }
 
-pub fn get_text_height(text : &String) -> f32 {
+pub fn get_text_height(text: &String) -> f32 {
     text.lines().count() as f32 * 12.0
 }
 
@@ -167,16 +161,15 @@ fn default_button_text() -> Text2d {
 }
 
 fn default_button_font() -> TextFont {
-    TextFont{
-        font_size : 16.0,
+    TextFont {
+        font_size: 16.0,
         ..default()
     }
 }
 
-
 pub fn default_button_bounds() -> TextBounds {
-    TextBounds{
-        width : Some(1000.0),
+    TextBounds {
+        width: Some(1000.0),
         ..default()
     }
 }
@@ -186,18 +179,15 @@ impl TextButton {
         actions: Vec<T>,
         keys: Vec<KeyCode>,
         text: impl Into<String>
-    ) -> (TextButton, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d) 
+    ) -> (TextButton, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
     where 
-        T: Clone + std::fmt::Debug + std::fmt::Display + std::cmp::Eq
+        T: Clone + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync,
     {
         let text = text.into();
         (
             TextButton,
             Clickable::new(actions.clone()),
-            Pressable::new(
-                keys,
-                actions
-            ),
+            Pressable::new(keys, actions),
             ColorChangeOn::new(vec![
                 ColorChangeEvent::Click(vec![CLICKED_BUTTON]),
                 ColorChangeEvent::Hover(vec![HOVERED_BUTTON]),

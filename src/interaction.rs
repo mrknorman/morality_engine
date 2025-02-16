@@ -1,4 +1,5 @@
 use std::hash::Hash;
+use std::fmt;
 use enum_map::{
     Enum, 
     EnumArray, 
@@ -44,7 +45,7 @@ impl Plugin for InteractionPlugin {
 
         if !app.is_plugin_added::<AudioPlugin>() {
             app.add_plugins(AudioPlugin);
-        };
+        }
         app
         .init_state::<InteractionSystemsActive>()
         .add_event::<AdvanceDialogue>() // Register the event
@@ -64,15 +65,16 @@ impl Plugin for InteractionPlugin {
             )
             .run_if(in_state(InteractionSystemsActive::True))
         ).add_systems(
-			Startup, (activate_prerequisite_states)
-		.run_if(in_state(InteractionSystemsActive::True)));
+            Startup, (activate_prerequisite_states)
+            .run_if(in_state(InteractionSystemsActive::True))
+        );
     }
 }
 
 fn activate_prerequisite_states(        
-	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
+    mut audio_state: ResMut<NextState<AudioSystemsActive>>,
 ) {
-	audio_state.set(AudioSystemsActive::True);
+    audio_state.set(AudioSystemsActive::True);
 }
 
 fn activate_systems<T: Send + Sync + 'static>(
@@ -93,18 +95,18 @@ fn activate_systems<T: Send + Sync + 'static>(
 pub struct AdvanceDialogue;
 
 #[derive(Component)]
-pub struct Clickable<T> where T: Send, T: Sync {
+pub struct Clickable<T> where T: Send + Sync {
     pub actions: Vec<T>,
     pub triggered: bool,
-    actions_completed: u32
+    actions_completed: u32,
 }
 
 #[derive(Component)]
-pub struct Pressable<T> where T: Send, T: Sync {
+pub struct Pressable<T> where T: Send + Sync {
     pub keys: Vec<KeyCode>,
     pub actions: Vec<T>,
     pub triggered: bool,
-    actions_completed: u32
+    actions_completed: u32,
 }
 
 #[derive(Component)]
@@ -114,27 +116,26 @@ pub struct ClickablePong<T> {
     action_vector : Vec<Vec<T>>,
     pub actions: Vec<T>,
     pub triggered : bool,
-    actions_completed : u32
+    actions_completed : u32,
 }
 
-
-impl<T> Clickable<T> where T: Send, T: Sync {
+impl<T> Clickable<T> where T: Send + Sync {
     pub fn new(actions: Vec<T>) -> Self {
         Clickable {
             actions,
-            triggered : false,
-            actions_completed : 0
+            triggered: false,
+            actions_completed: 0,
         }
     }
 }
 
-impl<T> Pressable<T> where T: Send, T: Sync {
+impl<T> Pressable<T> where T: Send + Sync {
     pub fn new(keys: Vec<KeyCode>, actions: Vec<T>) -> Self {
         Self {
             keys,
             actions,
             triggered: false,
-            actions_completed: 0
+            actions_completed: 0,
         }
     }
 }
@@ -153,20 +154,27 @@ impl<T: Clone> ClickablePong<T> {
     }
 }
 
-
 #[derive(Clone, Copy)]
 enum PongDirection {
     Forward,
     Backward,
 }
 
-#[derive(Clone)]
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InputAction {
     PlaySound(String),
     ChangeState(StateVector),
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
-    Despawn
+    Despawn,
+}
+
+impl fmt::Display for InputAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         // Simply delegate to Debug formatting.
+         write!(f, "{:?}", self)
+    }
 }
 
 pub fn clickable_system<T: Send + Sync + 'static>(
@@ -188,56 +196,26 @@ pub fn clickable_system<T: Send + Sync + 'static>(
         &windows, &camera_q
     ) else { return };
 
-    for (
-        bound, 
-        transform,
-        mut clickable,
-    ) in clickable_q.iter_mut() {
-
-        if is_cursor_within_bounds(
-                cursor_position, transform, &bound
-            ) {
-            
-            if mouse_input.just_pressed(MouseButton::Left) {
-                clickable.triggered = true;
-            } else {
-                clickable.triggered = false;
-            }
+    for (bound, transform, mut clickable) in clickable_q.iter_mut() {
+        if is_cursor_within_bounds(cursor_position, transform, &bound) {
+            clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
         }
     }
 
-    for (
-        bound, 
-        transform,
-        mut clickable,
-    ) in clickable_p_q.iter_mut() {
-
-        if is_cursor_within_bounds(
-                cursor_position, transform, &bound
-            ) {
-            
-            if mouse_input.just_pressed(MouseButton::Left) {
-                clickable.triggered = true;
-            } else {
-                clickable.triggered = false;
-            }
+    for (bound, transform, mut clickable) in clickable_p_q.iter_mut() {
+        if is_cursor_within_bounds(cursor_position, transform, &bound) {
+            clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
         }
     }
 }
 
 pub fn pressable_system<T: Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut pressable_q: Query<&mut Pressable<T>>
+    mut pressable_q: Query<&mut Pressable<T>>,
 ) {
-
     for mut pressable in pressable_q.iter_mut() {
-
         for key in pressable.keys.clone() {
-            if keyboard_input.just_pressed(key) {
-                pressable.triggered = true;
-            } else {
-                pressable.triggered = false;
-            }
+            pressable.triggered = keyboard_input.just_pressed(key);
         }
     }
 }
@@ -255,9 +233,7 @@ pub fn get_cursor_world_position(
 }
 
 pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
-    // Adjust the Aabb's center by the transform's translation
     let transformed_center = aabb.center + Vec3A::from(transform.translation());
-
     let bounds = (
         transformed_center.x - aabb.half_extents.x,
         transformed_center.x + aabb.half_extents.x,
@@ -265,10 +241,10 @@ pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: 
         transformed_center.y + aabb.half_extents.y,
     );
 
-    cursor.x >= bounds.0
-        && cursor.x <= bounds.1
-        && cursor.y >= bounds.2
-        && cursor.y <= bounds.3
+    cursor.x >= bounds.0 &&
+    cursor.x <= bounds.1 &&
+    cursor.y >= bounds.2 &&
+    cursor.y <= bounds.3
 }
 
 trait InputActionContainer<T> {
@@ -301,7 +277,6 @@ macro_rules! impl_input_action_container {
     };
 }
 
-// Apply the macro to both structs
 impl_input_action_container!(Clickable<T>, T);
 impl_input_action_container!(Pressable<T>, T);
 impl_input_action_container!(ClickablePong<T>, T);
@@ -315,32 +290,6 @@ trait InputActionHandler<T: Clone> {
 }
 
 impl<T> InputActionHandler<T> for Clickable<T>
-where
-    T: Clone + Send + Sync + 'static,
-{
-    fn is_triggered(&self) -> bool {
-        self.get_triggered()
-    }
-
-    fn clone_actions(&self) -> Vec<T> {
-        self.get_actions().clone() // Ensure `get_actions` returns `Vec<T>`
-    }
-
-    fn actions_completed(&self) -> bool {
-        self.get_actions_completed() >= self.get_actions().len() as u32
-    }
-
-    fn reset_trigger(&mut self) {
-        self.set_triggered(false);
-        self.set_actions_completed(0);
-    }
-
-    fn increment(&mut self) {
-        self.set_actions_completed(self.get_actions_completed() + 1);
-    }
-}
-
-impl<T> InputActionHandler<T> for Pressable <T>
 where
     T: Clone + Send + Sync + 'static,
 {
@@ -366,7 +315,33 @@ where
     }
 }
 
-impl<T> InputActionHandler<T> for ClickablePong <T>
+impl<T> InputActionHandler<T> for Pressable<T>
+where
+    T: Clone + Send + Sync + 'static,
+{
+    fn is_triggered(&self) -> bool {
+        self.get_triggered()
+    }
+
+    fn clone_actions(&self) -> Vec<T> {
+        self.get_actions().clone()
+    }
+
+    fn actions_completed(&self) -> bool {
+        self.get_actions_completed() >= self.get_actions().len() as u32
+    }
+
+    fn reset_trigger(&mut self) {
+        self.set_triggered(false);
+        self.set_actions_completed(0);
+    }
+
+    fn increment(&mut self) {
+        self.set_actions_completed(self.get_actions_completed() + 1);
+    }
+}
+
+impl<T> InputActionHandler<T> for ClickablePong<T>
 where
     T: Clone + Send + Sync + 'static,
 {
@@ -413,20 +388,19 @@ where
     }
 }
 
-
 macro_rules! handle_all_actions {
     ($handler:expr => {
         $($variant:ident $( ( $($binding:pat),* ) )? => $body:block),* $(,)?
     }) => {{
         use InputAction::*;
-        let handler = $handler; // shadow the name
+        let handler = $handler;
         if handler.is_triggered() {
             let actions: Vec<InputAction> = handler.clone_actions();
 
             for action in actions {
                 match action {
                     $(
-                        $variant $( ( $($binding),* ) )? => { // Match both unit and tuple variants
+                        $variant $( ( $($binding),* ) )? => {
                             handler.increment();
                             $body
                         }
@@ -440,7 +414,6 @@ macro_rules! handle_all_actions {
         }
     }}
 }
-
 
 macro_rules! handle_triggers {
     ($clickable:expr, $pressable:expr, $pong:expr, $handle_ident:ident => $block:block) => {{
@@ -459,7 +432,6 @@ macro_rules! handle_triggers {
     }};
 }
 
-
 fn trigger_audio(
     mut commands: Commands,
     mut query: Query<(
@@ -470,7 +442,7 @@ fn trigger_audio(
         &TransientAudioPallet
     )>,
     mut audio: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
-    dilation : Res<Dilation>,
+    dilation: Res<Dilation>,
 ) {
     for (entity, clickable, pressable, pong, pallet) in &mut query {
         handle_triggers!(clickable, pressable, pong, handle => {
@@ -499,7 +471,7 @@ fn trigger_state_change(
     )>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
-    mut next_sub_state: ResMut<NextState<DilemmaPhase>>
+    mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
 ) {
     for (_, clickable, pressable, pong) in &mut query {
         handle_triggers!(clickable, pressable, pong, handle => {
@@ -517,15 +489,14 @@ fn trigger_state_change(
 }
 
 fn trigger_advance_dialogue(
-        mut query: Query<(
-            Entity, 
-            Option<&mut Clickable<InputAction>>, 
-            Option<&mut Pressable<InputAction>>, 
-            Option<&mut ClickablePong<InputAction>>
-        )>,
-        mut event_writer: EventWriter<AdvanceDialogue>
-    ) {
-
+    mut query: Query<(
+        Entity, 
+        Option<&mut Clickable<InputAction>>, 
+        Option<&mut Pressable<InputAction>>, 
+        Option<&mut ClickablePong<InputAction>>
+    )>,
+    mut event_writer: EventWriter<AdvanceDialogue>,
+) {
     fn send_dialogue_event(event_writer: &mut EventWriter<AdvanceDialogue>) {
         event_writer.send(AdvanceDialogue);
     }
@@ -548,7 +519,7 @@ fn trigger_despawn(
         Option<&mut Clickable<InputAction>>, 
         Option<&mut Pressable<InputAction>>, 
         Option<&mut ClickablePong<InputAction>>
-    )>
+    )>,
 ) {
     for (entity, clickable, pressable, pong) in &mut query {
         handle_triggers!(clickable, pressable, pong, handle => {
@@ -568,9 +539,8 @@ fn trigger_lever_state_change(
         Option<&mut Clickable<InputAction>>, 
         Option<&mut Pressable<InputAction>>, 
         Option<&mut ClickablePong<InputAction>>
-    )>
+    )>,
 ) {
-
     let mut lever_state = lever.0;
     for (_, clickable, pressable, pong) in &mut query {
         handle_triggers!(clickable, pressable, pong, handle => {
