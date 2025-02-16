@@ -50,7 +50,7 @@ use crate::{
 	}, 
 	inheritance::BequeathTextColor, 
 	interaction::{
-		Clickable, ClickablePong, InputAction, InteractionPlugin
+		ClickablePong, InputAction, InteractionPlugin
 	}, io::IOPlugin, motion::{
 		Bounce, 
 		PointToPointTranslation,

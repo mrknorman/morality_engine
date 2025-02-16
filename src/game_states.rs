@@ -29,7 +29,7 @@ pub enum DilemmaPhase {
     Results
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateVector {
     main: Option<MainState>,
     game: Option<GameState>,
