@@ -8,18 +8,18 @@ use bevy::{
 	ecs::component::StorageType,
 	audio::Volume
 };
+use enum_map::{Enum,  enum_map};
 use serde::Deserialize;
 
 use crate::{
-    audio::{
+	audio::{
 		continuous_audio, AudioPlugin, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet
 	}, colors::ColorAnchor, interaction::{
-		Clickable,InputAction, InteractionPlugin
+		ActionPallet, Clickable, InputAction, InteractionPlugin
 	}, motion::Wobble, physics::Velocity, text::{
 		Animated, TextFrames, TextSprite
 	}
 };
-
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TrainSystemsActive {
@@ -28,8 +28,18 @@ pub enum TrainSystemsActive {
     True
 }
 
-pub struct TrainPlugin;
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrainActions {
+    TriggerHorn
+}
 
+impl std::fmt::Display for TrainActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+pub struct TrainPlugin;
 impl Plugin for TrainPlugin {
     fn build(&self, app: &mut App) {	
 		if !app.is_plugin_added::<InteractionPlugin>() {
@@ -250,11 +260,18 @@ impl Component for Train {
 						engine.insert((
 							Clickable::new(
 								vec![
-									InputAction::PlaySound(
-										"horn".to_string()
-									)
+									TrainActions::TriggerHorn 
 								]
-							), 
+							),
+							ActionPallet::<TrainActions>(
+								enum_map!(
+									TrainActions::TriggerHorn => vec![
+										InputAction::PlaySound(
+											"horn".to_string()
+										)
+									]
+								 )
+							),
 							TransientAudioPallet::new(
 								vec![(
 									"horn".to_string(),

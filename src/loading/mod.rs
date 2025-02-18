@@ -29,12 +29,6 @@ use crate::{
 mod loading_bar;
 use loading_bar::{LoadingBar, LoadingBarPlugin};
 
-#[derive(Enum, Debug, Clone, Copy)]
-enum LoadingActions {
-    ExitLoading
-}
-
-
 pub struct LoadingScreenPlugin;
 impl Plugin for LoadingScreenPlugin {
     fn build(&self, app: &mut App) {
@@ -66,6 +60,17 @@ impl Plugin for LoadingScreenPlugin {
         if !app.is_plugin_added::<IOPlugin>() {
             app.add_plugins(IOPlugin);
         }
+    }
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadingActions {
+    ExitLoading
+}
+
+impl std::fmt::Display for LoadingActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -226,12 +231,6 @@ pub fn spawn_delayed_children(
         ) {
             
             if button_timer.just_finished() {
-                let next_state_vector = StateVector::new(
-                    Some(MainState::InGame),
-                    Some(GameState::Dialogue),
-                    Some(DilemmaPhase::Intro),
-                );
-
                 let button_messages = TextFrames::load(
                     "text/loading_messages/button.json"
                 );
@@ -245,8 +244,7 @@ pub fn spawn_delayed_children(
                             button_messages,
                             TextButton::new(
                                 vec![
-                                    InputAction::PlaySound(String::from("click")),
-                                    InputAction::ChangeState(next_state_vector.clone()),
+                                    LoadingActions::ExitLoading,
                                 ],
                                 vec![KeyCode::Enter],
                                 first_message
@@ -254,8 +252,14 @@ pub fn spawn_delayed_children(
                             ActionPallet::<LoadingActions>(
                                 enum_map!(
                                     LoadingActions::ExitLoading => vec![
+                                        InputAction::ChangeState(
+                                            StateVector::new(
+                                                Some(MainState::InGame),
+                                                Some(GameState::Dialogue),
+                                                None,
+                                            )
+                                        ),
                                         InputAction::PlaySound(String::from("click")),
-                                        InputAction::ChangeState(next_state_vector.clone())
                                     ]
                                 )
                             ),

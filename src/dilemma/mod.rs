@@ -7,6 +7,7 @@ use bevy::{
 	audio::Volume,
 	sprite::Anchor
 };
+use enum_map::{Enum, enum_map};
 use crate::{
 	ascii_fonts::{
 		AsciiPlugin, 
@@ -50,7 +51,7 @@ use crate::{
 	}, 
 	inheritance::BequeathTextColor, 
 	interaction::{
-		ClickablePong, InputAction, InteractionPlugin
+		ActionPallet, Clickable, ClickablePong, InputAction, InteractionPlugin, InteractionState, KeyMapping, Pressable
 	}, io::IOPlugin, motion::{
 		Bounce, 
 		PointToPointTranslation,
@@ -171,6 +172,18 @@ impl Plugin for DilemmaScreenPlugin {
         if !app.is_plugin_added::<IOPlugin>() {
             app.add_plugins(IOPlugin);
         }
+    }
+}
+
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaActions {
+    StartDilemma
+}
+
+impl std::fmt::Display for DilemmaActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -369,24 +382,29 @@ fn spawn_delayed_children(
         if let Some(button_timer) = timers.timers.get(
             "button"
         ) {
-            if button_timer.just_finished() {
-                let next_state_vector = StateVector::new(
-                    Some(MainState::InGame),
-                    Some(GameState::Dilemma),
-                    Some(DilemmaPhase::IntroDecisionTransition),
-                );
-                
+            if button_timer.just_finished() {                
 				commands.entity(entity).with_children(|parent| {
 					parent.spawn((
 						NextButton,
 						TextButton::new(
-							vec![
-								InputAction::PlaySound(String::from("click")),
-								InputAction::ChangeState(next_state_vector),
-								InputAction::Despawn
-							],
+							vec![DilemmaActions::StartDilemma],
 							vec![KeyCode::Enter],
 							"[ Click here or Press Enter to Test Your Morality ]",
+						),
+						ActionPallet::<DilemmaActions>(
+							enum_map!(
+								DilemmaActions::StartDilemma => vec![
+									InputAction::PlaySound(String::from("click")),
+									InputAction::ChangeState(
+										StateVector::new(
+											Some(MainState::InGame),
+											Some(GameState::Dilemma),
+											Some(DilemmaPhase::IntroDecisionTransition),
+										)
+									),
+									InputAction::Despawn
+								 ]
+							 )
 						),
 						TransientAudioPallet::new(
 							vec![(
@@ -484,6 +502,12 @@ pub fn end_dilemma_transition(
 #[require(Transform, Visibility)]
 struct DecisionRoot;
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeverActions {
+	LeftPull,
+	RightPull
+}
+
 pub fn setup_decision(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
@@ -549,16 +573,35 @@ pub fn setup_decision(
 
 			parent.spawn((
 				Lever(state),
+				Clickable::new(vec![LeverActions::RightPull]),
 				ClickablePong::new(vec![
-						vec![
-							InputAction::ChangeLeverState(LeverState::Left),
-							InputAction::PlaySound("lever".to_string())
-						],
-						vec![
-							InputAction::ChangeLeverState(LeverState::Right),
-							InputAction::PlaySound("lever".to_string())
-						]
+						vec![LeverActions::RightPull],
+						vec![LeverActions::LeftPull]
 					]					
+				),
+				Pressable::new(vec![
+					KeyMapping{
+						keys : vec![KeyCode::Digit2], 
+						actions : vec![LeverActions::RightPull],
+						allow_repeated_activation : false
+					},
+					KeyMapping{
+						keys : vec![KeyCode::Digit1],
+						actions : vec![LeverActions::LeftPull],
+						allow_repeated_activation : false
+					}
+				]),
+				ActionPallet(
+					enum_map!(
+						LeverActions::LeftPull => vec![
+							InputAction::ChangeLeverState(LeverState::Left),
+							InputAction::PlaySound("lever".to_string()),
+						],
+						LeverActions::RightPull => vec![
+							InputAction::ChangeLeverState(LeverState::Right),
+							InputAction::PlaySound("lever".to_string()),
+						]
+					)
 				),
 				CenterLever,
 				Text2d::new(start_text), 

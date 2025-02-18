@@ -11,6 +11,7 @@ use bevy::{
     text::TextBounds, 
     audio::Volume
 };
+use enum_map::{Enum, enum_map};
 use serde::{Serialize, Deserialize};
 
 use crate::{
@@ -31,8 +32,7 @@ use crate::{
     }, 
     graph::GraphPlugin, 
     interaction::{
-        AdvanceDialogue, 
-        InputAction
+        ActionPallet, AdvanceDialogue, InputAction
     }, 
     text::TextButton, 
     time::Dilation
@@ -76,6 +76,17 @@ fn activate_systems(
     } else {
         DialogueSystemsActive::True
     });
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DialogueActions {
+    AdvanceDialogue
+}
+
+impl std::fmt::Display for DialogueActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub struct DialogueLine {
@@ -387,19 +398,23 @@ impl Dialogue {
         next_action: InputAction,
         instruction: &str
     ) {
-        let actions = vec![
-            InputAction::PlaySound("click".to_string()),
-            next_action,
-            InputAction::Despawn,
-        ];
-    
+
         commands.entity(dialogue_entity).with_children(|parent| {
             parent.spawn((
                 NextButton,
                 TextButton::new(
-                    actions,
+                    vec![DialogueActions::AdvanceDialogue],
                     vec![KeyCode::Enter],
                     format!("[{}]", instruction),
+                ),
+                ActionPallet::<DialogueActions>(
+                    enum_map!(
+                        DialogueActions::AdvanceDialogue => vec![
+                            InputAction::PlaySound("click".to_string()),
+                            next_action.clone(),
+                            InputAction::Despawn
+                         ]
+                     )
                 ),
                 TransientAudioPallet::new(
                     vec![(
@@ -414,7 +429,8 @@ impl Dialogue {
                         ],
                         Some(DilatableAudio)
                     )]
-                )
+                ),
+                
             ));
         });
     }

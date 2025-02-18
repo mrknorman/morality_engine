@@ -9,7 +9,7 @@ use bevy::{prelude::*, text::TextBounds};
 
 use crate::{
     colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
-    interaction::{Clickable, Pressable},
+    interaction::{Clickable, KeyMapping, Pressable},
     time::Dilation
 };
 
@@ -181,13 +181,19 @@ impl TextButton {
         text: impl Into<String>
     ) -> (TextButton, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
     where 
-        T: Clone + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync,
+        T: Clone + Copy + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync,  
     {
         let text = text.into();
         (
             TextButton,
             Clickable::new(actions.clone()),
-            Pressable::new(keys, actions),
+            Pressable::new(vec!(
+                KeyMapping{
+                    keys,
+                    actions,
+                    allow_repeated_activation : false
+                }
+            )),
             ColorChangeOn::new(vec![
                 ColorChangeEvent::Click(vec![CLICKED_BUTTON]),
                 ColorChangeEvent::Hover(vec![HOVERED_BUTTON]),
