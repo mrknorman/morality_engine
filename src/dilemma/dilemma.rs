@@ -14,7 +14,7 @@ use bevy::{
 		component::StorageType::Table
 	}, 
 	prelude::*, 
-	sprite::Anchor, 
+	sprite::Anchor,
 	text::{
 		LineBreak, 
 		TextBounds

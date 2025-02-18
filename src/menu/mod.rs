@@ -44,8 +44,14 @@ use crate::{
 };
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
-enum MenuActions {
+pub enum MenuActions {
     EnterGame
+}
+
+impl std::fmt::Display for MenuActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub struct MenuScreenPlugin;
@@ -188,8 +194,7 @@ fn setup_menu(
                     TextColor(MENU_COLOR),
                     TextButton::new(
                         vec![
-                            InputAction::PlaySound(String::from("click")),
-                            InputAction::ChangeState(next_state_vector.clone())
+                            MenuActions::EnterGame
                         ],
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",

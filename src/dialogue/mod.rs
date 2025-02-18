@@ -13,7 +13,7 @@ use crate::{
     }, character::Character, game_states::GameState, graph::Graph, interaction::InteractionPlugin, io::IOPlugin
 };
 
-mod dialogue;
+pub mod dialogue;
 use dialogue::{
     DialoguePlugin,
     Dialogue

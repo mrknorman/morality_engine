@@ -57,13 +57,20 @@ impl BottomAnchor {
         mut query: Query<(&BottomAnchor, &mut Transform, Option<&Parent>)>,
         parent_query: Query<&Transform, Without<BottomAnchor>>, // Query for parent Transform
     ) {
-        let window = windows.get_single().unwrap();
+        // Return early if there's not exactly one window
+        let window = match windows.get_single() {
+            Ok(window) => window,
+            Err(_) => {
+                return;
+            }
+        };
+
         let screen_height = window.height();
 
         for (bottom_anchor, mut transform, parent) in query.iter_mut() {
             let mut button_y = -screen_height / 2.0 + bottom_anchor.distance;
 
-            // If the entity has a parent, subtract the parent's position
+            // If the entity has a parent, subtract the parent's position.
             if let Some(parent) = parent {
                 if let Ok(parent_transform) = parent_query.get(parent.get()) {
                     button_y -= parent_transform.translation.y;
@@ -74,6 +81,7 @@ impl BottomAnchor {
         }
     }
 }
+
 
 pub struct CenterXAnchor;
 
