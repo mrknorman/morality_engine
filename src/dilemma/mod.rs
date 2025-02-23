@@ -573,7 +573,6 @@ pub fn setup_decision(
 
 			parent.spawn((
 				Lever(state),
-				Clickable::new(vec![LeverActions::RightPull]),
 				ClickablePong::new(vec![
 						vec![LeverActions::RightPull],
 						vec![LeverActions::LeftPull]

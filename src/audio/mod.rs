@@ -2,6 +2,11 @@ use std::{
     collections::HashMap, 
     time::Duration
 };
+use enum_map::{
+    Enum, 
+    EnumArray,
+    EnumMap
+};
 use rand::prelude::*;
 
 use bevy::{
@@ -52,8 +57,6 @@ impl Plugin for AudioPlugin {
         );
     }
 }
-
-
 
 fn activate_systems(
 	mut audio_state: ResMut<NextState<AudioSystemsActive>>,
@@ -128,6 +131,15 @@ impl TransientAudio {
             audio.cooldown_timer.tick(time.delta());
         }
     }
+}
+
+#[derive(Component)]
+pub struct ContinuousAudioPallet2<T> where
+T: Enum + EnumArray<Vec<Entity>> + Send + Sync,
+<T as EnumArray<Vec<Entity>>>::Array: Send + Sync
+{
+    pub entities : EnumMap<T, Vec<Entity>>,
+    pub components: Vec<(T, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)>
 }
 
 pub struct ContinuousAudioPallet {

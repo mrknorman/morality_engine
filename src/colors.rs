@@ -214,11 +214,9 @@ impl Component for Fade{
                     entity_mut.get::<Fade>()
                         .map(|fade: &Fade| fade.clone())
                 };
-
-                let mut commands= world.commands();
-
+                
                 if let Some(fade) = fade {
-                    commands.entity(entity).insert(
+                    world.commands().entity(entity).insert(
                         ColorTranslation::new(
                             Color::NONE,
                             fade.0
