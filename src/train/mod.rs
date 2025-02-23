@@ -61,10 +61,9 @@ impl Plugin for TrainPlugin {
 				Animated::animate_text
             )
             .run_if(in_state(TrainSystemsActive::True))
-        );
-
-		app.register_required_components::<Train, Transform>();
-        app.register_required_components::<Train, Visibility>();
+        )
+		.register_required_components::<Train, Transform>()
+        .register_required_components::<Train, Visibility>();
     }
 }
 

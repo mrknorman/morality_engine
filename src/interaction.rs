@@ -6,10 +6,7 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    math::Vec3A,
-    prelude::*,
-    render::primitives::Aabb,
-    window::PrimaryWindow,
+    ecs::component::StorageType, math::Vec3A, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 use crate::{
     audio::{
@@ -87,7 +84,7 @@ impl Plugin for InteractionPlugin {
             app.add_plugins(AudioPlugin);
         }
         app.add_event::<AdvanceDialogue>()
-           .add_systems(Startup, activate_prerequisite_states);
+        .add_systems(Startup, activate_prerequisite_states);
 
         register_interaction_systems!(app, MenuActions);
         register_interaction_systems!(app, LoadingActions);
@@ -95,6 +92,8 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, DialogueActions);
         register_interaction_systems!(app, LeverActions);
         register_interaction_systems!(app, TrainActions);
+
+
     }
 }
 
@@ -159,13 +158,35 @@ impl Default for InteractionState {
     }
 }
 
-#[derive(Component)]
-#[require(InteractionState)]
+
+#[derive(Clone)]
 pub struct ClickablePong<T> {
     /// The ping–pong index and cycle state.
     pub direction: PongDirection,
     /// A vector of key sets (each a Vec<T>) to cycle through.
     pub action_vector: Vec<Vec<T>>
+}
+
+impl<T> Component for ClickablePong<T> 
+where
+    T: Copy + Send + Sync + 'static,
+{
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(
+        hooks: &mut bevy::ecs::component::ComponentHooks,
+    ) {
+        hooks.on_insert(  
+            |mut world, entity, _component_id| {
+                if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
+                    world.commands().entity(entity).insert((
+                        Clickable::new(pong.action_vector[0].clone()),
+                        InteractionState::default(),
+                    ));
+                }
+            }
+        );
+    }
 }
 
 impl<T> Clickable<T>
