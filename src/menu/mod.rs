@@ -12,7 +12,7 @@ use crate::{
         AsciiString
     }, 
     audio::{
-        continuous_audio, BackgroundAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet
+        continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet
     }, 
     background::{
         Background, 
@@ -28,7 +28,9 @@ use crate::{
         StateVector
     }, 
     interaction::{ 
-        ActionPallet, InputAction, InteractionPlugin
+        ActionPallet, 
+        InputAction, 
+        InteractionPlugin
     }, 
     io::IOPlugin, 
     text::{
@@ -78,6 +80,13 @@ impl Plugin for MenuScreenPlugin {
     }
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuSounds {
+	Static,
+	Office,
+    Click
+}
+
 fn setup_menu(
         mut commands: Commands, 
         asset_server: Res<AssetServer>
@@ -108,28 +117,28 @@ fn setup_menu(
                 BackgroundAudio,
                 ContinuousAudioPallet::new(
                     vec![
-                        (
-                            "static".to_string(),
-                            AudioPlayer::<AudioSource>(asset_server.load(
+                        ContinuousAudio{
+                            key : MenuSounds::Static,
+                            source : AudioPlayer::<AudioSource>(asset_server.load(
                                 "./sounds/static.ogg"
-                            )),
-                            PlaybackSettings{
+                            )), 
+                            settings : PlaybackSettings{
                                 volume : Volume::new(0.1),
                                 ..continuous_audio()
                             },
-                            None
-                        ),
-                        (
-                            "office".to_string(),
-                            AudioPlayer::<AudioSource>(asset_server.load(
+                            dilatable : true
+                        },
+                        ContinuousAudio{
+                            key : MenuSounds::Office,
+                            source : AudioPlayer::<AudioSource>(asset_server.load(
                                 "./sounds/office.ogg"
-                            )),
-                            PlaybackSettings{
+                            )), 
+                            settings : PlaybackSettings{
                                 volume : Volume::new(0.5),
                                 ..continuous_audio()
                             },
-                            Some(DilatableAudio)
-                        )
+                            dilatable : true
+                        }
                     ]
                 )
             ));
@@ -199,17 +208,17 @@ fn setup_menu(
                         vec![KeyCode::Enter],
                         "[Click Here or Press Enter to Begin]",
                     ),
-                    ActionPallet::<MenuActions>(
+                    ActionPallet::<MenuActions, MenuSounds>(
                         enum_map!(
                             MenuActions::EnterGame => vec![
-                                InputAction::PlaySound(String::from("click")),
+                                InputAction::PlaySound(MenuSounds::Click),
                                 InputAction::ChangeState(next_state_vector.clone())
                             ]
                         )
                     ),
                     TransientAudioPallet::new(
                         vec![(
-                            "click".to_string(),
+                            MenuSounds::Click,
                             vec![
                                 TransientAudio::new(
                                     asset_server.load("sounds/mech_click.ogg"), 

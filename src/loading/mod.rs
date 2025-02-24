@@ -10,12 +10,12 @@ use enum_map::{
 
 use crate::{
     audio::{
-        continuous_audio, one_shot_audio, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
+        continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
     }, common_ui::{
         NextButton,
         NextButtonConfig
     }, game_states::{
-        DilemmaPhase, GameState, MainState, StateVector
+        GameState, MainState, StateVector
     }, interaction::{
         ActionPallet, InputAction, InteractionPlugin
     }, io::IOPlugin, text::{
@@ -74,6 +74,16 @@ impl std::fmt::Display for LoadingActions {
     }
 }
 
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadingSounds {
+	Hum,
+	Office,
+    Click
+}
+
+
+
 #[derive(Component)]
 pub struct LoadingRoot;
 
@@ -125,30 +135,28 @@ pub fn setup_loading(
         Visibility::default(),
         ContinuousAudioPallet::new(
             vec![
-                (
-                    "hum".to_string(),
-                    AudioPlayer::<AudioSource>(asset_server.load(
+                ContinuousAudio{
+                    key : LoadingSounds::Hum,
+                    source : AudioPlayer::<AudioSource>(asset_server.load(
                         "./sounds/hum.ogg"
                     )),
-                    PlaybackSettings{
-                        paused : false,
+                    settings : PlaybackSettings{
                         volume : Volume::new(0.1),
                         ..continuous_audio()
                     },
-                    None
-                ),
-                (
-                    "office".to_string(),
-                    AudioPlayer::<AudioSource>(asset_server.load(
+                    dilatable : false
+                },
+                ContinuousAudio{
+                    key : LoadingSounds::Office,
+                    source : AudioPlayer::<AudioSource>(asset_server.load(
                         "./sounds/office.ogg"
                     )),
-                    PlaybackSettings{
-                        paused : false,
+                    settings : PlaybackSettings{
                         volume : Volume::new(0.5),
                         ..continuous_audio()
                     },
-                    Some(DilatableAudio)
-                ),
+                    dilatable : true
+                }
             ]
         ),
         OneShotAudioPallet::new(
@@ -249,7 +257,7 @@ pub fn spawn_delayed_children(
                                 vec![KeyCode::Enter],
                                 first_message
                             ),
-                            ActionPallet::<LoadingActions>(
+                            ActionPallet::<LoadingActions, LoadingSounds>(
                                 enum_map!(
                                     LoadingActions::ExitLoading => vec![
                                         InputAction::ChangeState(
@@ -259,13 +267,13 @@ pub fn spawn_delayed_children(
                                                 None,
                                             )
                                         ),
-                                        InputAction::PlaySound(String::from("click")),
+                                        InputAction::PlaySound(LoadingSounds::Click),
                                     ]
                                 )
                             ),
                             TransientAudioPallet::new(
                                 vec![(
-                                    "click".to_string(),
+                                    LoadingSounds::Click,
                                     vec![
                                         TransientAudio::new(
                                             asset_server.load(

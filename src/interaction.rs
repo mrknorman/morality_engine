@@ -1,5 +1,4 @@
 use std::hash::Hash;
-use std::fmt;
 use enum_map::{
     Enum, 
     EnumArray,
@@ -16,26 +15,24 @@ use crate::{
         TransientAudio,
         TransientAudioPallet,
     }, 
-    dialogue::dialogue::DialogueActions, 
+    dialogue::dialogue::{DialogueActions, DialogueSounds}, 
     dilemma::{
         lever::{
             Lever,
             LeverState,
-        },
-        DilemmaActions, 
-        LeverActions,
-    }, game_states::{
+        }, DilemmaActions, DilemmaSounds, LeverActions
+    }, 
+    game_states::{
         DilemmaPhase,
         GameState,
         MainState,
         StateVector,
     }, 
-    loading::LoadingActions, 
-    menu::MenuActions, 
+    loading::{LoadingActions, LoadingSounds}, 
+    menu::{MenuActions, MenuSounds}, 
     time::Dilation, 
-    train::TrainActions
+    train::{TrainActions, TrainSounds}
 };
-
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum InteractionSystem {
@@ -60,23 +57,29 @@ macro_rules! system_entry {
 }
 
 macro_rules! register_interaction_systems {
-    ($app:expr, $enum_type:ty) => {
+    ($app:expr, $enum_type:ty, $audio_type:ty) => {
         $app.add_systems(
             Update,
             (
                 system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable),
                 system_entry!(pressable_system::<$enum_type>, InteractionSystem::Pressable, after: InteractionSystem::Clickable),
-                system_entry!(trigger_audio::<$enum_type>, InteractionSystem::Audio, after: InteractionSystem::Pressable),
-                system_entry!(trigger_advance_dialogue::<$enum_type>, InteractionSystem::AdvanceDialogue, after: InteractionSystem::Audio),
-                system_entry!(trigger_lever_state_change::<$enum_type>, InteractionSystem::LeverChange, after: InteractionSystem::AdvanceDialogue),
-                system_entry!(trigger_debug_print::<$enum_type>, InteractionSystem::Debug, after: InteractionSystem::LeverChange),
+                system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Pressable),
+                system_entry!(trigger_advance_dialogue::<$enum_type, $audio_type>, InteractionSystem::AdvanceDialogue, after: InteractionSystem::Audio),
+                system_entry!(trigger_lever_state_change::<$enum_type, $audio_type>, InteractionSystem::LeverChange, after: InteractionSystem::AdvanceDialogue),
+                system_entry!(trigger_debug_print::<$enum_type, $audio_type>, InteractionSystem::Debug, after: InteractionSystem::LeverChange),
                 system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Debug),
-                system_entry!(trigger_state_change::<$enum_type>, InteractionSystem::StateChange, after: InteractionSystem::Pong),
-                system_entry!(trigger_despawn::<$enum_type>, InteractionSystem::Despawn, after: InteractionSystem::StateChange),
+                system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::Pong),
+                system_entry!(trigger_despawn::<$enum_type, $audio_type>, InteractionSystem::Despawn, after: InteractionSystem::StateChange),
             )
         );
     };
-}pub struct InteractionPlugin;
+    // Fallback: if no separate audio type is provided, assume S = K.
+    ($app:expr, $enum_type:ty) => {
+        register_interaction_systems!($app, $enum_type, $enum_type);
+    };
+}
+
+pub struct InteractionPlugin;
 
 impl Plugin for InteractionPlugin {
     fn build(&self, app: &mut App) {
@@ -84,16 +87,14 @@ impl Plugin for InteractionPlugin {
             app.add_plugins(AudioPlugin);
         }
         app.add_event::<AdvanceDialogue>()
-        .add_systems(Startup, activate_prerequisite_states);
+            .add_systems(Startup, activate_prerequisite_states);
 
-        register_interaction_systems!(app, MenuActions);
-        register_interaction_systems!(app, LoadingActions);
-        register_interaction_systems!(app, DilemmaActions);
-        register_interaction_systems!(app, DialogueActions);
-        register_interaction_systems!(app, LeverActions);
-        register_interaction_systems!(app, TrainActions);
-
-
+        register_interaction_systems!(app, MenuActions, MenuSounds);
+        register_interaction_systems!(app, LoadingActions, LoadingSounds);
+        register_interaction_systems!(app, DilemmaActions, DilemmaSounds);
+        register_interaction_systems!(app, DialogueActions, DialogueSounds);
+        register_interaction_systems!(app, LeverActions, DilemmaSounds);
+        register_interaction_systems!(app, TrainActions, TrainSounds);
     }
 }
 
@@ -122,7 +123,7 @@ where
 {
     pub keys: Vec<KeyCode>,
     pub actions: Vec<T>,
-    pub allow_repeated_activation: bool
+    pub allow_repeated_activation: bool,
 }
 
 #[derive(Component)]
@@ -158,13 +159,12 @@ impl Default for InteractionState {
     }
 }
 
-
 #[derive(Clone)]
 pub struct ClickablePong<T> {
     /// The ping–pong index and cycle state.
     pub direction: PongDirection,
     /// A vector of key sets (each a Vec<T>) to cycle through.
-    pub action_vector: Vec<Vec<T>>
+    pub action_vector: Vec<Vec<T>>,
 }
 
 impl<T> Component for ClickablePong<T> 
@@ -216,21 +216,21 @@ pub enum PongDirection {
     Backward,
 }
 
+/// This enum now holds the “payload” type S.
+/// In particular, the `PlaySound` variant carries an S.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InputAction {
-    PlaySound(String),
+pub enum InputAction<S>
+where
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
+{
+    PlaySound(S),
     ChangeState(StateVector),
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
     Despawn,
     #[allow(unused)]
-    Print(String), 
-}
-
-impl fmt::Display for InputAction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-         write!(f, "{:?}", self)
-    }
+    Print(String),
 }
 
 /// Utility function for cursor handling.
@@ -263,24 +263,28 @@ pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: 
 
 /// The InputActionHandler trait is used by Clickable and Pressable
 /// to look up their actions in the ActionPallet.
-pub trait InputActionHandler<K>
+pub trait InputActionHandler<K, S>
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Send + Sync,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     fn is_triggered(&self) -> bool;
-    fn clone_actions_from_pallet(&self, pallet: &ActionPallet<K>) -> Vec<InputAction>;
+    fn clone_actions_from_pallet(&self, pallet: &ActionPallet<K, S>) -> Vec<InputAction<S>>;
 }
 
-impl<K> InputActionHandler<K> for Clickable<K>
+impl<K, S> InputActionHandler<K, S> for Clickable<K>
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     fn is_triggered(&self) -> bool {
         self.triggered
     }
-    fn clone_actions_from_pallet(&self, pallet: &ActionPallet<K>) -> Vec<InputAction> {
+    fn clone_actions_from_pallet(&self, pallet: &ActionPallet<K, S>) -> Vec<InputAction<S>> {
         let mut actions = Vec::new();
         for key in &self.actions {
             actions.extend_from_slice(&pallet.0[*key]);
@@ -289,16 +293,17 @@ where
     }
 }
 
-impl<K> InputActionHandler<K> for Pressable<K>
+impl<K, S> InputActionHandler<K, S> for Pressable<K>
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     fn is_triggered(&self) -> bool {
         self.triggered_mapping.is_some()
     }
-    
-    fn clone_actions_from_pallet(&self, pallet: &ActionPallet<K>) -> Vec<InputAction> {
+    fn clone_actions_from_pallet(&self, pallet: &ActionPallet<K, S>) -> Vec<InputAction<S>> {
         if let Some(mapping_index) = self.triggered_mapping {
             let mapping_actions = &self.mappings[mapping_index].actions;
             let mut actions = Vec::new();
@@ -312,15 +317,17 @@ where
     }
 }
 
-impl<K> InputActionHandler<K> for ClickablePong<K>
+impl<K, S> InputActionHandler<K, S> for ClickablePong<K>
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     fn is_triggered(&self) -> bool {
         false
     }
-    fn clone_actions_from_pallet(&self, _pallet: &ActionPallet<K>) -> Vec<InputAction> {
+    fn clone_actions_from_pallet(&self, _pallet: &ActionPallet<K, S>) -> Vec<InputAction<S>> {
         Vec::new()
     }
 }
@@ -328,22 +335,22 @@ where
 /// Macro to process every action in the vector (for Clickable and Pressable).
 macro_rules! handle_all_actions {
     ($handler:expr, $pallet:expr => {
-        $($variant:ident $( ( $($binding:pat),* ) )? => $body:block),* $(,)? 
+        $($variant:ident $( ( $($binding:pat),* ) )? => $body:block),* $(,)?
     }) => {{
         use InputAction::*;
-         let handler = $handler;
-         if handler.is_triggered() {
-             let actions: Vec<InputAction> = handler.clone_actions_from_pallet($pallet);
-             for action in actions {
-                 match action {
-                     $(
-                         $variant $( ( $($binding),* ) )? => { $body }
-                     ),*
-                     _ => {}
-                 }
-             }
-         }
-    }}
+        let handler = $handler;
+        if handler.is_triggered() {
+            let actions: Vec<InputAction<_>> = handler.clone_actions_from_pallet($pallet);
+            for action in actions {
+                match action {
+                    $(
+                        $variant $( ( $($binding),* ) )? => { $body }
+                    ),*
+                    _ => {}
+                }
+            }
+        }
+    }};
 }
 
 /// Macro to apply a block to each of two optional components (Clickable and Pressable).
@@ -360,14 +367,11 @@ macro_rules! handle_triggers {
     }}
 }
 
-/// -- Input Systems --
-
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     windows: Query<&Window, With<PrimaryWindow>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut clickable_q: Query<(&Aabb, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
-    // We no longer need to set a trigger flag on ClickablePong here.
     _pong_q: Query<(&Aabb, &GlobalTransform, &ClickablePong<T>), Without<TextSpan>>,
 ) {
     let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
@@ -403,21 +407,23 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
 
 /// -- Trigger Systems (Audio, State Change, etc.) --
 /// These systems only process the normal Clickable (and Pressable) components.
-pub fn trigger_audio<K>(
+pub fn trigger_audio<K, S>(
     mut commands: Commands,
     mut query: Query<(
         Entity,
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
-        &ActionPallet<K>,
-        &TransientAudioPallet
+        &ActionPallet<K, S>,
+        &TransientAudioPallet<S>
     )>,
     mut audio: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
 )
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     for (entity, clickable, pressable, pallet, transient_audio_pallet) in query.iter_mut() {
         handle_triggers!(clickable, pressable, pallet, handle => {
@@ -437,20 +443,22 @@ where
     }
 }
 
-pub fn trigger_state_change<K>(
+pub fn trigger_state_change<K, S>(
     mut query: Query<(
         Entity,
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
-        &ActionPallet<K>
+        &ActionPallet<K, S>,
     )>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
 )
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     for (_, clickable, pressable, pallet) in query.iter_mut() {
         handle_triggers!(clickable, pressable, pallet, handle => {
@@ -467,24 +475,26 @@ where
     }
 }
 
-fn trigger_advance_dialogue<K>(
+pub fn trigger_advance_dialogue<K, S>(
     mut query: Query<(
-        Entity, 
-        Option<&mut Clickable<K>>, 
-        Option<&mut Pressable<K>>, 
-        &ActionPallet<K>
+        Entity,
+        Option<&mut Clickable<K>>,
+        Option<&mut Pressable<K>>,
+        &ActionPallet<K, S>,
     )>,
     mut event_writer: EventWriter<AdvanceDialogue>,
-) 
+)
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     fn send_dialogue_event(event_writer: &mut EventWriter<AdvanceDialogue>) {
         event_writer.send(AdvanceDialogue);
     }
 
-    for (_, clickable, pressable,  pallet) in &mut query {
+    for (_, clickable, pressable, pallet) in &mut query {
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
                 AdvanceDialogue(_) => {
@@ -495,18 +505,20 @@ where
     }
 }
 
-pub fn trigger_despawn<K>(
+pub fn trigger_despawn<K, S>(
     mut commands: Commands,
     mut query: Query<(
         Entity,
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
-        &ActionPallet<K>
+        &ActionPallet<K, S>,
     )>,
 )
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     for (entity, clickable, pressable, pallet) in query.iter_mut() {
         handle_triggers!(clickable, pressable, pallet, handle => {
@@ -519,18 +531,20 @@ where
     }
 }
 
-pub fn trigger_lever_state_change<K>(
+pub fn trigger_lever_state_change<K, S>(
     lever: Option<ResMut<Lever>>,
     mut query: Query<(
         Entity,
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
-        &ActionPallet<K>
+        &ActionPallet<K, S>,
     )>,
 )
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     if let Some(mut lever) = lever {
         let mut lever_state = lever.0;
@@ -546,26 +560,24 @@ where
         lever.0 = lever_state;
     }
 }
-
-/// This system will iterate over entities that have either a Clickable or a Pressable
-/// component, and when one of their actions is Print(s), it prints s to the console.
-pub fn trigger_debug_print<K>(
+pub fn trigger_debug_print<K, S>(
     mut query: Query<(
         Entity,
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
-        &ActionPallet<K>
+        &ActionPallet<K, S>,
     )>,
-) 
+)
 where
-    K: Copy + Enum + EnumArray<Vec<InputAction>> + Clone + Send + Sync + 'static,
-    <K as EnumArray<Vec<InputAction>>>::Array: Send + Sync,
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     for (_, clickable, pressable, pallet) in query.iter_mut() {
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
                 Print(msg) => {
-                    // Print the debug message to the console.
                     println!("Print: {}", msg);
                 }
             });
@@ -613,11 +625,12 @@ pub fn update_pong<T: Send + Sync + Copy + 'static>(
     }
 }
 
-/// The ActionPallet component maps keys to vectors of InputActions.
 #[derive(Component)]
-pub struct ActionPallet<T>(
-    pub EnumMap<T, Vec<InputAction>>
+pub struct ActionPallet<K, S>(
+    pub EnumMap<K, Vec<InputAction<S>>>
 )
 where
-    T: Enum + EnumArray<Vec<InputAction>> + Send + Sync,
-    <T as EnumArray<Vec<InputAction>>>::Array: Send + Sync;
+    K: Enum + EnumArray<Vec<InputAction<S>>> + Send + Sync + Clone + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync;

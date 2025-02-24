@@ -30,9 +30,10 @@ use crate::{
 		TransformMultiAnchor
 	}, 
 	person::{
-        Emoticon, 
-		PersonSprite
-    }, 
+		Emoticon, 
+		PersonSprite,
+		EmotionSounds
+	}, 
 	time::Dilation, 
 	track::Track
 };
@@ -200,8 +201,8 @@ impl Component for Junction {
 															0.0 
 														),
 														TransientAudioPallet::new(
-															vec![
-																("exclamation".to_string(),
+															vec![(
+																EmotionSounds::Exclaim,
 																audio_vector.clone(),
 																Some(DilatableAudio)
 															)]
