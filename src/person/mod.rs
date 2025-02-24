@@ -2,6 +2,7 @@ use bevy::{
 	prelude::*,
 	sprite::Anchor,
 };
+use enum_map::Enum;
 use crate::{
 	audio::{
 		DilatableAudio, 
@@ -60,6 +61,12 @@ fn activate_systems(
 	}
 }
 
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmotionSounds {
+	Exclaim
+}
+
 const PERSON : &str = " @ \n/|\\\n/ \\";
 const PERSON_IN_DANGER : &str= "\\@/\n | \n/ \\";
 
@@ -108,7 +115,7 @@ impl PersonSprite {
 	pub fn alert(
 		mut query: Query<(
 			Entity,  
-			&TransientAudioPallet, 
+			&TransientAudioPallet<EmotionSounds>, 
 			&mut PersonSprite, 
 			&mut Bounce
 		), With<PersonSprite>>,
@@ -118,11 +125,11 @@ impl PersonSprite {
 	) {
 		for (entity,  pallet, person, mut bounce) in query.iter_mut() {
 			if person.in_danger && bounce.timer.just_finished() {
-				TransientAudioPallet::play_transient_audio(
+				TransientAudioPallet::<EmotionSounds>::play_transient_audio(
 					entity,
 					&mut commands,
 					pallet,
-					"exclamation".to_string(),
+					EmotionSounds::Exclaim,
 					dilation.0,
 					&mut audio_query
 				);

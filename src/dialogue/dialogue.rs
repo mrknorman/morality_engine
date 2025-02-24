@@ -11,18 +11,14 @@ use bevy::{
     text::TextBounds, 
     audio::Volume
 };
-use enum_map::{Enum, enum_map};
+use enum_map::{enum_map, Enum};
 use serde::{Serialize, Deserialize};
 
 use crate::{
     audio::{
-        continuous_audio, 
-        ContinuousAudioPallet, 
-        DilatableAudio, 
-        TransientAudio, 
-        TransientAudioPallet
+        continuous_audio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet
     }, 
-    character::Character, 
+    character::{Character, CharacterKey}, 
     colors::PRIMARY_COLOR, 
     common_ui::NextButton, 
     game_states::{
@@ -120,6 +116,15 @@ pub struct Dialogue {
     pub num_spans: usize
 }
 
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DialogueSounds {
+    Hum,
+    Office,
+    Music,
+    Click
+}
+
 impl Dialogue {
     pub fn new(lines: Vec<DialogueLine>) -> Self {
         Dialogue {
@@ -164,22 +169,23 @@ impl Dialogue {
         dialogue_path: impl Into<PathBuf>,
         asset_server: &Res<AssetServer>,
         user_map: &HashMap<String, Character>
-    ) -> (ContinuousAudioPallet, Dialogue) {
+    ) -> (ContinuousAudioPallet<CharacterKey>, Dialogue) {
         let dialogue = Dialogue::load(dialogue_path.into(), user_map);
 
-        let character_audio: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)> = dialogue.lines.iter()
-            .map(|line| (
-                line.character.name.clone(),
-                AudioPlayer::<AudioSource>(asset_server.load(
+        let character_audio: Vec<ContinuousAudio<CharacterKey>> = dialogue.lines.iter()
+            .map(|line| 
+            ContinuousAudio{   
+                key : CharacterKey::Creator,
+                source : AudioPlayer::<AudioSource>(asset_server.load(
                     line.character.audio_source_file_path.clone()
                 )),
-                PlaybackSettings{
+                settings : PlaybackSettings{
                     paused : true,
-                    volume : Volume::new(0.3),
+                    volume : Volume::new(0.5),
                     ..continuous_audio()
                 },
-                Some(DilatableAudio)
-            ))
+                dilatable : true
+            })
             .collect();
 
         (
@@ -217,7 +223,7 @@ impl Dialogue {
 
 	pub fn play(
         mut commands: Commands,
-		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
 		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
 	) {
@@ -258,20 +264,16 @@ impl Dialogue {
                         TimerMode::Repeating
                     );
 				} else if dialogue.playing {
-					if let Some(&audio_entity) = audio_pallet.entities.get(&line.character.name) {
-						if let Ok(audio_sink) = audio_query.get(audio_entity) {
-							audio_sink.play();
-						}
-					} else {
-						error!("Audio entity not found for {}", &line.character.name);
-					}
+                    if let Ok(audio_sink) = audio_query.get(audio_pallet.entities[line.character.key]) {
+                        audio_sink.play();
+                    }
 				}
 			}
 		}
 	}
 
 	pub fn skip_controls(
-		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
+		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
         mut writer: Text2dWriter,
 		keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -300,14 +302,9 @@ impl Dialogue {
 					dilation.0 = 4.0;
 				} else {
 
-                    if let Some(&audio_entity) = audio_pallet.entities.get(
-                        &line.character.name
-                    ) {
-                        if let Ok(audio_sink) = audio_query.get(audio_entity) {
-                            audio_sink.pause();
-                        }
+                    if let Ok(audio_sink) = audio_query.get(audio_pallet.entities[line.character.key]) {
+                        audio_sink.pause();
                     }
-
                     if let Some(mut text) = writer.get_text(entity, dialogue.num_spans - 1) {
                         (*text).clone_from(&line.raw_text);
 
@@ -321,7 +318,7 @@ impl Dialogue {
 
 	pub fn advance_dialogue(
         mut commands: Commands,
-        mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet), With<Text2d>>,
+        mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
         asset_server: Res<AssetServer>,
@@ -346,7 +343,7 @@ impl Dialogue {
                     dialogue.current_char_index += 1;
                 }
                 None => {
-                    Self::stop_audio_if_playing(&audio_pallet, &audio_query, &line.character.name);
+                    Self::stop_audio_if_playing(&audio_pallet, &audio_query, line.character.key);
                     if let Some(mut text) = writer.get_text(entity, span_index) {
                         (*text).push('\n');
                     };
@@ -380,14 +377,12 @@ impl Dialogue {
     }
     
     fn stop_audio_if_playing(
-        audio_pallet: &ContinuousAudioPallet,
+        audio_pallet: &ContinuousAudioPallet<CharacterKey>,
         audio_query: &Query<&AudioSink>,
-        character_name: &str
+        character_key: CharacterKey
     ) {
-        if let Some(&audio_entity) = audio_pallet.entities.get(character_name) {
-            if let Ok(audio_sink) = audio_query.get(audio_entity) {
-                audio_sink.pause();
-            }
+        if let Ok(audio_sink) = audio_query.get(audio_pallet.entities[character_key]) {
+            audio_sink.pause();
         }
     }
     
@@ -395,7 +390,7 @@ impl Dialogue {
         commands: &mut Commands,
         dialogue_entity: Entity,  // Add parent entity parameter
         asset_server: &Res<AssetServer>,
-        next_action: InputAction,
+        next_action: InputAction<DialogueSounds>,
         instruction: &str
     ) {
 
@@ -407,10 +402,10 @@ impl Dialogue {
                     vec![KeyCode::Enter],
                     format!("[{}]", instruction),
                 ),
-                ActionPallet::<DialogueActions>(
+                ActionPallet::<DialogueActions, DialogueSounds>(
                     enum_map!(
                         DialogueActions::AdvanceDialogue => vec![
-                            InputAction::PlaySound("click".to_string()),
+                            InputAction::PlaySound(DialogueSounds::Click),
                             next_action.clone(),
                             InputAction::Despawn
                          ]
@@ -418,7 +413,7 @@ impl Dialogue {
                 ),
                 TransientAudioPallet::new(
                     vec![(
-                        "click".to_string(),
+                        DialogueSounds::Click,
                         vec![
                             TransientAudio::new(
                                 asset_server.load("sounds/mech_click.ogg"), 

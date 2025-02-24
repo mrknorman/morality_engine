@@ -13,16 +13,7 @@ use crate::{
 		AsciiPlugin, 
 		AsciiString
 	}, audio::{
-		continuous_audio, 
-		one_shot_audio, 
-		ContinuousAudioPallet, 
-		DilatableAudio,
-		MusicAudio, 
-		NarrationAudio, 
-		OneShotAudio, 
-		OneShotAudioPallet, 
-		TransientAudio, 
-		TransientAudioPallet
+		continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
 	}, background::{
 		Background, 
 		BackgroundPlugin, 
@@ -391,10 +382,10 @@ fn spawn_delayed_children(
 							vec![KeyCode::Enter],
 							"[ Click here or Press Enter to Test Your Morality ]",
 						),
-						ActionPallet::<DilemmaActions>(
+						ActionPallet::<DilemmaActions, DilemmaSounds>(
 							enum_map!(
 								DilemmaActions::StartDilemma => vec![
-									InputAction::PlaySound(String::from("click")),
+									InputAction::PlaySound(DilemmaSounds::Click),
 									InputAction::ChangeState(
 										StateVector::new(
 											Some(MainState::InGame),
@@ -408,7 +399,7 @@ fn spawn_delayed_children(
 						),
 						TransientAudioPallet::new(
 							vec![(
-								"click".to_string(),
+								DilemmaSounds::Click,
 								vec![
 									TransientAudio::new(
 										asset_server.load("sounds/mech_click.ogg"), 
@@ -508,6 +499,14 @@ pub enum LeverActions {
 	RightPull
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaSounds {
+	TrainAproaching,
+	Clock,
+	Click,
+	Lever
+}
+
 pub fn setup_decision(
 		mut commands : Commands,
 		asset_server: Res<AssetServer>,
@@ -530,28 +529,28 @@ pub fn setup_decision(
             parent.spawn(
                 ContinuousAudioPallet::new(
                     vec![
-                        (
-                            "train_aproaching".to_string(),
-                            AudioPlayer::<AudioSource>(asset_server.load(
-                                "./sounds/train_aproaching.ogg"
-                            )),
-                            PlaybackSettings{
-                                volume : Volume::new(1.0),
-                                ..continuous_audio()
-                            },
-							Some(DilatableAudio)
-                        ),
-                        (
-                            "office".to_string(),
-                            AudioPlayer::<AudioSource>(asset_server.load(
-                                "./sounds/clock.ogg"
-                            )),
-                            PlaybackSettings{
-                                volume : Volume::new(0.3),
-                                ..continuous_audio()
-                            }, 
-							Some(DilatableAudio)
-                        )
+						ContinuousAudio{
+							key : DilemmaSounds::TrainAproaching,
+							source : AudioPlayer::<AudioSource>(asset_server.load(
+								"./sounds/train_aproaching.ogg"
+							)),
+							settings : PlaybackSettings{
+								volume : Volume::new(1.0),
+								..continuous_audio()
+							},
+							dilatable : true 
+						},
+						ContinuousAudio{
+							key : DilemmaSounds::Clock,
+							source : AudioPlayer::<AudioSource>(asset_server.load(
+								"./sounds/clock.ogg"
+							)),
+							settings : PlaybackSettings{
+								volume : Volume::new(0.3),
+								..continuous_audio()
+							},
+							dilatable : true 
+						}
                     ]
                 )
             );
@@ -594,11 +593,11 @@ pub fn setup_decision(
 					enum_map!(
 						LeverActions::LeftPull => vec![
 							InputAction::ChangeLeverState(LeverState::Left),
-							InputAction::PlaySound("lever".to_string()),
+							InputAction::PlaySound(DilemmaSounds::Lever),
 						],
 						LeverActions::RightPull => vec![
 							InputAction::ChangeLeverState(LeverState::Right),
-							InputAction::PlaySound("lever".to_string()),
+							InputAction::PlaySound(DilemmaSounds::Lever),
 						]
 					)
 				),
@@ -615,7 +614,7 @@ pub fn setup_decision(
 				},
 				TransientAudioPallet::new(
 					vec![(
-						"lever".to_string(),
+						DilemmaSounds::Lever,
 						vec![
 							TransientAudio::new(
 								asset_server.load("sounds/switch.ogg"), 

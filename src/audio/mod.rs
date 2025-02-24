@@ -133,102 +133,89 @@ impl TransientAudio {
     }
 }
 
-#[derive(Component)]
-pub struct ContinuousAudioPallet2<T> where
-T: Enum + EnumArray<Vec<Entity>> + Send + Sync,
-<T as EnumArray<Vec<Entity>>>::Array: Send + Sync
+#[derive(Clone)]
+pub struct ContinuousAudio<T> where
+T: Enum + EnumArray<Entity> + Send + Sync + Clone,
+<T as EnumArray<Entity>>::Array: Send + Sync + Clone {
+    pub key : T,
+    pub source : AudioPlayer::<AudioSource>,
+    pub settings : PlaybackSettings,
+    pub dilatable : bool
+}
+
+pub struct ContinuousAudioPallet<T> where
+T: Enum + EnumArray<Entity> + Send + Sync + Clone,
+<T as EnumArray<Entity>>::Array: Send + Sync + Clone
+{  
+    pub entities : EnumMap::<T, Entity>,
+    pub components: Vec<ContinuousAudio<T>>
+}
+
+impl<T> ContinuousAudioPallet<T> where
+T: Enum + EnumArray<Entity> + Send + Sync + Clone,
+<T as EnumArray<Entity>>::Array: Send + Sync + Clone
 {
-    pub entities : EnumMap<T, Vec<Entity>>,
-    pub components: Vec<(T, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)>
-}
-
-pub struct ContinuousAudioPallet {
-    pub entities: HashMap<String, Entity>,
-    pub components: Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)>
-}
-
-impl ContinuousAudioPallet {
     pub fn new(
-        components : Vec<(String, AudioPlayer::<AudioSource>, PlaybackSettings, Option<DilatableAudio>)>
-    ) -> ContinuousAudioPallet {
-        ContinuousAudioPallet {
-            entities : HashMap::new(),
+        components : Vec<ContinuousAudio<T>>
+    ) -> ContinuousAudioPallet<T> {
+        ContinuousAudioPallet::<T> {
+            entities : enum_map::enum_map! { _ => Entity::PLACEHOLDER },
             components
         }
     }
 }
 
-impl Component for ContinuousAudioPallet {
+impl<T> Component for ContinuousAudioPallet<T> where
+T: Enum + EnumArray<Entity> + Send + Sync + Clone + 'static,
+<T as EnumArray<Entity>>::Array: Send + Sync + Clone
+{
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
-        hooks.on_insert(|
-            mut world, 
-            entity, 
-            _component_id| {
+        hooks.on_insert(|mut world, entity, _component_id| {
+            // Extract components from the pallet.
+            let components = {
+                world.entity_mut(entity)
+                    .get_mut::<ContinuousAudioPallet<T>>()
+                    .map(|pallet| pallet.components.clone())
+            };
         
-                // Step 1: Extract components from the pallet
-                let components = {
-                    let mut entity_mut = world.entity_mut(
-                        entity
-                    );
-                    entity_mut.get_mut::<ContinuousAudioPallet>()
-                        .map(
-                            |pallet| 
-                            pallet.components.clone()
-                        )
-                };
+            let dilation = world.get_resource::<Dilation>().map(|d| d.0);
+            let mut entities = enum_map::enum_map! { _ => Entity::PLACEHOLDER };
         
-                // Step 2: Spawn child entities and collect their IDs
-                let dilation = world.get_resource::<Dilation>().map(|d| d.0);
-                let mut commands = world.commands();
-                let mut entities = HashMap::new();
-                
-                if let Some(components) = components {
-                    commands.entity(entity).with_children(|parent| {
-                        for (
-                            name, audio_component, playback_settings, dilatable
-                        ) in components.iter() {
-
-                            let mut playback_settings = playback_settings.clone();
-                            if dilatable.is_some() {
-                                if let Some(dilation) = dilation {
-                                    playback_settings.speed = dilation;
-                                }
+            // Spawn child entities if components exist.
+            if let Some(components) = components {
+                world.commands().entity(entity).with_children(|parent| {
+                    for component in components.iter() {
+                        let mut playback_settings = component.settings.clone();
+                        if component.dilatable {
+                            if let Some(d) = dilation {
+                                playback_settings.speed = d;
                             }
-                            
-                            let mut entity_commands = parent.spawn((
-                                audio_component.clone(),
-                                playback_settings
-                            ));
-
-                            if dilatable.is_some() {
-                                entity_commands.insert(DilatableAudio);
-                            }
-
-                            let child_entity = entity_commands.id();
-
-                            entities.insert(name.clone(), child_entity);
                         }
-                    });
-                }
         
-                // Step 3: Update the pallet with the new entity map
-                if let Some(
-                    mut pallet
-                ) = world.entity_mut(entity).get_mut::<ContinuousAudioPallet>() {
-                    pallet.entities = entities;
-                }
+                        let mut child = parent.spawn((component.source.clone(), playback_settings));
+                        if component.dilatable {
+                            child.insert(DilatableAudio);
+                        }
+                        entities[component.key.clone()] = child.id();
+                    }
+                });
             }
-        );
+        
+            // Update the pallet with the new entity map.
+            if let Some(mut pallet) = world.entity_mut(entity).get_mut::<ContinuousAudioPallet<T>>() {
+                pallet.entities = entities;
+            }
+        });
         hooks.on_remove(
             |mut world, entity, _component_id| {
                 // Step 1: Extract the entity map from the pallet
                 let entities = {
                     let mut entity_mut = world.entity_mut(entity);
-                    entity_mut.get_mut::<ContinuousAudioPallet>()
+                    entity_mut.get_mut::<ContinuousAudioPallet<T>>()
                         .map(|pallet| pallet.entities.clone())
                 };
         
@@ -247,16 +234,25 @@ impl Component for ContinuousAudioPallet {
     }
 }
 
-pub struct TransientAudioPallet {
-    pub entities: HashMap<String, Vec<Entity>>,
-    pub components: Vec<(String, Vec<TransientAudio>, Option<DilatableAudio>)>
+
+pub struct TransientAudioPallet<T> where
+T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
+<T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
+{  
+    pub entities : EnumMap::<T, Vec<Entity>>,
+    pub components: Vec<(T, Vec<TransientAudio>, Option<DilatableAudio>)>
 }
 
-impl TransientAudioPallet {
-    pub fn new(components: Vec<(String, Vec<TransientAudio>, Option<DilatableAudio>)>) -> Self {
-        Self {
-            entities: HashMap::new(),
-            components,
+impl<T> TransientAudioPallet<T> where
+T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
+<T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
+{
+    pub fn new(
+        components : Vec<(T, Vec<TransientAudio>, Option<DilatableAudio>)>
+    ) -> Self {
+        TransientAudioPallet::<T> {
+            entities : enum_map::enum_map! { _ => vec![]},
+            components
         }
     }
 
@@ -298,16 +294,13 @@ impl TransientAudioPallet {
     pub fn play_transient_audio(
         entity: Entity,
         commands: &mut Commands,
-        pallet: &TransientAudioPallet,
-        key: String,
+        pallet: &TransientAudioPallet<T>,
+        key: T,
         dilation: f32,
         audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     ) {
-        let Some(audio_entity) = pallet.entities.get(&key) else {
-            return;
-        };
 
-        let Some(random_sound) = audio_entity.choose(&mut thread_rng()).cloned() else {
+        let Some(random_sound) = pallet.entities[key].choose(&mut thread_rng()).cloned() else {
             return;
         };
 
@@ -323,7 +316,10 @@ impl TransientAudioPallet {
     }
 }
 
-impl Component for TransientAudioPallet {
+impl<T> Component for TransientAudioPallet<T> where
+T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+<T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
+{
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
     fn register_component_hooks(
@@ -335,17 +331,17 @@ impl Component for TransientAudioPallet {
                 // Step 1: Extract components from the pallet
                 let components = {
                     let mut entity_mut = world.entity_mut(entity);
-                    entity_mut.get_mut::<TransientAudioPallet>()
+                    entity_mut.get_mut::<TransientAudioPallet<T>>()
                         .map(|pallet| pallet.components.clone())
                 };
         
                 // Step 2: Spawn child entities and collect their IDs
                 let mut commands = world.commands();
-                let mut entities = HashMap::new();
+                let mut entities = enum_map::enum_map! { _ => vec![] };
                 
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-                        for (name, audio_components, dilatable) in components.iter() {
+                        for (key, audio_components, dilatable) in components.iter() {
                             let mut child_vector = vec![];
                             for component in audio_components.iter() {
 
@@ -363,13 +359,13 @@ impl Component for TransientAudioPallet {
                                 }
       
                             }
-                            entities.insert(name.clone(), child_vector);
+                            entities[key.clone()] = child_vector;
                         }
                     });
                 }
         
                 // Step 3: Update the pallet with the new entity map
-                if let Some(mut pallet) = world.entity_mut(entity).get_mut::<TransientAudioPallet>() {
+                if let Some(mut pallet) = world.entity_mut(entity).get_mut::<TransientAudioPallet<T>>() {
                     pallet.entities = entities;
                 }
             }
@@ -379,7 +375,7 @@ impl Component for TransientAudioPallet {
                 // Step 1: Extract the entity map from the pallet
                 let entities = {
                     let mut entity_mut = world.entity_mut(entity);
-                    entity_mut.get_mut::<TransientAudioPallet>()
+                    entity_mut.get_mut::<TransientAudioPallet<T>>()
                         .map(|pallet| pallet.entities.clone())
                 };
                 

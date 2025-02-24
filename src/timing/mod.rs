@@ -6,6 +6,7 @@ use bevy::{
     prelude::*, 
     time::Timer
 };
+use enum_map::{Enum, EnumArray, EnumMap};
 
 use crate::audio::NarrationAudioFinished;
 
@@ -132,6 +133,14 @@ impl TimerConfig {
 pub struct TimerPallet{
 	pub timers : HashMap<String, ConditionalTimer>
 }
+
+#[derive(Component)]
+pub struct TimerPallet2<K>(
+    pub EnumMap<K, ConditionalTimer>
+)
+where
+    K: Enum + EnumArray<ConditionalTimer> + Send + Sync + Clone + 'static,
+    <K as EnumArray<ConditionalTimer>>::Array: Clone + Send + Sync;
 
 impl TimerPallet {
 	pub fn new(

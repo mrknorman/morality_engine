@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 use crate::{
 	audio::{
-		continuous_audio, AudioPlugin, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet
+		continuous_audio, AudioPlugin, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet
 	}, colors::ColorAnchor, interaction::{
 		ActionPallet, Clickable, InputAction, InteractionPlugin
 	}, motion::Wobble, physics::Velocity, text::{
@@ -125,13 +125,19 @@ pub struct Train {
 	pub horn_audio : Option<TransientAudio>
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrainSounds {
+	Tracks,
+	Horn
+}
+
 impl Train {
 
 	pub fn init(
 		asset_server: &Res<AssetServer>,
 		train_file_path : &str,
 		speed : f32
-	) -> (Train, Velocity, ContinuousAudioPallet) {
+	) -> (Train, Velocity, ContinuousAudioPallet<TrainSounds>) {
 
 		let train_type = TrainType::load_from_json(
 			train_file_path.to_string()
@@ -141,17 +147,19 @@ impl Train {
 			Train::new(asset_server, train_file_path), 
 			Velocity(Vec3::new(speed, 0.0, 0.0)),
 			ContinuousAudioPallet::new(
-				vec![(
-					"tracks".to_string(),
-					AudioPlayer::<AudioSource>(asset_server.load(
-						train_type.track_audio_path
-					)),
-					PlaybackSettings{
-						volume : Volume::new(0.1),
-						..continuous_audio()
-					},
-					Some(DilatableAudio)
-				)]
+				vec![
+					ContinuousAudio{
+						key : TrainSounds::Tracks,
+						source : AudioPlayer::<AudioSource>(asset_server.load(
+							train_type.track_audio_path
+						)),
+						settings : PlaybackSettings{
+							volume : Volume::new(0.1),
+							..continuous_audio()
+						},
+						dilatable : true
+					}
+				]
 			)
 		)
 	}
@@ -262,18 +270,18 @@ impl Component for Train {
 									TrainActions::TriggerHorn 
 								]
 							),
-							ActionPallet::<TrainActions>(
+							ActionPallet::<TrainActions, TrainSounds>(
 								enum_map!(
 									TrainActions::TriggerHorn => vec![
 										InputAction::PlaySound(
-											"horn".to_string()
+											TrainSounds::Horn
 										)
 									]
 								 )
 							),
 							TransientAudioPallet::new(
 								vec![(
-									"horn".to_string(),
+									TrainSounds::Horn,
 									vec![horn_audio],
 									Some(DilatableAudio)
 								)]

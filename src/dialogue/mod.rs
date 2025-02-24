@@ -6,17 +6,17 @@ use bevy::{
     audio::Volume,
     prelude::*
 };
+use enum_map::Enum;
 
 use crate::{
     audio:: {
-        continuous_audio, ContinuousAudioPallet, DilatableAudio
-    }, character::Character, game_states::GameState, graph::Graph, interaction::InteractionPlugin, io::IOPlugin
+        continuous_audio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio
+    }, character::{Character, CharacterKey}, game_states::GameState, graph::Graph, interaction::InteractionPlugin, io::IOPlugin
 };
 
 pub mod dialogue;
 use dialogue::{
-    DialoguePlugin,
-    Dialogue
+    Dialogue, DialoguePlugin, DialogueSounds
 };
 pub struct DialogueScreenPlugin;
 impl Plugin for DialogueScreenPlugin {
@@ -39,6 +39,7 @@ impl Plugin for DialogueScreenPlugin {
         }
     }
 }
+
 pub fn setup_dialogue(
         mut commands: Commands, 
         asset_server : Res<AssetServer>
@@ -50,7 +51,8 @@ pub fn setup_dialogue(
             Character::new(
                 "creator", 
                 "sounds/typing.ogg",
-                Color::srgba(0.4039 * 3.0, 0.9490 * 3.0, 0.8196 * 3.0, 1.0)
+                Color::srgba(0.4039 * 3.0, 0.9490 * 3.0, 0.8196 * 3.0, 1.0),
+                CharacterKey::Creator
             )
         )
     ]);
@@ -62,39 +64,39 @@ pub fn setup_dialogue(
             Visibility::default(),
             ContinuousAudioPallet::new(
                 vec![
-                    (
-                        "hum".to_string(),
-                        AudioPlayer::<AudioSource>(asset_server.load(
+                    ContinuousAudio{
+                        key : DialogueSounds::Hum,
+                        source : AudioPlayer::<AudioSource>(asset_server.load(
                             "./sounds/hum.ogg"
                         )),
-                        PlaybackSettings{
+                        settings : PlaybackSettings{
                             volume : Volume::new(0.1),
                             ..continuous_audio()
                         },
-                        None
-                    ),
-                    (
-                        "office".to_string(),
-                        AudioPlayer::<AudioSource>(asset_server.load(
+                        dilatable : false
+                    },
+                    ContinuousAudio{
+                        key : DialogueSounds::Office,
+                        source : AudioPlayer::<AudioSource>(asset_server.load(
                             "./sounds/office.ogg"
                         )),
-                        PlaybackSettings{
+                        settings : PlaybackSettings{
                             volume : Volume::new(0.5),
                             ..continuous_audio()
                         },
-                        Some(DilatableAudio)
-                    ),
-                    (
-                        "music".to_string(),
-                        AudioPlayer::<AudioSource>(asset_server.load(
+                        dilatable : true
+                    },
+                    ContinuousAudio{
+                        key : DialogueSounds::Music,
+                        source : AudioPlayer::<AudioSource>(asset_server.load(
                             "./music/trolley_wires.ogg"
                         )),
-                        PlaybackSettings{
+                        settings : PlaybackSettings{
                             volume : Volume::new(0.3),
                             ..continuous_audio()
                         },
-                        None
-                    )
+                        dilatable : false
+                    }
                 ]
             )
         )
