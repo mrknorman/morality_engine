@@ -51,17 +51,6 @@ use crate::{
     }
 };
 
-#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MenuActions {
-    EnterGame
-}
-
-impl std::fmt::Display for MenuActions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
@@ -94,28 +83,39 @@ pub enum MenuSounds {
     Click
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuActions {
+    EnterGame
+}
+
+impl std::fmt::Display for MenuActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Component)]
 #[require(Transform, Visibility)]
 struct MenuScene;
 
 impl MenuScene {
 
+    const MENU_TRANSLATION : Vec3 = Vec3::new(0.0, 0.0, 0.0);
+    const TITLE_TRANSLATION : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
+    const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 1.0);
+    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
+    const SIGNATURE_TRANSLATION : Vec3 = Vec3::new(0.0, -100.0, 1.0);
+
     fn setup(
         mut commands: Commands, 
         asset_server: Res<AssetServer>
     ) {
-        let menu_translation : Vec3 = Vec3::new(0.0, 0.0, 0.0);
-        let title_translation : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
-        let train_translation: Vec3 = Vec3::new(110.0, -35.0, 1.0);
-        let track_displacement: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
-        let track_translation: Vec3 = train_translation + track_displacement;
-        let signature_translation : Vec3 = Vec3::new(0.0, -100.0, 1.0);
-        
+         
         commands.spawn(
             (
                 MenuScene,
                 StateScoped(MainState::Menu),
-                Transform::from_translation(menu_translation),
+                Transform::from_translation(Self::MENU_TRANSLATION),
             )
         ).with_children(
             |parent| {
@@ -166,7 +166,7 @@ impl MenuScene {
                 parent.spawn((
                     Track::new(600),
                     TextColor(DIM_BACKGROUND_COLOR),
-                    Transform::from_translation(track_translation)
+                    Transform::from_translation(Self::TRAIN_TRANSLATION + Self::TRACK_DISPLACEMENT)
                 ));
 
                 parent.spawn((
@@ -186,7 +186,7 @@ impl MenuScene {
                             "THE TROLLEY\n  ALGORITHM".to_string()
                         ),
                         TextColor(MENU_COLOR),
-                        Transform::from_translation(title_translation)
+                        Transform::from_translation(Self::TITLE_TRANSLATION)
                     )
                 );
 
@@ -197,7 +197,7 @@ impl MenuScene {
                             STEAM_TRAIN,
                             0.0
                         ),
-                        Transform::from_translation(train_translation),
+                        Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),
                     )  
                 );
@@ -209,7 +209,7 @@ impl MenuScene {
                         Text2d::new(
                             "A game by Michael Norman"
                         ),
-                        Transform::from_translation(signature_translation)
+                        Transform::from_translation(Self::SIGNATURE_TRANSLATION)
                     )
                 );
 
