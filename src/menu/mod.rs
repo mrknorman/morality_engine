@@ -245,10 +245,10 @@ fn setup_menu(
                                     ), 
                                     0.1, 
                                     true,
-                                    1.0
+                                    1.0,
+                                    true
                                 )
-                            ],
-                            Some(DilatableAudio)
+                            ]
                         )]
                     ),
                 )

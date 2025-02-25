@@ -79,7 +79,8 @@ pub struct TransientAudio {
     source: Handle<AudioSource>,
     cooldown_timer: Timer,
     persistent : bool,
-    volume: f32
+    volume: f32,
+    dilatable : bool
 }
 
 impl TransientAudio {
@@ -88,6 +89,7 @@ impl TransientAudio {
         cooldown_time_seconds: f32,
         persistent : bool,
         volume: f32,
+        dilatable : bool
     ) -> TransientAudio {
 
         let mut cooldown_timer = Timer::from_seconds(
@@ -103,7 +105,8 @@ impl TransientAudio {
             source: source,
             cooldown_timer,
             persistent,
-            volume
+            volume,
+            dilatable
         }
     }
 
@@ -237,7 +240,7 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
 <T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
 {  
     pub entities : EnumMap::<T, Vec<Entity>>,
-    pub components: Vec<(T, Vec<TransientAudio>, Option<DilatableAudio>)>
+    pub components: Vec<(T, Vec<TransientAudio>)>
 }
 
 impl<T> TransientAudioPallet<T> where
@@ -245,7 +248,7 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
 <T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
 {
     pub fn new(
-        components : Vec<(T, Vec<TransientAudio>, Option<DilatableAudio>)>
+        components : Vec<(T, Vec<TransientAudio>)>
     ) -> Self {
         TransientAudioPallet::<T> {
             entities : enum_map::enum_map! { _ => vec![]},
@@ -288,6 +291,7 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
 
         transient_audio.cooldown_timer.reset();
     }
+
     pub fn play_transient_audio(
         entity: Entity,
         commands: &mut Commands,
@@ -338,11 +342,10 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
                 
                 if let Some(components) = components {
                     commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
-                        for (key, audio_components, dilatable) in components.iter() {
+                        for (key, audio_components) in components.iter() {
                             let mut child_vector = vec![];
                             for component in audio_components.iter() {
-
-                                if dilatable.is_some() {
+                                if component.dilatable {
                                     child_vector.push(
                                         parent.spawn((
                                             component.clone(),
@@ -395,7 +398,8 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
 pub struct OneShotAudio {
     pub source: Handle<AudioSource>,
     pub persistent : bool,
-    pub volume: f32
+    pub volume: f32,
+    pub dilatable : bool
 }
 
 pub fn one_shot_audio() -> PlaybackSettings {
@@ -407,12 +411,12 @@ pub fn one_shot_audio() -> PlaybackSettings {
 }
 
 pub struct OneShotAudioPallet {
-    pub components: Vec<(OneShotAudio, Option<DilatableAudio>)>
+    pub components: Vec<OneShotAudio>
 }
 
 impl OneShotAudioPallet {
     pub fn new(
-        components : Vec<(OneShotAudio, Option<DilatableAudio>)>
+        components : Vec<OneShotAudio>
     ) -> Self {
         Self {
             components
@@ -440,7 +444,7 @@ impl Component for OneShotAudioPallet {
                 let mut commands = world.commands();
                 if let Some(components) = components {
                     
-                    for (audio_component, dilatable) in components.iter() {
+                    for audio_component in components.iter() {
 
                         if !audio_component.persistent {
                             commands.entity(entity).with_children(
@@ -452,12 +456,12 @@ impl Component for OneShotAudioPallet {
                                             paused: false,
                                             mode: PlaybackMode::Despawn,
                                             volume: Volume::new(audio_component.volume),
-                                            speed: dilation.filter(|_| dilatable.is_some()).unwrap_or(1.0),
+                                            speed: dilation.filter(|_| audio_component.dilatable).unwrap_or(1.0),
                                             ..default()
                                         }
                                     ));
                                     
-                                    if dilatable.is_some() {
+                                    if audio_component.dilatable {
                                         entity_commands.insert(DilatableAudio);
                                     } 
                                 }

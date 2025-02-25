@@ -167,14 +167,14 @@ pub fn setup_loading(
         ),
         OneShotAudioPallet::new(
             vec![
-                (OneShotAudio{
+                OneShotAudio{
                     source: asset_server.load(
                             "./sounds/startup_beep.ogg"
                         ),
                     persistent : true,
-                    volume : 1.0
+                    volume : 1.0,
+                    dilatable : false
                 },
-                None)
             ]
         ),
     )).with_children(
@@ -272,10 +272,10 @@ pub fn spawn_delayed_children(
                                         ), 
                                         0.1, 
                                         true,
-                                        1.0
+                                        1.0,
+                                        true
                                     )
-                                ],
-                                Some(DilatableAudio)
+                                ]
                             )]
                         )
                     ));

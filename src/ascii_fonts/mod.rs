@@ -6,9 +6,10 @@ use bevy::{
     },
     prelude::*
 };
+use enum_map::{Enum, enum_map};
 
 use crate::{
-    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, OPTION_1_COLOR, OPTION_2_COLOR}, motion::Bounce, text::{
+    audio::{TransientAudio, TransientAudioPallet}, colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, OPTION_1_COLOR, OPTION_2_COLOR}, interaction::{ActionPallet, Clickable, InputAction}, motion::Bounce, text::{
        get_text_height, get_text_width, TextTitle
     }
 };
@@ -52,6 +53,16 @@ fn activate_systems(
     });
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AsciiActions {
+    BounceOnClick
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AsciiSounds{
+    Bounce
+}
+
 impl Component for AsciiString {
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
@@ -72,6 +83,10 @@ impl Component for AsciiString {
                         .map(|text: &TextColor| text.clone())
                 };
 
+                let asset_server = world.get_resource::<AssetServer>().unwrap();
+
+                let beep = asset_server.load("sounds/beep.ogg");
+
                 let mut commands = world.commands();
 
                 if let Some(text) = text {
@@ -84,14 +99,38 @@ impl Component for AsciiString {
                         for ascii_char in word_vector {
                             let char_width = get_text_width(&ascii_char);
 
+
                             commands.entity(entity).with_children(|parent| {
                                 let mut entity = parent.spawn((
                                     AsciiChar,
                                     Bounce::default(),
+                                    Clickable::new(vec!(AsciiActions::BounceOnClick)),
+                                    ActionPallet::<AsciiActions, AsciiSounds>(
+                                        enum_map!(
+                                            AsciiActions::BounceOnClick => vec![
+                                                InputAction::Bounce,
+                                                InputAction::PlaySound(AsciiSounds::Bounce)
+                                            ]
+                                        )
+                                    ),
                                     ColorChangeOn::new(vec![ColorChangeEvent::Bounce(vec![OPTION_1_COLOR, OPTION_2_COLOR])]),
                                     ColorAnchor::default(),
                                     Text2d::new(ascii_char),
                                     Transform::from_translation(translation),
+                                    TransientAudioPallet::new(
+                                        vec![(
+                                            AsciiSounds::Bounce,
+                                            vec![
+                                                TransientAudio::new(
+                                                    beep.clone(), 
+                                                    0.1, 
+                                                    true,
+                                                    1.0,
+                                                    true
+                                                )
+                                            ]
+                                        )]
+                                    )
                                 ));
                                 
                                 if let Some(color) = color {
