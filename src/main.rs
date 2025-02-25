@@ -118,7 +118,7 @@ fn setup(
         Bloom::default(), // 3. Enable bloom for the camera
     ));
 
-    commands.insert_resource(GlobalRng(Pcg64Mcg::seed_from_u64(12345))); //??
+    commands.insert_resource(GlobalRng(Pcg64Mcg::seed_from_u64(12345)));
 }
 
 //

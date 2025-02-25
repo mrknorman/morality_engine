@@ -277,9 +277,10 @@ impl Dialogue {
 		audio_query: Query<&AudioSink>,
         mut writer: Text2dWriter,
 		keyboard_input: Res<ButtonInput<KeyCode>>,
+        mouse_input : Res<ButtonInput<MouseButton>>,
         mut dilation : ResMut<Dilation>
 	) {
-		if !keyboard_input.just_pressed(KeyCode::Enter) {
+		if !keyboard_input.just_pressed(KeyCode::Enter) && !mouse_input.just_pressed(MouseButton::Left)  {
 			return;
 		}
 	

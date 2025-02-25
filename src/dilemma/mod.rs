@@ -7,13 +7,26 @@ use bevy::{
 	audio::Volume,
 	sprite::Anchor
 };
-use enum_map::{Enum, enum_map};
+use enum_map::{
+	Enum, 
+	enum_map
+};
 use crate::{
 	ascii_fonts::{
 		AsciiPlugin, 
 		AsciiString
 	}, audio::{
-		continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
+		continuous_audio, 
+		one_shot_audio, 
+		ContinuousAudio, 
+		ContinuousAudioPallet, 
+		DilatableAudio, 
+		MusicAudio, 
+		NarrationAudio, 
+		OneShotAudio, 
+		OneShotAudioPallet, 
+		TransientAudio, 
+		TransientAudioPallet
 	}, background::{
 		Background, 
 		BackgroundPlugin, 
@@ -42,8 +55,15 @@ use crate::{
 	}, 
 	inheritance::BequeathTextColor, 
 	interaction::{
-		ActionPallet, Clickable, ClickablePong, InputAction, InteractionPlugin, InteractionState, KeyMapping, Pressable
-	}, io::IOPlugin, motion::{
+		ActionPallet, 
+		ClickablePong, 
+		InputAction, 
+		InteractionPlugin, 
+		KeyMapping, 
+		Pressable
+	}, 
+	io::IOPlugin, 
+	motion::{
 		Bounce, 
 		PointToPointTranslation,
 	}, 
@@ -172,6 +192,12 @@ pub enum DilemmaActions {
     StartDilemma
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaIntroEvents {
+    Narration,
+	Button
+}
+
 impl std::fmt::Display for DilemmaActions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
@@ -243,7 +269,7 @@ pub fn setup_dilemma(
 				TextColor(BACKGROUND_COLOR),
 				Background::load_from_json(
 					"text/backgrounds/desert.json",	
-					0.000002,
+					0.00002,
 					-0.5
 				),
 				BequeathTextColor,
@@ -317,7 +343,7 @@ pub fn setup_dilemma_intro(
 			TimerPallet::new(
 				vec![
 					(
-						"narration".to_string(),
+						DilemmaIntroEvents::Narration,
 						TimerConfig::new(
 							TimerStartCondition::Immediate, 
 							1.0,
@@ -325,7 +351,7 @@ pub fn setup_dilemma_intro(
 						)
 					),
 					(
-						"button".to_string(),
+						DilemmaIntroEvents::Button,
 						TimerConfig::new(
 							TimerStartCondition::Immediate, 
 							2.0,
@@ -340,19 +366,16 @@ pub fn setup_dilemma_intro(
 
 fn spawn_delayed_children(
     mut commands: Commands,
-    loading_query: Query<(Entity, &TimerPallet), With<DilemmaIntroRoot>>,
+    loading_query: Query<(Entity, &TimerPallet<DilemmaIntroEvents>), With<DilemmaIntroRoot>>,
     asset_server: Res<AssetServer>
 ) {
     for (entity, timers) in loading_query.iter() {
 
-		if let Some(narration_timer) = timers.timers.get(
-            "narration"
-        ) {
-            if narration_timer.just_finished() {
-				commands.entity(entity).with_children(
-                    |parent| {
-                    parent.spawn((
-                        NarrationAudio,
+        if timers.0[DilemmaIntroEvents::Narration].just_finished() {
+			commands.entity(entity).with_children(
+                |parent| {
+					parent.spawn((
+						NarrationAudio,
 						AudioPlayer::<AudioSource>(asset_server.load(
 							"sounds/dilemma_narration/lab_1.ogg",
 						)),
@@ -361,62 +384,53 @@ fn spawn_delayed_children(
 							volume : Volume::new(1.0),
 							..one_shot_audio()
 						}
-                    ));
-                });
-
-            }
-        } else {
-            warn!("Entity {:?} is missing the 'button' timer", entity);
+					));
+            });
         }
+
 
         // Handle narration timer
-        if let Some(button_timer) = timers.timers.get(
-            "button"
-        ) {
-            if button_timer.just_finished() {                
-				commands.entity(entity).with_children(|parent| {
-					parent.spawn((
-						NextButton,
-						TextButton::new(
-							vec![DilemmaActions::StartDilemma],
-							vec![KeyCode::Enter],
-							"[ Click here or Press Enter to Test Your Morality ]",
-						),
-						ActionPallet::<DilemmaActions, DilemmaSounds>(
-							enum_map!(
-								DilemmaActions::StartDilemma => vec![
-									InputAction::PlaySound(DilemmaSounds::Click),
-									InputAction::ChangeState(
-										StateVector::new(
-											Some(MainState::InGame),
-											Some(GameState::Dilemma),
-											Some(DilemmaPhase::IntroDecisionTransition),
-										)
-									),
-									InputAction::Despawn
-								 ]
-							 )
-						),
-						TransientAudioPallet::new(
-							vec![(
-								DilemmaSounds::Click,
-								vec![
-									TransientAudio::new(
-										asset_server.load("sounds/mech_click.ogg"), 
-										0.1, 
-										true,
-										1.0
+		if timers.0[DilemmaIntroEvents::Button].just_finished() {          
+			commands.entity(entity).with_children(|parent| {
+				parent.spawn((
+					NextButton,
+					TextButton::new(
+						vec![DilemmaActions::StartDilemma],
+						vec![KeyCode::Enter],
+						"[ Click here or Press Enter to Test Your Morality ]",
+					),
+					ActionPallet::<DilemmaActions, DilemmaSounds>(
+						enum_map!(
+							DilemmaActions::StartDilemma => vec![
+								InputAction::PlaySound(DilemmaSounds::Click),
+								InputAction::ChangeState(
+									StateVector::new(
+										Some(MainState::InGame),
+										Some(GameState::Dilemma),
+										Some(DilemmaPhase::IntroDecisionTransition),
 									)
-								],
-								Some(DilatableAudio)
-							)]
-						)
-					));
-				});
-            }
-        } else {
-            warn!("Entity {:?} is missing the 'button' timer", entity);
-        }
+								),
+								InputAction::Despawn
+								]
+							)
+					),
+					TransientAudioPallet::new(
+						vec![(
+							DilemmaSounds::Click,
+							vec![
+								TransientAudio::new(
+									asset_server.load("sounds/mech_click.ogg"), 
+									0.1, 
+									true,
+									1.0
+								)
+							],
+							Some(DilatableAudio)
+						)]
+					)
+				));
+			});
+		}
     }
 }
 
@@ -501,7 +515,7 @@ pub enum LeverActions {
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DilemmaSounds {
-	TrainAproaching,
+	TrainApproaching,
 	Clock,
 	Click,
 	Lever
@@ -530,9 +544,9 @@ pub fn setup_decision(
                 ContinuousAudioPallet::new(
                     vec![
 						ContinuousAudio{
-							key : DilemmaSounds::TrainAproaching,
+							key : DilemmaSounds::TrainApproaching,
 							source : AudioPlayer::<AudioSource>(asset_server.load(
-								"./sounds/train_aproaching.ogg"
+								"./sounds/train_approaching.ogg"
 							)),
 							settings : PlaybackSettings{
 								volume : Volume::new(1.0),
@@ -630,6 +644,11 @@ pub fn setup_decision(
 		});
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaConsequenceEvents {
+    SpeedUp,
+	Scream
+}
 
 #[derive(Component)]
 pub struct DilemmaConsequenceRoot;
@@ -649,7 +668,7 @@ pub fn setup_dilemma_consequence_animation(
 		TimerPallet::new(
 			vec![
 				(
-					"speedup".to_string(),
+					DilemmaConsequenceEvents::SpeedUp,
 					TimerConfig::new(
 						TimerStartCondition::Immediate, 
 						3.0,
@@ -657,7 +676,7 @@ pub fn setup_dilemma_consequence_animation(
 					)
 				),
 				(
-					"scream".to_string(),
+					DilemmaConsequenceEvents::Scream,
 					TimerConfig::new(
 						TimerStartCondition::Immediate, 
 						1.0,
@@ -695,71 +714,58 @@ pub fn setup_dilemma_consequence_animation(
 
 fn spawn_delayed_children_consequence(
     mut commands: Commands,
-    loading_query: Query<(Entity, &TimerPallet), With<DilemmaConsequenceRoot>>,
+    loading_query: Query<(Entity, &TimerPallet<DilemmaConsequenceEvents>), With<DilemmaConsequenceRoot>>,
     asset_server: Res<AssetServer>
 ) {
     for (entity, timers) in loading_query.iter() {
-		if let Some(timer) = timers.timers.get(
-            "scream"
-        ) {
-            if timer.just_finished() {
-				commands.entity(entity).with_children(
-                    |parent| {
-                    
-					parent.spawn(
-						OneShotAudioPallet::new(
-							vec![
-								(OneShotAudio {
-									source : asset_server.load(
-										PathBuf::from(
-											"./sounds/male_scream_long.ogg"
-										)
-									),
-									persistent : false,
-									volume :1.0
-								}, Some(DilatableAudio))
-							]
-						)
-					);
-                });
+		if timers.0[DilemmaConsequenceEvents::Scream].just_finished() {
+			commands.entity(entity).with_children(
+				|parent| {
+				
+				parent.spawn(
+					OneShotAudioPallet::new(
+						vec![
+							(OneShotAudio {
+								source : asset_server.load(
+									PathBuf::from(
+										"./sounds/male_scream_long.ogg"
+									)
+								),
+								persistent : false,
+								volume :1.0
+							}, Some(DilatableAudio))
+						]
+					)
+				);
+			});
+		}
 
-            }
-        } else {
-            warn!("Entity {:?} is missing the 'scream' timer", entity);
-        }
+		if timers.0[DilemmaConsequenceEvents::SpeedUp].just_finished() {
+			commands.entity(entity).with_children(
+				|parent| {
 
-		if let Some(timer) = timers.timers.get(
-            "speedup"
-        ) {
-            if timer.just_finished() {
-				commands.entity(entity).with_children(
-                    |parent| {
+				parent.spawn(
+					DilationTranslation::new(
+						1.0, 
+						Duration::from_secs_f32(1.057)
+					)
+				);
+				
+				parent.spawn(
+					OneShotAudioPallet::new(
+						vec![
+							(OneShotAudio {
+								source : asset_server.load(
+									PathBuf::from("./sounds/speedup.ogg")
+								),
+								persistent : false,
+								volume :1.0
+							}, None)
+						]
+					)
+				);
+			});
 
-					parent.spawn(
-						DilationTranslation::new(
-							1.0, 
-							Duration::from_secs_f32(1.057)
-						)
-					);
-                    
-					parent.spawn(
-						OneShotAudioPallet::new(
-							vec![
-								(OneShotAudio {
-									source : asset_server.load(
-										PathBuf::from("./sounds/speedup.ogg")
-									),
-									persistent : false,
-									volume :1.0
-								}, None)
-							]
-						)
-					);
-                });
-
-            }
-        } else {
-            warn!("Entity {:?} is missing the 'speedup' timer", entity);
-        }
+		}
     }
 }

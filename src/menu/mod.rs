@@ -12,7 +12,14 @@ use crate::{
         AsciiString
     }, 
     audio::{
-        continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet
+        continuous_audio, 
+        BackgroundAudio, 
+        ContinuousAudio, 
+        ContinuousAudioPallet, 
+        DilatableAudio, 
+        MusicAudio, 
+        TransientAudio, 
+        TransientAudioPallet
     }, 
     background::{
         Background, 
@@ -98,13 +105,7 @@ fn setup_menu(
     let track_displacement: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
     let track_translation: Vec3 = train_translation + track_displacement;
     let signature_translation : Vec3 = Vec3::new(0.0, -100.0, 1.0);
-
-    let next_state_vector = StateVector::new(
-        Some(MainState::InGame),
-        None,
-        None
-    );
-
+    
     commands.spawn(
         (
             StateScoped(MainState::Menu),
@@ -119,9 +120,11 @@ fn setup_menu(
                     vec![
                         ContinuousAudio{
                             key : MenuSounds::Static,
-                            source : AudioPlayer::<AudioSource>(asset_server.load(
-                                "./sounds/static.ogg"
-                            )), 
+                            source : AudioPlayer::<AudioSource>(
+                                asset_server.load(
+                                    "./sounds/static.ogg"
+                                )
+                            ), 
                             settings : PlaybackSettings{
                                 volume : Volume::new(0.1),
                                 ..continuous_audio()
@@ -130,9 +133,11 @@ fn setup_menu(
                         },
                         ContinuousAudio{
                             key : MenuSounds::Office,
-                            source : AudioPlayer::<AudioSource>(asset_server.load(
-                                "./sounds/office.ogg"
-                            )), 
+                            source : AudioPlayer::<AudioSource>(
+                                asset_server.load(
+                                    "./sounds/office.ogg"
+                                )
+                            ), 
                             settings : PlaybackSettings{
                                 volume : Volume::new(0.5),
                                 ..continuous_audio()
@@ -146,12 +151,13 @@ fn setup_menu(
             parent.spawn((         
                 Background::load_from_json(
                     "text/backgrounds/desert.json",	
-                    0.000001,
+                    0.00002,
                     -0.5
                 ),
                 TextColor(DIM_BACKGROUND_COLOR)
                 )
             );
+
             parent.spawn((
                 Track::new(600),
                 TextColor(DIM_BACKGROUND_COLOR),
@@ -171,7 +177,9 @@ fn setup_menu(
 
             parent.spawn(
                 (
-                    AsciiString("THE TROLLEY\n  ALGORITHM".to_string()),
+                    AsciiString(
+                        "THE TROLLEY\n  ALGORITHM".to_string()
+                    ),
                     TextColor(MENU_COLOR),
                     Transform::from_translation(title_translation)
                 )
@@ -193,10 +201,13 @@ fn setup_menu(
                 (
                     TextRaw,
                     TextColor(MENU_COLOR),
-                    Text2d::new("A game by Michael Norman"),
+                    Text2d::new(
+                        "A game by Michael Norman"
+                    ),
                     Transform::from_translation(signature_translation)
                 )
             );
+
             parent.spawn(
                 (
                     NextButton,
@@ -211,8 +222,16 @@ fn setup_menu(
                     ActionPallet::<MenuActions, MenuSounds>(
                         enum_map!(
                             MenuActions::EnterGame => vec![
-                                InputAction::PlaySound(MenuSounds::Click),
-                                InputAction::ChangeState(next_state_vector.clone())
+                                InputAction::PlaySound(
+                                    MenuSounds::Click
+                                ),
+                                InputAction::ChangeState(
+                                    StateVector::new(
+                                        Some(MainState::InGame),
+                                        None,
+                                        None
+                                    )
+                                )
                             ]
                         )
                     ),
@@ -221,7 +240,9 @@ fn setup_menu(
                             MenuSounds::Click,
                             vec![
                                 TransientAudio::new(
-                                    asset_server.load("sounds/mech_click.ogg"), 
+                                    asset_server.load(
+                                        "sounds/mech_click.ogg"
+                                    ), 
                                     0.1, 
                                     true,
                                     1.0
