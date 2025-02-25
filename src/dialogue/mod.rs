@@ -35,7 +35,7 @@ impl Plugin for DialogueScenePlugin {
             OnEnter(
                 GameState::Dialogue
             ), 
-            setup_dialogue
+            DialogueScene::setup
         );
 
         if !app.is_plugin_added::<InteractionPlugin>() {
@@ -50,88 +50,97 @@ impl Plugin for DialogueScenePlugin {
     }
 }
 
-pub fn setup_dialogue(
+
+#[derive(Component)]
+#[require(Transform, Visibility)]
+struct DialogueScene;
+
+
+impl DialogueScene {
+
+    pub fn setup(
         mut commands: Commands, 
         asset_server : Res<AssetServer>
     ) {
 
-    let character_map = HashMap::from([
-        (
-            String::from("creator"),  
-            Character::new(
-                "creator", 
-                "sounds/typing.ogg",
-                Color::srgba(0.4039 * 3.0, 0.9490 * 3.0, 0.8196 * 3.0, 1.0),
-                CharacterKey::Creator
-            )
-        )
-    ]);
-    
-    commands.spawn(
-        (
-            StateScoped(GameState::Dialogue),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-            Visibility::default(),
-            ContinuousAudioPallet::new(
-                vec![
-                    ContinuousAudio{
-                        key : DialogueSounds::Hum,
-                        source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./sounds/hum.ogg"
-                        )),
-                        settings : PlaybackSettings{
-                            volume : Volume::new(0.1),
-                            ..continuous_audio()
-                        },
-                        dilatable : false
-                    },
-                    ContinuousAudio{
-                        key : DialogueSounds::Office,
-                        source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./sounds/office.ogg"
-                        )),
-                        settings : PlaybackSettings{
-                            volume : Volume::new(0.5),
-                            ..continuous_audio()
-                        },
-                        dilatable : true
-                    },
-                    ContinuousAudio{
-                        key : DialogueSounds::Music,
-                        source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./music/trolley_wires.ogg"
-                        )),
-                        settings : PlaybackSettings{
-                            volume : Volume::new(0.3),
-                            ..continuous_audio()
-                        },
-                        dilatable : false
-                    }
-                ]
-            )
-        )
-    ).with_children(
-        |parent| {
-            parent.spawn((
-                Dialogue::init(
-                    "./text/lab_1.json",
-                    &asset_server,
-                    &character_map
-                ),
-                Transform::from_xyz(-500.0, 0.0, 1.0),
+        let character_map = HashMap::from([
+            (
+                String::from("creator"),  
+                Character::new(
+                    "creator", 
+                    "sounds/typing.ogg",
+                    Color::srgba(0.4039 * 3.0, 0.9490 * 3.0, 0.8196 * 3.0, 1.0),
+                    CharacterKey::Creator
                 )
-            );
-            parent.spawn((
-                Graph::new(
-                    45.0,
-                    vec![2, 3, 2],
-                    10.0,
-                    20.0,
-                    4.0,
-                    2.0
-                ),
-                Transform::from_xyz(300.0, 0.0, 0.0)
-            ));
-        }
-    );
+            )
+        ]);
+        
+        commands.spawn(
+            (
+                DialogueScene,
+                StateScoped(GameState::Dialogue),
+                ContinuousAudioPallet::new(
+                    vec![
+                        ContinuousAudio{
+                            key : DialogueSounds::Hum,
+                            source : AudioPlayer::<AudioSource>(asset_server.load(
+                                "./sounds/hum.ogg"
+                            )),
+                            settings : PlaybackSettings{
+                                volume : Volume::new(0.1),
+                                ..continuous_audio()
+                            },
+                            dilatable : false
+                        },
+                        ContinuousAudio{
+                            key : DialogueSounds::Office,
+                            source : AudioPlayer::<AudioSource>(asset_server.load(
+                                "./sounds/office.ogg"
+                            )),
+                            settings : PlaybackSettings{
+                                volume : Volume::new(0.5),
+                                ..continuous_audio()
+                            },
+                            dilatable : true
+                        },
+                        ContinuousAudio{
+                            key : DialogueSounds::Music,
+                            source : AudioPlayer::<AudioSource>(asset_server.load(
+                                "./music/trolley_wires.ogg"
+                            )),
+                            settings : PlaybackSettings{
+                                volume : Volume::new(0.3),
+                                ..continuous_audio()
+                            },
+                            dilatable : false
+                        }
+                    ]
+                )
+            )
+        ).with_children(
+            |parent| {
+                parent.spawn((
+                    Dialogue::init(
+                        "./text/lab_1.json",
+                        &asset_server,
+                        &character_map
+                    ),
+                    Transform::from_xyz(-500.0, 0.0, 1.0),
+                    )
+                );
+                parent.spawn((
+                    Graph::new(
+                        45.0,
+                        vec![2, 3, 2],
+                        10.0,
+                        20.0,
+                        4.0,
+                        2.0
+                    ),
+                    Transform::from_xyz(300.0, 0.0, 0.0)
+                ));
+            }
+        );
+    }
 }
+

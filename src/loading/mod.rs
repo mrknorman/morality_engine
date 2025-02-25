@@ -22,11 +22,17 @@ use crate::{
         GameState, MainState, StateVector
     }, interaction::{
         ActionPallet, InputAction, InteractionPlugin
-    }, io::IOPlugin, text::{
+    }, 
+    io::IOPlugin, 
+    text::{
         TextButton,
         TextFrames 
-    }, timing::{
-        TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin
+    }, 
+    timing::{
+        TimerConfig, 
+        TimerPallet,
+        TimerStartCondition, 
+        TimingPlugin
     }
 };
 
@@ -97,7 +103,6 @@ pub enum LoadingEvents {
 #[derive(Component)]
 #[require(Transform, Visibility)]
 struct LoadingScene;
-
 
 impl LoadingScene {
 

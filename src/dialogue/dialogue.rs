@@ -44,7 +44,6 @@ pub enum DialogueSystemsActive {
     False,
     True
 }
-
 pub struct DialoguePlugin;
 impl Plugin for DialoguePlugin {
     fn build(&self, app: &mut App) {
@@ -225,7 +224,7 @@ impl Dialogue {
         ]
     }
 
-	pub fn play(
+	fn play(
         mut commands: Commands,
 		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
@@ -276,7 +275,7 @@ impl Dialogue {
 		}
 	}
 
-	pub fn skip_controls(
+	fn skip_controls(
 		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
         mut writer: Text2dWriter,
@@ -321,7 +320,7 @@ impl Dialogue {
 		}
 	}
 
-	pub fn advance_dialogue(
+	fn advance_dialogue(
         mut commands: Commands,
         mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
         mut writer: Text2dWriter,
