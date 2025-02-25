@@ -13,8 +13,8 @@ use enum_map::{
 use crate::{
 	audio::NarrationAudioFinished, 
 	dilemma::{
-		DilemmaConsequenceEvents, 
-		DilemmaIntroEvents
+		phases::consequence::DilemmaConsequenceEvents, 
+		phases::intro::DilemmaIntroEvents
 	}, 
 	loading::LoadingEvents
 };

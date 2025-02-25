@@ -28,8 +28,8 @@ use dialogue::{
     Dialogue, DialoguePlugin, DialogueSounds
 };
 
-pub struct DialogueScreenPlugin;
-impl Plugin for DialogueScreenPlugin {
+pub struct DialogueScenePlugin;
+impl Plugin for DialogueScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(
