@@ -6,18 +6,28 @@ use bevy::{
     audio::Volume,
     prelude::*
 };
-use enum_map::Enum;
 
 use crate::{
     audio:: {
-        continuous_audio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio
-    }, character::{Character, CharacterKey}, game_states::GameState, graph::Graph, interaction::InteractionPlugin, io::IOPlugin
+        continuous_audio, 
+        ContinuousAudio,
+        ContinuousAudioPallet
+    }, 
+    character::{
+        Character, 
+        CharacterKey
+    }, 
+    game_states::GameState, 
+    graph::Graph, 
+    interaction::InteractionPlugin, 
+    io::IOPlugin
 };
 
 pub mod dialogue;
 use dialogue::{
     Dialogue, DialoguePlugin, DialogueSounds
 };
+
 pub struct DialogueScreenPlugin;
 impl Plugin for DialogueScreenPlugin {
     fn build(&self, app: &mut App) {

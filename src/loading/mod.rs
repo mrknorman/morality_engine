@@ -82,7 +82,13 @@ pub enum LoadingSounds {
     Click
 }
 
-
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadingEvents {
+    Music,
+	Narration,
+	Button,
+    UpdateButton
+}
 
 #[derive(Component)]
 pub struct LoadingRoot;
@@ -98,7 +104,7 @@ pub fn setup_loading(
         TimerPallet::new(
             vec![
                 (
-                    "music".to_string(),
+                    LoadingEvents::Music,
                     TimerConfig::new(
                         TimerStartCondition::Immediate, 
                         2.0,
@@ -106,7 +112,7 @@ pub fn setup_loading(
                     )
                 ),
                 (
-                    "narration".to_string(),
+                    LoadingEvents::Narration,
                     TimerConfig::new(
                         TimerStartCondition::Immediate, 
                         3.0,
@@ -114,7 +120,7 @@ pub fn setup_loading(
                     )
                 ),
                 (
-                    "button".to_string(),
+                    LoadingEvents::Button,
                     TimerConfig::new(
                         TimerStartCondition::Immediate, 
                         5.0,
@@ -122,7 +128,7 @@ pub fn setup_loading(
                     )
                 ),
                 (
-                    "update_button".to_string(),
+                    LoadingEvents::UpdateButton,
                     TimerConfig::new(
                         TimerStartCondition::OnNarrationEnd, 
                         0.5,
@@ -182,124 +188,106 @@ pub fn setup_loading(
 
 pub fn spawn_delayed_children(
         mut commands: Commands,
-        loading_query: Query<(Entity, &TimerPallet), With<LoadingRoot>>,
+        loading_query: Query<(Entity, &TimerPallet<LoadingEvents>), With<LoadingRoot>>,
         asset_server: Res<AssetServer>
     ) {
 
     for (entity, timers) in loading_query.iter() {
         // Handle narration timer
-        if let Some(narration_timer) = timers.timers.get(
-            "narration"
-        ) {
-            if narration_timer.just_finished() {
-                commands.entity(entity).with_children(
-                    |parent| {
-                    parent.spawn((
-                        NarrationAudio,
-                        AudioPlayer::<AudioSource>(asset_server.load(
-                            "./sounds/intro_lilly_elvenlabs.ogg", 
-                        )),
-                        PlaybackSettings{
-                            volume : Volume::new(1.0),
-                            ..one_shot_audio()
-                        }
-                    ));
-                });
-            }
-        } else {
-            warn!("Entity {:?} is missing the 'narration' timer", entity);
+
+        if timers.0[LoadingEvents::Narration].just_finished() {
+            commands.entity(entity).with_children(
+                |parent| {
+                parent.spawn((
+                    NarrationAudio,
+                    AudioPlayer::<AudioSource>(asset_server.load(
+                        "./sounds/intro_lilly_elvenlabs.ogg", 
+                    )),
+                    PlaybackSettings{
+                        volume : Volume::new(1.0),
+                        ..one_shot_audio()
+                    }
+                ));
+            });
         }
 
-        if let Some(music_timer) = timers.timers.get(
-            "music"
-        ) {
-            if music_timer.just_finished() {
-                commands.entity(entity).with_children(
-                    |parent| {
-                    parent.spawn((
-                        MusicAudio,
-                        AudioPlayer::<AudioSource>(asset_server.load(
-                            "./music/a_friend.ogg"
-                        )),
-                        PlaybackSettings{
-                            paused : false,
-                            volume : Volume::new(0.1),
-                            ..continuous_audio()
-                        }
-                    ));
-                });
-            }
-        } else {
-            warn!("Entity {:?} is missing the 'music' timer", entity);
+        if timers.0[LoadingEvents::Music].just_finished() {
+            commands.entity(entity).with_children(
+                |parent| {
+                parent.spawn((
+                    MusicAudio,
+                    AudioPlayer::<AudioSource>(asset_server.load(
+                        "./music/a_friend.ogg"
+                    )),
+                    PlaybackSettings{
+                        paused : false,
+                        volume : Volume::new(0.1),
+                        ..continuous_audio()
+                    }
+                ));
+            });
         }
 
         // Handle button timer
-        if let Some(button_timer) = timers.timers.get(
-            "button"
-        ) {
-            
-            if button_timer.just_finished() {
-                let button_messages = TextFrames::load(
-                    "text/loading_messages/button.json"
-                );
+        if timers.0[LoadingEvents::Button].just_finished() {
+            let button_messages = TextFrames::load(
+                "text/loading_messages/button.json"
+            );
 
-                if let Ok(button_messages) = button_messages {
-                    commands.entity(entity).with_children(|parent| {
+            if let Ok(button_messages) = button_messages {
+                commands.entity(entity).with_children(|parent| {
 
-                        let first_message = button_messages.frames[0].clone();
-                        parent.spawn((
-                            NextButton,
-                            button_messages,
-                            TextButton::new(
-                                vec![
-                                    LoadingActions::ExitLoading,
-                                ],
-                                vec![KeyCode::Enter],
-                                first_message
-                            ),
-                            ActionPallet::<LoadingActions, LoadingSounds>(
-                                enum_map!(
-                                    LoadingActions::ExitLoading => vec![
-                                        InputAction::ChangeState(
-                                            StateVector::new(
-                                                Some(MainState::InGame),
-                                                Some(GameState::Dialogue),
-                                                None,
-                                            )
-                                        ),
-                                        InputAction::PlaySound(LoadingSounds::Click),
-                                    ]
-                                )
-                            ),
-                            TransientAudioPallet::new(
-                                vec![(
-                                    LoadingSounds::Click,
-                                    vec![
-                                        TransientAudio::new(
-                                            asset_server.load(
-                                                "sounds/mech_click.ogg"
-                                            ), 
-                                            0.1, 
-                                            true,
-                                            1.0
+                    let first_message = button_messages.frames[0].clone();
+                    parent.spawn((
+                        NextButton,
+                        button_messages,
+                        TextButton::new(
+                            vec![
+                                LoadingActions::ExitLoading,
+                            ],
+                            vec![KeyCode::Enter],
+                            first_message
+                        ),
+                        ActionPallet::<LoadingActions, LoadingSounds>(
+                            enum_map!(
+                                LoadingActions::ExitLoading => vec![
+                                    InputAction::ChangeState(
+                                        StateVector::new(
+                                            Some(MainState::InGame),
+                                            Some(GameState::Dialogue),
+                                            None,
                                         )
-                                    ],
-                                    Some(DilatableAudio)
-                                )]
+                                    ),
+                                    InputAction::PlaySound(LoadingSounds::Click),
+                                ]
                             )
-                        ));
-                    });
-                }
+                        ),
+                        TransientAudioPallet::new(
+                            vec![(
+                                LoadingSounds::Click,
+                                vec![
+                                    TransientAudio::new(
+                                        asset_server.load(
+                                            "sounds/mech_click.ogg"
+                                        ), 
+                                        0.1, 
+                                        true,
+                                        1.0
+                                    )
+                                ],
+                                Some(DilatableAudio)
+                            )]
+                        )
+                    ));
+                });
             }
-        } else {
-            warn!("Entity {:?} is missing the 'button' timer", entity);
         }
     }
 }
 
 fn update_button_text(
     next_state_button: Res<NextButtonConfig>,
-    loading_query: Query<(&TimerPallet, &LoadingRoot)>,
+    loading_query: Query<(&TimerPallet<LoadingEvents>, &LoadingRoot)>,
     mut text_query: Query<(&mut Text2d, &TextFrames)>,
 ) {
     let Some(button_entity) = next_state_button.0 else {
@@ -316,13 +304,11 @@ fn update_button_text(
         .next()
         .expect("Expected at least one entity with TimerPallet and LoadingRoot");
 
-    if let Some(update_button_timer) = timers.timers.get("update_button") {
-        if update_button_timer.just_finished() {
-            let index = update_button_timer.times_finished() as usize;
-            if let Some(message) = frames.frames.get(index) {
+    if timers.0[LoadingEvents::UpdateButton].just_finished() {
+        let index = timers.0[LoadingEvents::UpdateButton].times_finished() as usize;
+        if let Some(message) = frames.frames.get(index) {
 
-                text.0 = message.clone();
-            }
+            text.0 = message.clone();
         }
     }
 }

@@ -1,60 +1,49 @@
-use std::{
-	collections::HashMap,
-	time::Duration
-};
+use std::time::Duration;
+
 use bevy::{
     prelude::*, 
     time::Timer
 };
-use enum_map::{Enum, EnumArray, EnumMap};
+use enum_map::{
+	Enum, 
+	EnumArray, 
+	EnumMap
+};
 
-use crate::audio::NarrationAudioFinished;
-
-#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum TimingSystemsActive {
-    #[default]
-    False,
-    True
-}
+use crate::{
+	audio::NarrationAudioFinished, 
+	dilemma::{
+		DilemmaConsequenceEvents, 
+		DilemmaIntroEvents
+	}, 
+	loading::LoadingEvents
+};
 
 pub struct TimingPlugin;
 impl Plugin for TimingPlugin {
     fn build(&self, app: &mut App) {
         app
-        .init_state::<TimingSystemsActive>()
         .add_systems(
             Update,
-            activate_systems
-        ).add_systems(
-            Update,
             (
-                TimerPallet::tick,
-				TimerPallet::check_start_conditions
-            )
-            .run_if(
-                in_state(TimingSystemsActive::True)
+                TimerPallet::<DilemmaIntroEvents>::tick,
+				TimerPallet::<DilemmaIntroEvents>::check_start_conditions,
+				TimerPallet::<DilemmaConsequenceEvents>::tick,
+				TimerPallet::<DilemmaConsequenceEvents>::check_start_conditions,
+				TimerPallet::<LoadingEvents>::tick,
+				TimerPallet::<LoadingEvents>::check_start_conditions
             )
         );
     }
 }
 
-fn activate_systems(
-	mut state: ResMut<NextState<TimingSystemsActive>>,
-	query: Query<&TimerPallet>,
-) {
-	if !query.is_empty() {
-		state.set(TimingSystemsActive::True)
-	} else {
-		state.set(TimingSystemsActive::False)
-	}
-}
-
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum TimerStartCondition{
     Immediate,
     OnNarrationEnd
 }
 
+#[derive(Clone)]
 pub struct ConditionalTimer{
 	start_condition : TimerStartCondition,
 	timer : Timer,
@@ -108,6 +97,17 @@ impl ConditionalTimer {
 	}
 }
 
+impl Default for ConditionalTimer {
+	fn default() -> Self {
+		Self {
+			start_condition : TimerStartCondition::Immediate,
+			timer : Timer::from_seconds(0.0, TimerMode::Once),
+			repeat_duration_seconds : None,
+			times_finished : 0
+		}
+	}
+}
+
 pub struct TimerConfig{
 	start_condition : TimerStartCondition,
 	duration_seconds : f32,
@@ -128,73 +128,51 @@ impl TimerConfig {
 		}
 	}
 }
-
 #[derive(Component)]
-pub struct TimerPallet{
-	pub timers : HashMap<String, ConditionalTimer>
-}
-
-#[derive(Component)]
-pub struct TimerPallet2<K>(
+pub struct TimerPallet<K>(
     pub EnumMap<K, ConditionalTimer>
 )
 where
     K: Enum + EnumArray<ConditionalTimer> + Send + Sync + Clone + 'static,
     <K as EnumArray<ConditionalTimer>>::Array: Clone + Send + Sync;
 
-impl TimerPallet {
-	pub fn new(
-		timer_vector : Vec<(String, TimerConfig)>		
-	) -> Self {
-
-		let mut timers: HashMap<String, ConditionalTimer> = HashMap::new();
-
-		for (
-			name, 
-			config
-		) in timer_vector {
-
-			timers.insert(
-				name, ConditionalTimer::new(config)
-			);
-		}
-
-		Self {
-			timers
-		}
+impl<K> TimerPallet <K>
+where
+	K: Enum + EnumArray<ConditionalTimer> + Send + Sync + Clone + 'static,
+	<K as EnumArray<ConditionalTimer>>::Array: Clone + Send + Sync
+{
+	pub fn new(timer_vector: Vec<(K, TimerConfig)>) -> Self {
+		Self(
+			timer_vector
+				.into_iter()
+				.map(|(key, config)| (key, ConditionalTimer::new(config)))
+				.collect(),
+		)
 	}
 
-	pub fn tick(
-		time : Res<Time>,
-		mut timer_query : Query<&mut TimerPallet>
-	) {
-		for mut pallet in timer_query.iter_mut() {
-
-			let timers = &mut pallet.timers;
-			for (_, timer) in timers {
-				timer.timer.tick(time.delta());
+	pub fn tick(time: Res<Time>, mut timer_query: Query<&mut TimerPallet<K>>) {
+		let delta = time.delta();
+		timer_query.iter_mut().for_each(|mut pallet| {
+			pallet.0.iter_mut().for_each(|(_, timer)| {
+				timer.timer.tick(delta);
 				timer.count_completions();
 				timer.start_repeat_timer();
-			}
-        }
+			});
+		});
 	}
 
 	pub fn check_start_conditions(
 		mut ev_narration_finished: EventReader<NarrationAudioFinished>,
-		mut timer_query : Query<&mut TimerPallet>
+		mut timer_query: Query<&mut TimerPallet<K>>,
 	) {
-
-		for _ in ev_narration_finished.read() {
-			for mut pallet in timer_query.iter_mut() {
-				let timers = &mut pallet.timers;
-				for (_, timer) in timers {
-					if timer.start_condition == TimerStartCondition::OnNarrationEnd {
-						if timer.timer.paused() {
-							timer.timer.unpause();
-						}
+		if ev_narration_finished.read().next().is_some() {
+			timer_query.iter_mut().for_each(|mut pallet| {
+				pallet.0.iter_mut().for_each(|(_, timer)| {
+					if timer.start_condition == TimerStartCondition::OnNarrationEnd && timer.timer.paused() {
+						timer.timer.unpause();
 					}
-				}
-			}
+				});
+			});
 		}
 	}
 }

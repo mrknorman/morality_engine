@@ -138,10 +138,7 @@ impl PersonSprite {
 		}
 	}
 }
-pub enum EmotionState{
-	Neutral,
-	Afraid
-}
+
 
 fn default_emoticon() -> Text2d {
 	Text2d::new(NEUTRAL)
@@ -154,7 +151,6 @@ fn default_emoticon_transform() -> Transform {
 #[derive(Component)]
 #[require(TextSprite,  Text2d(default_emoticon), Transform(default_emoticon_transform))]
 pub struct Emoticon{
-	pub state : EmotionState,
 	pub initial_size : f32,
 	pub current_size : f32,
 	pub translation : Vec3
@@ -163,7 +159,6 @@ pub struct Emoticon{
 impl Default for Emoticon {
 	fn default() -> Self {
 		Self{
-			state : EmotionState::Neutral,
 			initial_size : 1.0,
 			current_size : 1.0,
 			translation : Vec3{x: 0.0, y: 50.0, z:0.0}
