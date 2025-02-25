@@ -18,7 +18,11 @@ use crate::{
         lever::{
             Lever,
             LeverState,
-        }, DilemmaConsequenceActions, DilemmaIntroActions, DilemmaSounds, LeverActions
+        }, 
+        DilemmaConsequenceActions, 
+        phases::intro::DilemmaIntroActions, 
+        DilemmaSounds, 
+        phases::decision::LeverActions
     }, game_states::{
         DilemmaPhase,
         GameState,

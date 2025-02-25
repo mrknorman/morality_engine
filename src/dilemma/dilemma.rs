@@ -27,7 +27,13 @@ use crate::{
 		Fade, 
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
-	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::{PointToPointTranslation, Pulse}, physics::Velocity, text::TextRaw, time::Dilation, track::Track, train::Train
+	}, 
+	game_states::DilemmaPhase, 
+	inheritance::BequeathTextColor, 
+	motion::Pulse, 
+	text::TextRaw, 
+	time::Dilation, 
+	track::Track
 };
 
 use super::junction::Junction;
@@ -270,7 +276,7 @@ impl DilemmaTimer {
 			text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
 			if timer.timer.finished() {
 				next_game_state.set(
-					DilemmaPhase::ConsequenceAnimation
+					DilemmaPhase::Consequence
 				)
 			}
 		}
