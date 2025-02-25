@@ -131,7 +131,7 @@ impl ColorExt for Color {
 }
 
 impl ColorTranslation {
-    pub fn new(final_color: Color, duration: Duration) -> ColorTranslation {
+    pub fn new(final_color: Color, duration: Duration, paused : bool) -> ColorTranslation {
 
 		let mut translation = ColorTranslation {
 			initial_color : Vec4::default(),
@@ -142,7 +142,9 @@ impl ColorTranslation {
 			)
 		};
 
-		translation.timer.pause();
+        if paused {
+            translation.timer.pause();
+        }
 		translation
 	}
 
@@ -185,7 +187,10 @@ impl ColorTranslation {
 }
 
 #[derive(Clone)]
-pub struct Fade(pub Duration);
+pub struct Fade{
+    pub duration : Duration,
+    pub paused : bool
+}
 
 impl Fade {
     fn despawn_after_fade(
@@ -219,7 +224,8 @@ impl Component for Fade{
                     world.commands().entity(entity).insert(
                         ColorTranslation::new(
                             Color::NONE,
-                            fade.0
+                            fade.duration,
+                            fade.paused
                         )
                     );
                 }

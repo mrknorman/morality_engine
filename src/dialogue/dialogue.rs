@@ -420,10 +420,10 @@ impl Dialogue {
                                 asset_server.load("sounds/mech_click.ogg"), 
                                 0.1, 
                                 true,
-                                1.0
+                                1.0,
+                                true
                             )
-                        ],
-                        Some(DilatableAudio)
+                        ]
                     )]
                 ),
                 

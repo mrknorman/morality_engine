@@ -60,7 +60,12 @@ impl Plugin for JunctionPlugin {
 				Junction::check_if_person_in_path_of_train
 			)
             .run_if(in_state(JunctionSystemsActive::True))
-        )
+        ).add_systems(
+			Update,
+			Junction::update_main_track_color
+			.run_if(in_state(JunctionSystemsActive::True))
+			.run_if(resource_changed::<Lever>)
+		)
 		.register_required_components::<Junction, Transform>()
 		.register_required_components::<Junction, Visibility>()
 		;
@@ -127,19 +132,22 @@ impl Component for Junction {
 						asset_server.load("sounds/male_scream_1.ogg"),
 						1.0,
 						false,
-						1.0
+						1.0,
+						true
 					),
 					TransientAudio::new(
 						asset_server.load("sounds/male_scream_2.ogg"),
 						1.0,
 						false,
-						1.0
+						1.0,
+						true
 					),
 					TransientAudio::new(
 						asset_server.load("sounds/male_scream_3.ogg"),
 						1.0,
 						false,
-						1.0
+						1.0,
+						true
 					)
 				];
 
@@ -203,8 +211,7 @@ impl Component for Junction {
 														TransientAudioPallet::new(
 															vec![(
 																EmotionSounds::Exclaim,
-																audio_vector.clone(),
-																Some(DilatableAudio)
+																audio_vector.clone()
 															)]
 														),
 														Bounce::new(
@@ -241,21 +248,34 @@ impl Component for Junction {
 }
 
 impl Junction  {
+
+	pub fn update_main_track_color(
+		lever: Option<Res<Lever>>,
+		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
+	) {
+		let Ok(mut main_track) = track_query.get_single_mut() else {
+			return;
+		};
+
+		if let Some(lever) = lever {
+			let lever = lever.0;
+			let color = match lever {
+				LeverState::Left => OPTION_1_COLOR,
+				LeverState::Right => OPTION_2_COLOR,
+				LeverState::Random => return
+			};
+			main_track.0 = color;
+		}
+	}
 	
 	pub fn switch_junction(
 		time : Res<Time>,
 		dilation : Res<Dilation>,
 		mut movement_query: Query<(&TransformMultiAnchor, &mut Transform), With<Turnout>>,
-		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
 		lever: Option<Res<Lever>>,
 	) {
 		// Early return if lever is missing
 		let Some(lever) = lever else {
-			return;
-		};
-		
-		// Get main track once before the loop
-		let Ok(mut main_track) = track_query.get_single_mut() else {
 			return;
 		};
 	
@@ -265,7 +285,6 @@ impl Junction  {
 		for (lever_transform, mut transform) in movement_query.iter_mut() {
 			let target_position = match lever.0 {
 				LeverState::Right => {
-					main_track.0 = OPTION_2_COLOR;
 					Vec3::new(
 						transform.translation.x,
 						-lever_transform.0[1].translation.y,
@@ -273,7 +292,6 @@ impl Junction  {
 					)
 				}
 				LeverState::Left => {
-					main_track.0 = OPTION_1_COLOR;
 					Vec3::new(
 						transform.translation.x,
 						-lever_transform.0[0].translation.y,

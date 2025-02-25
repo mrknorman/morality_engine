@@ -8,30 +8,23 @@ use bevy::{
     ecs::component::StorageType, math::Vec3A, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 use crate::{
-    audio::{
+    ascii_fonts::{AsciiActions, AsciiSounds}, audio::{
         AudioPlugin,
         AudioSystemsActive,
         DilatableAudio,
         TransientAudio,
         TransientAudioPallet,
-    }, 
-    dialogue::dialogue::{DialogueActions, DialogueSounds}, 
-    dilemma::{
+    }, dialogue::dialogue::{DialogueActions, DialogueSounds}, dilemma::{
         lever::{
             Lever,
             LeverState,
-        }, DilemmaActions, DilemmaSounds, LeverActions
-    }, 
-    game_states::{
+        }, DilemmaConsequenceActions, DilemmaIntroActions, DilemmaSounds, LeverActions
+    }, game_states::{
         DilemmaPhase,
         GameState,
         MainState,
         StateVector,
-    }, 
-    loading::{LoadingActions, LoadingSounds}, 
-    menu::{MenuActions, MenuSounds}, 
-    time::Dilation, 
-    train::{TrainActions, TrainSounds}
+    }, loading::{LoadingActions, LoadingSounds}, menu::{MenuActions, MenuSounds}, motion::Bounce, time::Dilation, train::{TrainActions, TrainSounds}
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -42,6 +35,7 @@ pub enum InteractionSystem {
     AdvanceDialogue,
     LeverChange,
     Debug,
+    Bounce,
     Pong,
     StateChange, // Stage change: second-to-last.
     Despawn,     // Despawn: last.
@@ -67,7 +61,8 @@ macro_rules! register_interaction_systems {
                 system_entry!(trigger_advance_dialogue::<$enum_type, $audio_type>, InteractionSystem::AdvanceDialogue, after: InteractionSystem::Audio),
                 system_entry!(trigger_lever_state_change::<$enum_type, $audio_type>, InteractionSystem::LeverChange, after: InteractionSystem::AdvanceDialogue),
                 system_entry!(trigger_debug_print::<$enum_type, $audio_type>, InteractionSystem::Debug, after: InteractionSystem::LeverChange),
-                system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Debug),
+                system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::Debug),
+                system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Bounce),
                 system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::Pong),
                 system_entry!(trigger_despawn::<$enum_type, $audio_type>, InteractionSystem::Despawn, after: InteractionSystem::StateChange),
             )
@@ -91,9 +86,11 @@ impl Plugin for InteractionPlugin {
 
         register_interaction_systems!(app, MenuActions, MenuSounds);
         register_interaction_systems!(app, LoadingActions, LoadingSounds);
-        register_interaction_systems!(app, DilemmaActions, DilemmaSounds);
+        register_interaction_systems!(app, DilemmaIntroActions, DilemmaSounds);
+        register_interaction_systems!(app, DilemmaConsequenceActions, DilemmaSounds);
         register_interaction_systems!(app, DialogueActions, DialogueSounds);
         register_interaction_systems!(app, LeverActions, DilemmaSounds);
+        register_interaction_systems!(app, AsciiActions, AsciiSounds);
         register_interaction_systems!(app, TrainActions, TrainSounds);
     }
 }
@@ -228,6 +225,7 @@ where
     ChangeState(StateVector),
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
+    Bounce,
     Despawn,
     #[allow(unused)]
     Print(String),
@@ -443,6 +441,32 @@ where
     }
 }
 
+pub fn trigger_bounce<K, S>(
+    mut query: Query<(
+        Option<&mut Clickable<K>>,
+        Option<&mut Pressable<K>>,
+        &ActionPallet<K, S>,
+        &mut Bounce
+    )>
+)
+where
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
+{
+    for (clickable, pressable, pallet, mut bounce) in query.iter_mut() {
+        handle_triggers!(clickable, pressable, pallet, handle => {
+            handle_all_actions!(handle, pallet => {
+                Bounce => {
+                    let duration = bounce.timer.duration();
+                    bounce.timer.set_elapsed(duration);
+                },
+            });
+        });
+    }
+}
+
 pub fn trigger_state_change<K, S>(
     mut query: Query<(
         Entity,
@@ -547,17 +571,15 @@ where
     <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     if let Some(mut lever) = lever {
-        let mut lever_state = lever.0;
         for (_, clickable, pressable, pallet) in query.iter_mut() {
             handle_triggers!(clickable, pressable, pallet, handle => {
                 handle_all_actions!(handle, pallet => {
                     ChangeLeverState(new_lever_state) => {
-                        lever_state = new_lever_state;
+                        lever.0 = new_lever_state;
                     }
                 });
             });
         }
-        lever.0 = lever_state;
     }
 }
 pub fn trigger_debug_print<K, S>(

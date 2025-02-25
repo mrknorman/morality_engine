@@ -180,7 +180,8 @@ impl Train {
 					asset_server.load(path), 
 					2.0, 
 					false, 
-					1.0
+					1.0,
+					true
 				)
 		});
 
@@ -282,8 +283,7 @@ impl Component for Train {
 							TransientAudioPallet::new(
 								vec![(
 									TrainSounds::Horn,
-									vec![horn_audio],
-									Some(DilatableAudio)
+									vec![horn_audio]
 								)]
 							))
 						);

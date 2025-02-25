@@ -107,7 +107,7 @@ impl Component for PointToPointTranslation {
 }
 
 impl PointToPointTranslation {
-    pub fn new(final_position: Vec3, duration: Duration) -> PointToPointTranslation {
+    pub fn new(final_position: Vec3, duration: Duration, paused : bool) -> PointToPointTranslation {
 		let mut translation = PointToPointTranslation {
 			initial_position : Vec3::default(),
 			final_position,
@@ -117,7 +117,9 @@ impl PointToPointTranslation {
 			)
 		};
 
-		translation.timer.pause();
+		if paused {
+			translation.timer.pause();
+		}
 		translation
 	}
 
