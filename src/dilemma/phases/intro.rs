@@ -1,0 +1,163 @@
+use bevy::{
+	prelude::*,
+	audio::Volume,
+};
+use enum_map::{
+    Enum,
+    enum_map
+};
+
+use crate::{
+    audio::{
+        one_shot_audio, NarrationAudio, TransientAudio, TransientAudioPallet 
+    }, common_ui::NextButton, dilemma::DilemmaSounds, game_states::{
+        DilemmaPhase, GameState, MainState, StateVector
+    }, interaction::{ActionPallet, InputAction}, text::TextButton, timing::{
+        TimerConfig, 
+        TimerPallet, 
+        TimerStartCondition
+    }
+};
+
+pub struct DilemmaIntroPlugin;
+impl Plugin for DilemmaIntroPlugin {
+    fn build(&self, app: &mut App) {
+        app
+		.add_systems(
+			OnEnter(DilemmaPhase::Intro), 
+			setup_dilemma_intro
+			.run_if(in_state(GameState::Dilemma))
+		)
+		.add_systems(
+			Update,
+			spawn_delayed_children
+			.run_if(in_state(GameState::Dilemma))
+			.run_if(in_state(DilemmaPhase::Intro))
+		);
+    }
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaIntroActions {
+    StartDilemma
+}
+
+impl std::fmt::Display for DilemmaIntroActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaIntroEvents {
+    Narration,
+	Button
+}
+
+
+
+#[derive(Component)]
+#[require(Transform, Visibility)]
+struct DilemmaIntroRoot;
+
+pub fn setup_dilemma_intro(
+	mut commands : Commands
+	) {
+
+	commands.spawn(
+		(
+			DilemmaIntroRoot,
+			StateScoped(DilemmaPhase::Intro),
+			TimerPallet::new(
+				vec![
+					(
+						DilemmaIntroEvents::Narration,
+						TimerConfig::new(
+							TimerStartCondition::Immediate, 
+							1.0,
+							None
+						)
+					),
+					(
+						DilemmaIntroEvents::Button,
+						TimerConfig::new(
+							TimerStartCondition::Immediate, 
+							2.0,
+							None
+						)
+					)
+				]
+			)
+		)
+	);
+}
+
+fn spawn_delayed_children(
+    mut commands: Commands,
+    loading_query: Query<(Entity, &TimerPallet<DilemmaIntroEvents>), With<DilemmaIntroRoot>>,
+    asset_server: Res<AssetServer>
+) {
+    for (entity, timers) in loading_query.iter() {
+
+        if timers.0[DilemmaIntroEvents::Narration].just_finished() {
+			commands.entity(entity).with_children(
+                |parent| {
+					parent.spawn((
+						NarrationAudio,
+						AudioPlayer::<AudioSource>(asset_server.load(
+							"sounds/dilemma_narration/lab_1.ogg",
+						)),
+						PlaybackSettings{
+							paused : false,
+							volume : Volume::new(1.0),
+							..one_shot_audio()
+						}
+					));
+            });
+        }
+
+        // Handle narration timer
+		if timers.0[DilemmaIntroEvents::Button].just_finished() {          
+			commands.entity(entity).with_children(|parent| {
+				parent.spawn((
+					NextButton,
+					TextButton::new(
+						vec![DilemmaIntroActions::StartDilemma],
+						vec![KeyCode::Enter],
+						"[ Click here or Press Enter to Test Your Morality ]",
+					),
+					ActionPallet::<DilemmaIntroActions, DilemmaSounds>(
+						enum_map!(
+							DilemmaIntroActions::StartDilemma => vec![
+								InputAction::PlaySound(DilemmaSounds::Click),
+								InputAction::ChangeState(
+									StateVector::new(
+										Some(MainState::InGame),
+										Some(GameState::Dilemma),
+										Some(DilemmaPhase::IntroDecisionTransition),
+									)
+								),
+								InputAction::Despawn
+								]
+							)
+					),
+					TransientAudioPallet::new(
+						vec![(
+							DilemmaSounds::Click,
+							vec![
+								TransientAudio::new(
+									asset_server.load("sounds/mech_click.ogg"), 
+									0.1, 
+									true,
+									1.0,
+									true
+								)
+							]
+						)]
+					)
+				));
+			});
+		}
+    }
+}
