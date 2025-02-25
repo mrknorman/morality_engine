@@ -1,0 +1,205 @@
+use std::time::Duration;
+
+use bevy::{
+	prelude::*,
+	audio::Volume,
+};
+use enum_map::{enum_map, Enum};
+
+use crate::{
+    audio::{
+        continuous_audio,
+        ContinuousAudio, 
+        ContinuousAudioPallet,
+        TransientAudio, 
+        TransientAudioPallet 
+    }, 
+    colors::{
+        ColorAnchor, 
+        ColorChangeEvent, 
+        ColorChangeOn, 
+        DANGER_COLOR, 
+        OPTION_1_COLOR, 
+        OPTION_2_COLOR
+    }, 
+    common_ui::{
+        CenterLever, 
+        DilemmaTimerPosition
+    },
+    dilemma::{
+        dilemma::{
+            cleanup_decision, 
+            Dilemma, 
+            DilemmaTimer
+        }, 
+        lever::{
+            Lever, 
+            LeverState, 
+            LEVER_LEFT, 
+            LEVER_MIDDLE, 
+            LEVER_RIGHT
+        }, 
+        DilemmaSounds
+    }, 
+    game_states::{
+        DilemmaPhase, 
+        GameState
+    }, 
+    interaction::{
+        ActionPallet, 
+        ClickablePong, 
+        InputAction, 
+        KeyMapping, 
+        Pressable
+    }
+};
+
+pub struct DilemmaDecisionPlugin;
+impl Plugin for DilemmaDecisionPlugin {
+    fn build(&self, app: &mut App) {
+        app
+		.add_systems(
+			OnEnter(DilemmaPhase::Decision),
+			setup_decision
+			.run_if(in_state(GameState::Dilemma)),
+		)
+		.add_systems(
+			OnExit(DilemmaPhase::Decision), 
+			cleanup_decision
+		);
+    }
+}
+
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LeverActions {
+	LeftPull,
+	RightPull
+}
+
+#[derive(Component)]
+#[require(Transform, Visibility)]
+struct DecisionRoot;
+
+pub fn setup_decision(
+		mut commands : Commands,
+		asset_server: Res<AssetServer>,
+		dilemma: Res<Dilemma>,
+	) {
+
+	let (start_text, state, color) = match dilemma.default_option {
+		None => (LEVER_MIDDLE, LeverState::Random, Color::WHITE),
+		Some(ref option) if *option == 0 => (LEVER_LEFT, LeverState::Left, OPTION_1_COLOR),
+		Some(_) => (LEVER_RIGHT, LeverState::Right, OPTION_2_COLOR),
+	};
+
+	commands.insert_resource(Lever(state));
+
+	commands.spawn((
+		StateScoped(DilemmaPhase::Decision),
+		DecisionRoot
+	)).with_children(
+        |parent| {
+            parent.spawn(
+                ContinuousAudioPallet::new(
+                    vec![
+						ContinuousAudio{
+							key : DilemmaSounds::TrainApproaching,
+							source : AudioPlayer::<AudioSource>(asset_server.load(
+								"./sounds/train_approaching.ogg"
+							)),
+							settings : PlaybackSettings{
+								volume : Volume::new(1.0),
+								..continuous_audio()
+							},
+							dilatable : true 
+						},
+						ContinuousAudio{
+							key : DilemmaSounds::Clock,
+							source : AudioPlayer::<AudioSource>(asset_server.load(
+								"./sounds/clock.ogg"
+							)),
+							settings : PlaybackSettings{
+								volume : Volume::new(0.3),
+								..continuous_audio()
+							},
+							dilatable : true 
+						}
+                    ]
+                )
+            );
+
+			parent.spawn((
+				DilemmaTimerPosition,
+				DilemmaTimer::new(
+					dilemma.countdown_duration, 
+					Duration::from_secs_f32(5.0),
+					Duration::from_secs_f32(2.0)
+				
+				),
+				ColorAnchor::default(),
+				ColorChangeOn::new(vec![
+					ColorChangeEvent::Pulse(vec![DANGER_COLOR])
+				]),
+				Transform::from_xyz(0.0, -100.0, 1.0)
+			));
+
+			parent.spawn((
+				Lever(state),
+				ClickablePong::new(vec![
+						vec![LeverActions::RightPull],
+						vec![LeverActions::LeftPull]
+					]					
+				),
+				Pressable::new(vec![
+					KeyMapping{
+						keys : vec![KeyCode::Digit2], 
+						actions : vec![LeverActions::RightPull],
+						allow_repeated_activation : false
+					},
+					KeyMapping{
+						keys : vec![KeyCode::Digit1],
+						actions : vec![LeverActions::LeftPull],
+						allow_repeated_activation : false
+					}
+				]),
+				ActionPallet(
+					enum_map!(
+						LeverActions::LeftPull => vec![
+							InputAction::ChangeLeverState(LeverState::Left),
+							InputAction::PlaySound(DilemmaSounds::Lever),
+						],
+						LeverActions::RightPull => vec![
+							InputAction::ChangeLeverState(LeverState::Right),
+							InputAction::PlaySound(DilemmaSounds::Lever),
+						]
+					)
+				),
+				CenterLever,
+				Text2d::new(start_text), 
+				TextFont{
+					font_size : 25.0,
+					..default()
+				},
+				TextColor(color),
+				TextLayout{
+					justify : JustifyText::Center, 
+					..default()
+				},
+				TransientAudioPallet::new(
+					vec![(
+						DilemmaSounds::Lever,
+						vec![
+							TransientAudio::new(
+								asset_server.load("sounds/switch.ogg"), 
+								0.1, 
+								true,
+								1.0,
+								true
+							)
+						]
+					)]
+				),
+			));
+		});
+}
