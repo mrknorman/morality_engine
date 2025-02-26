@@ -1,12 +1,18 @@
 use bevy::{
-    color::palettes::css::BLACK, core_pipeline::{
+    color::palettes::css::BLACK, 
+    core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, prelude::*, sprite::Material2dPlugin, window::PresentMode
+    }, 
+    prelude::*, 
+    sprite::Material2dPlugin, 
+    window::PresentMode
 };
 
+use dilemma::lever::Lever;
 use rand::SeedableRng;
 use rand_pcg::Pcg64Mcg;
+use stats::DilemmaStats;
 
 #[forbid(unsafe_code)]
 
@@ -36,6 +42,7 @@ mod physics;
 mod ascii_fonts;
 mod inheritance;
 mod time;
+mod stats;
 
 use crate::{
     game_states::{
@@ -44,7 +51,8 @@ use crate::{
         DilemmaPhase
     },
     shaders::PulsingMaterial,
-    time::DilationPLugin
+    time::DilationPLugin,
+    stats::GameStats
 };
 
 fn main() {
@@ -54,8 +62,8 @@ fn main() {
                 resizable: true,
                 present_mode: PresentMode::Immediate,
                 ..default()
-                }),
-                ..default()
+            }),
+            ..default()
         }))
         .add_plugins(GamePlugin)
         .add_plugins(Material2dPlugin::<PulsingMaterial>::default())
@@ -66,10 +74,12 @@ struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
+            .insert_resource(GlobalRng::default())
+            .insert_resource(Lever::default())
+            .insert_resource(GameStats::default())
+            .insert_resource(DilemmaStats::default())
             .add_systems(Startup, setup)
-            .add_systems(Update, 
-                shortcuts::close_on_esc
-            )
+            .add_systems(Update, shortcuts::close_on_esc)
             .init_state::<MainState>()
             .add_sub_state::<GameState>()
             .add_sub_state::<DilemmaPhase>()
@@ -84,8 +94,7 @@ impl Plugin for GamePlugin {
             .add_plugins(motion::MotionPlugin)
             .add_plugins(colors::ColorsPlugin)
             .add_plugins(inheritance::InheritancePlugin)
-            .add_plugins(DilationPLugin)
-            ;
+            .add_plugins(DilationPLugin);
             
             /*
             use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
@@ -100,6 +109,12 @@ impl Plugin for GamePlugin {
 
 #[derive(Resource)]
 struct GlobalRng(pub Pcg64Mcg);
+ 
+impl Default for GlobalRng {
+    fn default() -> Self {
+        GlobalRng(Pcg64Mcg::seed_from_u64(12345))
+    }
+}
 
 fn setup(
         mut commands: Commands,
@@ -117,8 +132,6 @@ fn setup(
         Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
         Bloom::default(), // 3. Enable bloom for the camera
     ));
-
-    commands.insert_resource(GlobalRng(Pcg64Mcg::seed_from_u64(12345)));
 }
 
 //

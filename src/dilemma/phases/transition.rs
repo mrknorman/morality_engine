@@ -38,7 +38,7 @@ impl Plugin for DilemmaTransitionPlugin {
     }
 }
 
-pub fn setup_dilemma_transition(
+fn setup_dilemma_transition(
     dilemma : Res<Dilemma>,
     mut commands : Commands,
     systems: Res<BackgroundSystems>,
@@ -66,7 +66,7 @@ for (mut background, mut color) in background_query.iter_mut() {
 }
 }
 
-pub fn end_dilemma_transition(
+fn end_dilemma_transition(
     dilemma: Res<Dilemma>,
     mut commands : Commands,
     systems: Res<BackgroundSystems>,

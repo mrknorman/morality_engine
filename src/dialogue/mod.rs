@@ -25,7 +25,9 @@ use crate::{
 
 pub mod dialogue;
 use dialogue::{
-    Dialogue, DialoguePlugin, DialogueSounds
+    Dialogue, 
+    DialoguePlugin, 
+    DialogueSounds
 };
 
 pub struct DialogueScenePlugin;
@@ -54,7 +56,6 @@ impl Plugin for DialogueScenePlugin {
 #[derive(Component)]
 #[require(Transform, Visibility)]
 struct DialogueScene;
-
 
 impl DialogueScene {
 

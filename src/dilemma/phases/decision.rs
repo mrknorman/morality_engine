@@ -4,7 +4,10 @@ use bevy::{
 	prelude::*,
 	audio::Volume,
 };
-use enum_map::{enum_map, Enum};
+use enum_map::{
+	enum_map, 
+	Enum
+};
 
 use crate::{
     audio::{
@@ -13,22 +16,20 @@ use crate::{
         ContinuousAudioPallet,
         TransientAudio, 
         TransientAudioPallet 
-    }, 
-    colors::{
+    }, background::Background, colors::{
         ColorAnchor, 
-        ColorChangeEvent, 
-        ColorChangeOn, 
-        DANGER_COLOR, 
-        OPTION_1_COLOR, 
-        OPTION_2_COLOR
-    }, 
-    common_ui::{
+		ColorChangeEvent, 
+		ColorChangeOn, 
+		ColorTranslation, 
+		Fade, 
+		DANGER_COLOR, 
+		OPTION_1_COLOR, 
+		OPTION_2_COLOR
+    }, common_ui::{
         CenterLever, 
         DilemmaTimerPosition
-    },
-    dilemma::{
+    }, dilemma::{
         dilemma::{
-            cleanup_decision, 
             Dilemma, 
             DilemmaTimer
         }, 
@@ -40,18 +41,18 @@ use crate::{
             LEVER_RIGHT
         }, 
         DilemmaSounds
-    }, 
-    game_states::{
+    }, game_states::{
         DilemmaPhase, 
         GameState
-    }, 
-    interaction::{
+    }, interaction::{
         ActionPallet, 
         ClickablePong, 
         InputAction, 
         KeyMapping, 
         Pressable
-    }
+    }, 
+	stats::DilemmaStats, 
+	track::Track
 };
 
 pub struct DilemmaDecisionPlugin;
@@ -64,8 +65,16 @@ impl Plugin for DilemmaDecisionPlugin {
 			.run_if(in_state(GameState::Dilemma)),
 		)
 		.add_systems(
+			Update,
+			DecisionScene::update_stats
+			.run_if(resource_changed::<Lever>)
+		)
+		.add_systems(
 			OnExit(DilemmaPhase::Decision), 
-			cleanup_decision
+			(
+				DecisionScene::cleanup,
+				DecisionScene::finalize_stats
+			)
 		);
     }
 }
@@ -82,7 +91,7 @@ pub enum LeverActions {
 struct DecisionScene;
 
 impl DecisionScene {
-	pub fn setup(
+	fn setup(
 			mut commands : Commands,
 			asset_server: Res<AssetServer>,
 			dilemma: Res<Dilemma>,
@@ -93,9 +102,7 @@ impl DecisionScene {
 			Some(ref option) if *option == 0 => (LEVER_LEFT, LeverState::Left, OPTION_1_COLOR),
 			Some(_) => (LEVER_RIGHT, LeverState::Right, OPTION_2_COLOR),
 		};
-
-		commands.insert_resource(Lever(state));
-
+		
 		commands.spawn((
 			StateScoped(DilemmaPhase::Decision),
 			DecisionScene
@@ -106,9 +113,7 @@ impl DecisionScene {
 						vec![
 							ContinuousAudio{
 								key : DilemmaSounds::TrainApproaching,
-								source : AudioPlayer::<AudioSource>(asset_server.load(
-									"./sounds/train_approaching.ogg"
-								)),
+								source : AudioPlayer::<AudioSource>(asset_server.load("./sounds/train_approaching.ogg")),
 								settings : PlaybackSettings{
 									volume : Volume::new(1.0),
 									..continuous_audio()
@@ -117,9 +122,7 @@ impl DecisionScene {
 							},
 							ContinuousAudio{
 								key : DilemmaSounds::Clock,
-								source : AudioPlayer::<AudioSource>(asset_server.load(
-									"./sounds/clock.ogg"
-								)),
+								source : AudioPlayer::<AudioSource>(asset_server.load("./sounds/clock.ogg")),
 								settings : PlaybackSettings{
 									volume : Volume::new(0.3),
 									..continuous_audio()
@@ -203,5 +206,55 @@ impl DecisionScene {
 					),
 				));
 			});
+	}
+
+	fn cleanup(
+		mut commands : Commands,
+		background_query : Query<Entity, With<Background>>,
+		track_query : Query<Entity, With<Track>>
+	){
+		
+		for entity in background_query.iter() {
+			commands.entity(entity).insert(
+				Fade{
+					duration: Duration::from_secs_f32(0.4),
+					paused: false
+				}
+			);
+		}
+		for entity in track_query.iter() {
+			commands.entity(entity).insert(
+				ColorTranslation::new(
+					Color::NONE, 
+					Duration::from_secs_f32(0.4), 
+					false
+				)
+			);
+		}
+	}
+
+	fn update_stats(
+		mut stats : ResMut<DilemmaStats>,
+		lever : Res<Lever>,
+		mut timer : Query<&mut DilemmaTimer>
+	) {
+
+		for timer in timer.iter_mut() {
+			stats.update(&lever.0, &timer.timer);
+		}
+	}
+
+	fn finalize_stats(
+		mut stats : ResMut<DilemmaStats>,
+		lever : Res<Lever>,
+		dilemma: Res<Dilemma>,
+		mut timer : Query<&mut DilemmaTimer>
+	) {
+
+		let consequence = dilemma.options[lever.0 as usize].consequences;
+
+		for timer in timer.iter_mut() {
+			stats.finalize(&consequence, &lever.0, &timer.timer);
+		}
 	}
 }

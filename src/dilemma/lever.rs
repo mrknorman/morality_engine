@@ -11,7 +11,6 @@ pub enum LeverSystemsActive {
 }
 
 pub struct LeverPlugin;
-
 impl Plugin for LeverPlugin {
     fn build(&self, app: &mut App) {	
 		app
@@ -104,7 +103,6 @@ impl LeverState {
 #[require(LeverText)]
 pub struct Lever(pub LeverState);
 
-
 impl Lever {
     pub fn update(
         lever: Option<Res<Lever>>,
@@ -143,5 +141,11 @@ impl Lever {
                 }
             }
         }
+    }
+}
+
+impl Default for Lever {
+    fn default() -> Self {
+        Lever(LeverState::Random)
     }
 }

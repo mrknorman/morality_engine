@@ -1,8 +1,16 @@
 use std::time::Duration;
 
-use bevy::{audio::Volume, prelude::*};
+use bevy::{
+    audio::Volume, 
+    prelude::*
+};
 
-use crate::{ascii_fonts::AsciiString, audio::{continuous_audio, MusicAudio}, colors::PRIMARY_COLOR, game_states::DilemmaPhase, motion::PointToPointTranslation, physics::Velocity, train::Train};
+use crate::{
+    ascii_fonts::AsciiString, audio::{
+        continuous_audio, 
+        MusicAudio
+    }, background::Background, colors::{ColorTranslation, DIM_BACKGROUND_COLOR, PRIMARY_COLOR}, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::PointToPointTranslation, physics::Velocity, stats::DilemmaStats, train::Train
+};
 
 
 pub struct DilemmaResultsPlugin;
@@ -13,7 +21,6 @@ impl Plugin for DilemmaResultsPlugin {
             OnEnter(DilemmaPhase::Results), 
             DilemmaResultsScene::setup
         );
-        
     }
 }
 
@@ -24,13 +31,44 @@ pub struct DilemmaResultsScene;
 impl DilemmaResultsScene {
 	fn setup(
 		mut commands: Commands,
-		mut train_query : Query<(Entity, &mut Velocity), With<Train>>,
+		mut train_query : Query<(&mut Transform, &mut Velocity), With<Train>>,
+		stats : Res<DilemmaStats>,
 		asset_server: Res<AssetServer>
 	) {
 	
 		commands.spawn(
 			Self
 		).with_children(|parent| {
+
+            parent.spawn((
+                TextColor(Color::NONE),
+                Background::load_from_json(
+                    "text/backgrounds/desert.json",	
+                    0.00002,
+                    -0.5
+                ),
+                BequeathTextColor,
+                ColorTranslation::new(
+                    DIM_BACKGROUND_COLOR,
+                    Duration::from_secs_f32(0.2),
+                    false
+                ))
+            );
+
+			parent.spawn((
+                TextColor(Color::NONE),
+				TextFont{
+					font_size : 15.0,
+					..default()
+				},
+                Text2d::new(stats.to_string()),
+                ColorTranslation::new(
+                    PRIMARY_COLOR,
+                    Duration::from_secs_f32(0.2),
+                    false
+                ))
+            );
+
 			parent.spawn((
 				MusicAudio,
 				AudioPlayer::<AudioSource>(asset_server.load(
@@ -51,15 +89,9 @@ impl DilemmaResultsScene {
 			}
 		);
 	
-		for (entity, mut velocity) in train_query.iter_mut() {
+		for (mut transform, mut velocity) in train_query.iter_mut() {
 			velocity.0 = Vec3::ZERO;
-			commands.entity(entity).insert(
-				PointToPointTranslation::new(
-					Vec3::new(120.0, 150.0, 0.0),
-					Duration::from_secs_f32(0.1),
-					false
-				)
-			);
+            transform.translation = Vec3::new(120.0, 150.0, 0.0);
 		}
 	}
 }
