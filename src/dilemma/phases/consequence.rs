@@ -5,13 +5,37 @@ use enum_map::{enum_map, Enum};
 
 use crate::{
     audio::{
-        OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet 
-    }, common_ui::NextButton, dilemma::{
-        dilemma::{cleanup_junction, Dilemma}, lever::Lever, DilemmaConsequenceActions, DilemmaSounds
-    }, game_states::{DilemmaPhase, GameState, StateVector}, interaction::{
+        OneShotAudio, 
+        OneShotAudioPallet, 
+        TransientAudio, 
+        TransientAudioPallet 
+    }, 
+    common_ui::NextButton, 
+    dilemma::{
+        dilemma:: Dilemma, 
+        junction::Junction, 
+        lever::Lever,
+        DilemmaConsequenceActions, 
+        DilemmaSounds
+    }, 
+    game_states::{
+        DilemmaPhase, 
+        GameState, 
+        StateVector
+    }, 
+    interaction::{
         ActionPallet, 
         InputAction, 
-    }, physics::Velocity, text::TextButton, time::DilationTranslation, timing::{TimerConfig, TimerPallet, TimerStartCondition}, train::Train
+    }, 
+    physics::Velocity, 
+    text::TextButton, 
+    time::DilationTranslation, 
+    timing::{
+        TimerConfig, 
+        TimerPallet, 
+        TimerStartCondition
+    }, 
+    train::Train
 };
 
 
@@ -33,7 +57,7 @@ impl Plugin for DilemmaConsequencePlugin {
 		)
         .add_systems(
 			OnExit(DilemmaPhase::Consequence), 
-			cleanup_junction
+			Junction::cleanup
 		)
 		.add_systems(
 			Update,
@@ -47,7 +71,6 @@ impl Plugin for DilemmaConsequencePlugin {
 #[derive(Component)]
 #[require(Transform, Visibility)]
 pub struct DilemmaConsequenceScene;
-
 
 impl DilemmaConsequenceScene{
     fn setup(
@@ -168,48 +191,48 @@ impl DilemmaConsequenceScene{
                 });
             }
     
-                if timers.0[DilemmaConsequenceEvents::Button].just_finished() {
-                    commands.entity(entity).with_children(|parent| {
-                        parent.spawn((
-                            NextButton,
-                            TextButton::new(
-                                vec![DilemmaConsequenceActions::ShowResults],
-                                vec![KeyCode::Enter],
-                                format!("[Behold the consequences!]"),
-                            ),
-                            ActionPallet::<DilemmaConsequenceActions, DilemmaSounds>(
-                                enum_map!(
-                                    DilemmaConsequenceActions::ShowResults => vec![
-                                        InputAction::PlaySound(DilemmaSounds::Click),
-                                        InputAction::ChangeState(
-                                            StateVector::new(
-                                                None,
-                                                None,
-                                                Some(DilemmaPhase::Results),
-                                            )
-                                        ),
-                                        InputAction::Despawn
-                                        ]
-                                    )
-                            ),
-                            TransientAudioPallet::new(
-                                vec![(
-                                    DilemmaSounds::Click,
-                                    vec![
-                                        TransientAudio::new(
-                                            asset_server.load("sounds/mech_click.ogg"), 
-                                            0.1, 
-                                            true,
-                                            1.0,
-                                            true
+            if timers.0[DilemmaConsequenceEvents::Button].just_finished() {
+                commands.entity(entity).with_children(|parent| {
+                    parent.spawn((
+                        NextButton,
+                        TextButton::new(
+                            vec![DilemmaConsequenceActions::ShowResults],
+                            vec![KeyCode::Enter],
+                            format!("[Behold the consequences!]"),
+                        ),
+                        ActionPallet::<DilemmaConsequenceActions, DilemmaSounds>(
+                            enum_map!(
+                                DilemmaConsequenceActions::ShowResults => vec![
+                                    InputAction::PlaySound(DilemmaSounds::Click),
+                                    InputAction::ChangeState(
+                                        StateVector::new(
+                                            None,
+                                            None,
+                                            Some(DilemmaPhase::Results),
                                         )
+                                    ),
+                                    InputAction::Despawn
                                     ]
-                                )]
-                            ),
-                            
-                        ));
-                    });
-            }
+                                )
+                        ),
+                        TransientAudioPallet::new(
+                            vec![(
+                                DilemmaSounds::Click,
+                                vec![
+                                    TransientAudio::new(
+                                        asset_server.load("sounds/mech_click.ogg"), 
+                                        0.1, 
+                                        true,
+                                        1.0,
+                                        true
+                                    )
+                                ]
+                            )]
+                        ),
+                        
+                    ));
+                });
+        }
         }
     }
 }

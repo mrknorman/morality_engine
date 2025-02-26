@@ -15,7 +15,7 @@ use crate::{
 		TransientAudioPallet 
     }, 
 	common_ui::NextButton, 
-	dilemma::DilemmaSounds, 
+	dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, 
 	game_states::{
         DilemmaPhase,
 		GameState, 
@@ -76,9 +76,16 @@ struct DilemmaIntroScene;
 
 impl DilemmaIntroScene {
 
-	pub fn setup(
-		mut commands : Commands
+	fn setup(
+		mut commands : Commands,
+		dilemma: Res<Dilemma>,
 	) {
+		let state= match dilemma.default_option {
+			None => LeverState::Random,
+			Some(ref option) if *option == 0 => LeverState::Left,
+			Some(_) => LeverState::Right,
+		};
+		commands.insert_resource(Lever(state));
 
 		commands.spawn(
 			(

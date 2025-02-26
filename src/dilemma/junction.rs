@@ -248,6 +248,14 @@ impl Component for Junction {
 }
 
 impl Junction  {
+	pub fn cleanup(
+		mut commands : Commands,
+		junction_query : Query<Entity, With<Junction>>
+	){
+		for entity in junction_query.iter() {
+			commands.entity(entity).despawn_recursive();
+		}
+	}
 
 	pub fn update_main_track_color(
 		lever: Option<Res<Lever>>,

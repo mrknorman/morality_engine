@@ -22,9 +22,7 @@ use bevy::{
 };
 
 use crate::{
-	background::Background, colors::{		
-		ColorTranslation, 
-		Fade, 
+	colors::{		
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
 	}, 
@@ -33,10 +31,7 @@ use crate::{
 	motion::Pulse, 
 	text::TextRaw, 
 	time::Dilation, 
-	track::Track
 };
-
-use super::junction::Junction;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DilemmaSystemsActive {
@@ -432,39 +427,5 @@ impl DilemmaOptionInfoPanel {
 				)
 			); 
 		} ).id()
-	}
-}
-
-pub fn cleanup_decision(
-		mut commands : Commands,
-		background_query : Query<Entity, With<Background>>,
-		track_query : Query<Entity, With<Track>>
-	){
-	
-	for entity in background_query.iter() {
-		commands.entity(entity).insert(
-			Fade{
-				duration: Duration::from_secs_f32(0.4),
-				paused: false
-			}
-		);
-	}
-	for entity in track_query.iter() {
-		commands.entity(entity).insert(
-			ColorTranslation::new(
-				Color::NONE, 
-				Duration::from_secs_f32(0.4), 
-				false
-			)
-		);
-	}
-}
-
-pub fn cleanup_junction(
-	mut commands : Commands,
-	junction_query : Query<Entity, With<Junction>>
-){
-	for entity in junction_query.iter() {
-		commands.entity(entity).despawn_recursive();
 	}
 }

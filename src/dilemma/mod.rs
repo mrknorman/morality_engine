@@ -36,10 +36,11 @@ use crate::{
 	}, 
 	game_states::GameState,
 	inheritance::BequeathTextColor, 
-	interaction::InteractionPlugin,
+	interaction::InteractionPlugin, 
 	io::IOPlugin, 
-	motion::PointToPointTranslation,
+	motion::PointToPointTranslation, 
 	person::PersonPlugin, 
+	stats::DilemmaStats, 
 	timing::TimingPlugin, 
 	train::{
         Train, 
@@ -50,7 +51,7 @@ use crate::{
 
 pub mod phases;
 
-mod dilemma;
+pub mod dilemma;
 use dilemma::{
 	Dilemma, 
 	DilemmaPlugin
@@ -134,6 +135,10 @@ impl DilemmaScene {
 			PathBuf::from("./dilemmas/lab_1.json")
 		);
 		
+		commands.insert_resource(
+			DilemmaStats::new(dilemma.countdown_duration)
+		);
+		
 		commands.spawn(
 			(
 				DilemmaScene,
@@ -196,7 +201,7 @@ impl DilemmaScene {
 						-0.5
 					),
 					BequeathTextColor,
-					ColorTranslation::new( //something to do with this???
+					ColorTranslation::new(
 						DIM_BACKGROUND_COLOR,
 						transition_duration,
 						true
