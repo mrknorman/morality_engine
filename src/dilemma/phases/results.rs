@@ -1,15 +1,19 @@
 use std::time::Duration;
 
 use bevy::{
-    audio::Volume, 
-    prelude::*
+    audio::Volume,
+	prelude::*
 };
 
 use crate::{
     ascii_fonts::AsciiString, audio::{
         continuous_audio, 
         MusicAudio
-    }, background::Background, colors::{ColorTranslation, DIM_BACKGROUND_COLOR, PRIMARY_COLOR}, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::PointToPointTranslation, physics::Velocity, stats::DilemmaStats, train::Train
+    }, background::Background, colors::{
+		ColorTranslation, 
+		DIM_BACKGROUND_COLOR, 
+		PRIMARY_COLOR
+	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::PointToPointTranslation, physics::Velocity, stats::DilemmaStats, text::TextBox, train::Train
 };
 
 
@@ -33,12 +37,34 @@ impl DilemmaResultsScene {
 		mut commands: Commands,
 		mut train_query : Query<(&mut Transform, &mut Velocity), With<Train>>,
 		stats : Res<DilemmaStats>,
-		asset_server: Res<AssetServer>
+		asset_server: Res<AssetServer>,
 	) {
 	
 		commands.spawn(
 			Self
 		).with_children(|parent| {
+
+			let text_box_z : f32 = 1.0; 
+
+			parent.spawn((
+				TextBox::default(),
+                TextColor(Color::NONE),
+				TextFont{
+					font_size : 15.0,
+					..default()
+				},
+                Text2d::new(stats.to_string()),
+                ColorTranslation::new(
+                    PRIMARY_COLOR,
+                    Duration::from_secs_f32(0.2),
+                    false
+                ),
+				Transform::from_xyz(
+					0.0,
+					0.0,
+					text_box_z + 0.2,
+				))
+            );
 
             parent.spawn((
                 TextColor(Color::NONE),
@@ -50,20 +76,6 @@ impl DilemmaResultsScene {
                 BequeathTextColor,
                 ColorTranslation::new(
                     DIM_BACKGROUND_COLOR,
-                    Duration::from_secs_f32(0.2),
-                    false
-                ))
-            );
-
-			parent.spawn((
-                TextColor(Color::NONE),
-				TextFont{
-					font_size : 15.0,
-					..default()
-				},
-                Text2d::new(stats.to_string()),
-                ColorTranslation::new(
-                    PRIMARY_COLOR,
                     Duration::from_secs_f32(0.2),
                     false
                 ))
@@ -95,3 +107,6 @@ impl DilemmaResultsScene {
 		}
 	}
 }
+
+
+

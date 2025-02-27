@@ -1,7 +1,16 @@
-use bevy::prelude::*;
+use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*};
 use crate::colors::PRIMARY_COLOR;
 
-// Separate module for general sprite creation functionality
+pub struct SpritePlugin;
+impl Plugin for SpritePlugin {
+    fn build(&self, app: &mut App) {
+        app
+		.register_required_components::<SpriteBox, Transform>()
+        .register_required_components::<SpriteBox, Visibility>();
+    }
+}
+
+
 pub struct SpriteFactory;
 
 impl SpriteFactory {
@@ -24,8 +33,11 @@ impl SpriteFactory {
     }
 }
 
-// Separate module for creating a sprite box
-pub struct SpriteBox;
+#[derive(Clone)]
+pub struct SpriteBox{
+    pub width : f32,
+    pub height : f32
+}
 
 impl SpriteBox {
     pub fn create_sprite_box(
@@ -52,5 +64,38 @@ impl SpriteBox {
         sprite_sizes.into_iter().zip(sprite_positions.into_iter())
             .map(|(size, pos)| SpriteFactory::create_sprite_bundle(size, pos))
             .collect()
+    }
+}
+
+
+impl Component for SpriteBox{
+	const STORAGE_TYPE: StorageType = StorageType::Table;
+
+	fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_insert(
+
+            |mut world, entity, _component_id| {       
+
+                let size: Option<SpriteBox> = {
+                    let entity_ref: EntityRef<'_> = world.entity(entity);
+                    entity_ref.get::<SpriteBox>().cloned()
+                };
+
+				// Step 3: Use commands in a separate scope to spawn the entity
+				if let Some(size) = size {
+					let mut commands = world.commands();
+					commands.entity(entity).with_children(|parent| {
+                        for sprite in SpriteBox::create_sprite_box(
+                            Vec3::ZERO,
+                            size.width,
+                            size.height,
+                        ) {
+                            parent.spawn(sprite);
+                        }
+                        
+					});
+				}
+            }
+        );
     }
 }
