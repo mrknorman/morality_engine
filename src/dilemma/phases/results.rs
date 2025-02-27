@@ -13,7 +13,7 @@ use crate::{
 		ColorTranslation, 
 		DIM_BACKGROUND_COLOR, 
 		PRIMARY_COLOR
-	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, motion::PointToPointTranslation, physics::Velocity, stats::DilemmaStats, text::TextBox, train::Train
+	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, physics::Velocity, sprites::WindowTitle, stats::DilemmaStats, text::TextWindow, train::Train
 };
 
 
@@ -47,7 +47,13 @@ impl DilemmaResultsScene {
 			let text_box_z : f32 = 1.0; 
 
 			parent.spawn((
-				TextBox::default(),
+				TextWindow{
+					title : Some(WindowTitle{
+						text : String::from("Dilemma Results"),
+						..default()
+					}),
+					..default()
+				},
                 TextColor(Color::NONE),
 				TextFont{
 					font_size : 15.0,

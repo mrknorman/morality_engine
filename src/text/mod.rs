@@ -1,14 +1,20 @@
 use std::{
-    fs::File,
-    io::BufReader,
-    path::Path
+    fs::File, io::BufReader, path::Path
 };
 use serde::Deserialize;
 
 use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, text::{TextBounds, TextLayoutInfo}};
 
 use crate::{
-    colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR}, interaction::{Clickable, KeyMapping, Pressable}, sprites::{SpriteBox, SpritePlugin}, time::Dilation
+    colors::{
+        ColorAnchor, 
+        ColorChangeEvent, 
+        ColorChangeOn, 
+        CLICKED_BUTTON,
+        HOVERED_BUTTON, 
+        PRIMARY_COLOR
+    }, 
+    interaction::{Clickable, KeyMapping, Pressable}, sprites::{BorderedBox, SpritePlugin, WindowBox, WindowTitle}, time::Dilation
 };
 
 pub struct TextPlugin;
@@ -17,10 +23,9 @@ impl Plugin for TextPlugin {
         app
 		.add_systems(
 			Update,
-			(
-                TextBox::update_background,
-                TextBox::update_border
-            ));
+                (TextBox::update_box,
+                TextWindow::update_box)
+            );
 
         if !app.is_plugin_added::<SpritePlugin>() {
 			app.add_plugins(SpritePlugin);
@@ -226,78 +231,36 @@ impl Default for TextBox{
     }
 }
 
-#[derive(Component)]
-pub struct TextBoxBackground;
+impl Component for TextBox {
+	const STORAGE_TYPE: StorageType = StorageType::Table;
 
-#[derive(Component)]
-pub struct TextBoxBorder;
+	fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {       
+
+                let mut commands = world.commands();
+                commands.entity(entity).with_children(|parent| {
+                    parent.spawn(
+                        BorderedBox::default()
+                    );
+                });
+            }
+        );
+    }
+}
 
 impl TextBox {
-    fn update_background(
-        mut text_query: Query<(Entity, &TextBox, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (With<TextBox>, Changed<TextLayoutInfo>, Without<TextBoxBackground>)>,
-        mut background_query: Query<(&mut Transform, &mut Mesh2d), With<TextBoxBackground>>,
+    fn update_box(
+        mut box_query: Query<(Entity, &TextBox, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (With<TextBox>, Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>)>,
+        mut background_query: Query<(&mut Transform, &mut BorderedBox)>,
         children_query: Query<&Children>,
-        mut meshes: ResMut<Assets<Mesh>>,
     ) {
-        for (text_entity, text_box, text_layout, text_bounds, anchor) in text_query.iter_mut() {
+        for (entity, text_box, text_layout, text_bounds, anchor) in box_query.iter_mut() {
+
             // Get the text dimensions
             let text_width = text_bounds.width.unwrap_or(text_layout.size.x);
             let text_height = text_bounds.height.unwrap_or(text_layout.size.y);
-            
-            // Add some padding
-            let padded_width = text_width + text_box.0.x;
-            let padded_height = text_height + text_box.0.y;
 
-             // Determine anchor, default to Center if None
-            let anchor = anchor.unwrap_or(&Anchor::Center);
-            let anchor_offset = match anchor {
-                Anchor::TopLeft => Vec2::new(-text_width / 2.0, text_height / 2.0),
-                Anchor::TopCenter => Vec2::new(0.0, text_height / 2.0),
-                Anchor::TopRight => Vec2::new(text_width / 2.0, text_height / 2.0),
-                Anchor::CenterLeft => Vec2::new(-text_width / 2.0, 0.0),
-                Anchor::Center => Vec2::new(0.0, 0.0),
-                Anchor::CenterRight => Vec2::new(text_width / 2.0, 0.0),
-                Anchor::BottomLeft => Vec2::new(-text_width / 2.0, -text_height / 2.0),
-                Anchor::BottomCenter => Vec2::new(0.0, -text_height / 2.0),
-                Anchor::BottomRight => Vec2::new(text_width / 2.0, -text_height / 2.0),
-                Anchor::Custom(offset) => *offset, // Use the custom anchor offset directly
-            };
-            
-            // Get the children of this text entity
-            if let Ok(children) = children_query.get(text_entity) {
-                // Iterate through children to find the background (assuming only one TextBoxBackground per TextBox)
-                for &child in children.iter() {
-                    if let Ok((mut bg_transform, mut mesh2d)) = background_query.get_mut(child) {
-                        // Update the mesh to match the text size
-                        mesh2d.0 = meshes.add(Mesh::from(Rectangle::new(padded_width, padded_height)));
-
-                        // Adjust position based on anchor
-                        bg_transform.translation.x = -anchor_offset.x;
-                        bg_transform.translation.y = -anchor_offset.y;
-                        
-                        // Keep the z position slightly behind the text
-                        bg_transform.translation.z = -0.2;
-                    }
-                }
-            }
-        }
-    }
-
-    fn update_border(
-        mut commands : Commands,
-        mut text_query: Query<(Entity, &TextBox, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (Changed<TextLayoutInfo>, Without<TextBoxBorder>)>,
-        mut border_query: Query<(Entity, &mut Transform), With<TextBoxBorder>>,
-        children_query: Query<&Children>
-    ) {
-        for (text_entity, text_box, text_layout, text_bounds, anchor) in text_query.iter_mut() {
-            // Get the text dimensions from TextBounds if available, otherwise fallback to TextLayoutInfo
-            let text_width = text_bounds.width.unwrap_or(text_layout.size.x);
-            let text_height = text_bounds.height.unwrap_or(text_layout.size.y);
-            
-            // Add some padding
-            let padded_width = text_width + text_box.0.x;
-            let padded_height = text_height + text_box.0.y;
-    
             // Determine anchor, default to Center if None
             let anchor = anchor.unwrap_or(&Anchor::Center);
             let anchor_offset = match anchor {
@@ -312,74 +275,117 @@ impl TextBox {
                 Anchor::BottomRight => Vec2::new(text_width / 2.0, -text_height / 2.0),
                 Anchor::Custom(offset) => *offset, // Use the custom anchor offset directly
             };
-    
-            // Get the children of this text entity
-            if let Ok(children) = children_query.get(text_entity) {
-                // Iterate through children to find the background (assuming only one TextBoxBackground per TextBox)
+
+            if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
-                    if let Ok((entity, mut bd_transform)) = border_query.get_mut(child) {
-                        // Update the mesh to match the text size
-                        commands.entity(entity).despawn_descendants();
-                        commands.entity(entity).insert(
-                            SpriteBox{
-                                width : padded_width,
-                                height : padded_height
-                            }
-                        );
-                        
-                        // Adjust position based on anchor
-                        bd_transform.translation.x = -anchor_offset.x;
-                        bd_transform.translation.y = -anchor_offset.y;
-                        
+
+                    if let Ok((mut transform, mut bordered_box)) = background_query.get_mut(child) {
+
                         // Keep the z position slightly behind the text
-                        bd_transform.translation.z = -0.1;
+                        transform.translation.z = -0.2;
+                        transform.translation.x = -anchor_offset.x;
+                        transform.translation.y = -anchor_offset.y;
+
+                        bordered_box.0.x = text_width + text_box.0.x;
+                        bordered_box.0.y = text_height + text_box.0.y;
                     }
                 }
             }
+            
+
         }
     }
-    
-        
 }
 
-impl Component for TextBox{
+#[derive(Clone)]
+pub struct TextWindow{
+    pub title : Option<WindowTitle>,
+    pub header_height : f32,
+    pub padding : Vec2
+}
+
+impl Default for TextWindow{
+    fn default() -> Self {
+        Self{
+            title : None,
+            header_height : 20.0,
+            padding : Vec2::new(20.0, 10.0)
+        }
+    }
+}
+
+impl Component for TextWindow {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
 
 	fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
             |mut world, entity, _component_id| {       
-				// Step 2: Extract mesh and material handles in limited scope
-				let (mesh_handle, material_handle) = {
-					// Create resources within this scope to limit mutable borrows
-					let mut meshes = world.resource_mut::<Assets<Mesh>>();
-					let mesh_handle = meshes.add(Mesh::from(Rectangle::new(1.0, 1.0)));
-					
-					let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-					let material_handle = materials.add(Color::BLACK);
-					
-					(mesh_handle, material_handle)
-				};
-				
-				// Step 3: Use commands in a separate scope to spawn the entity
-				{
-					let mut commands = world.commands();
-					commands.entity(entity).with_children(|parent| {
-						parent.spawn((
-							TextBoxBackground,
-							Mesh2d(mesh_handle),
-							MeshMaterial2d(material_handle)
-						));
-                        
-						parent.spawn(
-                            (TextBoxBorder,
-                            SpriteBox{
-                                width : 0.0,
-                                height : 0.0
-                            })
+
+                let text_window: Option<TextWindow> = {
+                    let entity_mut: EntityRef<'_> = world.entity(entity);
+                    entity_mut.get::<TextWindow>()
+                        .map(|bordered_box: &TextWindow| bordered_box.clone())
+                };
+
+                if let Some(text_window) = text_window {
+                    let mut commands = world.commands();
+                    commands.entity(entity).with_children(|parent| {
+                        parent.spawn(
+                            WindowBox{
+                                size : Vec2::new(100.0, 100.0),
+                                header_height  : text_window.header_height,
+                                title : text_window.title.clone()
+                            }
                         );
-					});
-				}
+                    });
+                }
             }
         );
+    }
+}
+
+impl TextWindow {
+    fn update_box(
+        mut box_query: Query<(Entity, &TextWindow, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (With<TextWindow>, Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>)>,
+        mut background_query: Query<(&mut Transform, &mut WindowBox)>,
+        children_query: Query<&Children>,
+    ) {
+        for (entity, text_box, text_layout, text_bounds, anchor) in box_query.iter_mut() {
+
+            // Get the text dimensions
+            let text_width = text_bounds.width.unwrap_or(text_layout.size.x);
+            let text_height = text_bounds.height.unwrap_or(text_layout.size.y);
+
+            // Determine anchor, default to Center if None
+            let anchor = anchor.unwrap_or(&Anchor::Center);
+            let anchor_offset = match anchor {
+                Anchor::TopLeft => Vec2::new(-text_width / 2.0, text_height / 2.0),
+                Anchor::TopCenter => Vec2::new(0.0, text_height / 2.0),
+                Anchor::TopRight => Vec2::new(text_width / 2.0, text_height / 2.0),
+                Anchor::CenterLeft => Vec2::new(-text_width / 2.0, 0.0),
+                Anchor::Center => Vec2::new(0.0, 0.0),
+                Anchor::CenterRight => Vec2::new(text_width / 2.0, 0.0),
+                Anchor::BottomLeft => Vec2::new(-text_width / 2.0, -text_height / 2.0),
+                Anchor::BottomCenter => Vec2::new(0.0, -text_height / 2.0),
+                Anchor::BottomRight => Vec2::new(text_width / 2.0, -text_height / 2.0),
+                Anchor::Custom(offset) => *offset, // Use the custom anchor offset directly
+            };
+
+            if let Ok(children) = children_query.get(entity) {
+                for &child in children.iter() {
+
+                    if let Ok((mut transform, mut windowed_box)) = background_query.get_mut(child) {
+
+                        // Keep the z position slightly behind the text
+                        transform.translation.z = -0.1;
+                        transform.translation.x = -anchor_offset.x;
+                        transform.translation.y = -anchor_offset.y;
+
+                        windowed_box.size.x = text_width + text_box.padding.x;
+                        windowed_box.size.y = text_height + text_box.padding.y;
+                    }
+                }
+            }
+        }
     }
 }
