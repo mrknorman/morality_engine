@@ -43,7 +43,7 @@ use crate::{
         DilemmaSounds
     }, game_states::{
         DilemmaPhase, 
-        GameState
+        GameState, StateVector
     }, interaction::{
         ActionPallet, 
         ClickablePong, 
@@ -77,6 +77,12 @@ impl Plugin for DilemmaDecisionPlugin {
 			)
 		);
     }
+}
+
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecisionActions {
+	LockDecsion
 }
 
 
@@ -130,6 +136,28 @@ impl DecisionScene {
 								dilatable : true 
 							}
 						]
+					)
+				);
+
+				parent.spawn((
+					Pressable::new(vec![
+						KeyMapping{
+							keys : vec![KeyCode::Enter], 
+							actions : vec![DecisionActions::LockDecsion],
+							allow_repeated_activation : false
+						}]),
+					ActionPallet(
+						enum_map!(
+							DecisionActions::LockDecsion => vec![
+								InputAction::ChangeState(
+									StateVector::new(
+										None, None, Some(DilemmaPhase::Consequence)
+									),
+								),
+								InputAction::PlaySound(DilemmaSounds::Lever)
+							]
+						)
+					)
 					)
 				);
 

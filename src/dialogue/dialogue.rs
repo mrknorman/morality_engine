@@ -6,10 +6,7 @@ use std::{
     io::BufReader
 };
 use bevy::{
-    prelude::*, 
-    sprite::Anchor, 
-    text::TextBounds, 
-    audio::Volume
+    audio::Volume, prelude::*, sprite::Anchor, text::TextBounds
 };
 use enum_map::{enum_map, Enum};
 use serde::{Serialize, Deserialize};
@@ -21,21 +18,13 @@ use crate::{
         ContinuousAudioPallet, 
         TransientAudio, 
         TransientAudioPallet
-    }, 
-    character::{Character, CharacterKey}, 
-    colors::PRIMARY_COLOR, 
-    common_ui::NextButton, 
-    game_states::{
+    }, character::{Character, CharacterKey}, colors::PRIMARY_COLOR, common_ui::NextButton, game_states::{
         GameState, 
         MainState, 
         StateVector
-    }, 
-    graph::GraphPlugin, 
-    interaction::{
+    }, graph::GraphPlugin, interaction::{
         ActionPallet, AdvanceDialogue, InputAction
-    }, 
-    text::TextButton, 
-    time::Dilation
+    }, sprites::SpritePlugin, text::{TextBox, TextButton, TextPlugin}, time::Dilation
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -63,6 +52,13 @@ impl Plugin for DialoguePlugin {
             if !app.is_plugin_added::<GraphPlugin>() {
                 app.add_plugins(GraphPlugin);
             };
+            if !app.is_plugin_added::<SpritePlugin>() {
+                app.add_plugins(SpritePlugin);
+            }
+            if !app.is_plugin_added::<TextPlugin>() {
+                app.add_plugins(TextPlugin);
+            }
+
     }
 }
 
@@ -98,16 +94,21 @@ pub struct DialogueLine {
 fn dialogue_text_bounds() -> TextBounds {
     TextBounds {
         width : Some(500.0), 
-        height : Some(2000.0)
+        height : None
     }
 }
 
-fn dialogue_anchor() -> Anchor {
+
+fn dialogue_anchor() -> Anchor  {
     Anchor::CenterLeft
 }
 
+fn dialouge_padding() -> TextBox {
+    TextBox(Vec2::new(50.0, 50.0))
+}
+
 #[derive(Component)]
-#[require(Text2d, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
+#[require(Text2d, TextBox(dialouge_padding), TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
 pub struct Dialogue {
     pub lines: Vec<DialogueLine>,
     pub current_line_index: usize,

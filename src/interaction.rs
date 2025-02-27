@@ -18,11 +18,7 @@ use crate::{
         lever::{
             Lever,
             LeverState,
-        }, 
-        DilemmaConsequenceActions, 
-        phases::intro::DilemmaIntroActions, 
-        DilemmaSounds, 
-        phases::decision::LeverActions
+        }, phases::{decision::{DecisionActions, LeverActions}, intro::DilemmaIntroActions}, DilemmaConsequenceActions, DilemmaSounds
     }, game_states::{
         DilemmaPhase,
         GameState,
@@ -94,6 +90,7 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, DilemmaConsequenceActions, DilemmaSounds);
         register_interaction_systems!(app, DialogueActions, DialogueSounds);
         register_interaction_systems!(app, LeverActions, DilemmaSounds);
+        register_interaction_systems!(app, DecisionActions, DilemmaSounds);
         register_interaction_systems!(app, AsciiActions, AsciiSounds);
         register_interaction_systems!(app, TrainActions, TrainSounds);
     }

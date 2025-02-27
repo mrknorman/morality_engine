@@ -9,33 +9,24 @@ use crate::{
         OneShotAudioPallet, 
         TransientAudio, 
         TransientAudioPallet 
-    }, 
-    common_ui::NextButton, 
-    dilemma::{
+    }, common_ui::NextButton, dilemma::{
         dilemma:: Dilemma, 
         junction::Junction, 
         lever::Lever,
         DilemmaConsequenceActions, 
         DilemmaSounds
-    }, 
-    game_states::{
+    }, game_states::{
         DilemmaPhase, 
         GameState, 
         StateVector
-    }, 
-    interaction::{
+    }, interaction::{
         ActionPallet, 
         InputAction, 
-    }, 
-    physics::Velocity, 
-    text::TextButton, 
-    time::DilationTranslation, 
-    timing::{
+    }, motion::PointToPointTranslation, physics::Velocity, text::TextButton, time::DilationTranslation, timing::{
         TimerConfig, 
         TimerPallet, 
         TimerStartCondition
-    }, 
-    train::Train
+    }, train::Train
 };
 
 
@@ -75,11 +66,11 @@ pub struct DilemmaConsequenceScene;
 impl DilemmaConsequenceScene{
     fn setup(
         mut commands : Commands,
-        mut velocity_query : Query<&mut Velocity, With<Train>>,
+        mut velocity_query : Query<(Entity, &mut Velocity), With<Train>>,
         asset_server: Res<AssetServer>
     ) {
-    
-        for mut velocity in velocity_query.iter_mut() {
+        for (entity, mut velocity) in velocity_query.iter_mut() {
+            commands.entity(entity).remove::<PointToPointTranslation>();
             velocity.0 = Vec3::new(100.0, 0.0, 0.0);
         }
         

@@ -33,16 +33,7 @@ use crate::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
-	}, 
-	game_states::GameState,
-	inheritance::BequeathTextColor, 
-	interaction::InteractionPlugin, 
-	io::IOPlugin, 
-	motion::PointToPointTranslation, 
-	person::PersonPlugin, 
-	stats::DilemmaStats, 
-	timing::TimingPlugin, 
-	train::{
+	}, game_states::GameState, inheritance::BequeathTextColor, interaction::InteractionPlugin, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::SpritePlugin, stats::DilemmaStats, text::TextPlugin, timing::TimingPlugin, train::{
         Train, 
 		TrainPlugin, 
 		STEAM_TRAIN
@@ -78,6 +69,12 @@ impl Plugin for DilemmaScenePlugin {
 		.add_plugins(DilemmaConsequencePlugin)
 		.add_plugins(DilemmaResultsPlugin);
 
+		if !app.is_plugin_added::<SpritePlugin>() {
+			app.add_plugins(SpritePlugin);
+		}
+		if !app.is_plugin_added::<TextPlugin>() {
+			app.add_plugins(TextPlugin);
+		}
 		if !app.is_plugin_added::<TrainPlugin>() {
 			app.add_plugins(TrainPlugin);
 		}

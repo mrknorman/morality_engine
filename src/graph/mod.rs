@@ -22,10 +22,9 @@ impl Plugin for GraphPlugin {
             .init_state::<GraphSystemsActive>()
             .add_systems(Update, 
                 activate_systems
-            );
-
-        app.register_required_components::<Graph, Transform>();
-        app.register_required_components::<Graph, Visibility>();
+            )
+            .register_required_components::<Graph, Transform>()
+            .register_required_components::<Graph, Visibility>();
     }
 }
 
@@ -164,16 +163,6 @@ impl Graph {
 
 impl Component for Graph {
     const STORAGE_TYPE: StorageType = StorageType::Table;
-
-    fn register_required_components(
-            _component_id: bevy::ecs::component::ComponentId,
-            _components: &mut bevy::ecs::component::Components,
-            _storages: &mut bevy::ecs::storage::Storages,
-            _required_components: &mut bevy::ecs::component::RequiredComponents,
-            _inheritance_depth: u16,
-        ) {
-        
-    }
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,

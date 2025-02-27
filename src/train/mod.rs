@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 use crate::{
 	audio::{
-		continuous_audio, AudioPlugin, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, TransientAudio, TransientAudioPallet
+		continuous_audio, AudioPlugin, ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
 	}, colors::ColorAnchor, interaction::{
 		ActionPallet, Clickable, InputAction, InteractionPlugin
 	}, motion::Wobble, physics::Velocity, text::{

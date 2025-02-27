@@ -32,10 +32,9 @@ impl Plugin for LoadingBarPlugin {
                 LoadingBar::fill,
             )
             .run_if(in_state(LoadingSystemsActive::True)),
-        );
-
-        app.register_required_components::<LoadingBar, Transform>();
-        app.register_required_components::<LoadingBar, Visibility>();
+        )
+        .register_required_components::<LoadingBar, Transform>()
+        .register_required_components::<LoadingBar, Visibility>();
     }
 }
 
@@ -225,15 +224,10 @@ impl Component for LoadingBar {
                             );
                         }); 
                         
-                        // Create and spawn the sprite box around the loading bar
-                        let sprite_box = SpriteBox::create_sprite_box(
-                            Vec3::new(0.0, 0.0, 0.0),
-                            500.0,
-                            20.0,
-                        );
-                        for sprite in sprite_box {
-                            parent.spawn(sprite);
-                        }
+                        parent.spawn(SpriteBox{
+                            width : 500.0,
+                            height: 20.0
+                        });
 
                         parent.spawn((
                             ProgressIndicator,
