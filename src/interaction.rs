@@ -55,6 +55,7 @@ macro_rules! register_interaction_systems {
         $app.add_systems(
             Update,
             (
+                Draggable::enact,
                 system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable),
                 system_entry!(pressable_system::<$enum_type>, InteractionSystem::Pressable, after: InteractionSystem::Clickable),
                 system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Pressable),
@@ -194,7 +195,7 @@ where
     pub fn new(actions: Vec<T>) -> Self {
         Clickable {
             actions,
-            triggered: false,
+            triggered: false
         }
     }
 }
@@ -367,12 +368,12 @@ macro_rules! handle_triggers {
 }
 
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
-    windows: Query<&Window, With<PrimaryWindow>>,
-    mouse_input: Res<ButtonInput<MouseButton>>,
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    mut clickable_q: Query<(&Aabb, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
-    _pong_q: Query<(&Aabb, &GlobalTransform, &ClickablePong<T>), Without<TextSpan>>,
-) {
+        windows: Query<&Window, With<PrimaryWindow>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
+        camera_q: Query<(&Camera, &GlobalTransform)>,
+        mut clickable_q: Query<(&Aabb, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
+    ) {
+
     let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
 
     for (bound, transform, mut clickable) in clickable_q.iter_mut() {
@@ -657,3 +658,132 @@ where
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
     <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync;
+
+
+pub struct DraggableRegion {
+    pub region: Vec2,
+    pub offset: Vec2
+}
+
+#[derive(Component)]
+#[require(Transform)]
+pub struct Draggable {
+    pub region: Option<DraggableRegion>,
+    pub offset: Vec2,
+    pub dragging: bool
+}
+
+impl Default for Draggable {
+    fn default() -> Self {
+        Self {
+            region: None,
+            offset: Vec2::ZERO,
+            dragging: false
+        }
+    }
+}
+
+impl Draggable {
+    pub fn enact(
+        windows: Query<&Window, With<PrimaryWindow>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
+        camera_q: Query<(&Camera, &GlobalTransform)>,
+        mut draggable_q: Query<(&GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>), Without<TextSpan>>,
+    ) {
+        let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
+        
+        for (global_transform, mut draggable, mut transform, aabb) in draggable_q.iter_mut() {
+            // If the user is already dragging this entity, continue the drag regardless of position
+            if draggable.dragging && mouse_input.pressed(MouseButton::Left) {
+                // Calculate the new position
+                let new_position = cursor_position + draggable.offset;
+                
+                // Update the transform
+                transform.translation.x = new_position.x;
+                transform.translation.y = new_position.y;
+                continue;
+            }
+            
+            // Stop dragging if mouse button is released
+            if !mouse_input.pressed(MouseButton::Left) {
+                draggable.dragging = false;
+                continue;
+            }
+            
+            // Only process click detection if the mouse was just pressed
+            if !mouse_input.just_pressed(MouseButton::Left) {
+                continue;
+            }
+            
+            // Check if cursor is within bounds - handle custom region or fallback to Aabb
+            let is_within_bounds = if let Some(region) = &draggable.region {
+                is_cursor_within_region(
+                    cursor_position, 
+                    &transform, 
+                    global_transform, 
+                    region.region,
+                    region.offset
+                )
+            } else if let Some(bound) = aabb {
+                is_cursor_within_bounds(cursor_position, global_transform, bound)
+            } else {
+                // If no region or Aabb is defined, use a default small region around the transform
+                let default_size = Vec2::new(10.0, 10.0);
+                is_cursor_within_region(
+                    cursor_position,
+                    &transform,
+                    global_transform,
+                    default_size,
+                    Vec2::ZERO
+                )
+            };
+            
+            if is_within_bounds {
+                draggable.dragging = true;
+                // Store the offset between cursor and entity position to maintain relative positioning
+                draggable.offset = global_transform.translation().truncate() - cursor_position;
+            }
+        }
+    }
+    
+    // Helper method to create a Draggable with a custom region
+    pub fn with_region(region_size: Vec2, region_offset: Vec2) -> Self {
+        Self {
+            region: Some(DraggableRegion {
+                region: region_size,
+                offset: region_offset,
+            }),
+            offset: Vec2::ZERO,
+            dragging: false,
+        }
+    }
+}
+
+
+fn is_cursor_within_region(
+    cursor_position: Vec2,
+    transform: &Transform,
+    global_transform: &GlobalTransform,
+    region_size: Vec2,
+    region_offset: Vec2,
+) -> bool {
+    // Create a local transform for the region relative to the entity
+    let region_local_transform = Transform::from_translation(Vec3::new(region_offset.x, region_offset.y, 0.0));
+    
+    // Create a matrix that transforms from local space to world space
+    let model_matrix = global_transform.compute_matrix();
+    
+    // Apply the model matrix to get the region position in world space
+    let region_world_position = model_matrix.transform_point3(region_local_transform.translation);
+    
+    // Scale the region size by the entity's scale
+    let scaled_half_size = (region_size / 2.0) * transform.scale.truncate();
+    
+    // Check if the cursor is within the region
+    cursor_position.x >= region_world_position.x - scaled_half_size.x &&
+    cursor_position.x <= region_world_position.x + scaled_half_size.x &&
+    cursor_position.y >= region_world_position.y - scaled_half_size.y &&
+    cursor_position.y <= region_world_position.y + scaled_half_size.y
+}
+
+

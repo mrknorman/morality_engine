@@ -22,7 +22,7 @@ use crate::{
     }, interaction::{
         ActionPallet, 
         InputAction, 
-    }, motion::PointToPointTranslation, physics::Velocity, text::TextButton, time::DilationTranslation, timing::{
+    }, motion::PointToPointTranslation, physics::Velocity, stats::GameStats, text::TextButton, time::DilationTranslation, timing::{
         TimerConfig, 
         TimerPallet, 
         TimerStartCondition
@@ -43,7 +43,10 @@ impl Plugin for DilemmaConsequencePlugin {
         app
 		.add_systems(
 			OnEnter(DilemmaPhase::Consequence),
-			DilemmaConsequenceScene::setup
+			(
+                DilemmaConsequenceScene::setup, 
+                GameStats::update_stats
+            )
 			.run_if(in_state(GameState::Dilemma)),
 		)
         .add_systems(

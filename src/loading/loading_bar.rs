@@ -14,9 +14,10 @@ use bevy::{
 };
 
 use crate::{
-    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, sprites::{
-        SpriteBox, SpriteFactory
-    }, text::TextFrames, time::Dilation
+    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, 
+    sprites::combinations::HollowRectangle,
+    text::TextFrames,
+    time::Dilation
 };
 
 pub struct LoadingBarPlugin;
@@ -192,9 +193,13 @@ impl Component for LoadingBar {
                 if let Some(messages) = messages {
                     commands.entity(entity).with_children(|parent| {
                         // Spawn the loading bar components
-                        parent.spawn(SpriteFactory::create_sprite_bundle(
-                            Vec2::new(0.0, 0.0),
-                            Vec3::new(0.0, 0.0, 0.0),
+                        parent.spawn((            
+                            Sprite{
+                                custom_size: Some(Vec2::ZERO),
+                                color : PRIMARY_COLOR,
+                                ..default()
+                            },
+                            Transform::default()
                         ));
 
                         
@@ -224,10 +229,12 @@ impl Component for LoadingBar {
                             );
                         }); 
                         
-                        parent.spawn(SpriteBox{
-                            width : 500.0,
-                            height: 20.0
-                        });
+                        parent.spawn(
+                            HollowRectangle{
+                                dimensions : Vec2::new(500.0, 20.0),
+                                thickness : 2.0
+                            }
+                        );
 
                         parent.spawn((
                             ProgressIndicator,

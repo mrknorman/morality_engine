@@ -82,7 +82,7 @@ impl Plugin for DilemmaDecisionPlugin {
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecisionActions {
-	LockDecsion
+	LockDecision
 }
 
 
@@ -143,12 +143,12 @@ impl DecisionScene {
 					Pressable::new(vec![
 						KeyMapping{
 							keys : vec![KeyCode::Enter], 
-							actions : vec![DecisionActions::LockDecsion],
+							actions : vec![DecisionActions::LockDecision],
 							allow_repeated_activation : false
 						}]),
 					ActionPallet(
 						enum_map!(
-							DecisionActions::LockDecsion => vec![
+							DecisionActions::LockDecision => vec![
 								InputAction::ChangeState(
 									StateVector::new(
 										None, None, Some(DilemmaPhase::Consequence)
