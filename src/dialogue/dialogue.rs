@@ -23,7 +23,7 @@ use crate::{
         MainState, 
         StateVector
     }, graph::GraphPlugin, interaction::{
-        ActionPallet, AdvanceDialogue, InputAction
+        ActionPallet, AdvanceDialogue, Draggable, InputAction
     }, sprites::{SpritePlugin, WindowTitle}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
 };
 
@@ -107,17 +107,18 @@ fn dialogue_padding() -> TextWindow {
     TextWindow{
         title : Some(
             WindowTitle{
-                text : String::from("User Input"),
+                text : String::from("User Prompt"),
                 padding : 50.0
             }
         ),
         header_height : 25.0,
-        padding : Vec2::new(50.0, 50.0)
+        padding : Vec2::new(50.0, 50.0),
+        close_button : false
     }
 }
 
 #[derive(Component)]
-#[require(Text2d, TextWindow(dialogue_padding), TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
+#[require(Text2d, TextWindow(dialogue_padding), Draggable, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
 pub struct Dialogue {
     pub lines: Vec<DialogueLine>,
     pub current_line_index: usize,

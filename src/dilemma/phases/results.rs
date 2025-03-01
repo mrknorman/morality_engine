@@ -13,7 +13,15 @@ use crate::{
 		ColorTranslation, 
 		DIM_BACKGROUND_COLOR, 
 		PRIMARY_COLOR
-	}, game_states::DilemmaPhase, inheritance::BequeathTextColor, physics::Velocity, sprites::WindowTitle, stats::DilemmaStats, text::TextWindow, train::Train
+	}, 
+	game_states::DilemmaPhase, 
+	inheritance::BequeathTextColor, 
+	interaction::Draggable, 
+	physics::Velocity, 
+	sprites::WindowTitle, 
+	stats:: GameStats, 
+	text::TextWindow, 
+	train::Train
 };
 
 
@@ -23,7 +31,7 @@ impl Plugin for DilemmaResultsPlugin {
         app
 		.add_systems(
             OnEnter(DilemmaPhase::Results), 
-            DilemmaResultsScene::setup
+            DilemmaResultsScene::setup,
         );
     }
 }
@@ -36,7 +44,7 @@ impl DilemmaResultsScene {
 	fn setup(
 		mut commands: Commands,
 		mut train_query : Query<(&mut Transform, &mut Velocity), With<Train>>,
-		stats : Res<DilemmaStats>,
+		stats : Res<GameStats>,
 		asset_server: Res<AssetServer>,
 	) {
 	
@@ -46,31 +54,61 @@ impl DilemmaResultsScene {
 
 			let text_box_z : f32 = 1.0; 
 
+			if let Some(dilemma_stats) = stats.dilemma_stats.last().cloned() {
+				parent.spawn((
+					Draggable::default(),
+					TextWindow{
+						title : Some(WindowTitle{
+							text : String::from("Latest Results"),
+							..default()
+						}),
+						..default()
+					},
+					TextColor(Color::NONE),
+					TextFont{
+						font_size : 12.0,
+						..default()
+					},
+					Text2d::new(dilemma_stats.to_string()),
+					ColorTranslation::new(
+						PRIMARY_COLOR,
+						Duration::from_secs_f32(0.2),
+						false
+					),
+					Transform::from_xyz(
+						-300.0,
+						0.0,
+						text_box_z + 0.2,
+					))
+				);
+			}
+
 			parent.spawn((
+				Draggable::default(),
 				TextWindow{
 					title : Some(WindowTitle{
-						text : String::from("Dilemma Results"),
+						text : String::from("Overall Results"),
 						..default()
 					}),
 					..default()
 				},
-                TextColor(Color::NONE),
+				TextColor(Color::NONE),
 				TextFont{
-					font_size : 15.0,
+					font_size : 12.0,
 					..default()
 				},
-                Text2d::new(stats.to_string()),
-                ColorTranslation::new(
-                    PRIMARY_COLOR,
-                    Duration::from_secs_f32(0.2),
-                    false
-                ),
+				Text2d::new(stats.to_string()),
+				ColorTranslation::new(
+					PRIMARY_COLOR,
+					Duration::from_secs_f32(0.2),
+					false
+				),
 				Transform::from_xyz(
-					0.0,
+					300.0,
 					0.0,
 					text_box_z + 0.2,
 				))
-            );
+			);
 
             parent.spawn((
                 TextColor(Color::NONE),

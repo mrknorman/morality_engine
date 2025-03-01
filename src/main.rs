@@ -78,6 +78,7 @@ impl Plugin for GamePlugin {
             .insert_resource(Lever::default())
             .insert_resource(GameStats::default())
             .insert_resource(DilemmaStats::default())
+            .insert_resource(GameStats::default())
             .add_systems(Startup, setup)
             .add_systems(Update, shortcuts::close_on_esc)
             .init_state::<MainState>()
@@ -144,9 +145,10 @@ fn setup(
     Debt:
         - Make dialogue more robust
         - Fix dialogue fadeout
+        - Fix occasional interaction system bug where interaction loops
+        - Make all JSONs included rather than loaded
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
-        - Bouncy Letters (maybe bounce when clicked)
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
     Dialogue:
         - Number waterfall background, reacts to mouse movement
@@ -157,16 +159,26 @@ fn setup(
         - System Startup Text
         - Simulation Loading Text and Bar in small window
     Dillema:
+        - Add close button to windows
+        - Add coloured better formated numbers to results screen
         - Change decision music 
         - Physics bodypart destruction
         - Flashy Selector
-        - Flashy Countdown
         - Hover
         - This train will not stop appears when click on train
-        - Background colours
-        - Refactor lever
+        - Background colors
+        - Results screen fireworks
+        - Window Ordering to resolve z-fighting issues
+        - Link Clickthrough
+
+    Style:
+        - New track art
+        - Update sound fx
+
 
     Long Term:
+    - Rampage MODE! Unlocked through ultra violent false start!
+    - Sandbox MODE! Unlocked by completeing Calibration (allows for real morality test)
     - Pause Menu
     - Options Menu -> Volume Controls
     - Save Game -> Update Menu Train Based on Next Train
@@ -175,6 +187,8 @@ fn setup(
     - Act 1 : The Lab - Title Screen after escaping the Maze
     - Implement Trust and Systemic Failure
     - Upgrades Shop - Part 2
+        - Research and Upgrades
+    - Unlock Console for Hacking
 
     let correct = Sound::new(
         PathBuf::from("./sounds/correct.mp3"),

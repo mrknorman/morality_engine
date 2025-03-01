@@ -3,7 +3,7 @@ use std::{
 };
 use serde::Deserialize;
 
-use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, text::{TextBounds, TextLayoutInfo}};
+use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, text::{cosmic_text::ttf_parser::Width, TextBounds, TextLayoutInfo}};
 
 use crate::{
     colors::{
@@ -14,7 +14,20 @@ use crate::{
         HOVERED_BUTTON, 
         PRIMARY_COLOR
     }, 
-    interaction::{Clickable, KeyMapping, Pressable}, sprites::{BorderedBox, SpritePlugin, WindowBox, WindowTitle}, time::Dilation
+    interaction::{
+        Clickable, 
+        Draggable, 
+        DraggableRegion, 
+        KeyMapping, 
+        Pressable
+    }, 
+    sprites::{
+        combinations::BorderedRectangle, 
+        SpritePlugin, 
+        Window, 
+        WindowTitle
+    }, 
+    time::Dilation
 };
 
 pub struct TextPlugin;
@@ -23,7 +36,8 @@ impl Plugin for TextPlugin {
         app
 		.add_systems(
 			Update,
-                (TextBox::update_box,
+                (
+                TextBox::update_box,
                 TextWindow::update_box)
             );
 
@@ -241,7 +255,7 @@ impl Component for TextBox {
                 let mut commands = world.commands();
                 commands.entity(entity).with_children(|parent| {
                     parent.spawn(
-                        BorderedBox::default()
+                        BorderedRectangle::default()
                     );
                 });
             }
@@ -252,7 +266,7 @@ impl Component for TextBox {
 impl TextBox {
     fn update_box(
         mut box_query: Query<(Entity, &TextBox, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (With<TextBox>, Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>)>,
-        mut background_query: Query<(&mut Transform, &mut BorderedBox)>,
+        mut background_query: Query<(&mut Transform, &mut BorderedRectangle)>,
         children_query: Query<&Children>,
     ) {
         for (entity, text_box, text_layout, text_bounds, anchor) in box_query.iter_mut() {
@@ -286,8 +300,8 @@ impl TextBox {
                         transform.translation.x = -anchor_offset.x;
                         transform.translation.y = -anchor_offset.y;
 
-                        bordered_box.0.x = text_width + text_box.0.x;
-                        bordered_box.0.y = text_height + text_box.0.y;
+                        bordered_box.0.dimensions.x = text_width + text_box.0.x;
+                        bordered_box.0.dimensions.y = text_height + text_box.0.y;
                     }
                 }
             }
@@ -301,7 +315,8 @@ impl TextBox {
 pub struct TextWindow{
     pub title : Option<WindowTitle>,
     pub header_height : f32,
-    pub padding : Vec2
+    pub padding : Vec2,
+    pub close_button : bool
 }
 
 impl Default for TextWindow{
@@ -309,7 +324,8 @@ impl Default for TextWindow{
         Self{
             title : None,
             header_height : 20.0,
-            padding : Vec2::new(20.0, 10.0)
+            padding : Vec2::new(20.0, 10.0),
+            close_button : true
         }
     }
 }
@@ -331,11 +347,14 @@ impl Component for TextWindow {
                     let mut commands = world.commands();
                     commands.entity(entity).with_children(|parent| {
                         parent.spawn(
-                            WindowBox{
-                                size : Vec2::new(100.0, 100.0),
-                                header_height  : text_window.header_height,
-                                title : text_window.title.clone()
-                            }
+                            Window::new(
+                                text_window.title.clone(),
+                                100.0,
+                                100.0,
+                                2.0,
+                                text_window.header_height,
+                                text_window.close_button
+                            )
                         );
                     });
                 }
@@ -346,11 +365,13 @@ impl Component for TextWindow {
 
 impl TextWindow {
     fn update_box(
-        mut box_query: Query<(Entity, &TextWindow, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (With<TextWindow>, Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>)>,
-        mut background_query: Query<(&mut Transform, &mut WindowBox)>,
+        mut box_query: Query<(
+            Entity, &TextWindow, &TextLayoutInfo, &TextBounds, Option<&Anchor>, Option<&mut Draggable>, &TextWindow
+        ), Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>>,
+        mut background_query: Query<(&mut Transform, &mut Window)>,
         children_query: Query<&Children>,
     ) {
-        for (entity, text_box, text_layout, text_bounds, anchor) in box_query.iter_mut() {
+        for (entity, text_box, text_layout, text_bounds, anchor, draggable, window) in box_query.iter_mut() {
 
             // Get the text dimensions
             let text_width = text_bounds.width.unwrap_or(text_layout.size.x);
@@ -371,6 +392,15 @@ impl TextWindow {
                 Anchor::Custom(offset) => *offset, // Use the custom anchor offset directly
             };
 
+            if let Some(mut draggable) = draggable {
+
+                let edge_padding = 10.0;
+                draggable.region = Some(DraggableRegion{
+                    region : Vec2::new(text_width + text_box.padding.x + edge_padding, window.header_height + edge_padding),
+                    offset : Vec2::new(-anchor_offset.x, (text_height + text_box.padding.y + window.header_height) / 2.0  - anchor_offset.y)
+                });
+            }
+
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
 
@@ -381,8 +411,8 @@ impl TextWindow {
                         transform.translation.x = -anchor_offset.x;
                         transform.translation.y = -anchor_offset.y;
 
-                        windowed_box.size.x = text_width + text_box.padding.x;
-                        windowed_box.size.y = text_height + text_box.padding.y;
+                        windowed_box.boundary.dimensions.x = text_width + text_box.padding.x;
+                        windowed_box.boundary.dimensions.y = text_height + text_box.padding.y;
                     }
                 }
             }

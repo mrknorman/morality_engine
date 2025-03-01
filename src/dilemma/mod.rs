@@ -3,9 +3,7 @@ use std::{
 	time::Duration
 };
 use bevy::{
-	prelude::*,
-	audio::Volume,
-	sprite::Anchor
+	audio::Volume, prelude::*, sprite::Anchor, text::TextBounds
 };
 use enum_map::Enum;
 use phases::{
@@ -33,7 +31,7 @@ use crate::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
-	}, game_states::GameState, inheritance::BequeathTextColor, interaction::InteractionPlugin, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::SpritePlugin, stats::DilemmaStats, text::TextPlugin, timing::TimingPlugin, train::{
+	}, game_states::GameState, inheritance::BequeathTextColor, interaction::{Draggable, InteractionPlugin}, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::{SpritePlugin, WindowTitle}, stats::DilemmaStats, text::{TextPlugin, TextWindow}, timing::TimingPlugin, train::{
         Train, 
 		TrainPlugin, 
 		STEAM_TRAIN
@@ -172,22 +170,26 @@ impl DilemmaScene {
 				));
 
 				parent.spawn((
-					TextColor(PRIMARY_COLOR),
-					Fade{
-						duration : transition_duration,
-						paused : true
-					},
-					Text2d::new(&dilemma.name),
-					TextFont{
-						font_size : 60.0,
+					TextWindow{
+						title : Some(WindowTitle{
+							text : dilemma.name.clone(),
+							..default()
+						}),
 						..default()
 					},
-					TextLayout {
-						justify : JustifyText::Left,
-						linebreak  : LineBreak::WordBoundary
+					TextBounds {
+						width : Some(400.0), 
+						height : None
 					},
-					Anchor::TopCenter,
-					Transform::from_xyz(0.0,250.0, 1.0)
+					Draggable::default(),
+					TextColor(PRIMARY_COLOR),
+					Text2d::new(&dilemma.description),
+					TextFont{
+						font_size : 12.0,
+						..default()
+					},
+					Anchor::TopLeft,
+					Transform::from_xyz(-600.0,200.0, 2.0)
 				));	
 				
 				parent.spawn((
