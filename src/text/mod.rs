@@ -3,7 +3,7 @@ use std::{
 };
 use serde::Deserialize;
 
-use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, text::{cosmic_text::ttf_parser::Width, TextBounds, TextLayoutInfo}};
+use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, text::{TextBounds, TextLayoutInfo}};
 
 use crate::{
     colors::{
@@ -22,7 +22,7 @@ use crate::{
         Pressable
     }, 
     sprites::{
-        combinations::BorderedRectangle, 
+        compounds::BorderedRectangle, 
         SpritePlugin, 
         Window, 
         WindowTitle
