@@ -15,7 +15,7 @@ use bevy::{
 
 use crate::{
     colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, 
-    sprites::combinations::HollowRectangle,
+    sprites::compounds::HollowRectangle,
     text::TextFrames,
     time::Dilation
 };

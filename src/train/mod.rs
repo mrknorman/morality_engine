@@ -13,11 +13,26 @@ use serde::Deserialize;
 
 use crate::{
 	audio::{
-		continuous_audio, AudioPlugin, ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
-	}, colors::ColorAnchor, interaction::{
-		ActionPallet, Clickable, InputAction, InteractionPlugin
-	}, motion::Wobble, physics::Velocity, text::{
-		Animated, TextFrames, TextSprite
+		continuous_audio, 
+		AudioPlugin, 
+		ContinuousAudio, 
+		ContinuousAudioPallet, 
+		TransientAudio, 
+		TransientAudioPallet
+	}, 
+	colors::ColorAnchor, 
+	interaction::{
+		ActionPallet, 
+		Clickable, 
+		InputAction, 
+		InteractionPlugin
+	}, 
+	motion::Wobble, 
+	physics::Velocity, 
+	text::{
+		Animated, 
+		TextFrames, 
+		TextSprite
 	}
 };
 
@@ -248,7 +263,7 @@ impl Component for Train {
 							Transform::from_xyz(
 								-35.0,
 								32.0,
-								1.0
+								0.1
 							)
 						));
 
