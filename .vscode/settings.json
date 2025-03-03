@@ -3,6 +3,7 @@
         "cooldown",
         "despawn",
         "srgb",
-        "Srgba"
+        "Srgba",
+        "wgsl"
     ]
 }
