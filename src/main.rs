@@ -12,6 +12,7 @@ use bevy::{
 use dilemma::lever::Lever;
 use rand::SeedableRng;
 use rand_pcg::Pcg64Mcg;
+use shaders::ScanLinesMaterial;
 use stats::DilemmaStats;
 
 #[forbid(unsafe_code)]
@@ -67,6 +68,7 @@ fn main() {
         }))
         .add_plugins(GamePlugin)
         .add_plugins(Material2dPlugin::<PulsingMaterial>::default())
+        .add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
         .run();
 }
 
@@ -79,7 +81,8 @@ impl Plugin for GamePlugin {
             .insert_resource(GameStats::default())
             .insert_resource(DilemmaStats::default())
             .insert_resource(GameStats::default())
-            .add_systems(Startup, setup)
+            .add_systems(Startup, (
+                setup, ScanLinesMaterial::setup))
             .add_systems(Update, shortcuts::close_on_esc)
             .init_state::<MainState>()
             .add_sub_state::<GameState>()
@@ -135,6 +138,10 @@ fn setup(
     ));
 }
 
+
+
+
+
 //
 
 /*
@@ -158,9 +165,9 @@ fn setup(
         - Clickable nodes in graph make tune
         - System Startup Text
         - Simulation Loading Text and Bar in small window
-    Dillema:
+    Dilemma:
         - Add close button to windows
-        - Add coloured better formated numbers to results screen
+        - Add coloured better formatted numbers to results screen
         - Change decision music 
         - Physics bodypart destruction
         - Flashy Selector
