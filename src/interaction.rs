@@ -8,6 +8,7 @@ use bevy::{
     ecs::component::StorageType, math::Vec3A, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 use crate::{
+    MainCamera,
     ascii_fonts::{AsciiActions, AsciiSounds}, audio::{
         AudioPlugin,
         AudioSystemsActive,
@@ -236,14 +237,12 @@ where
 /// Utility function for cursor handling.
 pub fn get_cursor_world_position(
     windows: &Query<&Window, With<PrimaryWindow>>,
-    camera_q: &Query<(&Camera, &GlobalTransform)>,
+    camera_q: &Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) -> Option<Vec2> {
     let window = windows.get_single().ok()?;
     let cursor_position = window.cursor_position()?;
     let (camera, camera_transform) = camera_q.get_single().ok()?;
-    let world_position = camera
-        .viewport_to_world(camera_transform, cursor_position)
-        .ok()?;
+    let world_position = camera.viewport_to_world(camera_transform, cursor_position).ok()?;
     Some(world_position.origin.truncate())
 }
 
@@ -370,7 +369,7 @@ macro_rules! handle_triggers {
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         windows: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_q: Query<(&Camera, &GlobalTransform)>,
+        camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut clickable_q: Query<(&Aabb, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
     ) {
 
@@ -687,7 +686,7 @@ impl Draggable {
     pub fn enact(
         windows: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_q: Query<(&Camera, &GlobalTransform)>,
+        camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut draggable_q: Query<(&GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>), Without<TextSpan>>,
     ) {
         let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
@@ -743,18 +742,6 @@ impl Draggable {
                 // Store the offset between cursor and entity position to maintain relative positioning
                 draggable.offset = global_transform.translation().truncate() - cursor_position;
             }
-        }
-    }
-    
-    // Helper method to create a Draggable with a custom region
-    pub fn with_region(region_size: Vec2, region_offset: Vec2) -> Self {
-        Self {
-            region: Some(DraggableRegion {
-                region: region_size,
-                offset: region_offset,
-            }),
-            offset: Vec2::ZERO,
-            dragging: false,
         }
     }
 }

@@ -5,7 +5,7 @@ use std::time::Duration;
 use rand::seq::SliceRandom; // For shuffling
 use rand::thread_rng;
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}, time::Dilation};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}, time::Dilation, MainCamera};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -316,7 +316,7 @@ impl ColorChangeOn {
     fn color_change_on(
         windows: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_q: Query<(&Camera, &GlobalTransform)>,
+        camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut bounce_query: Query<(
             &mut ColorChangeOn,
             &mut TextColor,

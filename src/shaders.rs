@@ -1,8 +1,10 @@
 use bevy::{
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef, ShaderType},
-    sprite::Material2d
+    render::{render_resource::{AsBindGroup, ShaderRef, ShaderType}, view::RenderLayers},
+    sprite::Material2d, window::PrimaryWindow
 };
+
+use crate::{colors::HIGHLIGHT_COLOR, RenderTargetHandle};
 
 // This is the struct that will be passed to your shader
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -45,16 +47,17 @@ impl Material2d for ScanLinesMaterial {
     }
 }
 
+#[derive(Component)]
+pub struct ScanMesh;
+
 impl ScanLinesMaterial {
     pub fn setup(
         mut commands: Commands,
-        asset_server: Res<AssetServer>,
+        render_target: Res<RenderTargetHandle>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
         mut meshes: ResMut<Assets<Mesh>>,
         windows: Query<&Window>,
     ) {
-        let test_texture = asset_server.load("textures/test.png");
-
         // Get the primary window's resolution
         let window = windows.single();
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
@@ -64,19 +67,53 @@ impl ScanLinesMaterial {
 
         // Create our custom material with initial parameters.
         let material = materials.add(ScanLinesMaterial {
-            source_texture: test_texture,
+            source_texture: render_target.0.clone(),
             scan_line: ScanLineUniform {
-                spacing: 2.0,
-                thickness: 2.0,
+                spacing: 1.0,
+                thickness: 0.5,
                 darkness: 0.5,
                 resolution: window_resolution,
             },
         });
 
         // Spawn the quad with our custom material.
-        //commands.spawn((
-        //    Mesh2d(mesh),
-        //    MeshMaterial2d(material),
-        //));
+        commands.spawn((
+            RenderLayers::layer(1), // Only sees the post-process quad
+            Mesh2d(mesh),
+            MeshMaterial2d(material),
+            ScanMesh
+        ));
     }
+
+    /// Update the resolution uniform if the window size changes.
+    pub fn update(
+        windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        mut materials: ResMut<Assets<ScanLinesMaterial>>,
+    ) {
+        if let Ok(window) = windows.get_single() {
+            let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
+            for (_id, material) in materials.iter_mut() {
+                material.scan_line.resolution = window_resolution;
+            }
+        }
+    }
+    
+    pub fn update_scan_mesh(
+        windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        scan_mesh_query: Query<&Mesh2d, With<ScanMesh>>,
+    ) {
+        if let Ok(window) = windows.get_single() {
+            let new_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
+        
+            for mesh_handle in scan_mesh_query.iter() {
+                if let Some(mesh) = meshes.get_mut(mesh_handle) {
+                    // Rebuild the mesh as a fullscreen quad with the new dimensions.
+                    let new_mesh = Mesh::from(Rectangle::new(new_resolution.x, new_resolution.y));
+                    *mesh = new_mesh;
+                }
+            }
+        }
+    }
+
 }

@@ -1,12 +1,8 @@
 use bevy::{
-    color::palettes::css::BLACK, 
-    core_pipeline::{
+    asset::RenderAssetUsages, color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, 
-    prelude::*, 
-    sprite::Material2dPlugin, 
-    window::PresentMode
+    }, prelude::*, render::{camera::RenderTarget, render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages}, view::RenderLayers}, sprite::Material2dPlugin, window::{PresentMode, PrimaryWindow, WindowResized}
 };
 
 use dilemma::lever::Lever;
@@ -72,6 +68,14 @@ fn main() {
         .run();
 }
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum StartUpOrder {
+    SetUpRenderTarget,
+    ScanLineSetup,
+    PostProcess
+}
+
+
 struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
@@ -82,8 +86,12 @@ impl Plugin for GamePlugin {
             .insert_resource(DilemmaStats::default())
             .insert_resource(GameStats::default())
             .add_systems(Startup, (
-                setup, ScanLinesMaterial::setup))
-            .add_systems(Update, shortcuts::close_on_esc)
+                setup_render_target.in_set(StartUpOrder::SetUpRenderTarget),
+                ScanLinesMaterial::setup.in_set(StartUpOrder::ScanLineSetup).after(StartUpOrder::SetUpRenderTarget),
+                setup_cameras.after(StartUpOrder::ScanLineSetup)
+            ))
+            .add_systems(Update, (shortcuts::close_on_esc, ScanLinesMaterial::update, ScanLinesMaterial::update_scan_mesh, update_render_target_size))
+            .add_systems(Update, ScanLinesMaterial::update)
             .init_state::<MainState>()
             .add_sub_state::<GameState>()
             .add_sub_state::<DilemmaPhase>()
@@ -120,26 +128,133 @@ impl Default for GlobalRng {
     }
 }
 
-fn setup(
-        mut commands: Commands,
-        mut clear_color: ResMut<ClearColor>
+#[derive(Component)]
+pub struct MainCamera;
+
+fn setup_cameras(
+        mut commands: Commands,         
+        mut clear_color: ResMut<ClearColor>,
+        render_target: Res<RenderTargetHandle>
     ) {
-    
+
     clear_color.0 = BLACK.into();
-    
+
+    // Off-screen camera: render game geometry to the off-screen texture.
     commands.spawn((
         Camera2d,
-        Camera{
-            hdr : true,
+        OffscreenCamera,
+        RenderLayers::layer(0),
+        Camera {
+            hdr: true,
+            target: RenderTarget::Image(render_target.0.clone()),
             ..default()
         },
-        Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
-        Bloom::default(), // 3. Enable bloom for the camera
+        Tonemapping::TonyMcMapface,
+        Bloom::default(),
+    ));
+
+    // Main (window) camera: renders only the fullscreen quad (post-process) to the window.
+    commands.spawn((
+        Camera2d,
+        MainCamera,
+        RenderLayers::layer(1),
+        Camera {
+            hdr: true,
+            ..default()
+        },
+        Tonemapping::TonyMcMapface,
+        Bloom::default(),
     ));
 }
 
 
+#[derive(Component)]
+pub struct OffscreenCamera;
 
+fn update_render_target_size(
+    windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+    mut images: ResMut<Assets<Image>>,
+    mut resize_reader: EventReader<WindowResized>,
+    render_target: ResMut<RenderTargetHandle>,
+) {
+    for _ in resize_reader.read() {
+        if let Ok(window) = windows.get_single() {
+            let new_width = window.resolution.width() as u32;
+            let new_height = window.resolution.height() as u32;
+            // Get a mutable reference to the current image, if it exists:
+            if let Some(image) = images.get_mut(&render_target.0) {
+                // If the size doesn’t match, recreate the image
+                if image.texture_descriptor.size.width != new_width ||
+                image.texture_descriptor.size.height != new_height
+                {
+                    let new_size = Extent3d {
+                        width: new_width,
+                        height: new_height,
+                        depth_or_array_layers: 1,
+                    };
+                    let clear_color = [0, 0, 0, 255]; // opaque black
+                    // Create a new image filled with the clear color.
+                    let mut new_image = Image::new_fill(
+                        new_size,
+                        TextureDimension::D2,
+                        &clear_color,
+                        TextureFormat::bevy_default(),
+                        RenderAssetUsages::default(), // or use your previous flag combination
+                    );
+                    // Ensure it has the correct usage flags.
+                    new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
+                        | TextureUsages::COPY_DST
+                        | TextureUsages::RENDER_ATTACHMENT;
+                    // Replace the old image with the new one.
+                    *image = new_image;
+                }
+            }
+        }
+    }
+}
+#[derive(Resource)]
+pub struct RenderTargetHandle(pub Handle<Image>);
+
+impl Default for RenderTargetHandle {
+    fn default() -> Self {
+        RenderTargetHandle(Handle::default())
+    }
+}
+
+
+
+
+fn setup_render_target(
+    mut commands: Commands,
+    windows: Query<&Window>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let window = windows.single();
+    let width = window.resolution.width() as u32;
+    let height = window.resolution.height() as u32;
+    let size = Extent3d {
+        width,
+        height,
+        depth_or_array_layers: 1,
+    };
+
+    // Opaque black clear color
+    let clear_color = [0, 0, 0, 255]; 
+
+    let mut image = Image::new_fill(
+        size,
+        TextureDimension::D2,
+        &clear_color,
+        TextureFormat::bevy_default(),
+        RenderAssetUsages::default(),
+    );
+
+    image.texture_descriptor.usage =
+        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
+
+    let image_handle = images.add(image);
+    commands.insert_resource(RenderTargetHandle(image_handle));
+}
 
 
 //
