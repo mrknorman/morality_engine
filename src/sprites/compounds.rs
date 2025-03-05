@@ -123,11 +123,8 @@ impl Component for HollowRectangle {
             };
             
             world.commands().entity(entity).with_children(|parent| {
-                for sprite_bundle in HollowRectangle::assemble(
-                    width, height, thickness
-                ) {
-                    parent.spawn(sprite_bundle);
-                }
+                HollowRectangle::assemble(width, height, thickness)
+                    .for_each(|sprite_bundle| {parent.spawn(sprite_bundle);});
             });
         });
     }
@@ -219,11 +216,7 @@ impl Component for Plus {
             };
             
             world.commands().entity(entity).with_children(|parent| {
-                for sprite in Plus::assemble(width, height, thickness) {
-                    parent.spawn(
-                        sprite,
-                    );
-                }
+                Plus::assemble(width, height, thickness).for_each(|sprite| {parent.spawn(sprite);});
             });
         });
     }
@@ -263,9 +256,6 @@ impl Component for BorderedRectangle {
             let (mesh_handle, material_handle) = {
                 let mut meshes = world.resource_mut::<Assets<Mesh>>();
                 let mesh_handle = meshes.add(Mesh::from(Rectangle::new(width, height)));
-                
-                // Release first mutable borrow before creating second
-                drop(meshes);
                 
                 let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
                 let material_handle = materials.add(Color::BLACK);

@@ -4,7 +4,7 @@ use bevy::{
     sprite::Material2d, window::PrimaryWindow
 };
 
-use crate::{colors::HIGHLIGHT_COLOR, RenderTargetHandle};
+use crate::RenderTargetHandle;
 
 // This is the struct that will be passed to your shader
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -35,8 +35,8 @@ pub struct ScanLinesMaterial {
 
 #[derive(Clone, Copy, Debug, Default, ShaderType)]
 pub struct ScanLineUniform {
-    pub spacing: f32,
-    pub thickness: f32,
+    pub spacing: i32,
+    pub thickness: i32,
     pub darkness: f32,
     pub resolution: Vec2,
 }
@@ -69,9 +69,9 @@ impl ScanLinesMaterial {
         let material = materials.add(ScanLinesMaterial {
             source_texture: render_target.0.clone(),
             scan_line: ScanLineUniform {
-                spacing: 1.0,
-                thickness: 0.5,
-                darkness: 0.5,
+                spacing: 1,
+                thickness: 3,
+                darkness: 0.0,
                 resolution: window_resolution,
             },
         });

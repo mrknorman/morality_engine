@@ -125,12 +125,10 @@ impl Window {
         for (entity, window) in window_query.iter_mut() {
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
-                    // Update the body component if it exists
                     if let Ok(mut body) = body_query.get_mut(child) {
                         body.0 = window.boundary;
                     }
                     
-                    // Update the header component if it exists
                     if let Ok((mut header, mut transform)) = head_query.get_mut(child) {
                         header.boundary.dimensions = Vec2::new(window.boundary.dimensions.x, window.header_height);
                         header.boundary.thickness = window.boundary.thickness;
@@ -143,7 +141,7 @@ impl Window {
                     }
                 }
             }
-        }
+        };
     }
 }
 
@@ -155,21 +153,21 @@ impl Component for WindowBody {
 
 	fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {       
+            |mut world, entity, _component_id| {     
 
-                let bordered_box: Option<WindowBody> = {
-                    let entity_mut: EntityRef<'_> = world.entity(entity);
-                    entity_mut.get::<WindowBody>()
-                        .map(|bordered_box: &WindowBody| bordered_box.clone())
-                };
+                let boundary = {
+                    if let Some(window) = world.entity(entity).get::<WindowBody>() {
+                        window.0
+                    } else {
+                        return;
+                    }
+                };  
 
-                if let Some(window_body)= bordered_box {
-                    world.commands().entity(entity).with_children(|parent| {
-                        parent.spawn(
-                            BorderedRectangle(window_body.0)
-                        );
-                    });
-                }
+                world.commands().entity(entity).with_children(|parent| {
+                    parent.spawn(
+                        BorderedRectangle(boundary)
+                    );
+                });
             }
         );
     }
@@ -178,18 +176,18 @@ impl Component for WindowBody {
 impl WindowBody {
     fn update(
         mut body_query: Query<(Entity, &WindowBody), (Changed<WindowBody>, Without<BorderedRectangle>)>,
-        mut box_query: Query<&mut BorderedRectangle>,
+        mut rectangle_query: Query<&mut BorderedRectangle>,
         children_query: Query<&Children>
     ) {
         for (entity, body) in body_query.iter_mut() {
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
-                    if let Ok(mut border) = box_query.get_mut(child) {
+                    if let Ok(mut border) = rectangle_query.get_mut(child) {
                         border.0 = body.0;
                     }
                 }
             }
-        }
+        };
     }
 }
 
@@ -215,63 +213,52 @@ impl Component for WindowHeader {
 
 	fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {       
+            |mut world, entity, _component_id| {
 
-                let header: Option<WindowHeader> = {
-                    let entity_mut: EntityRef<'_> = world.entity(entity);
-                    entity_mut.get::<WindowHeader>()
-                        .map(|header: &WindowHeader| header.clone())
-                };
+                let (boundary, height, width, has_close_button, title) = {
+                    if let Some(window) = world.entity(entity).get::<WindowHeader>() {
+                        (window.boundary, window.boundary.dimensions.y, window.boundary.dimensions.x, window.has_close_button, window.title.clone())
+                    } else {
+                        return;
+                    }
+                };         
 
-                if let Some(header)= header {
-                    let width = header.boundary.dimensions.x;
-                    let height = header.boundary.dimensions.y;
+                world.commands().entity(entity).with_children(|parent| {
+                    parent.spawn(BorderedRectangle(boundary));
 
-                    let mut commands = world.commands();
-                    commands.entity(entity).with_children(|parent| {
-                        parent.spawn(
-                            BorderedRectangle::new(
-                                height,
-                                width,
-                                2.0
-                            )
-                        );
-
-                        if header.has_close_button {
-                            parent.spawn( (WindowCloseButton{
-                                    boundary : HollowRectangle{
-                                        dimensions : Vec2::new(height, height),
-                                        thickness : 2.0
-                                    }
-                                },
-                                Transform::from_xyz(width / 2.0 - height / 2.0, 0.0, 0.0) 
-                            ));
-                        }   
-                        
-                        if let Some(title) = header.title {
-                            parent.spawn((
-                                title.clone(),
-                                Text2d(title.clone().text),
-                                TextColor(PRIMARY_COLOR),
-                                TextFont{
-                                    font_size : 12.0,
-                                    ..default()
-                                },
-                                Anchor::CenterLeft,
-                                Transform::from_xyz((-width + title.padding) / 2.0, 0.0, 0.0)
-                            ));
-                        }
-                    });
-                }
-            }
-        );
+                    if has_close_button {
+                        parent.spawn( (WindowCloseButton{
+                                boundary : HollowRectangle{
+                                    dimensions : Vec2::new(height, height),
+                                    thickness : 2.0
+                                }
+                            },
+                            Transform::from_xyz((width - height) / 2.0, 0.0, 0.0) 
+                        ));
+                    }   
+                    
+                    if let Some(title) = title {
+                        parent.spawn((
+                            title.clone(),
+                            Text2d(title.text),
+                            TextColor(PRIMARY_COLOR),
+                            TextFont{
+                                font_size : 12.0,
+                                ..default()
+                            },
+                            Anchor::CenterLeft,
+                            Transform::from_xyz((-width + title.padding) / 2.0, 0.0, 0.0)
+                        ));
+                    }
+                });
+        });
     }
 }
 
 impl WindowHeader {
     fn update(
         mut header_query: Query<(Entity, &WindowHeader), Changed<WindowHeader>>,
-        mut main_box_query: Query<&mut BorderedRectangle, Without<WindowCloseButtonBorder>>,
+        mut rectangle_query: Query<&mut BorderedRectangle>,
         children_query: Query<&Children>,
         mut transform_sets: ParamSet<(
             Query<(&mut Transform, &WindowTitle)>,
@@ -281,12 +268,11 @@ impl WindowHeader {
         for (entity, header) in header_query.iter_mut() {
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
-                    // Update the main body box (non-close-button)
-                    if let Ok(mut body) = main_box_query.get_mut(child) {
-                        body.0.dimensions = header.boundary.dimensions;
+
+                    if let Ok(mut body) = rectangle_query.get_mut(child) {
+                        body.0 = header.boundary;
                     }
     
-                    // Update the title transform
                     if let Ok((mut transform, title)) = transform_sets.p0().get_mut(child) {
                         transform.translation = Vec3::new(
                             (-header.boundary.dimensions.x + title.padding) / 2.0,
@@ -295,7 +281,6 @@ impl WindowHeader {
                         );
                     }
     
-                    // Update the close button
                     if let Ok((mut transform, mut button)) = transform_sets.p1().get_mut(child) {
                         button.boundary.dimensions = Vec2::new(header.boundary.dimensions.y, header.boundary.dimensions.y);
                         transform.translation = Vec3::new(
@@ -306,7 +291,7 @@ impl WindowHeader {
                     }
                 }
             }
-        }
+        };
     }
 }
 
@@ -329,41 +314,33 @@ impl Component for WindowCloseButton {
         hooks.on_insert(
             |mut world, entity, _component_id| {       
 
-                let header: Option<WindowCloseButton> = {
-                    let entity_mut: EntityRef<'_> = world.entity(entity);
-                    entity_mut.get::<WindowCloseButton>()
-                        .map(|header: &WindowCloseButton| header.clone())
+                let (boundary, width, height) = {
+                    if let Some(window) = world.entity(entity).get::<WindowCloseButton>() {
+                        (window.boundary, window.boundary.dimensions.x, window.boundary.dimensions.y)
+                    } else {
+                        return;
+                    }
                 };
 
-                if let Some(header)= header {
-                    let width = header.boundary.dimensions.x;
-                    let height = header.boundary.dimensions.y;
+                world.commands().entity(entity).with_children(|parent| {
 
-                    let mut commands = world.commands();
-                    commands.entity(entity).with_children(|parent| {
+                    parent.spawn((
+                        WindowCloseButtonBorder,
+                        BorderedRectangle(boundary)
+                    ));
 
-                        parent.spawn((
-                            WindowCloseButtonBorder,
-                            BorderedRectangle::new(
-                                width,
-                                height,
-                                2.0
-                            )
-                        ));
-
-                        parent.spawn((
-                            WindowCloseButtonIcon,
-                            Plus{
-                                dimensions : Vec2::new(width - 10.0, height - 10.0),
-                                thickness : 1.0
-                            }, 
-                            Transform{
-                                rotation :  Quat::from_rotation_z(FRAC_PI_4),
-                                ..default()
-                            }
-                        ));                
-                    });
-                }
+                    parent.spawn((
+                        WindowCloseButtonIcon,
+                        Plus{
+                            dimensions : Vec2::new(width - 10.0, height - 10.0),
+                            thickness : 1.0
+                        }, 
+                        Transform{
+                            rotation :  Quat::from_rotation_z(FRAC_PI_4),
+                            ..default()
+                        }
+                    ));                
+                });
             }
         );
     }

@@ -131,40 +131,55 @@ impl Default for GlobalRng {
 #[derive(Component)]
 pub struct MainCamera;
 
-fn setup_cameras(
-        mut commands: Commands,         
-        mut clear_color: ResMut<ClearColor>,
-        render_target: Res<RenderTargetHandle>
-    ) {
+const USE_POST_PROCESS: bool = false;
 
+fn setup_cameras(
+    mut commands: Commands,         
+    mut clear_color: ResMut<ClearColor>,
+    render_target: Res<RenderTargetHandle>
+) {
     clear_color.0 = BLACK.into();
 
-    // Off-screen camera: render game geometry to the off-screen texture.
-    commands.spawn((
-        Camera2d,
-        OffscreenCamera,
-        RenderLayers::layer(0),
-        Camera {
-            hdr: true,
-            target: RenderTarget::Image(render_target.0.clone()),
-            ..default()
-        },
-        Tonemapping::TonyMcMapface,
-        Bloom::default(),
-    ));
+    if USE_POST_PROCESS {
+        // Off‑screen camera: renders game geometry to the off‑screen texture.
+        commands.spawn((
+            Camera2d,
+            OffscreenCamera,
+            RenderLayers::layer(0),
+            Camera {
+                hdr: true,
+                target: RenderTarget::Image(render_target.0.clone()),
+                ..default()
+            },
+            Tonemapping::TonyMcMapface,
+            Bloom::default(),
+        ));
 
-    // Main (window) camera: renders only the fullscreen quad (post-process) to the window.
-    commands.spawn((
-        Camera2d,
-        MainCamera,
-        RenderLayers::layer(1),
-        Camera {
-            hdr: true,
-            ..default()
-        },
-        Tonemapping::TonyMcMapface,
-        Bloom::default(),
-    ));
+        // Main (window) camera: renders only the fullscreen quad (post‑processing) to the window.
+        commands.spawn((
+            Camera2d,
+            MainCamera,
+            RenderLayers::layer(1),
+            Camera {
+                hdr: true,
+                ..default()
+            },
+            Tonemapping::TonyMcMapface,
+            //Bloom::default(),
+        ));
+    } else {
+        // Default camera: render directly to the window without any post‑processing.
+        commands.spawn((
+            Camera2d,
+            MainCamera,
+            Camera {
+                hdr: true,
+                ..default()
+            },
+            Tonemapping::TonyMcMapface,
+            Bloom::default(),
+        ));
+    }
 }
 
 
@@ -192,13 +207,13 @@ fn update_render_target_size(
                         height: new_height,
                         depth_or_array_layers: 1,
                     };
-                    let clear_color = [0, 0, 0, 255]; // opaque black
+                    let clear_color = vec![0u8; 512 * 512 * 8]; // opaque black
                     // Create a new image filled with the clear color.
                     let mut new_image = Image::new_fill(
                         new_size,
                         TextureDimension::D2,
                         &clear_color,
-                        TextureFormat::bevy_default(),
+                        TextureFormat::Rgba16Float,
                         RenderAssetUsages::default(), // or use your previous flag combination
                     );
                     // Ensure it has the correct usage flags.
@@ -221,9 +236,6 @@ impl Default for RenderTargetHandle {
     }
 }
 
-
-
-
 fn setup_render_target(
     mut commands: Commands,
     windows: Query<&Window>,
@@ -238,14 +250,12 @@ fn setup_render_target(
         depth_or_array_layers: 1,
     };
 
-    // Opaque black clear color
-    let clear_color = [0, 0, 0, 255]; 
-
+    let clear_color = vec![0u8; 512 * 512 * 8];
     let mut image = Image::new_fill(
         size,
         TextureDimension::D2,
         &clear_color,
-        TextureFormat::bevy_default(),
+        TextureFormat::Rgba16Float,
         RenderAssetUsages::default(),
     );
 
@@ -255,9 +265,6 @@ fn setup_render_target(
     let image_handle = images.add(image);
     commands.insert_resource(RenderTargetHandle(image_handle));
 }
-
-
-//
 
 /*
     Todo:
