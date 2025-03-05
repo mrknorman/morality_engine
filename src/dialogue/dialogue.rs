@@ -24,7 +24,7 @@ use crate::{
         StateVector
     }, graph::GraphPlugin, interaction::{
         ActionPallet, AdvanceDialogue, Draggable, InputAction
-    }, sprites::{SpritePlugin, WindowTitle}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
+    }, sprites::{SpritePlugin, window::WindowTitle}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -103,7 +103,7 @@ fn dialogue_anchor() -> Anchor  {
     Anchor::CenterLeft
 }
 
-fn dialogue_padding() -> TextWindow {
+fn dialogue_window() -> TextWindow {
     TextWindow{
         title : Some(
             WindowTitle{
@@ -114,12 +114,12 @@ fn dialogue_padding() -> TextWindow {
         border_color : PRIMARY_COLOR,
         header_height : 25.0,
         padding : Vec2::new(50.0, 50.0),
-        close_button : false
+        has_close_button : false
     }
 }
 
 #[derive(Component)]
-#[require(Text2d, TextWindow(dialogue_padding), Draggable, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
+#[require(Text2d, TextWindow(dialogue_window), Draggable, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
 pub struct Dialogue {
     pub lines: Vec<DialogueLine>,
     pub current_line_index: usize,

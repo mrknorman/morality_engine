@@ -5,7 +5,7 @@ use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 use rand::seq::SliceRandom; 
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region}, motion::{Bounce, Pulse}, sprites::compounds::{AssembleShape, Plus}, time::Dilation, GlobalRng, MainCamera};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region}, motion::{Bounce, Pulse}, sprites::compound::{AssembleShape, Plus}, time::Dilation, GlobalRng, MainCamera};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
