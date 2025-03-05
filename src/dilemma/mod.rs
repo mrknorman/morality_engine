@@ -31,7 +31,7 @@ use crate::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
-	}, game_states::GameState, inheritance::BequeathTextColor, interaction::{Draggable, InteractionPlugin}, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::{SpritePlugin, WindowTitle}, stats::DilemmaStats, text::{TextPlugin, TextWindow}, timing::TimingPlugin, train::{
+	}, game_states::GameState, inheritance::BequeathTextColor, interaction::{Draggable, InteractionPlugin}, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::{SpritePlugin, window::WindowTitle}, stats::DilemmaStats, text::{TextPlugin, TextWindow}, timing::TimingPlugin, train::{
         Train, 
 		TrainPlugin, 
 		STEAM_TRAIN

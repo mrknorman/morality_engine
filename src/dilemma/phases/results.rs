@@ -18,7 +18,7 @@ use crate::{
 	inheritance::BequeathTextColor, 
 	interaction::Draggable, 
 	physics::Velocity, 
-	sprites::WindowTitle, 
+	sprites::window::WindowTitle, 
 	stats:: GameStats, 
 	text::TextWindow, 
 	train::Train

@@ -9,7 +9,7 @@ use bevy::{
 };
 use crate::{
     MainCamera,
-    sprites::{WindowSounds, WindowActions},
+    sprites::window::{WindowSounds, WindowActions},
     ascii_fonts::{AsciiActions, AsciiSounds}, audio::{
         AudioPlugin,
         AudioSystemsActive,
