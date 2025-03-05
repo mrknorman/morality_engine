@@ -1,6 +1,7 @@
 use std::f32::consts::FRAC_PI_4;
-use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor};
-use crate::colors::PRIMARY_COLOR;
+use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, window::WindowFocused};
+use enum_map::{enum_map, Enum};
+use crate::{audio::{TransientAudio, TransientAudioPallet}, colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR}, dilemma::phases::intro::DilemmaIntroActions, game_states::StateVector, interaction::{ActionPallet, Clickable, InputAction}};
 
 pub mod compounds;
 use compounds::*;
@@ -50,7 +51,8 @@ pub struct Window{
     pub boundary : HollowRectangle,
     pub title : Option<WindowTitle>,
     pub header_height : f32,
-    pub has_close_button : bool
+    pub has_close_button : bool,
+    pub root_entity : Option<Entity>
 }
 
 impl Default for Window{
@@ -59,7 +61,8 @@ impl Default for Window{
             title : None,
             boundary : HollowRectangle::default(),
             header_height : 20.0,
-            has_close_button : true
+            has_close_button : true,
+            root_entity : None
         }
     }
 }
@@ -71,22 +74,30 @@ impl Component for Window {
         hooks.on_insert(
             |mut world, entity, _component_id| {      
 
-                let (title, boundary, header_height, has_close_button) = {
-                    if let Some(window) = world.entity(entity).get::<Window>() {
-                        (window.title.clone(), window.boundary, window.header_height, window.has_close_button)
+
+                if let Some(mut window) = world.entity_mut(entity).get_mut::<Window>() {
+                    if window.root_entity.is_none() {
+                        window.root_entity = Some(entity);
+                    }
+                };
+
+                let (root_entity, title, boundary, header_height, has_close_button) = {
+                    if let Some(window) = world.entity_mut(entity).get_mut::<Window>() {
+                        (window.root_entity, window.title.clone(), window.boundary, window.header_height, window.has_close_button)
                     } else {
                         return;
                     }
                 };
-                
+
                 world.commands().entity(entity).with_children(|parent| {
-                    parent.spawn(WindowBody(boundary));
+                    parent.spawn(WindowBody{boundary});
 
                     parent.spawn((
                         WindowHeader{
                             title,
                             boundary,
-                            has_close_button
+                            has_close_button,
+                            root_entity : Some(root_entity.unwrap_or(entity))
                         },
                         Transform::from_xyz(0.0, (boundary.dimensions.y + header_height)/2.0, 0.0)
                     ));
@@ -101,18 +112,22 @@ impl Window {
         title : Option<WindowTitle>,
         width : f32,
         height : f32,
+        color : Color,
         thickness : f32,
         header_height : f32,
-        has_close_button : bool
+        has_close_button : bool,
+        root_entity : Option<Entity>
     ) -> Self {
         Self{
             title,
             boundary : HollowRectangle { 
                 dimensions: Vec2::new(width, height),
-                thickness
+                thickness,
+                color
             },
             header_height,
-            has_close_button
+            has_close_button,
+            root_entity
         }
     }
 
@@ -126,7 +141,7 @@ impl Window {
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
                     if let Ok(mut body) = body_query.get_mut(child) {
-                        body.0 = window.boundary;
+                        body.boundary = window.boundary;
                     }
                     
                     if let Ok((mut header, mut transform)) = head_query.get_mut(child) {
@@ -146,7 +161,9 @@ impl Window {
 }
 
 #[derive(Clone)]
-struct WindowBody(pub HollowRectangle);
+struct WindowBody{
+    pub boundary : HollowRectangle
+}
 
 impl Component for WindowBody {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
@@ -157,7 +174,7 @@ impl Component for WindowBody {
 
                 let boundary = {
                     if let Some(window) = world.entity(entity).get::<WindowBody>() {
-                        window.0
+                        window.boundary
                     } else {
                         return;
                     }
@@ -165,7 +182,7 @@ impl Component for WindowBody {
 
                 world.commands().entity(entity).with_children(|parent| {
                     parent.spawn(
-                        BorderedRectangle(boundary)
+                        BorderedRectangle{boundary}
                     );
                 });
             }
@@ -183,7 +200,7 @@ impl WindowBody {
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
                     if let Ok(mut border) = rectangle_query.get_mut(child) {
-                        border.0 = body.0;
+                        border.boundary = body.boundary;
                     }
                 }
             }
@@ -195,7 +212,8 @@ impl WindowBody {
 struct WindowHeader{
     pub title : Option<WindowTitle>,
     pub boundary : HollowRectangle,
-    pub has_close_button : bool
+    pub has_close_button : bool,
+    pub root_entity : Option<Entity>
 }
 
 impl Default for WindowHeader{
@@ -203,7 +221,8 @@ impl Default for WindowHeader{
         Self{
             title : None,
             boundary : HollowRectangle::default(),
-            has_close_button : false
+            has_close_button : false,
+            root_entity : None
         }
     }
 }
@@ -215,23 +234,25 @@ impl Component for WindowHeader {
         hooks.on_insert(
             |mut world, entity, _component_id| {
 
-                let (boundary, height, width, has_close_button, title) = {
+                let (root_entity, boundary, height, width, has_close_button, title, color) = {
                     if let Some(window) = world.entity(entity).get::<WindowHeader>() {
-                        (window.boundary, window.boundary.dimensions.y, window.boundary.dimensions.x, window.has_close_button, window.title.clone())
+                        (window.root_entity, window.boundary, window.boundary.dimensions.y, window.boundary.dimensions.x, window.has_close_button, window.title.clone(), window.boundary.color)
                     } else {
                         return;
                     }
                 };         
 
                 world.commands().entity(entity).with_children(|parent| {
-                    parent.spawn(BorderedRectangle(boundary));
+                    parent.spawn(BorderedRectangle{boundary});
 
                     if has_close_button {
                         parent.spawn( (WindowCloseButton{
                                 boundary : HollowRectangle{
                                     dimensions : Vec2::new(height, height),
-                                    thickness : 2.0
-                                }
+                                    thickness : 2.0,
+                                    color,
+                                },
+                                root_entity
                             },
                             Transform::from_xyz((width - height) / 2.0, 0.0, 0.0) 
                         ));
@@ -270,7 +291,7 @@ impl WindowHeader {
                 for &child in children.iter() {
 
                     if let Ok(mut body) = rectangle_query.get_mut(child) {
-                        body.0 = header.boundary;
+                        body.boundary = header.boundary;
                     }
     
                     if let Ok((mut transform, title)) = transform_sets.p0().get_mut(child) {
@@ -298,7 +319,8 @@ impl WindowHeader {
 
 #[derive(Clone)]
 struct WindowCloseButton {
-    boundary : HollowRectangle
+    boundary : HollowRectangle,
+    root_entity : Option<Entity>
 }
 
 #[derive(Component)]
@@ -307,6 +329,17 @@ struct WindowCloseButtonBorder;
 #[derive(Component)]
 struct WindowCloseButtonIcon;
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowSounds{
+    Close
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowActions{
+    CloseWindow
+}
+
+
 impl Component for WindowCloseButton {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
 
@@ -314,31 +347,68 @@ impl Component for WindowCloseButton {
         hooks.on_insert(
             |mut world, entity, _component_id| {       
 
-                let (boundary, width, height) = {
-                    if let Some(window) = world.entity(entity).get::<WindowCloseButton>() {
-                        (window.boundary, window.boundary.dimensions.x, window.boundary.dimensions.y)
+                let (root_entity, boundary, width, height, color) = {
+                    if let Some(button) = world.entity(entity).get::<WindowCloseButton>() {
+                        (button.root_entity, button.boundary, button.boundary.dimensions.x, button.boundary.dimensions.y, button.boundary.color)
                     } else {
                         return;
                     }
                 };
 
+                let handle  = world.get_resource::<AssetServer>().unwrap().load("sounds/mouse_click.ogg");
+
                 world.commands().entity(entity).with_children(|parent| {
 
                     parent.spawn((
                         WindowCloseButtonBorder,
-                        BorderedRectangle(boundary)
+                        BorderedRectangle{boundary}
                     ));
+
+                    let dimensions = Vec2::new(width - 10.0, height - 10.0);
 
                     parent.spawn((
                         WindowCloseButtonIcon,
                         Plus{
-                            dimensions : Vec2::new(width - 10.0, height - 10.0),
-                            thickness : 1.0
+                            dimensions,
+                            thickness : 1.0,
+                            color
                         }, 
+                        Clickable::with_region(vec![
+                                WindowActions::CloseWindow
+                            ],
+                            dimensions
+                        ),
+                        ColorChangeOn::new(vec![
+                            ColorChangeEvent::Click(vec![CLICKED_BUTTON], Some(dimensions)),
+                            ColorChangeEvent::Hover(vec![HOVERED_BUTTON], Some(dimensions)),
+                        ]),
+                        ColorAnchor(color),
                         Transform{
                             rotation :  Quat::from_rotation_z(FRAC_PI_4),
                             ..default()
-                        }
+                        },
+                        ActionPallet::<WindowActions, WindowSounds>(
+							enum_map!(
+								WindowActions::CloseWindow => vec![
+									    InputAction::PlaySound(WindowSounds::Close),
+									    InputAction::Despawn(root_entity)
+									]
+								)
+						),
+						TransientAudioPallet::new(
+							vec![(
+								WindowSounds::Close,
+								vec![
+									TransientAudio::new(
+										handle, 
+										0.1, 
+										true,
+										1.0,
+										true
+									)
+								]
+							)]
+						)
                     ));                
                 });
             }
@@ -352,18 +422,41 @@ impl WindowCloseButton {
         children_query: Query<&Children>,
         mut transform_sets: ParamSet<(
             Query<&mut BorderedRectangle>,
-            Query<&mut Plus>
+            Query<(&mut Plus, &mut ColorChangeOn, &mut Clickable<WindowActions>)>
         )>,
     ) {
         for (entity, button) in header_query.iter_mut() {
             if let Ok(children) = children_query.get(entity) {
                 for &child in children.iter() {
                     if let Ok(mut bordered_rectangle) = transform_sets.p0().get_mut(child) {
-                        bordered_rectangle.0.dimensions = Vec2::new(button.boundary.dimensions.y, button.boundary.dimensions.y);
+                        bordered_rectangle.boundary.dimensions = Vec2::new(button.boundary.dimensions.y, button.boundary.dimensions.y);
+                        bordered_rectangle.boundary.color = button.boundary.color; 
                     }
     
-                    if let Ok(mut plus) = transform_sets.p1().get_mut(child) {
-                        plus.dimensions = Vec2::new(button.boundary.dimensions.y - 10.0, button.boundary.dimensions.y - 10.0);
+                    if let Ok((mut plus, mut color_change, mut clickable)) = transform_sets.p1().get_mut(child) {
+                        plus.dimensions = Vec2::new(
+                            button.boundary.dimensions.y - 10.0,
+                            button.boundary.dimensions.y - 10.0,
+                        );
+
+                        let new_region = Some(Vec2::new(
+                            button.boundary.dimensions.y + 10.0,
+                            button.boundary.dimensions.y + 10.0,
+                        ));
+
+                        clickable.region = new_region;
+                        
+                        for event in color_change.events.iter_mut() {
+                            match event {
+                                ColorChangeEvent::Hover(_, ref mut region) => {
+                                    *region = new_region;
+                                },
+                                ColorChangeEvent::Click(_, ref mut region) => {
+                                    *region = new_region;
+                                },
+                                _ => {}
+                            }
+                        }
                     }
                 }
             }

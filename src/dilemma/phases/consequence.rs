@@ -205,7 +205,7 @@ impl DilemmaConsequenceScene{
                                             Some(DilemmaPhase::Results),
                                         )
                                     ),
-                                    InputAction::Despawn
+                                    InputAction::Despawn(None)
                                     ]
                                 )
                         ),

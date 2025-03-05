@@ -3,10 +3,9 @@ use bevy::{
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
-use rand::seq::SliceRandom; // For shuffling
-use rand::thread_rng;
+use rand::seq::SliceRandom; 
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}, time::Dilation, GlobalRng, MainCamera};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region}, motion::{Bounce, Pulse}, sprites::compounds::{AssembleShape, Plus}, time::Dilation, GlobalRng, MainCamera};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -29,16 +28,36 @@ pub enum ColorsSystemsActive {
     False,
     True
 }
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+enum ColorSystemOrder{
+    ResetFlag,
+    CheckColorChangeEvents
+}
+
 pub struct ColorsPlugin;
 impl Plugin for ColorsPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_state::<ColorsSystemsActive>()
+            .add_systems(Update,
+                ColorChangeOn::reset_event_flag.in_set(ColorSystemOrder::ResetFlag))
+            .add_systems(Update,
+            (
+                ColorChangeOn::handle_physics_events,
+                ColorChangeOn::handle_cursor_events,
+                ColorChangeOn::handle_cursor_events_shapes::<Plus>
+            ).in_set(ColorSystemOrder::CheckColorChangeEvents).after(ColorSystemOrder::ResetFlag))
+            .add_systems(Update, 
+                (
+                    ColorChangeOn::finalize_color_events, 
+                    ColorChangeOn::finalize_color_events_shapes::<Plus>
+                ).after(ColorSystemOrder::CheckColorChangeEvents)
+            )
             .add_systems(Update, 
                 (activate_systems,
                 ColorTranslation::translate,
                 Fade::despawn_after_fade,
-                ColorChangeOn::color_change_on
             )
             )           
             .init_resource::<ColorPallet>()
@@ -277,8 +296,8 @@ impl Component for ColorAnchor {
 pub enum ColorChangeEvent {
     Bounce(Vec<Color>),
     Pulse(Vec<Color>),
-    Hover(Vec<Color>),
-    Click(Vec<Color>)
+    Hover(Vec<Color>, Option<Vec2>),
+    Click(Vec<Color>, Option<Vec2>)
 }
 
 impl ColorChangeEvent {
@@ -286,8 +305,8 @@ impl ColorChangeEvent {
         match self {
             ColorChangeEvent::Bounce(colors)
             | ColorChangeEvent::Pulse(colors)
-            | ColorChangeEvent::Hover(colors)
-            | ColorChangeEvent::Click(colors) => colors,
+            | ColorChangeEvent::Hover(colors, _)
+            | ColorChangeEvent::Click(colors, _) => colors,
         }
     }
 }
@@ -312,88 +331,184 @@ impl ColorChangeOn {
         events.iter_mut().for_each(|event| event.get_color_mut().shuffle(rng));
     }
 
-    fn color_change_on(
-        mut rng : ResMut<GlobalRng>,
+    fn reset_event_flag(mut query: Query<&mut ColorChangeOn>) {
+        for mut color_change in query.iter_mut() {
+            color_change.event_occurring = false;
+        }
+    }
+
+    fn handle_physics_events(
+        mut query: Query<(&mut ColorChangeOn, &mut TextColor, Option<&Bounce>, Option<&Pulse>)>,
+    ) {
+        for (mut color_change, mut text_color, bounce_opt, pulse_opt) in query.iter_mut() {
+            // If an event has already been handled by a previous system, skip.
+            if color_change.event_occurring {
+                continue;
+            }
+            for event in color_change.events.iter() {
+                match event {
+                    ColorChangeEvent::Bounce(colors) => {
+                        if let Some(bounce) = bounce_opt {
+                            if bounce.enacting {
+                                text_color.0 = colors[0];
+                                color_change.event_occurring = true;
+                                break;
+                            }
+                        } else {
+                            warn_once!("Entity with ColorChangeOn Bounce event has no Bounce component!");
+                        }
+                    }
+                    ColorChangeEvent::Pulse(colors) => {
+                        if let Some(pulse) = pulse_opt {
+                            if pulse.enacting {
+                                text_color.0 = colors[0];
+                                color_change.event_occurring = true;
+                                break;
+                            }
+                        } else {
+                            warn_once!("Entity with ColorChangeOn Pulse event has no Pulse component!");
+                        }
+                    }
+                    _ => {} // Skip other event types.
+                }
+                if color_change.event_occurring {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn handle_cursor_events_shapes<T: AssembleShape + Component>(
         window_query: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        mut bounce_query: Query<(
-            &mut ColorChangeOn,
-            &mut TextColor,
-            &Aabb,
-            &GlobalTransform,
-            Option<&ColorAnchor>,
-            Option<&Bounce>,
-            Option<&Pulse>,
-        )>,
+        mut query: Query<(&mut ColorChangeOn, &mut T, &Transform, &GlobalTransform)>,
     ) {
-        for (mut color_change_on, mut text_color, bound, transform, anchor, bounce, pulse) in bounce_query.iter_mut() {
-            let mut event_handled = false;
-
-            for event in color_change_on.events.iter() {
+        for (mut color_change, mut shape, transform, global_transform) in query.iter_mut() {
+            if color_change.event_occurring {
+                continue;
+            }
+            for event in color_change.events.iter() {
                 match event {
-                    ColorChangeEvent::Bounce(color) => {
-                        if let Some(bounce) = bounce {
-                            if bounce.enacting {
-                                text_color.0 = color[0];
-                                event_handled = true;
-                                break; 
-                            }
-                        } else {
-                            warn_once!("Entity with color change on bounce has no bounce!");
-                        }
-                    }
-                    ColorChangeEvent::Pulse(color) => {
-                        if let Some(pulse) = pulse {
-                            if pulse.enacting {
-                                text_color.0 = color[0];
-                                event_handled = true;
-                                break; 
-                            }
-                        } else {
-                            warn_once!("Entity with color change on bounce has no bounce!");
-                        }
-                    }
-                    ColorChangeEvent::Hover(color) => {
+                    ColorChangeEvent::Hover(colors, region) => {
                         if let Some(cursor_position) =
                             get_cursor_world_position(&window_query, &camera_query)
                         {
-                            if is_cursor_within_bounds(cursor_position, transform,&bound) {
-                                text_color.0 = color[0];
-                                event_handled = true;
+                            
+                            if is_cursor_within_region(
+                                cursor_position,
+                                transform,
+                                global_transform,
+                                region.unwrap_or(shape.dimensions()),
+                                Vec2::ZERO,
+                            ) {
+                                shape.set_color(colors[0]);
+                                color_change.event_occurring = true;
                                 break;
                             }
                         }
-                    } 
-                    ColorChangeEvent::Click(color) => {
+                    }
+                    ColorChangeEvent::Click(colors, region) => {
                         if let Some(cursor_position) =
                             get_cursor_world_position(&window_query, &camera_query)
                         {
-                            if is_cursor_within_bounds(cursor_position, transform, &bound)
-                                && mouse_input.pressed(MouseButton::Left)
+                            if is_cursor_within_region(
+                                cursor_position,
+                                transform,
+                                global_transform,
+                                region.unwrap_or(shape.dimensions()),
+                                Vec2::ZERO,
+                            )                                 
+                            && mouse_input.pressed(MouseButton::Left)
                             {
-                                text_color.0 = color[0];
-                                event_handled = true;
-                                break; // Exit the inner loop
+                                shape.set_color(colors[0]);
+                                color_change.event_occurring = true;
+                                break;
                             }
                         }
                     }
+                    _ => {} // Skip other event types.
+                }
+                if color_change.event_occurring {
+                    break;
                 }
             }
-            
-            if color_change_on.event_occurring && !event_handled {
-                color_change_on.event_occurring = false;
-                Self::randomize_color_events(
-                    &mut color_change_on.events,
-                    &mut rng.0
-                );
+        }
+    }
 
-                if let Some(anchor) = anchor {
+
+    fn handle_cursor_events(
+        window_query: Query<&Window, With<PrimaryWindow>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
+        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        mut query: Query<(&mut ColorChangeOn, &mut TextColor, &Aabb, &GlobalTransform)>,
+    ) {
+        for (mut color_change, mut text_color, aabb, transform) in query.iter_mut() {
+            if color_change.event_occurring {
+                continue;
+            }
+            for event in color_change.events.iter() {
+                match event {
+                    ColorChangeEvent::Hover(colors, _) => {
+                        if let Some(cursor_position) =
+                            get_cursor_world_position(&window_query, &camera_query)
+                        {
+                            if is_cursor_within_bounds(cursor_position, transform, aabb) {
+                                text_color.0 = colors[0];
+                                color_change.event_occurring = true;
+                                break;
+                            }
+                        }
+                    }
+                    ColorChangeEvent::Click(colors, _) => {
+                        if let Some(cursor_position) =
+                            get_cursor_world_position(&window_query, &camera_query)
+                        {
+                            if is_cursor_within_bounds(cursor_position, transform, aabb)
+                                && mouse_input.pressed(MouseButton::Left)
+                            {
+                                text_color.0 = colors[0];
+                                color_change.event_occurring = true;
+                                break;
+                            }
+                        }
+                    }
+                    _ => {} // Skip other event types.
+                }
+                if color_change.event_occurring {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn finalize_color_events(
+        mut rng: ResMut<GlobalRng>,
+        mut query: Query<(&mut ColorChangeOn, &mut TextColor, Option<&ColorAnchor>)>,
+    ) {
+        for (mut color_change, mut text_color, color_anchor_opt) in query.iter_mut() {
+            if !color_change.event_occurring {
+                // Randomize the color events.
+                ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.0);
+                if let Some(anchor) = color_anchor_opt {
                     text_color.0 = anchor.0;
                 }
             }
+        }
+    }
 
-            color_change_on.event_occurring = event_handled;
+    fn finalize_color_events_shapes<T: AssembleShape + Component>(
+        mut rng: ResMut<GlobalRng>,
+        mut query: Query<(&mut ColorChangeOn, &mut T, Option<&ColorAnchor>)>,
+    ) {
+        for (mut color_change, mut shape_color, color_anchor_opt) in query.iter_mut() {
+            if !color_change.event_occurring {
+                // Randomize the color events.
+                ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.0);
+                if let Some(anchor) = color_anchor_opt {
+                    shape_color.set_color(anchor.0);
+                }
+            }
         }
     }
 }

@@ -160,7 +160,7 @@ impl DilemmaIntroScene {
 											Some(DilemmaPhase::IntroDecisionTransition),
 										)
 									),
-									InputAction::Despawn
+									InputAction::Despawn(None)
 									]
 								)
 						),

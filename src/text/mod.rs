@@ -229,8 +229,8 @@ impl TextButton {
                 }
             )),
             ColorChangeOn::new(vec![
-                ColorChangeEvent::Click(vec![CLICKED_BUTTON]),
-                ColorChangeEvent::Hover(vec![HOVERED_BUTTON]),
+                ColorChangeEvent::Click(vec![CLICKED_BUTTON], None),
+                ColorChangeEvent::Hover(vec![HOVERED_BUTTON], None),
             ]),
             Text2d::new(text),
         )
@@ -300,8 +300,8 @@ impl TextBox {
                         transform.translation.x = -anchor_offset.x;
                         transform.translation.y = -anchor_offset.y;
 
-                        bordered_box.0.dimensions.x = text_width + text_box.0.x;
-                        bordered_box.0.dimensions.y = text_height + text_box.0.y;
+                        bordered_box.boundary.dimensions.x = text_width + text_box.0.x;
+                        bordered_box.boundary.dimensions.y = text_height + text_box.0.y;
                     }
                 }
             }
@@ -314,6 +314,7 @@ impl TextBox {
 #[derive(Clone)]
 pub struct TextWindow{
     pub title : Option<WindowTitle>,
+    pub border_color : Color,
     pub header_height : f32,
     pub padding : Vec2,
     pub close_button : bool
@@ -323,6 +324,7 @@ impl Default for TextWindow{
     fn default() -> Self {
         Self{
             title : None,
+            border_color : PRIMARY_COLOR,
             header_height : 20.0,
             padding : Vec2::new(20.0, 10.0),
             close_button : true
@@ -351,9 +353,11 @@ impl Component for TextWindow {
                                 text_window.title.clone(),
                                 100.0,
                                 100.0,
+                                text_window.border_color,
                                 2.0,
                                 text_window.header_height,
-                                text_window.close_button
+                                text_window.close_button,
+                                Some(entity)
                             )
                         );
                     });

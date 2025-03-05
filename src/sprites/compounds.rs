@@ -8,9 +8,9 @@ impl Plugin for CompoundPlugin {
             .add_systems(
                 Update,
                 (
-                    HollowRectangle::update,
-                    BorderedRectangle::update,
-                    Plus::update
+                    propagate_changes::<HollowRectangle>,
+                    propagate_changes::<Plus>,
+                    BorderedRectangle::propagate_changes,
                 )
             )
             .register_required_components::<HollowRectangle, Transform>()
@@ -22,90 +22,105 @@ impl Plugin for CompoundPlugin {
     }
 }
 
+// Define a trait for shapes that assemble sprite children.
+pub trait AssembleShape {
+    type Side: Component + Default;
+
+    fn color(&self) -> Color;    
+    fn color_mut(&mut self) -> &mut Color;
+
+    // Default color setter implementation.
+    fn set_color(&mut self, new_color: Color) {
+        *self.color_mut() = new_color;
+    }
+
+    fn dimensions(&self) -> Vec2;
+
+    // Returns an iterator of (size, translation) updates.
+    fn updates(&self) -> Vec<(Vec2, Vec3)>;
+
+    // Default method to create sprite bundles for the sides.
+    fn assemble(&self) -> impl Iterator<Item = (Sprite, Transform, Self::Side)> {
+        let color = self.color();
+        self.updates().into_iter().map(move |(size, pos)| (
+            Sprite {
+                custom_size: Some(size),
+                color,
+                ..default()
+            },
+            Transform::from_translation(pos),
+            Self::Side::default(),
+        ))
+    }
+}
+
+pub fn propagate_changes<T: AssembleShape + Component>(
+    shape_query: Query<(Entity, &T), Changed<T>>,
+    children_query: Query<&Children>,
+    mut side_query: Query<(&mut Sprite, &mut Transform), With<T::Side>>,
+) {
+    for (entity, shape) in shape_query.iter() {
+        if let Ok(children) = children_query.get(entity) {
+            let color = shape.color();
+            let updates = shape.updates();
+            // Assuming the number of children matches the number of updates
+            for (child, (size, pos)) in children.iter().zip(updates.iter()) {
+                if let Ok((mut sprite, mut transform)) = side_query.get_mut(*child) {
+                    sprite.custom_size = Some(*size);
+                    sprite.color = color;
+                    *transform = Transform::from_translation(*pos);
+                }
+            }
+        }
+    }
+}
+
+
 #[derive(Clone, Copy)]
-pub struct HollowRectangle{
-    pub dimensions : Vec2,
-    pub thickness : f32
+pub struct HollowRectangle {
+    pub dimensions: Vec2,
+    pub thickness: f32,
+    pub color: Color,
 }
 
 impl Default for HollowRectangle {
     fn default() -> Self {
-        Self{
-            dimensions : Vec2::ZERO,
-            thickness : 0.0
+        Self {
+            dimensions: Vec2::ZERO,
+            thickness: 2.0,
+            color: PRIMARY_COLOR,
         }
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct RectangleSide;
 
-impl HollowRectangle {
-    fn assemble(
-        width: f32, 
-        height: f32,
-        thickness : f32
-    ) -> impl Iterator<Item = (Sprite, Transform, RectangleSide)> {
+impl AssembleShape for HollowRectangle {
+    type Side = RectangleSide;
+
+    fn color(&self) -> Color {
+        self.color
+    }
+    fn color_mut(&mut self) -> &mut Color {
+        &mut self.color
+    }
+    fn dimensions(&self) -> Vec2 {
+        self.dimensions
+    }
+    fn updates(&self) -> Vec<(Vec2, Vec3)> {
+        let width = self.dimensions.x;
+        let height = self.dimensions.y;
+        let thickness = self.thickness;
         let half_width = width / 2.0;
         let half_height = height / 2.0;
 
-        [
+        vec![
             (Vec2::new(width, thickness), Vec3::new(0.0, half_height, 0.0)),
             (Vec2::new(width, thickness), Vec3::new(0.0, -half_height, 0.0)),
             (Vec2::new(thickness, height), Vec3::new(-half_width, 0.0, 0.0)),
-            (Vec2::new(thickness, height), Vec3::new(half_width, 0.0 , 0.0)),
+            (Vec2::new(thickness, height), Vec3::new(half_width, 0.0, 0.0)),
         ]
-        .into_iter()
-        .map(|(size, pos)| (
-                Sprite {
-                    custom_size: Some(size),
-                    color: PRIMARY_COLOR,
-                    ..default()
-                },
-                Transform::from_translation(pos),
-                RectangleSide
-        ))
-    }
-
-    pub fn update(
-        rectangle_query: Query<(Entity, &HollowRectangle), Changed<HollowRectangle>>,
-        children_query: Query<&Children>,
-        mut side_query: Query<(&mut Sprite, &mut Transform), With<RectangleSide>>,
-    ) {
-        for (entity, hollow_rectangle) in &rectangle_query {
-            if let Ok(children) = children_query.get(entity) {
-                // Get dimensions
-                let width = hollow_rectangle.dimensions.x;
-                let height = hollow_rectangle.dimensions.y;
-                let thickness = hollow_rectangle.thickness;
-                let half_width = width / 2.0;
-                let half_height = height / 2.0;
-                
-                // Define the updates for each side
-                let updates = [
-                    (Vec2::new(width, thickness), Vec3::new(0.0, half_height, 0.0)),
-                    (Vec2::new(width, thickness), Vec3::new(0.0, -half_height, 0.0)),
-                    (Vec2::new(thickness, height), Vec3::new(-half_width, 0.0, 0.0)),
-                    (Vec2::new(thickness, height), Vec3::new(half_width, 0.0, 0.0)),
-                ];
-                
-                // Keep track of which side we're updating
-                let mut side_index = 0;
-                
-                // Update each side
-                for &child in children.iter() {
-                    if let Ok((mut sprite, mut transform)) = side_query.get_mut(child) {
-                        if side_index < updates.len() {
-                            // Update side with new size and position
-                            let (new_size, new_pos) = updates[side_index];
-                            sprite.custom_size = Some(new_size);
-                            *transform = Transform::from_translation(new_pos);
-                            side_index += 1;
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -114,109 +129,70 @@ impl Component for HollowRectangle {
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(|mut world, entity, _component_id| {       
-            let (width, height, thickness) = {
+            let rectangle = {
                 if let Some(hollow_rectangle) = world.entity(entity).get::<HollowRectangle>() {
-                    (hollow_rectangle.dimensions.x, hollow_rectangle.dimensions.y, hollow_rectangle.thickness)
+                    hollow_rectangle.clone()
                 } else {
                     return;
                 }
             };
             
             world.commands().entity(entity).with_children(|parent| {
-                HollowRectangle::assemble(width, height, thickness)
-                    .for_each(|sprite_bundle| {parent.spawn(sprite_bundle);});
+                rectangle.assemble().for_each(|sprite_bundle| {parent.spawn(sprite_bundle);});
             });
         });
     }
 }
 
-
-#[derive(Component)]
-pub struct PlusSide;
-
 #[derive(Clone)]
 pub struct Plus {
     pub dimensions: Vec2,
     pub thickness: f32,
+    pub color: Color,
 }
 
-impl Plus {
-    fn assemble(
-        width: f32,
-        height: f32,
-        thickness: f32
-    ) -> impl Iterator<Item = (Sprite, PlusSide)> {
-        [
-            Vec2::new(width, thickness),
-            Vec2::new(thickness, height),
+#[derive(Component, Default)]
+pub struct PlusSide;
+
+impl AssembleShape for Plus {
+    type Side = PlusSide;
+    
+    fn color(&self) -> Color {
+        self.color
+    }
+    fn color_mut(&mut self) -> &mut Color {
+        &mut self.color
+    }
+    fn dimensions(&self) -> Vec2 {
+        self.dimensions
+    }
+    fn updates(&self) -> Vec<(Vec2, Vec3)> {
+        let width = self.dimensions.x;
+        let height = self.dimensions.y;
+        let thickness = self.thickness;
+
+        vec![
+            (Vec2::new(width, thickness), Vec3::ZERO),
+            (Vec2::new(thickness, height), Vec3::ZERO),
         ]
-        .into_iter()
-        .map(|size| (
-                Sprite {
-                    custom_size: Some(size),
-                    color: PRIMARY_COLOR,
-                    ..default()
-                },
-                PlusSide
-        ))
-    }
-
-    pub fn update(
-        plus_query: Query<(Entity, &Plus), Changed<Plus>>,
-        children_query: Query<&Children>,
-        mut side_query: Query<(&mut Sprite, &mut Transform), With<PlusSide>>,
-    ) {
-        for (entity, plus) in &plus_query {
-            if let Ok(children) = children_query.get(entity) {
-                // Get dimensions
-                let width = plus.dimensions.x;
-                let height = plus.dimensions.y;
-                let thickness = plus.thickness;
-                
-                // Define the updates for each side
-                let updates = [
-                    // Horizontal line (centered)
-                    (Vec2::new(width, thickness), Vec3::new(0.0, 0.0, 0.0)),
-                    // Vertical line (centered)
-                    (Vec2::new(thickness, height), Vec3::new(0.0, 0.0, 0.0)),
-                ];
-                
-                // Keep track of which side we're updating
-                let mut side_index = 0;
-                
-                // Update each side
-                for &child in children.iter() {
-                    if let Ok((mut sprite, mut transform)) = side_query.get_mut(child) {
-                        if side_index < updates.len() {
-                            // Update side with new size and position
-                            let (new_size, new_pos) = updates[side_index];
-                            sprite.custom_size = Some(new_size);
-                            *transform = Transform::from_translation(new_pos);
-                            side_index += 1;
-                        }
-                    }
-                }
-            }
-        }
     }
 }
-
 
 impl Component for Plus {
     const STORAGE_TYPE: StorageType = StorageType::Table;
     
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(|mut world, entity, _component_id| {
-            let (width, height, thickness) = {
+            let plus = {
                 if let Some(plus) = world.entity(entity).get::<Plus>() {
-                    (plus.dimensions.x, plus.dimensions.y, plus.thickness)
+                    plus.clone()
                 } else {
                     return;
                 }
             };
             
             world.commands().entity(entity).with_children(|parent| {
-                Plus::assemble(width, height, thickness).for_each(|sprite| {parent.spawn(sprite);});
+                plus.assemble().for_each(|sprite| {parent.spawn(sprite);});
             });
         });
     }
@@ -224,13 +200,13 @@ impl Component for Plus {
 
 
 #[derive(Clone)]
-pub struct BorderedRectangle(
-    pub HollowRectangle
-);
+pub struct BorderedRectangle{
+    pub boundary : HollowRectangle
+}
 
 impl Default for BorderedRectangle {
     fn default() -> Self {
-        Self(HollowRectangle::default())
+        Self{boundary : HollowRectangle::default()}
     }
 }
 
@@ -245,9 +221,9 @@ impl Component for BorderedRectangle {
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(|mut world, entity, _component_id| {
-            let (width, height, thickness) = {
+            let (boundary, width, height)= {
                 if let Some(bordered_rectangle) = world.entity(entity).get::<BorderedRectangle>() {
-                    (bordered_rectangle.0.dimensions.x, bordered_rectangle.0.dimensions.y, bordered_rectangle.0.thickness)
+                    (bordered_rectangle.boundary, bordered_rectangle.boundary.dimensions.x, bordered_rectangle.boundary.dimensions.y)
                 } else {
                     return;
                 }
@@ -272,10 +248,7 @@ impl Component for BorderedRectangle {
                 
                 parent.spawn((
                     RectangleBorder,
-                    HollowRectangle{
-                        dimensions : Vec2::new(width, height),
-                        thickness
-                    }
+                    boundary
                 ));
             });
         });
@@ -283,14 +256,7 @@ impl Component for BorderedRectangle {
 }
 
 impl BorderedRectangle {
-    pub fn new(width : f32, height : f32, thickness : f32) -> Self {
-        Self(HollowRectangle{
-            dimensions : Vec2::new(width, height),
-            thickness
-        })
-    }
-
-    fn update(
+    fn propagate_changes(
         rectangle_query: Query<(Entity, &BorderedRectangle), Changed<BorderedRectangle>>,
         children_query: Query<&Children>,
         mut background_query: Query<&mut Mesh2d, With<RectangleBackground>>,
@@ -299,8 +265,8 @@ impl BorderedRectangle {
     ) {
         for (entity, bordered_rectangle) in &rectangle_query {
             if let Ok(children) = children_query.get(entity) {
-                let width = bordered_rectangle.0.dimensions.x;
-                let height = bordered_rectangle.0.dimensions.y;
+                let width = bordered_rectangle.boundary.dimensions.x;
+                let height = bordered_rectangle.boundary.dimensions.y;
                 
                 for &child in children.iter() {
                     if let Ok(mut mesh2d) = background_query.get_mut(child) {
@@ -308,8 +274,7 @@ impl BorderedRectangle {
                     }
                     
                     if let Ok(mut hollow_rectangle) = border_query.get_mut(child) {
-                        hollow_rectangle.dimensions = Vec2::new(width, height);
-                        hollow_rectangle.thickness = bordered_rectangle.0.thickness;
+                        *hollow_rectangle = bordered_rectangle.boundary;
                     }
                 }
             }
