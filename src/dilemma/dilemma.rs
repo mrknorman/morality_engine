@@ -370,7 +370,6 @@ impl Dilemma {
 
 #[derive(Component)]
 pub struct DilemmaOptionInfoPanel;
-
 impl DilemmaOptionInfoPanel {
 	pub fn spawn(
 		commands : &mut Commands,

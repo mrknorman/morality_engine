@@ -1,11 +1,12 @@
 use bevy::{
     ecs::component::StorageType, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
+use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 use rand::seq::SliceRandom; // For shuffling
 use rand::thread_rng;
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}, time::Dilation, MainCamera};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds}, motion::{Bounce, Pulse}, time::Dilation, GlobalRng, MainCamera};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -279,6 +280,19 @@ pub enum ColorChangeEvent {
     Hover(Vec<Color>),
     Click(Vec<Color>)
 }
+
+impl ColorChangeEvent {
+    fn get_color_mut(&mut self) -> &mut Vec<Color> {
+        match self {
+            ColorChangeEvent::Bounce(colors)
+            | ColorChangeEvent::Pulse(colors)
+            | ColorChangeEvent::Hover(colors)
+            | ColorChangeEvent::Click(colors) => colors,
+        }
+    }
+}
+
+
 #[derive(Clone, Component)]
 #[require(TextColor)]
 pub struct ColorChangeOn{
@@ -294,29 +308,15 @@ impl ColorChangeOn {
         }
     }
 
-    fn randomize_color_events(events: &mut [ColorChangeEvent]) {
-        for event in events.iter_mut() {
-            match event {
-                ColorChangeEvent::Bounce(colors) => {
-                    colors.shuffle(&mut thread_rng());
-                }
-                ColorChangeEvent::Pulse(colors) => {
-                    colors.shuffle(&mut thread_rng());
-                }
-                ColorChangeEvent::Hover(colors) => {
-                    colors.shuffle(&mut thread_rng());
-                }
-                ColorChangeEvent::Click(colors) => {
-                    colors.shuffle(&mut thread_rng());
-                }
-            }
-        }
+    fn randomize_color_events(events: &mut [ColorChangeEvent], rng : &mut Pcg64Mcg) {
+        events.iter_mut().for_each(|event| event.get_color_mut().shuffle(rng));
     }
 
     fn color_change_on(
-        windows: Query<&Window, With<PrimaryWindow>>,
+        mut rng : ResMut<GlobalRng>,
+        window_query: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut bounce_query: Query<(
             &mut ColorChangeOn,
             &mut TextColor,
@@ -356,7 +356,7 @@ impl ColorChangeOn {
                     }
                     ColorChangeEvent::Hover(color) => {
                         if let Some(cursor_position) =
-                            get_cursor_world_position(&windows, &camera_q)
+                            get_cursor_world_position(&window_query, &camera_query)
                         {
                             if is_cursor_within_bounds(cursor_position, transform,&bound) {
                                 text_color.0 = color[0];
@@ -367,7 +367,7 @@ impl ColorChangeOn {
                     } 
                     ColorChangeEvent::Click(color) => {
                         if let Some(cursor_position) =
-                            get_cursor_world_position(&windows, &camera_q)
+                            get_cursor_world_position(&window_query, &camera_query)
                         {
                             if is_cursor_within_bounds(cursor_position, transform, &bound)
                                 && mouse_input.pressed(MouseButton::Left)
@@ -381,10 +381,12 @@ impl ColorChangeOn {
                 }
             }
             
-            // If no event was handled, reset the color to the anchor's value
             if color_change_on.event_occurring && !event_handled {
                 color_change_on.event_occurring = false;
-                Self::randomize_color_events(&mut color_change_on.events);
+                Self::randomize_color_events(
+                    &mut color_change_on.events,
+                    &mut rng.0
+                );
 
                 if let Some(anchor) = anchor {
                     text_color.0 = anchor.0;
