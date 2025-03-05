@@ -9,6 +9,7 @@ use bevy::{
 };
 use crate::{
     MainCamera,
+    sprites::{WindowSounds, WindowActions},
     ascii_fonts::{AsciiActions, AsciiSounds}, audio::{
         AudioPlugin,
         AudioSystemsActive,
@@ -86,6 +87,7 @@ impl Plugin for InteractionPlugin {
         app.add_event::<AdvanceDialogue>()
             .add_systems(Startup, activate_prerequisite_states);
 
+        register_interaction_systems!(app, WindowActions, WindowSounds);
         register_interaction_systems!(app, MenuActions, MenuSounds);
         register_interaction_systems!(app, LoadingActions, LoadingSounds);
         register_interaction_systems!(app, DilemmaIntroActions, DilemmaSounds);
@@ -114,6 +116,7 @@ where
 {
     /// Keys used to look up actions in the ActionPallet.
     pub actions: Vec<T>,
+    pub region : Option<Vec2>,
     pub triggered: bool,
 }
 
@@ -196,7 +199,16 @@ where
     pub fn new(actions: Vec<T>) -> Self {
         Clickable {
             actions,
-            triggered: false
+            triggered: false,
+            region : None
+        }
+    }
+
+    pub fn with_region(actions: Vec<T>, region : Vec2) -> Self {
+        Self {
+            actions,
+            triggered: false,
+            region : Some(region)
         }
     }
 }
@@ -229,7 +241,7 @@ where
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
     Bounce,
-    Despawn,
+    Despawn(Option<Entity>),
     #[allow(unused)]
     Print(String),
 }
@@ -370,14 +382,27 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         windows: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        mut clickable_q: Query<(&Aabb, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
+        mut clickable_q: Query<(Option<&Aabb>, &Transform, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
     ) {
 
     let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
 
-    for (bound, transform, mut clickable) in clickable_q.iter_mut() {
-        if is_cursor_within_bounds(cursor_position, transform, bound) {
-            clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
+    for (bound, transform, global_transform, mut clickable) in clickable_q.iter_mut() {
+
+        if let Some(region) = clickable.region {
+            if is_cursor_within_region(
+                cursor_position,
+                &transform,
+                global_transform,
+                region,
+                Vec2::ZERO
+            ) {
+                clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
+            }
+        } else if let Some(bound) = bound {
+            if is_cursor_within_bounds(cursor_position, global_transform, bound) {
+                clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
+            }
         }
     }
 }
@@ -548,8 +573,8 @@ where
     for (entity, clickable, pressable, pallet) in query.iter_mut() {
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
-                Despawn => {
-                    commands.entity(entity).despawn_recursive();
+                Despawn(overide_entity) => {
+                    commands.entity(overide_entity.unwrap_or(entity)).despawn_recursive();
                 }
             });
         });
@@ -747,7 +772,7 @@ impl Draggable {
 }
 
 
-fn is_cursor_within_region(
+pub fn is_cursor_within_region(
     cursor_position: Vec2,
     transform: &Transform,
     global_transform: &GlobalTransform,

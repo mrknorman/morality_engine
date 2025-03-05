@@ -232,7 +232,8 @@ impl Component for LoadingBar {
                         parent.spawn(
                             HollowRectangle{
                                 dimensions : Vec2::new(500.0, 20.0),
-                                thickness : 2.0
+                                thickness : 2.0,
+                                color : Color::BLACK
                             }
                         );
 

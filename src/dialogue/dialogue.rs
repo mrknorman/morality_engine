@@ -111,6 +111,7 @@ fn dialogue_padding() -> TextWindow {
                 padding : 50.0
             }
         ),
+        border_color : PRIMARY_COLOR,
         header_height : 25.0,
         padding : Vec2::new(50.0, 50.0),
         close_button : false
@@ -422,7 +423,7 @@ impl Dialogue {
                         DialogueActions::AdvanceDialogue => vec![
                             InputAction::PlaySound(DialogueSounds::Click),
                             next_action.clone(),
-                            InputAction::Despawn
+                            InputAction::Despawn(None)
                          ]
                      )
                 ),
