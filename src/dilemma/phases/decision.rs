@@ -1,8 +1,7 @@
-use std::time::Duration;
+use std::{iter::zip, time::Duration};
 
 use bevy::{
-	prelude::*,
-	audio::Volume,
+	audio::Volume, prelude::*, sprite::Anchor, text::TextBounds
 };
 use enum_map::{
 	enum_map, 
@@ -24,7 +23,7 @@ use crate::{
 		Fade, 
 		DANGER_COLOR, 
 		OPTION_1_COLOR, 
-		OPTION_2_COLOR
+		OPTION_2_COLOR, PRIMARY_COLOR
     }, common_ui::{
         CenterLever, 
         DilemmaTimerPosition
@@ -45,14 +44,8 @@ use crate::{
         DilemmaPhase, 
         GameState, StateVector
     }, interaction::{
-        ActionPallet, 
-        ClickablePong, 
-        InputAction, 
-        KeyMapping, 
-        Pressable
-    }, 
-	stats::DilemmaStats, 
-	track::Track
+        ActionPallet, ClickablePong, Draggable, InputAction, KeyMapping, Pressable
+    }, sprites::window::WindowTitle, stats::DilemmaStats, text::TextWindow, track::Track
 };
 
 pub struct DilemmaDecisionPlugin;
@@ -138,6 +131,40 @@ impl DecisionScene {
 						]
 					)
 				);
+
+				let transforms= vec![
+					Transform::from_xyz(-600.0, -200.0, 2.0),
+					Transform::from_xyz(200.0, -200.0, 2.0)
+				];
+
+				for (index, (option, transform)) in zip(dilemma.options.clone(), transforms).enumerate() {
+					parent.spawn((
+						TextWindow{
+							title : Some(WindowTitle{
+								text : format!(
+									"Option {}: {} [Press {} to select]\n", 
+									index + 1, 
+									option.name,
+									index + 1),
+								..default()
+							}),
+							..default()
+						},
+						TextBounds {
+							width : Some(400.0), 
+							height : None
+						},
+						Draggable::default(),
+						TextColor(PRIMARY_COLOR),
+						Text2d::new(&option.description),
+						TextFont{
+							font_size : 12.0,
+							..default()
+						},
+						Anchor::TopLeft,
+						transform
+					));	
+				}
 
 				parent.spawn((
 					Pressable::new(vec![

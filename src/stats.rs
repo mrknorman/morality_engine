@@ -1,7 +1,7 @@
 use std::time::Duration;
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::Anchor};
 
-use crate::dilemma::{lever::LeverState, dilemma::DilemmaOptionConsequences};
+use crate::{colors::PRIMARY_COLOR, dilemma::{dilemma::DilemmaOptionConsequences, lever::LeverState}, text::{Cell, Column, Row, Table, TextContent}};
 
 #[derive(Clone)]
 pub struct Decision{
@@ -88,14 +88,13 @@ impl DilemmaStats {
         }
     } 
 
-    pub fn to_string(&self) -> String {
-        // Format the final decision (assuming LeverState implements Debug)
+    pub fn to_table(&self) -> Table {
+        // Compute the formatted strings just as before.
         let final_decision_str = match self.result {
             Some(ref decision) => format!("{:?}", decision),
             None => "None".to_string(),
         };
-
-        // Format optional fields
+    
         let avg_decisions_str = self
             .average_num_decisions_per_second
             .map(|avg| format!("{:.2} Hz", avg))
@@ -108,19 +107,49 @@ impl DilemmaStats {
             .duration_remaining_at_last_decision
             .map(|d| format!("{:.2} s", d.as_secs_f64()))
             .unwrap_or_else(|| "N/A".to_string());
-
-        // Build the formatted output string
-        format!(
-            "Final Decision: {}\nNumber of Fatalities: {}\nNumber of Lever Pulls: {}\nAverage Pull Rate: {}\nTime Before First Pull: {}\nTime Remaining at Last Pull: {}\nTotal Time Used: {:.2} s / {:.2} s",
-            final_decision_str,
-            self.num_fatalities,
-            self.num_decisions,
-            avg_decisions_str,
-            before_first_str,
-            remaining_last_str,
+        let total_time_used_str = format!(
+            "{:.2} s / {:.2} s",
             self.decision_time_used.as_secs_f64(),
             self.decision_time_available.as_secs_f64(),
-        )
+        );
+    
+        // Create the cells for the left (label) column.
+        let left_cells = vec![
+            Cell::new(TextContent::new(String::from("Final Decision:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Number of Fatalities:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Number of Lever Pulls:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Average Pull Rate:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Time Before First Pull:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Time Remaining at Last Pull:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Total Time Used:"), PRIMARY_COLOR, 12.0)),
+        ];
+    
+        // Create the cells for the right (value) column.
+        let right_cells = vec![
+            Cell::new(TextContent::new(final_decision_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(self.num_fatalities.to_string(), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(self.num_decisions.to_string(), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(avg_decisions_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(before_first_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(remaining_last_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(total_time_used_str, PRIMARY_COLOR, 12.0)),
+        ];
+    
+        // Set the column widths and cell padding.
+        let left_column_width = 170.0;
+        let right_column_width = 140.0;
+        let padding = Vec2::new(5.0, 5.0);
+
+        let rows = vec![Row { height: 20.0 }; left_cells.len()];
+    
+        let left_column = Column::new(left_cells, left_column_width, padding, Anchor::CenterRight, false);
+        let right_column = Column::new(right_cells, right_column_width, padding,Anchor::CenterLeft, false);
+    
+        // Return the complete table.
+        Table {
+            columns: vec![left_column, right_column],
+            rows,
+        }
     }
 
     fn reset(&mut self) {
@@ -221,7 +250,7 @@ impl GameStats{
         dilemma_stats.reset();
 	}
 
-    pub fn to_string(&self) -> String {
+    pub fn to_table(&self) -> Table {
         // Format the numeric values
         let mean_fatalities_str = format!("{:.2}", self.mean_fatalities);
         let mean_decisions_str = format!("{:.2}", self.mean_decisions);
@@ -234,18 +263,47 @@ impl GameStats{
         let avg_time_remaining_str = self.overall_avg_time_remaining
             .map(|d| format!("{:.2} s", d.as_secs_f64()))
             .unwrap_or_else(|| "N/A".to_string());
+    
+        // Build the left (label) cells.
+        let left_cells = vec![
+            Cell::new(TextContent::new(String::from("Total Dilemmas:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Total Fatalities:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Average Fatalities per Dilemma:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Total Lever Pulls:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Average Pulls Per Dilemma:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Average Pull Rate:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Average Time Before First Pull:"), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(String::from("Average Time Remaining at Last Pull:"), PRIMARY_COLOR, 12.0)),
+        ];
+    
+        // Build the right (value) cells.
+        let right_cells = vec![
+            Cell::new(TextContent::new(self.num_dilemmas.to_string(), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(self.total_fatalities.to_string(), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(mean_fatalities_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(self.total_decisions.to_string(), PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(mean_decisions_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(avg_pull_rate_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(avg_first_pull_time_str, PRIMARY_COLOR, 12.0)),
+            Cell::new(TextContent::new(avg_time_remaining_str, PRIMARY_COLOR, 12.0)),
+        ];
+    
+        // Define column widths and padding.
+        let left_column_width = 280.0;
+        let right_column_width = 60.0;
+        let padding = Vec2::new(5.0, 5.0);
 
-        // Build the formatted output string
-        format!(
-            "Total Dilemmas: {}\nTotal Fatalities: {}\nAverage Fatalities per Dilemma: {}\nTotal Lever Pulls: {}\nAverage Pulls Per Dilemma: {}\nAverage Pull Rate: {}\nAverage Time Before First Pull: {}\nAverage Time Remaining at Last Pull: {}",
-            self.num_dilemmas,
-            self.total_fatalities,
-            mean_fatalities_str,
-            self.total_decisions,
-            mean_decisions_str,
-            avg_pull_rate_str,
-            avg_first_pull_time_str,
-            avg_time_remaining_str,
-        )
+        let rows = vec![Row { height: 20.0 }; left_cells.len()];
+    
+        // Create the two columns.
+        let left_column = Column::new(left_cells, left_column_width, padding, Anchor::CenterRight, false);
+        let right_column = Column::new(right_cells, right_column_width, padding, Anchor::CenterLeft, false);
+        
+        // Build and return the table.
+        Table {
+            columns: vec![left_column, right_column],
+            rows,
+        }
     }
+    
 }

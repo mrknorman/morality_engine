@@ -106,17 +106,6 @@ impl Plugin for DilemmaScenePlugin {
     }
 }
 
-#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DilemmaConsequenceActions {
-    ShowResults
-}
-
-impl std::fmt::Display for DilemmaConsequenceActions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 #[derive(Component)]
 #[require(Transform, Visibility)]
 struct DilemmaScene;
@@ -172,7 +161,7 @@ impl DilemmaScene {
 				parent.spawn((
 					TextWindow{
 						title : Some(WindowTitle{
-							text : dilemma.name.clone(),
+							text : format!("Description: {}" , dilemma.name.clone()),
 							..default()
 						}),
 						..default()

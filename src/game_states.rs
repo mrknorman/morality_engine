@@ -13,8 +13,8 @@ pub enum MainState {
 #[source(MainState = MainState::InGame)]
 pub enum GameState {
     Loading,
-    #[default]
     Dialogue,
+    #[default]
     Dilemma,
 }
 

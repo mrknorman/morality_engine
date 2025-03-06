@@ -13,7 +13,6 @@ use crate::{
         dilemma:: Dilemma, 
         junction::Junction, 
         lever::Lever,
-        DilemmaConsequenceActions, 
         DilemmaSounds
     }, game_states::{
         DilemmaPhase, 
@@ -36,6 +35,18 @@ pub enum DilemmaConsequenceEvents {
 	Scream,
 	Button
 }
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaConsequenceActions {
+    ShowResults
+}
+
+impl std::fmt::Display for DilemmaConsequenceActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 
 pub struct DilemmaConsequencePlugin;
 impl Plugin for DilemmaConsequencePlugin {

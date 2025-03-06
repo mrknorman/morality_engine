@@ -4,26 +4,17 @@ use bevy::{
     audio::Volume,
 	prelude::*
 };
+use enum_map::{enum_map, Enum};
 
 use crate::{
     ascii_fonts::AsciiString, audio::{
-        continuous_audio, 
-        MusicAudio
+        continuous_audio, MusicAudio, TransientAudio, TransientAudioPallet
     }, background::Background, colors::{
 		ColorTranslation, 
 		DIM_BACKGROUND_COLOR, 
 		PRIMARY_COLOR
-	}, 
-	game_states::DilemmaPhase, 
-	inheritance::BequeathTextColor, 
-	interaction::Draggable, 
-	physics::Velocity, 
-	sprites::window::WindowTitle, 
-	stats:: GameStats, 
-	text::TextWindow, 
-	train::Train
+	}, common_ui::NextButton, dilemma::DilemmaSounds, game_states::{DilemmaPhase, GameState, StateVector}, inheritance::BequeathTextColor, interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, TextWindow, WindowedTable}, train::Train
 };
-
 
 pub struct DilemmaResultsPlugin;
 impl Plugin for DilemmaResultsPlugin {
@@ -33,6 +24,17 @@ impl Plugin for DilemmaResultsPlugin {
             OnEnter(DilemmaPhase::Results), 
             DilemmaResultsScene::setup,
         );
+    }
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaResultsActions {
+    ExitResults
+}
+
+impl std::fmt::Display for DilemmaResultsActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -48,35 +50,26 @@ impl DilemmaResultsScene {
 		asset_server: Res<AssetServer>,
 	) {
 	
-		commands.spawn(
-			Self
-		).with_children(|parent| {
+		commands.spawn((
+			Self,
+			StateScoped(DilemmaPhase::Results),
+		)).with_children(|parent| {
 
 			let text_box_z : f32 = 1.0; 
 
 			if let Some(dilemma_stats) = stats.dilemma_stats.last().cloned() {
 				parent.spawn((
 					Draggable::default(),
-					TextWindow{
+					WindowedTable{
 						title : Some(WindowTitle{
 							text : String::from("Latest Results"),
 							..default()
 						}),
 						..default()
 					},
-					TextColor(Color::NONE),
-					TextFont{
-						font_size : 12.0,
-						..default()
-					},
-					Text2d::new(dilemma_stats.to_string()),
-					ColorTranslation::new(
-						PRIMARY_COLOR,
-						Duration::from_secs_f32(0.2),
-						false
-					),
+					dilemma_stats.to_table(),
 					Transform::from_xyz(
-						-300.0,
+						-450.0,
 						0.0,
 						text_box_z + 0.2,
 					))
@@ -85,26 +78,16 @@ impl DilemmaResultsScene {
 
 			parent.spawn((
 				Draggable::default(),
-				TextWindow{
+				WindowedTable{
 					title : Some(WindowTitle{
 						text : String::from("Overall Results"),
 						..default()
 					}),
 					..default()
 				},
-				TextColor(Color::NONE),
-				TextFont{
-					font_size : 12.0,
-					..default()
-				},
-				Text2d::new(stats.to_string()),
-				ColorTranslation::new(
-					PRIMARY_COLOR,
-					Duration::from_secs_f32(0.2),
-					false
-				),
+				stats.to_table(),
 				Transform::from_xyz(
-					300.0,
+					50.0,
 					0.0,
 					text_box_z + 0.2,
 				))
@@ -141,6 +124,44 @@ impl DilemmaResultsScene {
 				TextColor(PRIMARY_COLOR),
 				AsciiString(format!("DILEMMA RESULTS")),
 				Transform::from_xyz(-550.0,300.0, 1.0)
+			));
+
+			parent.spawn((
+				NextButton,
+				TextButton::new(
+					vec![DilemmaResultsActions::ExitResults],
+					vec![KeyCode::Enter],
+					"[ Click here or Press Enter to End the Simulation ]",
+				),
+				ActionPallet::<DilemmaResultsActions, DilemmaSounds>(
+					enum_map!(
+						DilemmaResultsActions::ExitResults => vec![
+							InputAction::PlaySound(DilemmaSounds::Click),
+							InputAction::ChangeState(
+								StateVector::new(
+									None,
+									Some(GameState::Dialogue),
+									Some(DilemmaPhase::Intro),
+								)
+							),
+							InputAction::Despawn(None)
+							]
+						)
+				),
+				TransientAudioPallet::new(
+					vec![(
+						DilemmaSounds::Click,
+						vec![
+							TransientAudio::new(
+								asset_server.load("sounds/mech_click.ogg"), 
+								0.1, 
+								true,
+								1.0,
+								true
+							)
+						]
+					)]
+				)
 			));
 			}
 		);

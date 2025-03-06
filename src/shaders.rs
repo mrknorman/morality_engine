@@ -71,7 +71,7 @@ impl ScanLinesMaterial {
             scan_line: ScanLineUniform {
                 spacing: 1,
                 thickness: 3,
-                darkness: 0.0,
+                darkness: 0.5,
                 resolution: window_resolution,
             },
         });

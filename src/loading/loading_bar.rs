@@ -201,7 +201,6 @@ impl Component for LoadingBar {
                             },
                             Transform::default()
                         ));
-
                         
                         parent.spawn((
                             LoadingText,
@@ -232,8 +231,8 @@ impl Component for LoadingBar {
                         parent.spawn(
                             HollowRectangle{
                                 dimensions : Vec2::new(500.0, 20.0),
-                                thickness : 2.0,
-                                color : Color::BLACK
+                                color : PRIMARY_COLOR,
+                                ..default()
                             }
                         );
 
@@ -245,9 +244,9 @@ impl Component for LoadingBar {
                                 anchor: Anchor::CenterLeft,
                                 ..default()
                             },
-                            Transform::from_xyz(
-                                -247.0, 0.0, 0.0
-                            ),
+                            Transform::from_translation(
+                                Vec3::ZERO.with_x(-247.0)
+                            )
                         ));
                     });
                 }

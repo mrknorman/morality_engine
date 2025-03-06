@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-
 pub mod compound;
 pub mod window;
 

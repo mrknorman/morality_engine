@@ -1,4 +1,5 @@
 use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*};
+use crossterm::style::Print;
 use crate::colors::PRIMARY_COLOR;
 
 pub struct CompoundPlugin;
@@ -66,7 +67,6 @@ pub fn propagate_changes<T: AssembleShape + Component>(
             // Assuming the number of children matches the number of updates
             for (child, (size, pos)) in children.iter().zip(updates.iter()) {
                 if let Ok((mut sprite, mut transform)) = side_query.get_mut(*child) {
-
                     sprite.custom_size = Some(size.max(Vec2::ZERO));
                     sprite.color = color;
                     *transform = Transform::from_translation(*pos);
@@ -76,20 +76,40 @@ pub fn propagate_changes<T: AssembleShape + Component>(
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct RectangleSides {
+    pub top: bool,
+    pub bottom: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
+impl Default for RectangleSides {
+    fn default() -> Self {
+        Self {
+            top: true,
+            bottom: true,
+            left: true,
+            right: true,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct HollowRectangle {
     pub dimensions: Vec2,
     pub thickness: f32,
     pub color: Color,
+    pub sides: RectangleSides, // New field to control which sides are drawn.
 }
 
 impl Default for HollowRectangle {
     fn default() -> Self {
         Self {
-            dimensions: Vec2::ZERO,
+            dimensions: Vec2::ONE,
             thickness: 2.0,
             color: PRIMARY_COLOR,
+            sides: RectangleSides::default(),
         }
     }
 }
@@ -115,13 +135,21 @@ impl AssembleShape for HollowRectangle {
         let thickness = self.thickness;
         let half_width = width / 2.0;
         let half_height = height / 2.0;
-
-        vec![
-            (Vec2::new(width, thickness), Vec3::new(0.0, half_height, 0.0)),
-            (Vec2::new(width, thickness), Vec3::new(0.0, -half_height, 0.0)),
-            (Vec2::new(thickness, height), Vec3::new(-half_width, 0.0, 0.0)),
-            (Vec2::new(thickness, height), Vec3::new(half_width, 0.0, 0.0)),
-        ]
+        let mut updates = Vec::new();
+        
+        if self.sides.top {
+            updates.push((Vec2::new(width, thickness), Vec3::ZERO.with_y(half_height)));
+        }
+        if self.sides.bottom {
+            updates.push((Vec2::new(width, thickness), Vec3::ZERO.with_y(-half_height)));
+        }
+        if self.sides.left {
+            updates.push((Vec2::new(thickness, height), Vec3::ZERO.with_x(-half_width)));
+        }
+        if self.sides.right {
+            updates.push((Vec2::new(thickness, height), Vec3::ZERO.with_x(half_width)));
+        }
+        updates
     }
 }
 
@@ -139,7 +167,7 @@ impl Component for HollowRectangle {
             };
             
             world.commands().entity(entity).with_children(|parent| {
-                rectangle.assemble().for_each(|sprite_bundle| {parent.spawn(sprite_bundle);});
+                rectangle.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
             });
         });
     }
@@ -193,21 +221,21 @@ impl Component for Plus {
             };
             
             world.commands().entity(entity).with_children(|parent| {
-                plus.assemble().for_each(|sprite| {parent.spawn(sprite);});
+                plus.assemble().for_each(|sprite| { parent.spawn(sprite); });
             });
         });
     }
 }
 
 
-#[derive(Clone)]
-pub struct BorderedRectangle{
-    pub boundary : HollowRectangle
+#[derive(Clone, Copy)]
+pub struct BorderedRectangle {
+    pub boundary: HollowRectangle,
 }
 
 impl Default for BorderedRectangle {
     fn default() -> Self {
-        Self{boundary : HollowRectangle::default()}
+        Self { boundary: HollowRectangle::default() }
     }
 }
 
@@ -222,9 +250,13 @@ impl Component for BorderedRectangle {
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(|mut world, entity, _component_id| {
-            let (boundary, width, height)= {
+            let (boundary, width, height) = {
                 if let Some(bordered_rectangle) = world.entity(entity).get::<BorderedRectangle>() {
-                    (bordered_rectangle.boundary, bordered_rectangle.boundary.dimensions.x, bordered_rectangle.boundary.dimensions.y)
+                    (
+                        bordered_rectangle.boundary,
+                        bordered_rectangle.boundary.dimensions.x,
+                        bordered_rectangle.boundary.dimensions.y,
+                    )
                 } else {
                     return;
                 }

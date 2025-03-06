@@ -202,8 +202,8 @@ pub struct DilemmaOptionConsequences {
 
 #[derive(Debug, Clone)]
 pub struct DilemmaOption {
-    name : String,
-    description : String,
+    pub name : String,
+    pub description : String,
     humans : Vec<Human>,
     pub consequences : DilemmaOptionConsequences,
     pub num_humans : usize
