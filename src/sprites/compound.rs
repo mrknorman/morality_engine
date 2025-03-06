@@ -1,5 +1,4 @@
 use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*};
-use crossterm::style::Print;
 use crate::colors::PRIMARY_COLOR;
 
 pub struct CompoundPlugin;

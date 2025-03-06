@@ -13,7 +13,7 @@ use crate::{
 		NarrationAudio, 
 		TransientAudio, 
 		TransientAudioPallet 
-    }, colors::PRIMARY_COLOR, common_ui::NextButton, dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, game_states::{
+    }, common_ui::NextButton, dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, game_states::{
         DilemmaPhase,
 		GameState, 
 		MainState, 
@@ -21,7 +21,7 @@ use crate::{
     }, interaction::{
 		ActionPallet, 
 		InputAction
-	}, text::{Cell, Column, Row, Table, TextButton, TextContent, WindowedTable}, timing::{
+	}, text::TextButton, timing::{
         TimerConfig, 
         TimerPallet, 
         TimerStartCondition

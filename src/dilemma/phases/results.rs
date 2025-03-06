@@ -13,7 +13,10 @@ use crate::{
 		ColorTranslation, 
 		DIM_BACKGROUND_COLOR, 
 		PRIMARY_COLOR
-	}, common_ui::NextButton, dilemma::DilemmaSounds, game_states::{DilemmaPhase, GameState, StateVector}, inheritance::BequeathTextColor, interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, TextWindow, WindowedTable}, train::Train
+	}, common_ui::NextButton, dilemma::DilemmaSounds, 
+	game_states::{DilemmaPhase, GameState, StateVector}, 
+	inheritance::BequeathTextColor, 
+	interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, WindowedTable}, train::Train
 };
 
 pub struct DilemmaResultsPlugin;

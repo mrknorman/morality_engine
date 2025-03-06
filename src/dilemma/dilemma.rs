@@ -14,18 +14,9 @@ use bevy::{
 		component::StorageType::Table
 	}, 
 	prelude::*, 
-	sprite::Anchor,
-	text::{
-		LineBreak, 
-		TextBounds
-	}
 };
 
 use crate::{
-	colors::{		
-		OPTION_1_COLOR, 
-		OPTION_2_COLOR
-	}, 
 	game_states::DilemmaPhase, 
 	inheritance::BequeathTextColor, 
 	motion::Pulse, 
@@ -365,66 +356,5 @@ impl Dilemma {
 			options,
 			default_option : loaded_dilemma.default_option
 		}
-	}
-}
-
-#[derive(Component)]
-pub struct DilemmaOptionInfoPanel;
-impl DilemmaOptionInfoPanel {
-	pub fn spawn(
-		commands : &mut Commands,
-		option : &DilemmaOption,
-		index : usize
-	) -> Entity {
-
-		let mut color = Color::WHITE;
-		let mut x_transform : f32 = 0.0;
-
-		if index == 0 {
-			color =OPTION_1_COLOR;
-			x_transform = -600.0;
-		} else if index == 1 {
-			color = OPTION_2_COLOR;
-			x_transform = 150.0;
-		}
-
-		commands.spawn(
-			(
-			DilemmaOptionInfoPanel,
-			Text2d::new(
-				format!(
-					"Option {}: {} [Press {} to select]\n", 
-					index + 1, 
-					option.name, 
-					index + 1
-				)
-			),
-			TextColor(color),
-			TextFont{
-				font_size : 15.0,
-				..default()
-			},
-			TextLayout{
-				justify : JustifyText::Left,
-				linebreak : LineBreak::WordBoundary
-			},
-			TextBounds{
-				width : Some(500.0),
-				height : Some(2000.0)
-			}, 
-			Transform::from_xyz(x_transform,-150.0, 1.0),
-			Anchor::TopLeft
-		)).with_children( | parent | {
-			parent.spawn(
-				(
-					TextSpan::new(option.description.clone()),
-					TextColor(color),
-					TextFont{
-						font_size : 15.0,
-						..default()
-					}
-				)
-			); 
-		} ).id()
 	}
 }
