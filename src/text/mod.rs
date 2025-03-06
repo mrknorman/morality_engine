@@ -1,5 +1,5 @@
 use std::{
-    fs::File, io::BufReader, iter::zip, path::Path
+    fs::File, io::BufReader, path::Path
 };
 use serde::Deserialize;
 
