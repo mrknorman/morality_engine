@@ -108,13 +108,12 @@ impl Plugin for GamePlugin {
             .add_plugins(inheritance::InheritancePlugin)
             .add_plugins(DilationPLugin);
             
-            /*
+            
             use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
             app
             .add_plugins(FrameTimeDiagnosticsPlugin)
             .add_plugins(LogDiagnosticsPlugin::default())
             ;
-            */
             
     }
 }
@@ -131,7 +130,7 @@ impl Default for GlobalRng {
 #[derive(Component)]
 pub struct MainCamera;
 
-const USE_POST_PROCESS: bool = false;
+const USE_POST_PROCESS: bool = true;
 
 fn setup_cameras(
     mut commands: Commands,         

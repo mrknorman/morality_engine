@@ -13,21 +13,15 @@ use crate::{
 		NarrationAudio, 
 		TransientAudio, 
 		TransientAudioPallet 
-    }, 
-	common_ui::NextButton, 
-	dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, 
-	game_states::{
+    }, colors::PRIMARY_COLOR, common_ui::NextButton, dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, game_states::{
         DilemmaPhase,
 		GameState, 
 		MainState, 
 		StateVector
-    }, 
-	interaction::{
+    }, interaction::{
 		ActionPallet, 
 		InputAction
-	}, 
-	text::TextButton, 
-	timing::{
+	}, text::{Cell, Column, Row, Table, TextButton, TextContent, WindowedTable}, timing::{
         TimerConfig, 
         TimerPallet, 
         TimerStartCondition
@@ -86,7 +80,7 @@ impl DilemmaIntroScene {
 			Some(_) => LeverState::Right,
 		};
 		commands.insert_resource(Lever(state));
-
+		
 		commands.spawn(
 			(
 				DilemmaIntroScene,

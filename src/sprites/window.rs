@@ -243,6 +243,7 @@ impl Component for WindowHeader {
                                     dimensions : Vec2::splat(height),
                                     thickness : boundary.thickness,
                                     color,
+                                    ..default()
                                 },
                                 root_entity
                             },
