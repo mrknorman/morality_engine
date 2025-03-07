@@ -209,10 +209,12 @@ impl DecisionScene {
 
 				parent.spawn((
 					Lever(state),
-					ClickablePong::new(vec![
+					ClickablePong::new(
+						vec![
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
-						]					
+						],	
+						0				
 					),
 					Pressable::new(vec![
 						KeyMapping{

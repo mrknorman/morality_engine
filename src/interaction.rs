@@ -165,8 +165,9 @@ impl Default for InteractionState {
 
 #[derive(Clone)]
 pub struct ClickablePong<T> {
+    initial_state : usize,
     /// The ping–pong index and cycle state.
-    pub direction: PongDirection,
+    direction: PongDirection,
     /// A vector of key sets (each a Vec<T>) to cycle through.
     pub action_vector: Vec<Vec<T>>,
 }
@@ -185,7 +186,7 @@ where
                 if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
                     world.commands().entity(entity).insert((
                         Clickable::new(pong.action_vector[0].clone()),
-                        InteractionState::default(),
+                        InteractionState(pong.initial_state),
                     ));
                 }
             }
@@ -215,8 +216,9 @@ where
 }
 
 impl<T: Clone> ClickablePong<T> {
-    pub fn new(action_vector: Vec<Vec<T>>) -> Self {
+    pub fn new(action_vector: Vec<Vec<T>>, initial_state : usize) -> Self {
         Self {
+            initial_state,
             direction: PongDirection::Forward,
             action_vector,
         }
@@ -634,10 +636,6 @@ where
     }
 }
 
-/// -- ClickablePong Update System --
-/// This system runs on entities that have both a Clickable and a ClickablePong.
-/// Instead of relying on the ClickablePong's own trigger flag, it reuses the trigger
-/// from the Clickable component to update the key set (ping-pong style).
 pub fn update_pong<T: Send + Sync + Copy + 'static>(
     mut query: Query<(
         &mut Clickable<T>,
