@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use bevy::{
-    ecs::component::StorageType, math::VectorSpace, prelude::*
+    ecs::component::StorageType, prelude::*
 };
 
 use crate::{
@@ -128,21 +128,21 @@ impl Component for Junction {
 				let asset_server = world.get_resource::<AssetServer>().unwrap();
 				let audio_vector = vec![											
 					TransientAudio::new(
-						asset_server.load("sounds/male_scream_1.ogg"),
+						asset_server.load("./audio/effects/male_scream_1.ogg"),
 						1.0,
 						false,
 						0.5,
 						true
 					),
 					TransientAudio::new(
-						asset_server.load("sounds/male_scream_2.ogg"),
+						asset_server.load("./audio/effects/male_scream_2.ogg"),
 						1.0,
 						false,
 						0.5,
 						true
 					),
 					TransientAudio::new(
-						asset_server.load("sounds/male_scream_3.ogg"),
+						asset_server.load("./audio/effects/male_scream_3.ogg"),
 						1.0,
 						false,
 						0.5,
@@ -156,8 +156,8 @@ impl Component for Junction {
 
 					let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
 					let branch_y_positions = vec![
-						Transform::from_xyz(0.0, 0.0, 1.0),
-						Transform::from_xyz(0.0, 100.0, 1.0)	
+						Transform::default(),
+						Transform::from_translation(Vec3::ZERO.with_y(-100.0))
 					];
 					
 					let mut track_entities = vec![];
@@ -165,8 +165,8 @@ impl Component for Junction {
 						|junction| {
 							let mut junction_entity = junction.spawn((
 								TrunkTrack,
-								Track::new(600),
-								Transform::from_translation(Vec3::ZERO.with_x(-2000.0))
+								Track::new(2000),
+								Transform::from_translation(Vec3::ZERO.with_x(-7041.0))
 							));
 							
 							if let Some(color) = color {
@@ -179,7 +179,7 @@ impl Component for Junction {
 
 							let turnout_entity = junction.spawn((
 								Turnout,
-								Transform::from_xyz( 1240.0, 0.0, 0.0),
+								Transform::from_translation(Vec3::ZERO.with_x(1240.0)),
 								TransformMultiAnchor(branch_y_positions.clone())
 							)).with_children( |turnout| {
 								for (branch_index, ((option, y_position), color)) in zip(

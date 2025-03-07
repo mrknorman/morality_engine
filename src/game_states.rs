@@ -4,9 +4,9 @@ use serde::{Serialize, Deserialize};
 use crate::{dialogue::content::*, dilemma::content::*};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum MainState {
-    Menu,
+pub enum MainState {   
     #[default]
+    Menu,
     InGame
 }
 
@@ -14,9 +14,9 @@ pub enum MainState {
     Deserialize)]
 #[source(MainState = MainState::InGame)]
 pub enum GameState {
+    #[default]
     Loading,
     Dialogue,
-    #[default]
     Dilemma,
 }
 
@@ -81,9 +81,8 @@ pub struct Memory{
 impl Default for Memory{
     fn default() -> Self {
         Self{
-            next_dialogue : vec![DialogueContent::Lab1(Lab1Dialogue::Intro)],
-            next_dilemma : Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit))
-            //next_dilemma : Some(DilemmaContent::Lab1(Lab1Dilemma::IncompetentBandit))
+            next_dialogue : vec![DialogueContent::Lab0(Lab0Dialogue::Intro)],
+            next_dilemma : Some(DilemmaContent::Lab0(Lab0Dilemma::IncompetentBandit))
         }
     }
 

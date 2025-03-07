@@ -72,8 +72,17 @@ impl DialogueScene {
                 String::from("creator"),  
                 Character::new(
                     "creator", 
-                    "sounds/typing.ogg",
+                    "./audio/effects/typing.ogg",
                     Color::srgba(0.4039 * 3.0, 0.9490 * 3.0, 0.8196 * 3.0, 1.0),
+                    CharacterKey::Creator
+                )
+            ),
+            (
+                String::from("child"),  
+                Character::new(
+                    "child", 
+                    "./audio/effects/typing.ogg",
+                    Color::srgba(0.635 * 3.0, 0.0* 3.0, 1.0 * 3.0, 1.0),
                     CharacterKey::Creator
                 )
             )
@@ -88,7 +97,7 @@ impl DialogueScene {
                         ContinuousAudio{
                             key : DialogueSounds::Hum,
                             source : AudioPlayer::<AudioSource>(asset_server.load(
-                                "./sounds/hum.ogg"
+                                "./audio/effects/hum.ogg"
                             )),
                             settings : PlaybackSettings{
                                 volume : Volume::new(0.1),
@@ -99,7 +108,7 @@ impl DialogueScene {
                         ContinuousAudio{
                             key : DialogueSounds::Office,
                             source : AudioPlayer::<AudioSource>(asset_server.load(
-                                "./sounds/office.ogg"
+                                "./audio/effects/office.ogg"
                             )),
                             settings : PlaybackSettings{
                                 volume : Volume::new(0.5),
@@ -110,7 +119,7 @@ impl DialogueScene {
                         ContinuousAudio{
                             key : DialogueSounds::Music,
                             source : AudioPlayer::<AudioSource>(asset_server.load(
-                                "./music/trolley_wires.ogg"
+                                "./audio/music/trolley_wires.ogg"
                             )),
                             settings : PlaybackSettings{
                                 volume : Volume::new(0.3),

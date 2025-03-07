@@ -185,7 +185,7 @@ where
             |mut world, entity, _component_id| {
                 if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
                     world.commands().entity(entity).insert((
-                        Clickable::new(pong.action_vector[0].clone()),
+                        Clickable::new(pong.action_vector[pong.initial_state].clone()),
                         InteractionState(pong.initial_state),
                     ));
                 }

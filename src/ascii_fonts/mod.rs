@@ -85,7 +85,7 @@ impl Component for AsciiString {
 
                 let asset_server = world.get_resource::<AssetServer>().unwrap();
 
-                let beep: Handle<AudioSource> = asset_server.load("sounds/beep.ogg");
+                let beep: Handle<AudioSource> = asset_server.load("./audio/effects/beep.ogg");
 
                 let mut commands = world.commands();
 

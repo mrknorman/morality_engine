@@ -127,7 +127,7 @@ impl DilemmaConsequenceScene{
                         vec![
                             OneShotAudio {
                                 source : asset_server.load(
-                                    PathBuf::from("./sounds/slowmo.ogg")
+                                    PathBuf::from("./audio/effects/slowmo.ogg")
                                 ),
                                 persistent : false,
                                 volume :1.0,
@@ -155,8 +155,8 @@ impl DilemmaConsequenceScene{
         asset_server: Res<AssetServer>
     ) {
         // Constants for asset paths and parameters.
-        const SCREAM_SOUND: &str = "sounds/male_scream_long.ogg";
-        const SPEEDUP_SOUND: &str = "sounds/speedup.ogg";
+        const SCREAM_SOUND: &str = "./audio/effects/male_scream_long.ogg";
+        const SPEEDUP_SOUND: &str = "./audio/effects/speedup.ogg";
         const SPEEDUP_DURATION_SECONDS: f32 = 1.057; // Exact duration of the speedup sound.
         const DEFAULT_VOLUME: f32 = 1.0;
     
@@ -225,7 +225,7 @@ impl DilemmaConsequenceScene{
                                 DilemmaSounds::Click,
                                 vec![
                                     TransientAudio::new(
-                                        asset_server.load("sounds/mech_click.ogg"), 
+                                        asset_server.load("./audio/effects/mech_click.ogg"), 
                                         0.1, 
                                         true,
                                         1.0,
