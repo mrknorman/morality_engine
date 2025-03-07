@@ -1,7 +1,4 @@
-use std::{
-	path::PathBuf,
-	time::Duration
-};
+use std::time::Duration;
 use bevy::{
 	audio::Volume, prelude::*, sprite::Anchor, text::TextBounds
 };
@@ -31,7 +28,7 @@ use crate::{
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR, 
 		PRIMARY_COLOR
-	}, game_states::GameState, inheritance::BequeathTextColor, interaction::{Draggable, InteractionPlugin}, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::{SpritePlugin, window::WindowTitle}, stats::DilemmaStats, text::{TextPlugin, TextWindow}, timing::TimingPlugin, train::{
+	}, game_states::{GameState, Memory}, inheritance::BequeathTextColor, interaction::{Draggable, InteractionPlugin}, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::{window::WindowTitle, SpritePlugin}, stats::DilemmaStats, text::{TextPlugin, TextWindow}, timing::TimingPlugin, train::{
         Train, 
 		TrainPlugin, 
 		STEAM_TRAIN
@@ -46,6 +43,7 @@ use dilemma::{
 	DilemmaPlugin
 };
 pub mod lever;
+pub mod content;
 use lever::LeverPlugin;
 mod junction;
 use junction::{
@@ -113,12 +111,16 @@ struct DilemmaScene;
 impl DilemmaScene {
 	fn setup(
 		mut commands : Commands,
+		memory : Res<Memory>,
 		asset_server: Res<AssetServer>
 	) {
-		let dilemma : Dilemma = Dilemma::load(
-			PathBuf::from("./dilemmas/lab_1.json")
-		);
-		
+
+		let dilemma = if let Some(d) = &memory.next_dilemma {
+			Dilemma::load(&d)
+		} else {
+			panic!("Aggghh!");
+		};
+
 		commands.insert_resource(
 			DilemmaStats::new(dilemma.countdown_duration)
 		);

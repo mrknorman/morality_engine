@@ -44,7 +44,7 @@ use crate::{
         DilemmaPhase, 
         GameState, StateVector
     }, interaction::{
-        ActionPallet, ClickablePong, Draggable, InputAction, KeyMapping, Pressable
+        ActionPallet, ClickablePong, Draggable, InputAction, InteractionState, KeyMapping, Pressable
     }, sprites::window::WindowTitle, stats::DilemmaStats, text::TextWindow, track::Track
 };
 
@@ -97,7 +97,11 @@ impl DecisionScene {
 		) {
 
 		let (start_text, state, color) = match dilemma.default_option {
-			None => (LEVER_MIDDLE, LeverState::Random, Color::WHITE),
+			None => (
+				LEVER_MIDDLE, 
+				LeverState::Random, 
+				Color::WHITE
+			),
 			Some(ref option) if *option == 0 => (LEVER_LEFT, LeverState::Left, OPTION_1_COLOR),
 			Some(_) => (LEVER_RIGHT, LeverState::Right, OPTION_2_COLOR),
 		};
@@ -137,15 +141,15 @@ impl DecisionScene {
 					Transform::from_xyz(200.0, -200.0, 2.0)
 				];
 
-				for (index, (option, transform)) in zip(dilemma.options.clone(), transforms).enumerate() {
+				for (option, transform) in zip(dilemma.options.clone(), transforms) {
 					parent.spawn((
 						TextWindow{
 							title : Some(WindowTitle{
 								text : format!(
 									"Option {}: {} [Press {} to select]\n", 
-									index + 1, 
+									option.index + 1, 
 									option.name,
-									index + 1),
+									option.index + 1),
 								..default()
 							}),
 							..default()

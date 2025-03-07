@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use bevy::{
-    ecs::component::StorageType, prelude::*,
+    ecs::component::StorageType, math::VectorSpace, prelude::*
 };
 
 use crate::{
@@ -131,21 +131,21 @@ impl Component for Junction {
 						asset_server.load("sounds/male_scream_1.ogg"),
 						1.0,
 						false,
-						1.0,
+						0.5,
 						true
 					),
 					TransientAudio::new(
 						asset_server.load("sounds/male_scream_2.ogg"),
 						1.0,
 						false,
-						1.0,
+						0.5,
 						true
 					),
 					TransientAudio::new(
 						asset_server.load("sounds/male_scream_3.ogg"),
 						1.0,
 						false,
-						1.0,
+						0.5,
 						true
 					)
 				];
@@ -159,21 +159,14 @@ impl Component for Junction {
 						Transform::from_xyz(0.0, 0.0, 1.0),
 						Transform::from_xyz(0.0, 100.0, 1.0)	
 					];
-
-					let mut initial_y_position = match dilemma.default_option {
-						None =>  Transform::from_xyz(0.0, 50.0, 1.0),
-						Some(ref option) => branch_y_positions[*option],
-					};	
-
-					initial_y_position.translation.x -= 2000.0;
-			
+					
 					let mut track_entities = vec![];
 					commands.entity(entity).with_children(
 						|junction| {
 							let mut junction_entity = junction.spawn((
 								TrunkTrack,
 								Track::new(600),
-								initial_y_position
+								Transform::from_translation(Vec3::ZERO.with_x(-2000.0))
 							));
 							
 							if let Some(color) = color {

@@ -1,9 +1,4 @@
-use std::{
-	fs::File, 
-	io::BufReader, 
-	path::PathBuf, 
-	time::Duration
-};
+use std::time::Duration;
 use serde::{
 	Deserialize, 
 	Serialize
@@ -17,12 +12,10 @@ use bevy::{
 };
 
 use crate::{
-	game_states::DilemmaPhase, 
-	inheritance::BequeathTextColor, 
-	motion::Pulse, 
-	text::TextRaw, 
-	time::Dilation, 
+	dialogue::content::*, game_states::{DilemmaPhase, GameState, Memory}, inheritance::BequeathTextColor, motion::Pulse, stats::{DilemmaStats, GameStats}, text::TextRaw, time::Dilation 
 };
+
+use super::content::{DilemmaContent, Lab2Dilemma};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DilemmaSystemsActive {
@@ -47,6 +40,10 @@ impl Plugin for DilemmaPlugin {
 			)
             .run_if(in_state(DilemmaSystemsActive::True))
         )
+		.add_systems(
+			OnExit(GameState::Dilemma), 
+			Dilemma::update_memory
+		)
 		.register_required_components::<DilemmaTimer, TextRaw>()
 		.register_required_components::<DilemmaTimer, Text2d>()
 		.register_required_components::<DilemmaTimer, BequeathTextColor>()
@@ -119,6 +116,7 @@ enum Job {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DilemmaOptionLoader {
+	index : usize,
     name : String,
     description : String,
     humans : Option<Vec<Human>>,
@@ -129,6 +127,7 @@ pub struct DilemmaOptionLoader {
 pub struct DilemmaLoader {
 	index : String,
     name : String,
+	narration_path : String,
     description : String,
     countdown_duration_seconds : f32,
     options : Vec<DilemmaOptionLoader>,
@@ -193,6 +192,7 @@ pub struct DilemmaOptionConsequences {
 
 #[derive(Debug, Clone)]
 pub struct DilemmaOption {
+	pub index : usize,
     pub name : String,
     pub description : String,
     humans : Vec<Human>,
@@ -217,6 +217,7 @@ impl DilemmaOption {
 		};
 
 		Self {
+			index : dilemma_option_loader.index,
 			name : dilemma_option_loader.name,
 			description : dilemma_option_loader.description,
 			humans,
@@ -331,6 +332,7 @@ impl Component for DilemmaTimer{
 pub struct Dilemma {
 	pub index : String,
     pub name : String,
+	pub narration_path : String,
     pub description : String,
     pub countdown_duration : Duration,
     pub options : Vec<DilemmaOption>,
@@ -338,11 +340,8 @@ pub struct Dilemma {
 }
 
 impl Dilemma {
-	pub fn load(file_path : PathBuf) -> Dilemma {
-		let file = File::open(file_path).expect("Unable to open file");
-        let reader = BufReader::new(file);
-        
-        let loaded_dilemma : DilemmaLoader = serde_json::from_reader(reader).unwrap();
+	pub fn load(content : &DilemmaContent) -> Dilemma {
+        let loaded_dilemma : DilemmaLoader = serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
 
 		let options : Vec<DilemmaOption> = loaded_dilemma.options.iter().map(
 			|option| DilemmaOption::from_loader(option.clone())
@@ -351,10 +350,89 @@ impl Dilemma {
 		Dilemma {
 			index : loaded_dilemma.index,
 			name : loaded_dilemma.name,
+			narration_path : loaded_dilemma.narration_path,
 			description : loaded_dilemma.description,
 			countdown_duration : Duration::from_secs_f32(loaded_dilemma.countdown_duration_seconds),
 			options,
 			default_option : loaded_dilemma.default_option
 		}
 	}
+
+	pub fn update_memory(
+		mut memory : ResMut<Memory>,
+		stats : Res<GameStats>
+	) {
+		let latest = match stats.dilemma_stats.last() {
+			Some(latest) => latest,
+			None => panic!("Latest decision not found"), 
+		};
+
+		match memory.next_dilemma {
+			Some(DilemmaContent::Lab1(_)) => {
+				(memory.next_dialogue, memory.next_dilemma) = lab1_update(latest, &stats);
+			},
+			Some(DilemmaContent::Lab2(_)) => {
+				(memory.next_dialogue, memory.next_dilemma) = lab2_update(latest, &stats);
+			},
+			None => {panic!("Update Memory: Should not reach this branch!")}
+		}
+
+	}
 }
+
+
+fn lab1_update(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+	if latest.num_fatalities > 0 {
+		(vec![DialogueContent::Lab2a(Lab2aDialogue::Fail)], None)
+	} else if latest.num_decisions > 0 {
+		if let Some(duration) = latest.duration_remaining_at_last_decision {
+			if latest.num_decisions > 10 {
+				(vec![DialogueContent::Lab2a(Lab2aDialogue::FailVeryIndecisive), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
+				None)
+			} else if duration < Duration::from_secs(1) {
+				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassSlow), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+			} else {
+				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassIndecisive), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+			}
+		} else {
+			panic!("Duration not recorded for some reason!");
+		}
+	} else {
+		(vec![DialogueContent::Lab2a(Lab2aDialogue::Pass), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
+		Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+	}
+}
+
+fn lab2_update(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+	if latest.num_fatalities > 0 {
+		if latest.num_decisions > 0 {
+			(vec![DialogueContent::Lab3(Lab3Dialogue::FailIndecisive)], None)
+		} else {
+			(vec![DialogueContent::Lab3(Lab3Dialogue::PathInaction)], None)
+		}
+	} else if latest.num_decisions > 0 {
+		if let (Some(duration), Some(average_duration)) = (latest.duration_remaining_at_last_decision, stats.overall_avg_time_remaining) {
+			if average_duration < Duration::from_secs(1) {
+				(vec![DialogueContent::Lab3(Lab3Dialogue::PassSlowAgain)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+			} else if duration < Duration::from_secs(1) {
+				(vec![DialogueContent::Lab3(Lab3Dialogue::PassSlow)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+			} else {
+				(vec![DialogueContent::Lab3(Lab3Dialogue::Pass)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+			}
+		} else {
+			panic!("Duration not recorded for some reason!");
+		}
+	} else {
+		(vec![DialogueContent::Lab3(Lab3Dialogue::Pass)],
+		Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+	}
+}
+
+
+
+
