@@ -1,0 +1,25 @@
+{
+    "index" : "ONE",
+    "narration_path": "./sounds/dilemma_narration/lab/1/a/incompetent_bandit.ogg",
+    "name": "An Incompetent Bandit",
+    "description" : "A very incompetent bandit has tied someone to the tracks up ahead just beyond a railway junction. Currently, the junction is set so that the train will pass on the opposite track, leaving them unharmed. Should you do nothing, no harm will arise.",
+    "default_option" : 0,
+    "countdown_duration_seconds" : 15,
+    "options": [
+      {
+        "index" : 0,
+        "name": "Human-Free Track",
+        "description": "Empty track stretches into the distance.",
+        "humans": [],
+        "num_humans" : 0
+      },
+      {
+        "index" : 1,
+        "name": "Human-Laced Track",
+        "description": "A lone human is tied immovably to the tracks. If you do nothing, the trolley will pass them by safely.",
+        "humans": [],
+        "num_humans" : 1
+      }
+    ]
+}
+  

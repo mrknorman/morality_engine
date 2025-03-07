@@ -1,0 +1,14 @@
+[
+    {
+        "character": "The Creator",
+        "dialogue": "Still nothing no? No hint of action, no spark of motion? No desire at all for lever-pulling success? No...? That is a shame, track 2 will be very dissapointed. I can see it now, drinking those martinis on its own. How can railway track drink?. I don't know, but it's managing.",
+        "instruction": "Press enter to attempt to observe anything other than white text though the black void of your existance...",
+        "sound_file": "./sounds/typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Well... If longer time didn't do it than maybe the opposite? Maybe you thrive under pressure, lets try this?",
+        "instruction": "Press enter to wonder why this being is still trying to get you to move...",
+        "sound_file": "./sounds/typing.mp3"
+    }
+]
