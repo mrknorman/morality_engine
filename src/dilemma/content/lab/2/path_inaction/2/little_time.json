@@ -1,0 +1,25 @@
+{
+  "index" : "TWO C",
+  "name" : "A very stressful experience",
+  "narration_path": "./audio/narration/lab/2/path_inaction/little_time.ogg",
+  "description" : "Two tracks. One lever. One person. One chance. Go!",
+  "default_option" : 0,
+  "countdown_duration_seconds" : 5,
+  "options": [
+    {
+      "index" : 0,
+      "name": "HUMAN ON TRACK!",
+      "description": "HUMAN TIED DOWN. QUICK.",
+      "humans": [],
+      "num_humans" : 1
+    },
+    {
+      "index" : 1,
+      "name": "EMPTY AF TRACK!",
+      "description": "SAFE FOR TRAIN. PULL LEVER!",
+      "humans": [],
+      "num_humans" : 0
+    }
+  ]
+}
+  

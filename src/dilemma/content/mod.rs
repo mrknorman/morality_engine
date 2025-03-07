@@ -46,31 +46,31 @@ impl DilemmaContent {
 // Define each dilemma type using the macro
 define_dilemma! {
     Lab0Dilemma {
-        IncompetentBandit => "./lab/1/incompetent_bandit.json",
+        IncompetentBandit => "./lab/0/incompetent_bandit.json",
     }
 }
 
 define_dilemma! {
     Lab1Dilemma {
-        NearSightedBandit => "./lab/2/near_sighted_bandit.json",
+        NearSightedBandit => "./lab/1/near_sighted_bandit.json",
     }
 }
 
 define_dilemma! {
     Lab2Dilemma {
-        TheTrolleyProblem => "./lab/3/the_trolley_problem.json",
+        TheTrolleyProblem => "./lab/2/the_trolley_problem.json",
     }
 }
 
 define_dilemma! {
     DilemmaPathInaction {
-        EmptyChoice => "./lab/3/path_inaction/0/empty_choice.json",
-        PlentyOfTime => "./lab/3/path_inaction/1/plenty_of_time.json",
-        LittleTime => "./lab/3/path_inaction/2/little_time.json",
-        FiveOrNothing => "./lab/3/path_inaction/3/five_or_nothing.json",
-        CancerCure => "./lab/3/path_inaction/4/a_cure_for_cancer.json",
-        OwnChild => "./lab/3/path_inaction/5/your_own_child.json",
-        You => "./lab/3/path_inaction/6/you.json",
+        EmptyChoice => "./lab/2/path_inaction/0/empty_choice.json",
+        PlentyOfTime => "./lab/2/path_inaction/1/plenty_of_time.json",
+        LittleTime => "./lab/2/path_inaction/2/little_time.json",
+        FiveOrNothing => "./lab/2/path_inaction/3/five_or_nothing.json",
+        CancerCure => "./lab/2/path_inaction/4/a_cure_for_cancer.json",
+        OwnChild => "./lab/2/path_inaction/5/your_own_child.json",
+        You => "./lab/2/path_inaction/6/you.json",
     }
 }
 

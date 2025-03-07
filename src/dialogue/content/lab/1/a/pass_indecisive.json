@@ -1,0 +1,18 @@
+{
+    "lines" : [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I see you testing out that lever there. Hmm, I suppose that's all fine and good as long as you make the right decision in the end. Just don't leave it too late, and as a hint for the future, you'll score better if you act decisively.",
+            "instruction": "Press enter to become more decisive...",
+            "sound_file": "./sounds/typing.mp3"
+        }
+    ],     
+    "possible_exit_states" : [
+        {
+            "key" : "lab_1",
+            "state" : "Dilemma",
+            "requirements" : 0
+        }
+    ]
+}

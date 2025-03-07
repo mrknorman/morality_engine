@@ -1,0 +1,25 @@
+{
+    "index" : "TWO A",
+    "name" : "An Empty Choice",
+    "narration_path": "./audio/narration/lab/2/path_inaction/empty_choice.ogg",
+    "description" : "Facing you are two empty tracks, neither one has any obstruction. There are no humans around for miles around. No one is watching. You've always wanted to pull a big train lever? Haven't you? Now's your chance, go on. Show the world you can. It'll be worth it, trust me...",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "index" : 0,
+        "name": "Human-Free Track",
+        "description": "Empty track stretches all the way to the horizon and beyond. There hasn't been a recorded bandit related train incident around these parts for decades, centuries even.",
+        "humans": [],
+        "num_humans" : 0
+      },
+      {
+        "index" : 1,
+        "name": "Human-Free Track",
+        "description": "Honestly, both sides are completely empty, give that lever a whirl, live a little.",
+        "humans": [],
+        "num_humans" : 0
+      }
+    ]
+}
+  

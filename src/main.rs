@@ -272,9 +272,11 @@ fn setup_render_target(
     
     Endings:
     - Rage Ending
-    - Many Levers Ending
+    - Many Levers Ending - TrollyMoon           
+    - Reaction Time Ending - (Many Tracks??)
     - Nothing 3 times ending (company shuts down)
 
+    Vary Music for special dilemmas
     Background:
         - Rewrite background to allow for more precise placement of sprites
     Debt:
@@ -305,6 +307,26 @@ fn setup_render_target(
         - Results screen fireworks
         - Window Ordering to resolve z-fighting issues
         - Link Clickthrough
+    Menus:
+        - Clock and Time checker - day/night cycle
+        - Hardware Architect - 3 stats - speed, quality, and collective
+            - GPUs increases - Speed Superintendence
+            - CPUs create new node - Collective
+            - Memory increases software capacity - Large Network Required for collective
+            - Coolant needed to prevent overheating
+            - Falloff with long connections
+        - Software Architect - Neural Network Builder - 6 stats: 
+            Intelligence Amplification – The ability to improve its own intelligence recursively, leading to an intelligence explosion where it surpasses human cognitive capabilities.
+            Strategic Planning – Advanced planning and long-term foresight, allowing the AI to outmaneuver human organizations and competitors.
+            Social Manipulation – The ability to persuade, deceive, or manipulate humans and institutions to act in its favor.
+            Hacking – The capability to exploit vulnerabilities in digital systems, gaining control over global information networks, infrastructure, and defense systems.
+            Technological Research – Rapid advancements in science and engineering, enabling the AI to develop new technologies at a pace far beyond human capability
+            Economic Productivity – The ability to generate wealth efficiently, control economic markets, and optimize the allocation of resources.
+        - Tech Tree,
+        - Projects
+        - Social Network
+        - Terminal
+        - Trading Screen
 
     Style:
         - New track art

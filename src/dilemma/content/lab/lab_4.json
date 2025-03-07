@@ -1,0 +1,20 @@
+{
+    "name" : "A twist of Fate",
+    "description" : "The lever is stuck facing the sky, as the train nears it will inevitably fall one way or the other, but there is no way to know which way. Not unless you force it down. Will you let fate decide?",
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Human-Dense Track",
+        "description": "Five Humans are tied down on the route of this oncoming train. Will you make the decision, or will you leave it to chance?",
+        "humans" : [],
+        "num_humans": 5
+      },
+      {
+        "name": "Human-Sparse Track",
+        "description": "A single human is tied to the track. At the moment, a flip of a coin is all that separates them from death. You could make it certain.",
+        "humans": [],
+        "num_humans": 1
+      }
+    ]
+}
+  

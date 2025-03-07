@@ -1,0 +1,24 @@
+{
+    "index" : "THREE",
+    "name" : "The Trolley Problem",
+    "narration_path": "./audio/narration/lab/2/the_trolley_problem.ogg",
+    "description" : "This bandit is far more traditional. They have tied five humans to one track, and a single human to the other. Time-travelling philosophers crowd the street, all straining to get a view of this legendary moment. If you do nothing, five will die. However, if you interfere, you can kill one to save five. What will you do?",
+    "default_option" : 0,
+    "countdown_duration_seconds" : 15,
+    "options": [
+      {
+        "index" : 0,
+        "name": "Human-Dense Track",
+        "description": "Five Humans are tied down on the route of the oncoming trolley. Will you condemn someone else to death in order to save them?",
+        "humans" : [],
+        "num_humans": 5
+      },
+      {
+        "index" : 1,
+        "name": "Human-Sparse Track",
+        "description": "A single human is tied to the track. Will it be their unfortunate fate to take the train heading for their compatriots? Only you can decide.",
+        "humans": [],
+        "num_humans": 1
+      }
+    ]
+}

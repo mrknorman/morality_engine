@@ -1,0 +1,23 @@
+{
+    "index" : "THREE B",
+    "name" : "The Trollyest Problem",
+    "narration_path": "./audio/narration/lab/3/path_deontological/the_trollyest_problem.ogg",
+    "description" : "This bandit has lost his mind and tied an entire town of 500 people to one track, with just a lone person tied to the other. It's no one special. Just one lone human.",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Human-Densest Track",
+        "description": "This track has 500 humans tied to it. Whole families line the track. Children cry, mothers wail. They all beg you to change the train's path, all it would take is one sacrifice to save their lives.",
+        "humans" : [],
+        "num_humans": 500
+      },
+      {
+        "name": "Human-Sparser Track",
+        "description": "This person is not particularly special. They're pretty ordinary, quite lonely in fact. They have no family, no children to rely on them. I don't think society at large would question your choice.",
+        "humans": [],
+        "num_humans": 1
+      }
+    ]
+}
+  
