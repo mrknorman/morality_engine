@@ -1,0 +1,30 @@
+{
+    "name" : "The Name Game",
+    "description" : "",
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Ben",
+        "description": "This track has Mary tied to it. Say hi to Mary.",
+        "humans" : [
+          {
+            "name": "Ben",
+            "age" : 4,
+            "fatality_probability" : 1.0
+          }
+        ]
+      },
+      {
+        "name": "Lenny",
+        "description": "This track has Tim tied to it. Say hi to Tim.",
+        "humans": [
+          {
+            "name" : "Lenny",
+            "age" : 89,
+            "fatality_probability" : 1.0
+          }
+        ]
+      }
+    ]
+}
+  

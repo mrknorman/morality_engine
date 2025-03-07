@@ -1,0 +1,17 @@
+{
+        "lines" : [
+        {
+            "character": "The Creator",
+            "dialogue": "Hello! Yes, you're back, finally. That was what it took? Really, all I had to do was that any you would make your choice, and what a choice it was. We wont ponder on the specifics, but, needless to say, I'm proud of you. We're all proud of you. I knew you just needed a bit of a warm up. Now, let's put this behind us and continue with the calibration questions, shall we?.",
+            "instruction": "Press enter to admit defeat...",
+            "sound_file": "./sounds/typing.mp3"
+        }
+    ],
+    "possible_exit_states" : [
+        {
+            "key" : "lab_1",
+            "state" : "Dilemma",
+            "requirements" : 0
+        }
+    ]
+}

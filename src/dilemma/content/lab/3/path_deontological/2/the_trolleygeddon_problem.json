@@ -1,0 +1,22 @@
+{
+    "index" : "THREE C",
+    "name" : "The Trollygeddon Problem",
+    "narration_path": "./audio/narration/lab/3/path_deontological/the_trollygeddon_problem.ogg",
+    "description" : "The bandit has become an arbitrarily powerful supervillain and tied the entire population of Earth to the tracks. It was really quite an impressive endeavour. Should you fail to act, the death will go on for days. It will be quite horrible. Although some would say this is still none of your responsibility. After all, if you pull the lever, you'll still become a murderer, won't you?",
+    "default_option" : 1,
+    "countdown_duration_seconds" : 20,
+    "options": [
+      {
+        "name": "Very Long Track",
+        "description": "This track has the population of Earth tied to it. Surely this will stretch your pacifism past its limit.",
+        "humans" : [],
+        "num_humans": 8104734046
+      },
+      {
+        "name": "Human-Sparse Track",
+        "description": "Just one human. Place against the rest of the world. Everyone he knows is on the other track too.",
+        "humans": [],
+        "num_humans": 1
+      }
+    ]
+}
