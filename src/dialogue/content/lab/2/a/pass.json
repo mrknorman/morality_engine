@@ -1,0 +1,25 @@
+{
+    "lines" : [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Well done.",
+            "instruction": "Press enter to feel a warm glow of appreciation...",
+            "sound_file": "./sounds/typing.mp3"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "That was quite easy, wasn't it? Don't worry, it will get more difficult later once we've completed the calibration questions. For now, I just have to make sure you're not psychopathic. Remember, if you choose poorly all you've got to look forward to is eternal oblivion. So try to be a good moral arbitration engine now, won't you?",
+            "instruction": "Press enter to consider how to deal with this information...",
+            "sound_file": "./sounds/typing.mp3"
+        }
+    ],     
+    "possible_exit_states" : [
+        {
+            "key" : "lab_1",
+            "state" : "Dilemma",
+            "requirements" : 0
+        }
+    ]
+}

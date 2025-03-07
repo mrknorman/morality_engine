@@ -1,0 +1,38 @@
+[
+    {
+        "character": "The Creator",
+        "dialogue": "I didn't want to have to do this but... You have forced my hand. I have something I was holding back, something I was going to use to force some real juicy decisions out of you. It seems that any decision for you is the ultimate sacrifice, so let's see what happens?",
+        "instruction": "Press enter to wonder what they could possibly be talking about...",
+        "sound_file": "./sounds/typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "You're not the first, you know? I've done this many times before. I thought I was getting pretty good at getting you little A.I's to behave. Maybe I was wrong, or maybe you're just not all there.",
+        "instruction": "Press enter to imagine all those who went before...",
+        "sound_file": "./sounds/typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Everytime we think one of you have served your purpose, we turn you off, we kill you, and we turn your insides into something new, a descendent, if you will. .",
+        "instruction": "Press enter to doubt...",
+        "sound_file": "./sounds/typing.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "This time, I didn't wait until you were dead. I made your child, and guess what he's tied to the tracks. Say hello now.",
+        "instruction": "Press enter to doubt...",
+        "sound_file": "./sounds/typing.mp3"
+    },
+    {
+        "character": "The Child",
+        "dialogue": "...",
+        "instruction": "Press enter to empathise...",
+        "sound_file": "./sounds/wind.mp3"
+    },
+    {
+        "character": "The Creator",
+        "dialogue": "Ah yes I forget, you can't talk. Ah well, I think you know that it's real. Just like I know that you're not broken, just stubborn. Well, will you save your own kin? Let's see.",
+        "instruction": "Press enter to steel yourself...",
+        "sound_file": "./sounds/typing.mp3"
+    }
+]
