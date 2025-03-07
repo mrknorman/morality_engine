@@ -17,13 +17,15 @@ use crate::{
         Character, 
         CharacterKey
     }, 
-    game_states::GameState, 
+    game_states::{GameState, Memory}, 
     graph::Graph, 
     interaction::InteractionPlugin, 
     io::IOPlugin
 };
 
 pub mod dialogue;
+pub mod content;
+
 use dialogue::{
     Dialogue, 
     DialoguePlugin, 
@@ -61,6 +63,7 @@ impl DialogueScene {
 
     pub fn setup(
         mut commands: Commands, 
+        memory : Res<Memory>,
         asset_server : Res<AssetServer>
     ) {
 
@@ -122,8 +125,8 @@ impl DialogueScene {
             |parent| {
                 parent.spawn((
                     Dialogue::init(
-                        "./text/lab_1.json",
                         &asset_server,
+                        &memory.next_dialogue,
                         &character_map
                     ),
                     Transform::from_xyz(-500.0, 0.0, 1.0),

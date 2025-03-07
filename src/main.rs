@@ -6,6 +6,7 @@ use bevy::{
 };
 
 use dilemma::lever::Lever;
+use game_states::Memory;
 use rand::SeedableRng;
 use rand_pcg::Pcg64Mcg;
 use shaders::ScanLinesMaterial;
@@ -85,6 +86,7 @@ impl Plugin for GamePlugin {
             .insert_resource(GameStats::default())
             .insert_resource(DilemmaStats::default())
             .insert_resource(GameStats::default())
+            .insert_resource(Memory::default())
             .add_systems(Startup, (
                 setup_render_target.in_set(StartUpOrder::SetUpRenderTarget),
                 ScanLinesMaterial::setup.in_set(StartUpOrder::ScanLineSetup).after(StartUpOrder::SetUpRenderTarget),

@@ -8,14 +8,10 @@ use crate::{
 		DilatableAudio, 
 		TransientAudio, 
 		TransientAudioPallet
-	}, 
-	motion::Bounce, 
-	physics::{
+	}, game_states::DilemmaPhase, motion::Bounce, physics::{
 		Gravity, 
 		PhysicsPlugin
-	}, 
-	text::TextSprite, 
-	time::Dilation
+	}, text::TextSprite, time::Dilation
 }; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -42,6 +38,7 @@ impl Plugin for PersonPlugin {
 				Emoticon::animate
             )
             .run_if(in_state(PersonSystemsActive::True))
+			.run_if(in_state(DilemmaPhase::Decision))
         );
 
 		if !app.is_plugin_added::<PhysicsPlugin>() {

@@ -111,6 +111,7 @@ impl DilemmaIntroScene {
 
 	fn spawn_delayed_children(
 		mut commands: Commands,
+		dilemma : Res<Dilemma>,
 		loading_query: Query<(Entity, &TimerPallet<DilemmaIntroEvents>), With<DilemmaIntroScene>>,
 		asset_server: Res<AssetServer>
 	) {
@@ -122,7 +123,7 @@ impl DilemmaIntroScene {
 						parent.spawn((
 							NarrationAudio,
 							AudioPlayer::<AudioSource>(asset_server.load(
-								"sounds/dilemma_narration/lab_1.ogg",
+								dilemma.narration_path.clone(),
 							)),
 							PlaybackSettings{
 								paused : false,

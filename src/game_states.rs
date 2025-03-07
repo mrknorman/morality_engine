@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
+use crate::{dialogue::content::*, dilemma::content::*};
+
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MainState {
     Menu,
@@ -67,4 +69,22 @@ impl StateVector {
             next_sub_state.set(state.clone());
         }
     }
+}
+
+
+#[derive(Resource)]
+pub struct Memory{
+    pub next_dialogue : Vec<DialogueContent>,
+    pub next_dilemma : Option<DilemmaContent>
+}
+
+impl Default for Memory{
+    fn default() -> Self {
+        Self{
+            next_dialogue : vec![DialogueContent::Lab1(Lab1Dialogue::Intro)],
+            next_dilemma : Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit))
+            //next_dilemma : Some(DilemmaContent::Lab1(Lab1Dilemma::IncompetentBandit))
+        }
+    }
+
 }

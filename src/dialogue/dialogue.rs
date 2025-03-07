@@ -1,10 +1,4 @@
-use std::{
-	time::Duration, 
-	path::PathBuf, 
-	collections::HashMap, 
-    fs::File, 
-    io::BufReader
-};
+use std::{time::Duration, collections::HashMap};
 use bevy::{
     audio::Volume, prelude::*, sprite::Anchor, text::TextBounds
 };
@@ -26,6 +20,8 @@ use crate::{
         ActionPallet, AdvanceDialogue, Draggable, InputAction
     }, sprites::{SpritePlugin, window::WindowTitle}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
 };
+
+use super::content::DialogueContent;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DialogueSystemsActive {
@@ -157,12 +153,10 @@ impl Dialogue {
         }
     }
 
-    pub fn load(file_path: PathBuf, user_map: &HashMap<String, Character>) -> Self {
-        let file = File::open(file_path).expect("Unable to open file");
-        let reader = BufReader::new(file);
-        
-        let loaded_dialogue: DialogueLoader = serde_json::from_reader(reader).unwrap();
-
+    pub fn load(content : &DialogueContent, user_map: &HashMap<String, Character>) -> Self {
+        let loaded_dialogue: DialogueLoader = serde_json::from_str(content.content())
+            .expect("Failed to parse embedded JSON");
+    
         let lines = loaded_dialogue.lines.into_iter()
             .map(|line| {
                 let character = user_map.get(&line.username)
@@ -176,16 +170,24 @@ impl Dialogue {
                 }
             })
             .collect();
-
+    
         Self::new(lines)
     }
 
     pub fn init(
-        dialogue_path: impl Into<PathBuf>,
         asset_server: &Res<AssetServer>,
+        dialogue_content : &Vec<DialogueContent>,
         user_map: &HashMap<String, Character>
     ) -> (ContinuousAudioPallet<CharacterKey>, Dialogue) {
-        let dialogue = Dialogue::load(dialogue_path.into(), user_map);
+
+        let dialogue = dialogue_content
+            .into_iter()
+            .map(|file| Dialogue::load(file, user_map))
+            .reduce(|mut acc, mut d| {
+                acc.lines.extend(d.lines.drain(..));
+                acc
+            })
+            .expect("At least one dialogue needed!");
 
         let character_audio: Vec<ContinuousAudio<CharacterKey>> = dialogue.lines.iter()
             .map(|line| 

@@ -11,15 +11,15 @@ pub struct Decision{
 
 #[derive(Resource, Clone)]
 pub struct DilemmaStats{
-    decisions : Vec<Decision>,
-    result : Option<LeverState>,
-    decision_time_available : Duration,
-    decision_time_used : Duration,
-    num_fatalities : usize,
-    num_decisions : usize,
-    average_num_decisions_per_second : Option<f64>,
-    duration_before_first_decision : Option<Duration>,
-    duration_remaining_at_last_decision : Option<Duration>
+    pub decisions : Vec<Decision>,
+    pub result : Option<LeverState>,
+    pub decision_time_available : Duration,
+    pub decision_time_used : Duration,
+    pub num_fatalities : usize,
+    pub num_decisions : usize,
+    pub average_num_decisions_per_second : Option<f64>,
+    pub duration_before_first_decision : Option<Duration>,
+    pub duration_remaining_at_last_decision : Option<Duration>
 }
 
 impl Default for DilemmaStats {
@@ -171,7 +171,6 @@ pub struct GameStats{
     pub total_decisions : usize,
     pub mean_decisions : f64,
     pub dilemma_stats : Vec<DilemmaStats>,
-    // New fields for aggregated timing statistics:
     pub overall_avg_pull_rate: Option<f64>,
     pub overall_avg_first_pull_time: Option<Duration>,
     pub overall_avg_time_remaining: Option<Duration>,
