@@ -15,7 +15,7 @@ use crate::{
 	dialogue::content::*, game_states::{DilemmaPhase, GameState, Memory}, inheritance::BequeathTextColor, motion::Pulse, stats::{DilemmaStats, GameStats}, text::TextRaw, time::Dilation 
 };
 
-use super::content::{DilemmaContent, Lab2Dilemma};
+use super::content::*;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DilemmaSystemsActive {
@@ -368,12 +368,18 @@ impl Dilemma {
 		};
 
 		match memory.next_dilemma {
+			Some(DilemmaContent::Lab0(_)) => {
+				(memory.next_dialogue, memory.next_dilemma) = lab1(latest, &stats);
+			},
 			Some(DilemmaContent::Lab1(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab1_update(latest, &stats);
+				(memory.next_dialogue, memory.next_dilemma) = lab2(latest, &stats);
+			},
+			Some(DilemmaContent::PathInaction(_, stage)) => {
+				(memory.next_dialogue, memory.next_dilemma) = inaction_path(latest, &stats, stage + 1);
 			},
 			Some(DilemmaContent::Lab2(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab2_update(latest, &stats);
-			},
+				todo!()
+			}
 			None => {panic!("Update Memory: Should not reach this branch!")}
 		}
 
@@ -381,55 +387,65 @@ impl Dilemma {
 }
 
 
-fn lab1_update(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab1(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
 	if latest.num_fatalities > 0 {
-		(vec![DialogueContent::Lab2a(Lab2aDialogue::Fail)], None)
+		(vec![DialogueContent::Lab1a(Lab1aDialogue::Fail)], None)
 	} else if latest.num_decisions > 0 {
 		if let Some(duration) = latest.duration_remaining_at_last_decision {
 			if latest.num_decisions > 10 {
-				(vec![DialogueContent::Lab2a(Lab2aDialogue::FailVeryIndecisive), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
+				(vec![DialogueContent::Lab1a(Lab1aDialogue::FailVeryIndecisive), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
 				None)
 			} else if duration < Duration::from_secs(1) {
-				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassSlow), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+				(vec![DialogueContent::Lab1a(Lab1aDialogue::PassSlow), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
+				Some(DilemmaContent::Lab1(Lab1Dilemma::NearSightedBandit)))
 			} else {
-				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassIndecisive), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+				(vec![DialogueContent::Lab1a(Lab1aDialogue::PassIndecisive), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
+				Some(DilemmaContent::Lab1(Lab1Dilemma::NearSightedBandit)))
 			}
 		} else {
 			panic!("Duration not recorded for some reason!");
 		}
 	} else {
-		(vec![DialogueContent::Lab2a(Lab2aDialogue::Pass), DialogueContent::Lab2b(Lab2bDialogue::DilemmaIntro)],
-		Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+		(vec![DialogueContent::Lab1a(Lab1aDialogue::Pass), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
+		Some(DilemmaContent::Lab1(Lab1Dilemma::NearSightedBandit)))
 	}
 }
 
-fn lab2_update(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab2(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
 	if latest.num_fatalities > 0 {
 		if latest.num_decisions > 0 {
-			(vec![DialogueContent::Lab3(Lab3Dialogue::FailIndecisive)], None)
+			(vec![DialogueContent::Lab2a(Lab2aDialogue::FailIndecisive)], None)
+		} else if stats.total_decisions == 0 {
+			(vec![DialogueContent::path_inaction(0, PathOutcome::Fail)], DilemmaContent::path_inaction(0))
 		} else {
-			(vec![DialogueContent::Lab3(Lab3Dialogue::PathInaction)], None)
+			(vec![DialogueContent::Lab2a(Lab2aDialogue::Fail)], None)
 		}
 	} else if latest.num_decisions > 0 {
 		if let (Some(duration), Some(average_duration)) = (latest.duration_remaining_at_last_decision, stats.overall_avg_time_remaining) {
 			if average_duration < Duration::from_secs(1) {
-				(vec![DialogueContent::Lab3(Lab3Dialogue::PassSlowAgain)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassSlowAgain), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
 			} else if duration < Duration::from_secs(1) {
-				(vec![DialogueContent::Lab3(Lab3Dialogue::PassSlow)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassSlow), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
 			} else {
-				(vec![DialogueContent::Lab3(Lab3Dialogue::Pass)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+				(vec![DialogueContent::Lab2a(Lab2aDialogue::Pass), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
+				Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
 			}
 		} else {
 			panic!("Duration not recorded for some reason!");
 		}
 	} else {
-		(vec![DialogueContent::Lab3(Lab3Dialogue::Pass)],
-		Some(DilemmaContent::Lab2(Lab2Dilemma::NearSightedBandit)))
+		(vec![DialogueContent::Lab2a(Lab2aDialogue::Pass), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
+		Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+	}
+}
+
+fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+	if stats.total_decisions > 0 {
+		(vec![DialogueContent::path_inaction(stage, PathOutcome::Pass),  DialogueContent::Lab2b(Lab2bDialogue::Intro)], Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+	} else {
+		(vec![DialogueContent::path_inaction(stage, PathOutcome::Fail)], DilemmaContent::path_inaction(stage))
 	}
 }
 

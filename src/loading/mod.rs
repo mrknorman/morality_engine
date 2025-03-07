@@ -155,7 +155,7 @@ impl LoadingScene {
                     ContinuousAudio{
                         key : LoadingSounds::Hum,
                         source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./sounds/hum.ogg"
+                            "./audio/effects/hum.ogg"
                         )),
                         settings : PlaybackSettings{
                             volume : Volume::new(0.1),
@@ -166,7 +166,7 @@ impl LoadingScene {
                     ContinuousAudio{
                         key : LoadingSounds::Office,
                         source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./sounds/office.ogg"
+                            "./audio/effects/office.ogg"
                         )),
                         settings : PlaybackSettings{
                             volume : Volume::new(0.5),
@@ -180,7 +180,7 @@ impl LoadingScene {
                 vec![
                     OneShotAudio{
                         source: asset_server.load(
-                                "./sounds/startup_beep.ogg"
+                                "./audio/effects/startup_beep.ogg"
                             ),
                         persistent : true,
                         volume : 1.0,
@@ -212,7 +212,7 @@ impl LoadingScene {
                     parent.spawn((
                         NarrationAudio,
                         AudioPlayer::<AudioSource>(asset_server.load(
-                            "./sounds/intro_lilly_elvenlabs.ogg", 
+                            "./audio/effects/intro_lilly_elvenlabs.ogg", 
                         )),
                         PlaybackSettings{
                             volume : Volume::new(1.0),
@@ -228,7 +228,7 @@ impl LoadingScene {
                     parent.spawn((
                         MusicAudio,
                         AudioPlayer::<AudioSource>(asset_server.load(
-                            "./music/a_friend.ogg"
+                            "./audio/music/a_friend.ogg"
                         )),
                         PlaybackSettings{
                             paused : false,
@@ -279,7 +279,7 @@ impl LoadingScene {
                                     vec![
                                         TransientAudio::new(
                                             asset_server.load(
-                                                "sounds/mech_click.ogg"
+                                                "./audio/effects/mech_click.ogg"
                                             ), 
                                             0.1, 
                                             true,

@@ -38,7 +38,9 @@ impl Plugin for PersonPlugin {
 				Emoticon::animate
             )
             .run_if(in_state(PersonSystemsActive::True))
-			.run_if(in_state(DilemmaPhase::Decision))
+			.run_if(
+				in_state(DilemmaPhase::Decision).or(in_state(DilemmaPhase::Consequence))
+			)
         );
 
 		if !app.is_plugin_added::<PhysicsPlugin>() {

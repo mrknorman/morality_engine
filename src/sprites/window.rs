@@ -348,7 +348,7 @@ impl Component for WindowCloseButton {
                     }
                 };
 
-                let handle = world.get_resource::<AssetServer>().unwrap().load("sounds/mouse_click.ogg");
+                let handle = world.get_resource::<AssetServer>().unwrap().load("./audio/effects/mouse_click.ogg");
 
                 world.commands().entity(entity).with_children(|parent| {
 

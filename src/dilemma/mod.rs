@@ -135,7 +135,7 @@ impl DilemmaScene {
 				parent.spawn((
 					MusicAudio,
 					AudioPlayer::<AudioSource>(asset_server.load(
-						"./music/algorithm_of_fate.ogg"
+						"./audio/music/algorithm_of_fate.ogg"
 					)),
 					PlaybackSettings{
 						paused : false,

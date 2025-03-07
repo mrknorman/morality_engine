@@ -114,7 +114,7 @@ impl DilemmaResultsScene {
 			parent.spawn((
 				MusicAudio,
 				AudioPlayer::<AudioSource>(asset_server.load(
-					"./music/the_right_track.ogg"
+					"./audio/music/the_right_track.ogg"
 				)),
 				PlaybackSettings{
 					paused : false,
@@ -156,7 +156,7 @@ impl DilemmaResultsScene {
 						DilemmaSounds::Click,
 						vec![
 							TransientAudio::new(
-								asset_server.load("sounds/mech_click.ogg"), 
+								asset_server.load("./audio/effects/mech_click.ogg"), 
 								0.1, 
 								true,
 								1.0,

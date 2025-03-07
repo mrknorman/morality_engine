@@ -270,6 +270,11 @@ fn setup_render_target(
 /*
     Todo:
     
+    Endings:
+    - Rage Ending
+    - Many Levers Ending
+    - Nothing 3 times ending (company shuts down)
+
     Background:
         - Rewrite background to allow for more precise placement of sprites
     Debt:
@@ -281,6 +286,7 @@ fn setup_render_target(
         - IMPORTANT - Change way Components are added to Ascii letters
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
     Dialogue:
+        - Consequence Desriptions would be nice.
         - Number waterfall background, reacts to mouse movement
         - Make the nodes flash decision colors
         - Some cooler graph animations - activation and in operation
@@ -289,8 +295,7 @@ fn setup_render_target(
         - System Startup Text
         - Simulation Loading Text and Bar in small window
     Dilemma:
-        - Add close button to windows
-        - Add coloured better formatted numbers to results screen
+        - Add coloured numbers to results screen
         - Change decision music 
         - Physics bodypart destruction
         - Flashy Selector
@@ -309,6 +314,7 @@ fn setup_render_target(
     Long Term:
     - Rampage MODE! Unlocked through ultra violent false start!
     - Sandbox MODE! Unlocked by completeing Calibration (allows for real morality test)
+    - Lever heaven MODE! Unlocked by lever ending! (No trains, just levers, falling leavers)
     - Pause Menu
     - Options Menu -> Volume Controls
     - Save Game -> Update Menu Train Based on Next Train

@@ -20,7 +20,7 @@
 		"o . . . . . o o o o\n                    o",
 		". . . . . o o o o o\n                    o"
 	],
-	"track_audio_path": "./sounds/train_loop.ogg",
-  	"horn_audio_path": "./sounds/horn.ogg"
+	"track_audio_path": "./audio/effects/train_loop.ogg",
+  	"horn_audio_path": "./audio/effects/horn.ogg"
 }
 

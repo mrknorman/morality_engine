@@ -1,7 +1,7 @@
 {
     "index" : "TWO",
     "name" : "Near-Sighted Bandit",
-    "narration_path": "./sounds/dilemma_narration/lab/2/a/near_sighted_bandit.ogg",
+    "narration_path": "./audio/narration/lab/2/near_sighted_bandit.ogg",
     "description" : "A bandit with poor eyesight has tied someone to the tracks. Luckily, the lever to reroute the train onto an empty track is right there. All you need to do is pull it.",
     "default_option" : 1,
     "countdown_duration_seconds" : 15,

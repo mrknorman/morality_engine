@@ -127,7 +127,7 @@ impl MenuScene {
                                 key : MenuSounds::Static,
                                 source : AudioPlayer::<AudioSource>(
                                     asset_server.load(
-                                        "./sounds/static.ogg"
+                                        "./audio/effects/static.ogg"
                                     )
                                 ), 
                                 settings : PlaybackSettings{
@@ -140,7 +140,7 @@ impl MenuScene {
                                 key : MenuSounds::Office,
                                 source : AudioPlayer::<AudioSource>(
                                     asset_server.load(
-                                        "./sounds/office.ogg"
+                                        "./audio/effects/office.ogg"
                                     )
                                 ), 
                                 settings : PlaybackSettings{
@@ -172,7 +172,7 @@ impl MenuScene {
                 parent.spawn((
                     MusicAudio,
                     AudioPlayer::<AudioSource>(asset_server.load(
-                        "./music/the_last_decision.ogg", 
+                        "./audio/music/the_last_decision.ogg", 
                     )),
                     PlaybackSettings{
                         volume : Volume::new(0.3),
@@ -246,7 +246,7 @@ impl MenuScene {
                                 vec![
                                     TransientAudio::new(
                                         asset_server.load(
-                                            "sounds/mech_click.ogg"
+                                            "./audio/effects/mech_click.ogg"
                                         ), 
                                         0.1, 
                                         true,

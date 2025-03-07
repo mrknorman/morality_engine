@@ -44,7 +44,7 @@ use crate::{
         DilemmaPhase, 
         GameState, StateVector
     }, interaction::{
-        ActionPallet, ClickablePong, Draggable, InputAction, InteractionState, KeyMapping, Pressable
+        ActionPallet, ClickablePong, Draggable, InputAction, KeyMapping, Pressable
     }, sprites::window::WindowTitle, stats::DilemmaStats, text::TextWindow, track::Track
 };
 
@@ -116,7 +116,7 @@ impl DecisionScene {
 						vec![
 							ContinuousAudio{
 								key : DilemmaSounds::TrainApproaching,
-								source : AudioPlayer::<AudioSource>(asset_server.load("./sounds/train_approaching.ogg")),
+								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/train_approaching.ogg")),
 								settings : PlaybackSettings{
 									volume : Volume::new(1.0),
 									..continuous_audio()
@@ -125,7 +125,7 @@ impl DecisionScene {
 							},
 							ContinuousAudio{
 								key : DilemmaSounds::Clock,
-								source : AudioPlayer::<AudioSource>(asset_server.load("./sounds/clock.ogg")),
+								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/clock.ogg")),
 								settings : PlaybackSettings{
 									volume : Volume::new(0.3),
 									..continuous_audio()
@@ -214,7 +214,7 @@ impl DecisionScene {
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
 						],	
-						0				
+						1			
 					),
 					Pressable::new(vec![
 						KeyMapping{
@@ -256,7 +256,7 @@ impl DecisionScene {
 							DilemmaSounds::Lever,
 							vec![
 								TransientAudio::new(
-									asset_server.load("sounds/switch.ogg"), 
+									asset_server.load("./audio/effects/switch.ogg"), 
 									0.1, 
 									true,
 									1.0,
