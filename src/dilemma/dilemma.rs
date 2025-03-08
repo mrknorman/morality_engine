@@ -369,16 +369,19 @@ impl Dilemma {
 
 		match memory.next_dilemma {
 			Some(DilemmaContent::Lab0(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab1(latest, &stats);
+				(memory.next_dialogue, memory.next_dilemma) = lab_one(latest, &stats);
 			},
 			Some(DilemmaContent::Lab1(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab2(latest, &stats);
+				(memory.next_dialogue, memory.next_dilemma) = lab_two(latest, &stats);
 			},
 			Some(DilemmaContent::PathInaction(_, stage)) => {
 				(memory.next_dialogue, memory.next_dilemma) = inaction_path(latest, &stats, stage + 1);
 			},
 			Some(DilemmaContent::Lab2(_)) => {
-				todo!()
+				(memory.next_dialogue, memory.next_dilemma) = lab_three(latest, &stats);
+			},
+			Some(DilemmaContent::PathDeontological(_, stage)) => {
+				(memory.next_dialogue, memory.next_dilemma) = deontological_path(latest, &stats, stage + 1);
 			}
 			None => {panic!("Update Memory: Should not reach this branch!")}
 		}
@@ -387,7 +390,7 @@ impl Dilemma {
 }
 
 
-fn lab1(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab_one(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
 	if latest.num_fatalities > 0 {
 		(vec![DialogueContent::Lab1a(Lab1aDialogue::Fail)], None)
 	} else if latest.num_decisions > 0 {
@@ -411,7 +414,7 @@ fn lab1(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option
 	}
 }
 
-fn lab2(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab_two(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
 	if latest.num_fatalities > 0 {
 		if latest.num_decisions > 0 {
 			(vec![DialogueContent::Lab2a(Lab2aDialogue::FailIndecisive)], None)
@@ -441,6 +444,18 @@ fn lab2(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Op
 	}
 }
 
+fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+	if latest.num_fatalities == 5 {
+		if latest.num_decisions > 0 {
+			(vec![DialogueContent::Lab3a(Lab3aDialogue::Fail)], None)
+		} else {
+			(vec![DialogueContent::path_deontological(0, PathOutcome::Fail)], DilemmaContent::path_deontological(0))
+		}
+	} else {
+		(vec![DialogueContent::Lab3a(Lab3aDialogue::Pass), DialogueContent::Lab3b(Lab3bDialogue::Intro),], None)
+	} 
+}
+
 fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
 	if stats.total_decisions > 0 {
 		(vec![DialogueContent::path_inaction(stage, PathOutcome::Pass),  DialogueContent::Lab2b(Lab2bDialogue::Intro)], Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
@@ -449,6 +464,10 @@ fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> (Vec<D
 	}
 }
 
-
-
-
+fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+	if latest.num_fatalities == 1 {
+		(vec![DialogueContent::path_deontological(stage, PathOutcome::Pass),  DialogueContent::Lab2b(Lab2bDialogue::Intro)], None)
+	} else {
+		(vec![DialogueContent::path_deontological(stage, PathOutcome::Fail)], DilemmaContent::path_deontological(stage))
+	}
+}
