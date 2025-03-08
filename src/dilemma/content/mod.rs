@@ -29,7 +29,8 @@ pub enum DilemmaContent {
     Lab0(Lab0Dilemma),
     Lab1(Lab1Dilemma),
     PathInaction(DilemmaPathInaction, usize),
-    Lab2(Lab2Dilemma)
+    Lab2(Lab2Dilemma),
+    PathDeontological(DilemmaPathDeontological, usize)
 }
 
 impl DilemmaContent {
@@ -38,7 +39,8 @@ impl DilemmaContent {
             Self::Lab0(dilemma) => dilemma.content(),
             Self::Lab1(dilemma) => dilemma.content(),
             Self::PathInaction(dilemma, _) => dilemma.content(),
-            Self::Lab2(dilemma) => dilemma.content()
+            Self::Lab2(dilemma) => dilemma.content(),
+            Self::PathDeontological(dilemma, _) => dilemma.content(),
         }
     }
 }
@@ -87,6 +89,26 @@ impl DilemmaContent {
             6 => Some(Self::PathInaction(DilemmaPathInaction::You, 6)),
             _ => None
         }
-        
+    }
+}
+
+
+define_dilemma! {
+    DilemmaPathDeontological {
+        TrollyerProblem => "./lab/3/path_deontological/0/the_trolleyer_problem.json",
+        TrollyestProblem => "./lab/3/path_deontological/1/the_trolleyest_problem.json",
+        TrollygeddonProblem => "./lab/3/path_deontological/2/the_trolleygeddon_problem.json",
+    }
+}
+
+// Factory method for DilemmaContent to handle the usize parameter in Lab3PathInaction
+impl DilemmaContent {
+    pub fn path_deontological(stage: usize) -> Option<Self> {
+        match stage {
+            0 => Some(Self::PathDeontological(DilemmaPathDeontological::TrollyerProblem, 0)),
+            1 => Some(Self::PathDeontological(DilemmaPathDeontological::TrollyestProblem, 1)),
+            2 => Some(Self::PathDeontological(DilemmaPathDeontological::TrollygeddonProblem, 2)),
+            _ => None
+        }
     }
 }

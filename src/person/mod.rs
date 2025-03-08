@@ -34,6 +34,7 @@ impl Plugin for PersonPlugin {
             Update,
             (
 				PersonSprite::animate,
+				PersonSprite::scream,
 				PersonSprite::alert,
 				Emoticon::animate
             )
@@ -111,7 +112,7 @@ impl PersonSprite {
 		}
 	}
 
-	pub fn alert(
+	pub fn scream(
 		mut query: Query<(
 			Entity,  
 			&TransientAudioPallet<EmotionSounds>, 
@@ -122,7 +123,7 @@ impl PersonSprite {
 		mut commands : Commands,
 		mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>
 	) {
-		for (entity,  pallet, person, mut bounce) in query.iter_mut() {
+		for (entity,  pallet, person, bounce) in query.iter_mut() {
 			if person.in_danger && bounce.timer.just_finished() {
 				TransientAudioPallet::<EmotionSounds>::play_transient_audio(
 					entity,
@@ -133,6 +134,16 @@ impl PersonSprite {
 					&mut audio_query
 				);
 			}
+		}
+	}
+
+	pub fn alert(
+		mut query: Query<(
+			&mut PersonSprite, 
+			&mut Bounce
+		), With<PersonSprite>>
+	) {
+		for (person, mut bounce) in query.iter_mut() {
 			bounce.active = person.in_danger;
 		}
 	}

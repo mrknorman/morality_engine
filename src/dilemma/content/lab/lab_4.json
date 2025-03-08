@@ -1,7 +1,7 @@
 {
     "name" : "A twist of Fate",
     "description" : "The lever is stuck facing the sky, as the train nears it will inevitably fall one way or the other, but there is no way to know which way. Not unless you force it down. Will you let fate decide?",
-    "countdown_duration_seconds" : 20,
+    "countdown_duration_seconds" : 20.0,
     "options": [
       {
         "name": "Human-Dense Track",

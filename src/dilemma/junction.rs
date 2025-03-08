@@ -1,13 +1,12 @@
 use std::iter::zip;
 
 use bevy::{
-    ecs::component::StorageType, prelude::*
+    audio::Volume, ecs::component::StorageType, prelude::*
 };
 
 use crate::{
     audio::{
-		TransientAudio, 
-		TransientAudioPallet
+		continuous_audio, ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
     }, colors::{
         ColorAnchor, 
 		ColorChangeEvent, 
@@ -29,9 +28,7 @@ use crate::{
 		TransformMultiAnchor
 	}, 
 	person::{
-		Emoticon, 
-		PersonSprite,
-		EmotionSounds
+		Emoticon, EmotionSounds, PersonSprite
 	}, 
 	time::Dilation, 
 	track::Track
@@ -99,6 +96,9 @@ pub struct Junction{
 	pub dilemma : Dilemma
 }
 
+#[derive(Component)]
+pub struct CrowdPanicNoise;
+
 impl Component for Junction {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
 
@@ -150,6 +150,10 @@ impl Component for Junction {
 					)
 				];
 
+				let crowd_audio = asset_server.load(
+					"./audio/effects/crowd_panic.ogg"
+				);
+
 				let mut commands = world.commands();
 				if let Some(junction) = junction {
 					let dilemma = junction.dilemma; 
@@ -191,21 +195,53 @@ impl Component for Junction {
 										TextColor(color),
 										y_position		
 									)).with_children(|track: &mut ChildBuilder<'_>| {
+
+											if option.consequences.total_fatalities >= 500 {
+												track.spawn((
+													CrowdPanicNoise,
+													ContinuousAudioPallet::new(
+														vec![
+															ContinuousAudio{
+																key : EmotionSounds::Exclaim,
+																source : AudioPlayer::<AudioSource>(crowd_audio.clone()), 
+																settings : PlaybackSettings{
+																	volume : Volume::new(0.5),
+																	..continuous_audio()
+																},
+																dilatable : true
+															}
+														]
+													)
+												));
+											}
+
 											for fatality_index in 0..option.consequences.total_fatalities {
-												track.spawn(
+												let transform = if fatality_index >= 1000 {
+													break;
+												} else {
+													// Define parameters
+													let columns_per_row = 250;
+													let row_height = 10.0;
+													let column_width = 10.0;
+													
+													// Calculate position
+													let row = fatality_index / columns_per_row;
+													let col = fatality_index % columns_per_row;
+													
+													let base_x_offset = -1060.0;
+													let row_x_adjustment = if row % 2 == 1 { 5.0 } else { 0.0 };
+													
+													Transform::from_xyz(
+														base_x_offset + row_x_adjustment + col as f32 * column_width,
+														row as f32 * row_height,
+														0.0
+													)
+												};
+
+												let mut entity_commands = track.spawn(
 													(
 														PersonSprite::default(),
-														Transform::from_xyz(
-															-1060.0 + fatality_index as f32 * 10.0,
-															0.0,
-															0.0 
-														),
-														TransientAudioPallet::new(
-															vec![(
-																EmotionSounds::Exclaim,
-																audio_vector.clone()
-															)]
-														),
+														transform,
 														Bounce::new(
 															false,
 															40.0, 
@@ -217,13 +253,26 @@ impl Component for Junction {
 														ColorAnchor::default(),
 														BequeathTextColor
 													)
-												).with_children(
+												);
+												
+												entity_commands.with_children(
 													|parent| {
 														parent.spawn(
 															Emoticon::default()
 														);
 													}
 												);	
+
+												if fatality_index < 5 {
+													entity_commands.insert(
+														TransientAudioPallet::new(
+															vec![(
+																EmotionSounds::Exclaim,
+																audio_vector.clone()
+															)]
+														)
+													);
+												}
 											}
 										}
 									).id());
@@ -316,7 +365,8 @@ impl Junction  {
 	pub fn check_if_person_in_path_of_train(
 		mut lever_query: Query<(&Children, &BranchTrack)>,
 		mut text_query: Query<&mut PersonSprite>,
-	lever: Option<Res<Lever>>
+		mut crowd_audio: Query<&mut ContinuousAudioPallet<EmotionSounds>>,
+		lever: Option<Res<Lever>>
 	) {
 		if let Some(lever) = lever {		
 			for (children, track) in lever_query.iter_mut(){
