@@ -214,7 +214,7 @@ fn update_render_target_size(
                         new_size,
                         TextureDimension::D2,
                         &clear_color,
-                        TextureFormat::Rgba16Float,
+                        TextureFormat::Rgba32Float,
                         RenderAssetUsages::default(), // or use your previous flag combination
                     );
                     // Ensure it has the correct usage flags.
@@ -256,7 +256,7 @@ fn setup_render_target(
         size,
         TextureDimension::D2,
         &clear_color,
-        TextureFormat::Rgba16Float,
+        TextureFormat::Rgba32Float,
         RenderAssetUsages::default(),
     );
 
