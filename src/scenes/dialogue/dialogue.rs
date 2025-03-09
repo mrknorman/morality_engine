@@ -13,12 +13,10 @@ use crate::{
         TransientAudio, 
         TransientAudioPallet
     }, character::{Character, CharacterKey}, colors::PRIMARY_COLOR, common_ui::NextButton, game_states::{
-        GameState, 
-        MainState, 
-        StateVector
+        GameState, MainState, Memory, StateVector
     }, graph::GraphPlugin, interaction::{
         ActionPallet, AdvanceDialogue, Draggable, InputAction
-    }, sprites::{SpritePlugin, window::WindowTitle}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
+    }, sprites::{window::WindowTitle, SpritePlugin}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
 };
 
 use super::content::DialogueContent;
@@ -336,6 +334,7 @@ impl Dialogue {
 
 	fn advance_dialogue(
         mut commands: Commands,
+        mut memory : Res<Memory>,
         mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
@@ -367,11 +366,21 @@ impl Dialogue {
                     };
 
                     let next_action = if dialogue.current_line_index >= dialogue.lines.len() - 1 {
-                        InputAction::ChangeState(StateVector::new(
-                            Some(MainState::InGame),
-                            Some(GameState::Dilemma),
-                            None,
-                        ))
+
+                        if memory.next_dilemma.is_none() {
+                            InputAction::ChangeState(StateVector::new(
+                                None,
+                                Some(GameState::Ending),
+                                None,
+                            ))
+                        } else {
+                            InputAction::ChangeState(StateVector::new(
+                                None,
+                                Some(GameState::Dilemma),
+                                None,
+                            ))
+                        }
+
                     } else {
                         InputAction::AdvanceDialogue("placeholder".to_string())
                     };

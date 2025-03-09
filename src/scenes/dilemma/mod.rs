@@ -118,7 +118,7 @@ impl DilemmaScene {
 		let dilemma = if let Some(d) = &memory.next_dilemma {
 			Dilemma::load(&d)
 		} else {
-			panic!("Aggghh!");
+			panic!("Should have gone to ending!");
 		};
 
 		commands.insert_resource(

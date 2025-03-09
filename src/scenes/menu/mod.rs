@@ -1,6 +1,4 @@
-use bevy::{
-    audio::Volume, prelude::*, render::view::RenderLayers
-};
+use bevy::{audio::Volume, prelude::*};
 use enum_map::{
     Enum, 
     enum_map
@@ -100,7 +98,6 @@ struct MenuScene;
 
 impl MenuScene {
 
-    const MENU_TRANSLATION : Vec3 = Vec3::new(0.0, 0.0, 0.0);
     const TITLE_TRANSLATION : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
     const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 1.0);
     const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
@@ -114,7 +111,6 @@ impl MenuScene {
             (
                 MenuScene,
                 StateScoped(MainState::Menu),
-                Transform::from_translation(Self::MENU_TRANSLATION),
             )
         ).with_children(
             |parent| {
