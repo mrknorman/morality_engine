@@ -68,7 +68,8 @@ impl Plugin for GamePlugin {
         - Idle Animations
         - Sand Timer
         - Puller (maybe animated!)
-
+        - Waiting to pull (animated anxious) (directional)
+    
     Assistants: 
         - Twitchy (Twitch Integration) and Trolly - Fight over lever
     Endings:
@@ -89,6 +90,7 @@ impl Plugin for GamePlugin {
     Title:
         - IMPORTANT - Change way Components are added to Ascii letters
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
+        - Options in CRT options menu green
     Dialogue:
         - Consequence Desriptions would be nice.
         - Number waterfall background, reacts to mouse movement
@@ -99,6 +101,7 @@ impl Plugin for GamePlugin {
         - System Startup Text
         - Simulation Loading Text and Bar in small window
     Dilemma:
+        - Train Blood persistant
         - Add coloured numbers to results screen
         - Change decision music 
         - Physics bodypart destruction
@@ -153,6 +156,7 @@ impl Plugin for GamePlugin {
     // Psychopath Ending!
     // 1 or 2 people
     // Baby or 3 Nuns
+    // Slow death - 1 track lever only slows down
     // Immense suffering or mass death
     // Multi-Track Dilemma
     // Drift Button
