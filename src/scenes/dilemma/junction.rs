@@ -15,7 +15,7 @@ use crate::{
 		DANGER_COLOR,
 		OPTION_1_COLOR, 
 		OPTION_2_COLOR
-    }, dilemma::{
+    }, scenes::dilemma::{
 		lever::{
 	    	Lever, 
        		LeverState

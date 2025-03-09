@@ -2,25 +2,51 @@ use bevy::{
     asset::RenderAssetUsages, color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
         tonemapping::Tonemapping,
-    }, prelude::*, render::{
+    }, image::ImageSampler, prelude::*, render::{
         camera::RenderTarget, 
         render_resource::{
-            encase::private::ShaderType, AsBindGroup, Extent3d, ShaderRef, TextureDimension, TextureFormat, TextureUsages
+            AddressMode, AsBindGroup, Extent3d, FilterMode, SamplerDescriptor, ShaderRef, ShaderType, TextureDimension, TextureFormat, TextureUsages
         }, 
         view::RenderLayers
-    }, sprite::Material2d, window::{
+    }, sprite::{Material2d, Material2dPlugin}, window::{
         PrimaryWindow, 
         WindowResized
     }
 };
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+enum StartUpOrder {
+    SetUpRenderTarget,
+    ScanLineSetup
+}
+
+pub struct RenderPlugin;
+impl Plugin for RenderPlugin {
+    fn build(&self, app: &mut App) {
+        app
+        .add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
+        .add_systems(Startup, (
+            RenderTargetHandle::setup
+                .in_set(StartUpOrder::SetUpRenderTarget),
+            ScanLinesMaterial::setup
+                .in_set(StartUpOrder::ScanLineSetup)
+                .after(StartUpOrder::SetUpRenderTarget),
+            setup_cameras
+                .after(StartUpOrder::ScanLineSetup)
+        )).add_systems(Update, (
+            ScanLinesMaterial::update, 
+            ScanLinesMaterial::update_scan_mesh,
+            RenderTargetHandle::update,
+        ));
+    }
+}
 
 #[derive(Component)]
 pub struct MainCamera;
 
 const USE_POST_PROCESS: bool = true;
 
-pub fn setup_cameras(
+fn setup_cameras(
     mut commands: Commands,         
     mut clear_color: ResMut<ClearColor>,
     render_target: Res<RenderTargetHandle>
@@ -37,9 +63,7 @@ pub fn setup_cameras(
                 hdr: true,
                 target: RenderTarget::Image(render_target.0.clone()),
                 ..default()
-            },
-            //Tonemapping::TonyMcMapface,
-            //Bloom::default(),
+            }
         ));
 
         // Main (window) camera: renders only the fullscreen quad (post‑processing) to the window.
@@ -71,56 +95,10 @@ pub fn setup_cameras(
 
 
 #[derive(Component)]
-pub struct OffscreenCamera;
-
-pub fn update_render_target_size(
-    windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
-    mut images: ResMut<Assets<Image>>,
-    mut resize_reader: EventReader<WindowResized>,
-    render_target: ResMut<RenderTargetHandle>,
-) {
-    for _ in resize_reader.read() {
-        if let Ok(window) = windows.get_single() {
-            let new_width = window.resolution.width() as u32;
-            let new_height = window.resolution.height() as u32;
-            // Skip update if the window is minimized (zero dimensions)
-            if new_width == 0 || new_height == 0 {
-                continue;
-            }
-            // Get a mutable reference to the current image, if it exists:
-            if let Some(image) = images.get_mut(&render_target.0) {
-                // If the size doesn’t match, recreate the image
-                if image.texture_descriptor.size.width != new_width ||
-                   image.texture_descriptor.size.height != new_height
-                {
-                    let new_size = Extent3d {
-                        width: new_width,
-                        height: new_height,
-                        depth_or_array_layers: 1,
-                    };
-                    let clear_color = vec![0u8; 512 * 512 * 8]; // opaque black
-                    // Create a new image filled with the clear color.
-                    let mut new_image = Image::new_fill(
-                        new_size,
-                        TextureDimension::D2,
-                        &clear_color,
-                        TextureFormat::Rgba32Float,
-                        RenderAssetUsages::default(),
-                    );
-                    // Ensure it has the correct usage flags.
-                    new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
-                        | TextureUsages::COPY_DST
-                        | TextureUsages::RENDER_ATTACHMENT;
-                    // Replace the old image with the new one.
-                    *image = new_image;
-                }
-            }
-        }
-    }
-}
+struct OffscreenCamera;
 
 #[derive(Resource)]
-pub struct RenderTargetHandle(pub Handle<Image>);
+struct RenderTargetHandle(pub Handle<Image>);
 
 impl Default for RenderTargetHandle {
     fn default() -> Self {
@@ -128,41 +106,98 @@ impl Default for RenderTargetHandle {
     }
 }
 
-pub fn setup_render_target(
-    mut commands: Commands,
-    windows: Query<&Window>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let window = windows.single();
-    let width = window.resolution.width() as u32;
-    let height = window.resolution.height() as u32;
-    let size = Extent3d {
-        width,
-        height,
-        depth_or_array_layers: 1,
-    };
+#[derive(Component)]
+struct ScanMesh;
 
-    let clear_color = vec![0u8; 512 * 512 * 8];
-    let mut image = Image::new_fill(
-        size,
-        TextureDimension::D2,
-        &clear_color,
-        TextureFormat::Rgba32Float,
-        RenderAssetUsages::default(),
-    );
-
-    image.texture_descriptor.usage =
-        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
-
-    let image_handle = images.add(image);
-    commands.insert_resource(RenderTargetHandle(image_handle));
+impl RenderTargetHandle {
+    fn setup(
+        mut commands: Commands,
+        windows: Query<&Window>,
+        mut images: ResMut<Assets<Image>>,
+    ) {
+        let window = windows.single();
+        let width = window.resolution.width() as u32;
+        let height = window.resolution.height() as u32;
+        let size = Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+    
+        // Calculate the exact buffer size needed
+        let pixel_size_bytes = 16; // Rgba32Float = 4 channels × 4 bytes
+        let buffer_size = (width * height * pixel_size_bytes as u32) as usize;
+        let clear_color = vec![0u8; buffer_size];
+        
+        let mut image = Image::new_fill(
+            size,
+            TextureDimension::D2,
+            &clear_color,
+            TextureFormat::Rgba32Float,
+            RenderAssetUsages::default(),
+        );
+    
+        image.texture_descriptor.usage =
+            TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
+    
+        let image_handle = images.add(image);
+        commands.insert_resource(RenderTargetHandle(image_handle));
+    }
+    fn update(
+        windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        mut images: ResMut<Assets<Image>>,
+        mut resize_reader: EventReader<WindowResized>,
+        render_target: ResMut<RenderTargetHandle>,
+    ) {
+        for _ in resize_reader.read() {
+            if let Ok(window) = windows.get_single() {
+                let new_width = window.resolution.width() as u32;
+                let new_height = window.resolution.height() as u32;
+                // Skip update if the window is minimized (zero dimensions)
+                if new_width == 0 || new_height == 0 {
+                    continue;
+                }
+                // Get a mutable reference to the current image, if it exists:
+                if let Some(image) = images.get_mut(&render_target.0) {
+                    // If the size doesn't match, recreate the image
+                    if image.texture_descriptor.size.width != new_width ||
+                       image.texture_descriptor.size.height != new_height
+                    {
+                        let new_size = Extent3d {
+                            width: new_width,
+                            height: new_height,
+                            depth_or_array_layers: 1,
+                        };
+                        
+                        // Calculate the exact buffer size needed based on the format and dimensions
+                        // For Rgba32Float, each pixel needs 16 bytes (4 channels × 4 bytes per float)
+                        let pixel_size_bytes = 16; // Rgba32Float = 4 channels × 4 bytes
+                        let buffer_size = (new_width * new_height * pixel_size_bytes as u32) as usize;
+                        let clear_color = vec![0u8; buffer_size];
+                        
+                        // Create a new image filled with the clear color.
+                        let mut new_image = Image::new_fill(
+                            new_size,
+                            TextureDimension::D2,
+                            &clear_color,
+                            TextureFormat::Rgba32Float,
+                            RenderAssetUsages::default(),
+                        );
+                        // Ensure it has the correct usage flags.
+                        new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
+                            | TextureUsages::COPY_DST
+                            | TextureUsages::RENDER_ATTACHMENT;
+                        // Replace the old image with the new one.
+                        *image = new_image;
+                    }
+                }
+            }
+        }
+    }
 }
 
-#[derive(Component)]
-pub struct ScanMesh;
-
 impl ScanLinesMaterial {
-    pub fn setup(
+    fn setup(
         mut commands: Commands,
         render_target: Res<RenderTargetHandle>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
@@ -197,7 +232,7 @@ impl ScanLinesMaterial {
     }
 
     /// Update the resolution uniform if the window size changes.
-    pub fn update(
+    fn update(
         windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
     ) {
@@ -209,7 +244,7 @@ impl ScanLinesMaterial {
         }
     }
     
-    pub fn update_scan_mesh(
+    fn update_scan_mesh(
         windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut meshes: ResMut<Assets<Mesh>>,
         scan_mesh_query: Query<&Mesh2d, With<ScanMesh>>,
@@ -231,7 +266,7 @@ impl ScanLinesMaterial {
 
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct ScanLinesMaterial {
+struct ScanLinesMaterial {
     // Texture and sampler are on bindings 0 and 1, respectively.
     #[texture(0)]
     #[sampler(1)]
@@ -242,7 +277,7 @@ pub struct ScanLinesMaterial {
 }
 
 #[derive(Clone, Copy, Debug, Default, ShaderType)]
-pub struct ScanLineUniform {
+struct ScanLineUniform {
     pub spacing: i32,
     pub thickness: i32,
     pub darkness: f32,
@@ -253,4 +288,66 @@ impl Material2d for ScanLinesMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/scan_lines.wgsl".into() // relative to the assets folder
     }
+}
+
+pub fn convert_to_hdr(base_image: &Image, boost : f32) -> Image {
+    // Get dimensions and other properties from base image
+    let width = base_image.texture_descriptor.size.width;
+    let height = base_image.texture_descriptor.size.height;
+    let size = bevy::render::render_resource::Extent3d {
+        width,
+        height,
+        depth_or_array_layers: 1,
+    };
+    
+    // For Rgba32Float, each pixel needs 16 bytes (4 channels × 4 bytes per float)
+    let mut hdr_data = Vec::with_capacity((width * height * 16) as usize);
+    
+    // Get the source RGBA u8 data
+    let src_data = &base_image.data;
+    
+    for chunk in src_data.chunks(4) {
+        // Make sure we have a complete RGBA pixel
+        if chunk.len() == 4 {
+            // Convert each channel from u8 to f32
+            let r = (chunk[0] as f32 / 255.0) * boost;
+            let g = (chunk[1] as f32 / 255.0) * boost;
+            let b = (chunk[2] as f32 / 255.0) * boost;
+            let a = chunk[3] as f32 / 255.0; // Alpha typically isn't boosted
+            
+            // Add the converted values to our HDR data buffer
+            hdr_data.extend_from_slice(&r.to_le_bytes());
+            hdr_data.extend_from_slice(&g.to_le_bytes());
+            hdr_data.extend_from_slice(&b.to_le_bytes());
+            hdr_data.extend_from_slice(&a.to_le_bytes());
+        }
+    }
+    
+    // Create the new HDR image
+    let mut hdr_image = Image::new_fill(
+        size,
+        base_image.texture_descriptor.dimension,
+        &hdr_data,
+        TextureFormat::Rgba32Float,
+        RenderAssetUsages::default(),
+    );
+    
+    // Set proper texture usage flags for HDR
+    hdr_image.texture_descriptor.usage = 
+        TextureUsages::TEXTURE_BINDING | 
+        TextureUsages::COPY_DST | 
+        TextureUsages::RENDER_ATTACHMENT;
+    
+    // Set appropriate sampler for HDR
+    hdr_image.sampler = ImageSampler::Descriptor(SamplerDescriptor {
+        address_mode_u: AddressMode::ClampToEdge,
+        address_mode_v: AddressMode::ClampToEdge,
+        address_mode_w: AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: FilterMode::Linear,
+        ..default()
+    }.into());
+    
+    hdr_image
 }

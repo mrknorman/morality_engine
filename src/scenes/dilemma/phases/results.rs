@@ -13,7 +13,7 @@ use crate::{
 		ColorTranslation, 
 		DIM_BACKGROUND_COLOR, 
 		PRIMARY_COLOR
-	}, common_ui::NextButton, dilemma::DilemmaSounds, 
+	}, common_ui::NextButton, scenes::dilemma::DilemmaSounds, 
 	game_states::{DilemmaPhase, GameState, StateVector}, 
 	inheritance::BequeathTextColor, 
 	interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, WindowedTable}, train::Train

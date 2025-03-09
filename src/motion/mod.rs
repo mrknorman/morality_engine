@@ -4,8 +4,7 @@ use bevy::{
 	prelude::*,
 	ecs::component::StorageType
 };
-use rand:: Rng;
-
+use rand::Rng;
 use crate::{
 	physics::{
     	Gravity, 
@@ -13,7 +12,7 @@ use crate::{
 		Velocity
 	}, 
 	time::Dilation, 
-	GlobalRng
+	startup::rng::GlobalRng
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]

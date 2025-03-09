@@ -1,7 +1,16 @@
 use std::time::Duration;
 use bevy::{prelude::*, sprite::Anchor};
 
-use crate::{colors::PRIMARY_COLOR, dilemma::{dilemma::DilemmaOptionConsequences, lever::LeverState}, text::{Cell, Column, Row, Table, TextContent}};
+use crate::{colors::PRIMARY_COLOR, scenes::dilemma::{dilemma::DilemmaOptionConsequences, lever::LeverState}, text::{Cell, Column, Row, Table, TextContent}};
+
+pub struct StatsPlugin;
+impl Plugin for StatsPlugin {
+    fn build(&self, app: &mut App) {
+        app           
+        .insert_resource(GameStats::default())
+        .insert_resource(DilemmaStats::default());
+    }
+}
 
 #[derive(Clone)]
 pub struct Decision{

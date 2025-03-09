@@ -21,8 +21,7 @@ impl Plugin for LeverPlugin {
 		).add_systems(
             Update,
             Lever::update
-            .run_if(in_state(LeverSystemsActive::True))
-            .run_if(resource_changed::<Lever>)
+            .run_if(in_state(LeverSystemsActive::True).and(resource_changed::<Lever>))
         );
     }
 }

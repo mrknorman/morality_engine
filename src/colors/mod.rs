@@ -5,7 +5,7 @@ use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 use rand::seq::SliceRandom; 
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region}, motion::{Bounce, Pulse}, sprites::compound::{AssembleShape, Plus}, time::Dilation, GlobalRng, startup::render::MainCamera};
+use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region}, motion::{Bounce, Pulse}, sprites::compound::{AssembleShape, Plus}, time::Dilation, startup::rng::GlobalRng, startup::render::MainCamera};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -379,7 +379,7 @@ impl ColorChangeOn {
     }
 
     fn handle_cursor_events_shapes<T: AssembleShape + Component>(
-        window_query: Query<&Window, With<PrimaryWindow>>,
+        window_query: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut query: Query<(&mut ColorChangeOn, &mut T, &Transform, &GlobalTransform)>,
@@ -438,7 +438,7 @@ impl ColorChangeOn {
 
 
     fn handle_cursor_events(
-        window_query: Query<&Window, With<PrimaryWindow>>,
+        window_query: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut query: Query<(&mut ColorChangeOn, &mut TextColor, &Aabb, &GlobalTransform)>,

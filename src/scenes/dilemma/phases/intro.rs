@@ -13,7 +13,7 @@ use crate::{
 		NarrationAudio, 
 		TransientAudio, 
 		TransientAudioPallet 
-    }, common_ui::NextButton, dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, game_states::{
+    }, common_ui::NextButton, scenes::dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, game_states::{
         DilemmaPhase,
 		GameState, 
 		MainState, 

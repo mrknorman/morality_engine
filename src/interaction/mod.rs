@@ -8,25 +8,29 @@ use bevy::{
     ecs::component::StorageType, math::Vec3A, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 use crate::{
-    startup::render::MainCamera,
-    sprites::window::{WindowSounds, WindowActions},
     ascii_fonts::{AsciiActions, AsciiSounds}, audio::{
         AudioPlugin,
         AudioSystemsActive,
         DilatableAudio,
         TransientAudio,
         TransientAudioPallet,
-    }, dialogue::dialogue::{DialogueActions, DialogueSounds}, dilemma::{
+    }, scenes::dialogue::dialogue::{DialogueActions, DialogueSounds}, scenes::dilemma::{
         lever::{
             Lever,
             LeverState,
-        }, phases::{decision::{DecisionActions, LeverActions}, intro::DilemmaIntroActions, consequence::DilemmaConsequenceActions, results::DilemmaResultsActions}, DilemmaSounds
+        }, phases::{consequence::DilemmaConsequenceActions, decision::{DecisionActions, LeverActions}, intro::DilemmaIntroActions, results::DilemmaResultsActions}, DilemmaSounds
     }, game_states::{
         DilemmaPhase,
         GameState,
         MainState,
         StateVector,
-    }, loading::{LoadingActions, LoadingSounds}, menu::{MenuActions, MenuSounds}, motion::Bounce, time::Dilation, train::{TrainActions, TrainSounds}
+    }, scenes::{
+        loading::{LoadingActions, LoadingSounds}, 
+        menu::{MenuActions, MenuSounds},
+    },
+        motion::Bounce, sprites::window::{WindowActions, WindowSounds},
+    
+         startup::{cursor::{CustomCursor, CursorMode}, render::MainCamera}, time::Dilation, train::{TrainActions, TrainSounds}
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -85,7 +89,9 @@ impl Plugin for InteractionPlugin {
             app.add_plugins(AudioPlugin);
         }
         app.add_event::<AdvanceDialogue>()
-            .add_systems(Startup, activate_prerequisite_states);
+            .init_resource::<InteractionAggregate >()
+            .add_systems(Startup, activate_prerequisite_states)
+            .add_systems(Update, reset_clickable_aggregate.before(InteractionSystem::Clickable));
 
         register_interaction_systems!(app, WindowActions, WindowSounds);
         register_interaction_systems!(app, MenuActions, MenuSounds);
@@ -110,7 +116,11 @@ fn activate_prerequisite_states(
 #[derive(Event)]
 pub struct AdvanceDialogue;
 
+#[derive(Component, Default)]
+pub struct IsClickable;
+
 #[derive(Component)]
+#[require(IsClickable)]
 pub struct Clickable<T>
 where
     T: Copy + Send + Sync,
@@ -251,10 +261,9 @@ where
 
 /// Utility function for cursor handling.
 pub fn get_cursor_world_position(
-    windows: &Query<&Window, With<PrimaryWindow>>,
+    window: &Single<&Window, With<PrimaryWindow>>,
     camera_q: &Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) -> Option<Vec2> {
-    let window = windows.get_single().ok()?;
     let cursor_position = window.cursor_position()?;
     let (camera, camera_transform) = camera_q.get_single().ok()?;
     let world_position = camera.viewport_to_world(camera_transform, cursor_position).ok()?;
@@ -381,17 +390,41 @@ macro_rules! handle_triggers {
     }}
 }
 
+#[derive(Resource, Default)]
+pub struct InteractionAggregate {
+    option_to_click : bool,
+    option_to_drag : bool,
+    is_dragging : bool
+}
+
+pub fn reset_clickable_aggregate(
+    mut aggregate : ResMut<InteractionAggregate>,
+    mut cursor: ResMut<CustomCursor>,
+) {
+    if aggregate.is_dragging {
+        cursor.current_mode = CursorMode::Dragging;
+    } else if aggregate.option_to_click {
+        cursor.current_mode = CursorMode::Clicker;
+    } else if aggregate.option_to_drag {
+        cursor.current_mode = CursorMode::Dragger;
+    } else {
+        cursor.current_mode = CursorMode::Pointer;
+    }
+
+    *aggregate = InteractionAggregate::default();
+}
+
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
-        windows: Query<&Window, With<PrimaryWindow>>,
+        window: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
+        mut aggregate : ResMut<InteractionAggregate>,
         camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
         mut clickable_q: Query<(Option<&Aabb>, &Transform, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
     ) {
 
-    let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
+    let Some(cursor_position) = get_cursor_world_position(&window, &camera_q) else { return };
 
     for (bound, transform, global_transform, mut clickable) in clickable_q.iter_mut() {
-
         if let Some(region) = clickable.region {
             if is_cursor_within_region(
                 cursor_position,
@@ -401,10 +434,12 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
                 Vec2::ZERO
             ) {
                 clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
+                aggregate.option_to_click = true;
             }
         } else if let Some(bound) = bound {
             if is_cursor_within_bounds(cursor_position, global_transform, bound) {
                 clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
+                aggregate.option_to_click = true;
             }
         }
     }
@@ -708,12 +743,24 @@ impl Default for Draggable {
 
 impl Draggable {
     pub fn enact(
-        windows: Query<&Window, With<PrimaryWindow>>,
+        window: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<(&GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>), Without<TextSpan>>,
     ) {
-        let Some(cursor_position) = get_cursor_world_position(&windows, &camera_q) else { return };
+        let Some(cursor_position) = get_cursor_world_position(&window, &camera_q) else { return };
+        
+        // Reset the option_to_drag flag at the beginning of the frame
+        aggregate.option_to_drag = false;
+        
+        // First check if any entity is being actively dragged
+        let any_dragging = draggable_q.iter().any(|(_, draggable, _, _)| 
+            draggable.dragging && mouse_input.pressed(MouseButton::Left)
+        );
+        
+        // Set is_dragging based on if any entity is actively being dragged
+        aggregate.is_dragging = any_dragging;
         
         for (global_transform, mut draggable, mut transform, aabb) in draggable_q.iter_mut() {
             // If the user is already dragging this entity, continue the drag regardless of position
@@ -724,17 +771,6 @@ impl Draggable {
                 // Update the transform
                 transform.translation.x = new_position.x;
                 transform.translation.y = new_position.y;
-                continue;
-            }
-            
-            // Stop dragging if mouse button is released
-            if !mouse_input.pressed(MouseButton::Left) {
-                draggable.dragging = false;
-                continue;
-            }
-            
-            // Only process click detection if the mouse was just pressed
-            if !mouse_input.just_pressed(MouseButton::Left) {
                 continue;
             }
             
@@ -762,9 +798,26 @@ impl Draggable {
             };
             
             if is_within_bounds {
-                draggable.dragging = true;
-                // Store the offset between cursor and entity position to maintain relative positioning
-                draggable.offset = global_transform.translation().truncate() - cursor_position;
+                // Flag that there's something draggable under the cursor
+                aggregate.option_to_drag = true;
+                
+                // Stop dragging if mouse button is released
+                if !mouse_input.pressed(MouseButton::Left) {
+                    draggable.dragging = false;
+                    continue;
+                }
+                
+                // Start dragging on mouse press
+                if mouse_input.just_pressed(MouseButton::Left) {
+                    draggable.dragging = true;
+                    draggable.offset = global_transform.translation().truncate() - cursor_position;
+                    
+                    // Immediately update aggregate and cursor state
+                    aggregate.is_dragging = true;
+                }
+            } else if draggable.dragging && !mouse_input.pressed(MouseButton::Left) {
+                // If cursor is outside and mouse released, stop dragging
+                draggable.dragging = false;
             }
         }
     }

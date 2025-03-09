@@ -9,7 +9,8 @@ use crate::{
         OneShotAudioPallet, 
         TransientAudio, 
         TransientAudioPallet 
-    }, common_ui::NextButton, dilemma::{
+    }, common_ui::NextButton, 
+    scenes::dilemma::{
         dilemma:: Dilemma, 
         junction::Junction, 
         lever::Lever,

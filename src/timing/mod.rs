@@ -12,11 +12,11 @@ use enum_map::{
 
 use crate::{
 	audio::NarrationAudioFinished, 
-	dilemma::{
+	scenes::dilemma::{
 		phases::consequence::DilemmaConsequenceEvents, 
 		phases::intro::DilemmaIntroEvents
 	}, 
-	loading::LoadingEvents
+	scenes::loading::LoadingEvents
 };
 
 pub struct TimingPlugin;

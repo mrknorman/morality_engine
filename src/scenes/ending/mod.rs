@@ -1,6 +1,5 @@
 
 struct Ending {
     name : String,
-    description : Stiring
-
+    description : String
 }

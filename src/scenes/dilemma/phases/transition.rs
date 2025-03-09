@@ -6,7 +6,7 @@ use crate::{
         BackgroundSystems
     }, 
     colors::ColorTranslation, 
-    dilemma::{
+    scenes::dilemma::{
         dilemma::Dilemma, 
         junction::Junction
     }, game_states::{

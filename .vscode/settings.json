@@ -5,6 +5,7 @@
         "deontological",
         "despawn",
         "garantees",
+        "hotspot",
         "inteligence",
         "Mapface",
         "slowmo",
@@ -14,6 +15,7 @@
         "trolleyer",
         "trolleyest",
         "trolleygeddon",
-        "wgsl"
+        "wgsl",
+        "winit"
     ]
 }

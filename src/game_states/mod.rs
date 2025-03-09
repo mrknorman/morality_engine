@@ -1,7 +1,23 @@
 use bevy::prelude::*;
 use serde::{Serialize, Deserialize};
 
-use crate::{dialogue::content::*, dilemma::content::*};
+use crate::scenes::dialogue::content::*;
+use crate::scenes::dilemma::content::*;
+
+pub struct GameStatesPlugin;
+impl Plugin for GameStatesPlugin {
+    fn build(&self, app: &mut App) {
+        app           
+        .init_state::<MainState>()
+        .add_sub_state::<GameState>()
+        .add_sub_state::<DilemmaPhase>()
+        .enable_state_scoped_entities::<MainState>()
+        .enable_state_scoped_entities::<GameState>()
+        .enable_state_scoped_entities::<DilemmaPhase>()
+        .insert_resource(Memory::default());
+    }
+}
+
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MainState {   
@@ -14,10 +30,11 @@ pub enum MainState {
     Deserialize)]
 #[source(MainState = MainState::InGame)]
 pub enum GameState {
-    #[default]
     Loading,
     Dialogue,
+    #[default]
     Dilemma,
+    Ending
 }
 
 #[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash)]
@@ -70,7 +87,6 @@ impl StateVector {
         }
     }
 }
-
 
 #[derive(Resource)]
 pub struct Memory{

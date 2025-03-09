@@ -27,7 +27,8 @@ use crate::{
     }, common_ui::{
         CenterLever, 
         DilemmaTimerPosition
-    }, dilemma::{
+    }, 
+	scenes::dilemma::{
         dilemma::{
             Dilemma, 
             DilemmaTimer
@@ -214,7 +215,7 @@ impl DecisionScene {
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
 						],	
-						1			
+						dilemma.default_option.unwrap_or(0)			
 					),
 					Pressable::new(vec![
 						KeyMapping{

@@ -14,13 +14,13 @@ use bevy::{
 	},
 	window::WindowResized
 };
-use rand::Rng;
 use serde::{
 	Deserialize, 
 	Serialize
 };
 use crate::{physics::Velocity, text::TextSprite};
-use crate::GlobalRng;
+use rand::Rng;
+use crate::startup::rng::GlobalRng;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BackgroundSystemsActive {
