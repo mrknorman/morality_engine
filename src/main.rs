@@ -55,7 +55,8 @@ impl Plugin for GamePlugin {
                     scenes::menu::MenuScenePlugin,
                     scenes::loading::LoadingScenePlugin,
                     scenes::dialogue::DialogueScenePlugin,
-                    scenes::dilemma::DilemmaScenePlugin
+                    scenes::dilemma::DilemmaScenePlugin,
+                    scenes::ending::EndingScenePlugin
                 )
             );
     }
@@ -88,7 +89,6 @@ impl Plugin for GamePlugin {
         - Fix occasional interaction system bug where interaction loops
         - Make all JSONs included rather than loaded
     Title:
-        - IMPORTANT - Change way Components are added to Ascii letters
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
         - Options in CRT options menu green
     Dialogue:
@@ -136,6 +136,7 @@ impl Plugin for GamePlugin {
     Style:
         - New track art
         - Update sound fx
+        - Possible shaders for weather effects?
 
 
     Long Term:

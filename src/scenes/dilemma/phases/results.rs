@@ -7,16 +7,13 @@ use bevy::{
 use enum_map::{enum_map, Enum};
 
 use crate::{
-    ascii_fonts::AsciiString, audio::{
+    ascii_fonts::{AsciiString, TextEmotion}, audio::{
         continuous_audio, MusicAudio, TransientAudio, TransientAudioPallet
     }, background::Background, colors::{
 		ColorTranslation, 
 		DIM_BACKGROUND_COLOR, 
 		PRIMARY_COLOR
-	}, common_ui::NextButton, scenes::dilemma::DilemmaSounds, 
-	game_states::{DilemmaPhase, GameState, StateVector}, 
-	inheritance::BequeathTextColor, 
-	interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, WindowedTable}, train::Train
+	}, common_ui::NextButton, game_states::{DilemmaPhase, GameState, StateVector}, inheritance::BequeathTextColor, interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, scenes::dilemma::DilemmaSounds, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, WindowedTable}, train::Train
 };
 
 pub struct DilemmaResultsPlugin;
@@ -125,6 +122,7 @@ impl DilemmaResultsScene {
 			
 			parent.spawn((
 				TextColor(PRIMARY_COLOR),
+				TextEmotion::Happy,
 				AsciiString(format!("DILEMMA RESULTS")),
 				Transform::from_xyz(-550.0,300.0, 1.0)
 			));

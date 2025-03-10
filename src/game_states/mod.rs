@@ -30,9 +30,9 @@ pub enum MainState {
     Deserialize)]
 #[source(MainState = MainState::InGame)]
 pub enum GameState {
+    #[default]
     Loading,
     Dialogue,
-    #[default]
     Dilemma,
     Ending
 }

@@ -20,7 +20,20 @@
 		"o . . . . . o o o o\n                    o",
 		". . . . . o o o o o\n                    o"
 	],
-	"track_audio_path": "./audio/effects/train_loop.ogg",
-  	"horn_audio_path": "./audio/effects/horn.ogg"
+	"track_audio_path": "./audio/effects/train/track.ogg",
+  	"horn_audio_path": "./audio/effects/train/horn.ogg",
+	"stopped_audio_path" : "./audio/effects/train/steam_release.ogg",
+	"rising_smoke": [
+		"          \n          \n          \n          \n          \n          \n          \n          \n     *    \n    s S   ",
+		"          \n          \n          \n          \n          \n          \n          \n     '    \n    s*S   \n    S s   ",
+		"          \n          \n          \n          \n          \n          \n     '    \n    s *   \n    S*s   \n     S    ",
+		"          \n          \n          \n          \n          \n     '    \n    s '   \n    S*    \n     s*   \n     S    ",
+		"          \n          \n          \n          \n     '    \n    s     \n    S'*   \n     *    \n     s    \n          ",
+		"          \n          \n          \n     '    \n    s'    \n    S     \n     *    \n     s*   \n          \n          ",
+		"          \n          \n     '    \n    s'    \n    S     \n     *    \n     s    \n      *   \n          \n          ",
+		"          \n     '    \n    s     \n    S'    \n     *    \n     s    \n          \n      *   \n          \n          ",
+		"     '    \n    s     \n    S     \n     '    \n     *    \n          \n          \n          \n          \n          ",
+		"     '    \n    s '   \n          \n          \n     *    \n          \n          \n          \n          \n          "
+	]
 }
 

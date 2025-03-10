@@ -396,7 +396,7 @@ fn lab_one(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Opt
 	} else if latest.num_decisions > 0 {
 		if let Some(duration) = latest.duration_remaining_at_last_decision {
 			if latest.num_decisions > 10 {
-				(vec![DialogueContent::Lab1a(Lab1aDialogue::FailVeryIndecisive), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
+				(vec![DialogueContent::Lab1a(Lab1aDialogue::FailVeryIndecisive)],
 				None)
 			} else if duration < Duration::from_secs(1) {
 				(vec![DialogueContent::Lab1a(Lab1aDialogue::PassSlow), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],

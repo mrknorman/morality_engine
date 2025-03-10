@@ -14,23 +14,20 @@ use crate::{
         DilatableAudio,
         TransientAudio,
         TransientAudioPallet,
-    }, scenes::dialogue::dialogue::{DialogueActions, DialogueSounds}, scenes::dilemma::{
-        lever::{
-            Lever,
-            LeverState,
-        }, phases::{consequence::DilemmaConsequenceActions, decision::{DecisionActions, LeverActions}, intro::DilemmaIntroActions, results::DilemmaResultsActions}, DilemmaSounds
     }, game_states::{
-        DilemmaPhase,
-        GameState,
-        MainState,
-        StateVector,
-    }, scenes::{
-        loading::{LoadingActions, LoadingSounds}, 
-        menu::{MenuActions, MenuSounds},
-    },
-        motion::Bounce, sprites::window::{WindowActions, WindowSounds},
-    
-         startup::{cursor::{CustomCursor, CursorMode}, render::MainCamera}, time::Dilation, train::{TrainActions, TrainSounds}
+        DilemmaPhase, GameState, MainState, Memory, StateVector
+    }, motion::Bounce, scenes::{
+        dialogue::dialogue::{DialogueActions, DialogueSounds}, dilemma::{
+            lever::{
+                Lever,
+                LeverState,
+            },
+            phases::{consequence::DilemmaConsequenceActions, 
+            decision::{DecisionActions, LeverActions}, 
+            intro::DilemmaIntroActions, results::DilemmaResultsActions}, 
+            DilemmaSounds
+        }, ending::{EndingActions, EndingSounds}, loading::{LoadingActions, LoadingSounds}, menu::{MenuActions, MenuSounds}
+    }, sprites::window::{WindowActions, WindowSounds}, startup::{cursor::{CursorMode, CustomCursor}, render::MainCamera}, stats::GameStats, time::Dilation, train::{TrainActions, TrainSounds}
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -43,6 +40,7 @@ pub enum InteractionSystem {
     Debug,
     Bounce,
     Pong,
+    ResetGame,
     StateChange, // Stage change: second-to-last.
     Despawn,     // Despawn: last.
 }
@@ -70,7 +68,8 @@ macro_rules! register_interaction_systems {
                 system_entry!(trigger_debug_print::<$enum_type, $audio_type>, InteractionSystem::Debug, after: InteractionSystem::LeverChange),
                 system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::Debug),
                 system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Bounce),
-                system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::Pong),
+                system_entry!(trigger_reset_game::<$enum_type, $audio_type>, InteractionSystem::ResetGame, after: InteractionSystem::Bounce),
+                system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
                 system_entry!(trigger_despawn::<$enum_type, $audio_type>, InteractionSystem::Despawn, after: InteractionSystem::StateChange),
             )
         );
@@ -104,6 +103,8 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, DecisionActions, DilemmaSounds);
         register_interaction_systems!(app, AsciiActions, AsciiSounds);
         register_interaction_systems!(app, TrainActions, TrainSounds);
+        register_interaction_systems!(app, EndingActions, EndingSounds);
+
     }
 }
 
@@ -253,35 +254,11 @@ where
     ChangeState(StateVector),
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
+    ResetGame, 
     Bounce,
     Despawn(Option<Entity>),
     #[allow(unused)]
     Print(String),
-}
-
-/// Utility function for cursor handling.
-pub fn get_cursor_world_position(
-    window: &Single<&Window, With<PrimaryWindow>>,
-    camera_q: &Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-) -> Option<Vec2> {
-    let cursor_position = window.cursor_position()?;
-    let (camera, camera_transform) = camera_q.get_single().ok()?;
-    let world_position = camera.viewport_to_world(camera_transform, cursor_position).ok()?;
-    Some(world_position.origin.truncate())
-}
-
-pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
-    let transformed_center = aabb.center + Vec3A::from(transform.translation());
-    let bounds = (
-        transformed_center.x - aabb.half_extents.x,
-        transformed_center.x + aabb.half_extents.x,
-        transformed_center.y - aabb.half_extents.y,
-        transformed_center.y + aabb.half_extents.y,
-    );
-    cursor.x >= bounds.0 &&
-    cursor.x <= bounds.1 &&
-    cursor.y >= bounds.2 &&
-    cursor.y <= bounds.3
 }
 
 /// The InputActionHandler trait is used by Clickable and Pressable
@@ -593,6 +570,47 @@ where
     }
 }
 
+pub fn trigger_reset_game<K, S>(
+    mut memory : ResMut<Memory>,
+    mut stats : ResMut<GameStats>,
+    mut next_main_state: ResMut<NextState<MainState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
+    mut query: Query<(
+        Entity,
+        Option<&mut Clickable<K>>,
+        Option<&mut Pressable<K>>,
+        &ActionPallet<K, S>,
+    )>,
+)
+where
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
+{
+    for (_, clickable, pressable, pallet) in query.iter_mut() {
+        handle_triggers!(clickable, pressable, pallet, handle => {
+            handle_all_actions!(handle, pallet => {
+                ResetGame => {
+                    *memory = Memory::default();
+                    *stats = GameStats::default();
+                    StateVector::new(
+                        Some(MainState::Menu), 
+                        Some(GameState::Loading),
+                        Some(DilemmaPhase::Intro)
+                    ).set_state(
+                        &mut next_main_state,
+                        &mut next_game_state,
+                        &mut next_sub_state,
+                    );
+                }
+            });
+        });
+    }
+}
+
+
 pub fn trigger_despawn<K, S>(
     mut commands: Commands,
     mut query: Query<(
@@ -611,8 +629,8 @@ where
     for (entity, clickable, pressable, pallet) in query.iter_mut() {
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
-                Despawn(overide_entity) => {
-                    commands.entity(overide_entity.unwrap_or(entity)).despawn_recursive();
+                Despawn(override_entity) => {
+                    commands.entity(override_entity.unwrap_or(entity)).despawn_recursive();
                 }
             });
         });
@@ -824,6 +842,50 @@ impl Draggable {
 }
 
 
+/// Utility function for cursor handling.
+pub fn get_cursor_world_position(
+    window: &Single<&Window, With<PrimaryWindow>>,
+    camera_q: &Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+) -> Option<Vec2> {
+    let cursor_position = window.cursor_position()?;
+    let (camera, camera_transform) = camera_q.get_single().ok()?;
+    let world_position = camera.viewport_to_world(camera_transform, cursor_position).ok()?;
+    Some(world_position.origin.truncate())
+}
+
+
+pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
+    // Get the transformation matrix
+    let matrix = transform.compute_matrix();
+   
+    // Transform AABB corners to world space accounting for rotation
+    let half_x = aabb.half_extents.x;
+    let half_y = aabb.half_extents.y;
+    
+    // Convert Vec3A center to Vec3 
+    let center = Vec3::new(aabb.center.x, aabb.center.y, aabb.center.z);
+   
+    // Define the four corners of the AABB in local space
+    let corners = [
+        Vec3::new(-half_x, -half_y, 0.0), // bottom-left
+        Vec3::new(half_x, -half_y, 0.0),  // bottom-right
+        Vec3::new(half_x, half_y, 0.0),   // top-right
+        Vec3::new(-half_x, half_y, 0.0),  // top-left
+    ];
+   
+    // Transform corners to world space
+    let world_corners: Vec<Vec2> = corners.iter()
+        .map(|corner| {
+            // Apply transformation matrix including translation and rotation
+            let transformed = matrix.transform_point3(*corner + center);
+            Vec2::new(transformed.x, transformed.y)
+        })
+        .collect();
+   
+    // Check if cursor is inside the transformed polygon
+    is_point_in_polygon(cursor, &world_corners)
+}
+
 pub fn is_cursor_within_region(
     cursor_position: Vec2,
     transform: &Transform,
@@ -833,21 +895,69 @@ pub fn is_cursor_within_region(
 ) -> bool {
     // Create a local transform for the region relative to the entity
     let region_local_transform = Transform::from_translation(Vec3::new(region_offset.x, region_offset.y, 0.0));
-    
+   
     // Create a matrix that transforms from local space to world space
     let model_matrix = global_transform.compute_matrix();
+   
+    // Calculate half size
+    let half_width = region_size.x / 2.0;
+    let half_height = region_size.y / 2.0;
     
-    // Apply the model matrix to get the region position in world space
-    let region_world_position = model_matrix.transform_point3(region_local_transform.translation);
+    // Define the four corners of the region in local space (relative to region offset)
+    let corners = [
+        Vec3::new(-half_width, -half_height, 0.0), // bottom-left
+        Vec3::new(half_width, -half_height, 0.0),  // bottom-right
+        Vec3::new(half_width, half_height, 0.0),   // top-right
+        Vec3::new(-half_width, half_height, 0.0),  // top-left
+    ];
     
-    // Scale the region size by the entity's scale
-    let scaled_half_size = (region_size / 2.0) * transform.scale.truncate();
+    // Transform corners to world space
+    let world_corners: Vec<Vec2> = corners.iter()
+        .map(|corner| {
+            // Apply scale from transform
+            let scaled_corner = Vec3::new(
+                corner.x * transform.scale.x,
+                corner.y * transform.scale.y,
+                corner.z * transform.scale.z
+            );
+            
+            // Apply region offset
+            let offset_corner = scaled_corner + region_local_transform.translation;
+            
+            // Apply the full transformation matrix to get world position
+            let transformed = model_matrix.transform_point3(offset_corner);
+            Vec2::new(transformed.x, transformed.y)
+        })
+        .collect();
     
-    // Check if the cursor is within the region
-    cursor_position.x >= region_world_position.x - scaled_half_size.x &&
-    cursor_position.x <= region_world_position.x + scaled_half_size.x &&
-    cursor_position.y >= region_world_position.y - scaled_half_size.y &&
-    cursor_position.y <= region_world_position.y + scaled_half_size.y
+    // Check if cursor is inside the transformed polygon
+    is_point_in_polygon(cursor_position, &world_corners)
+}
+
+// Helper function to check if a point is inside a polygon using the ray casting algorithm
+fn is_point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
+    if polygon.len() < 3 {
+        return false;
+    }
+    
+    let mut inside = false;
+    let mut j = polygon.len() - 1;
+    
+    for i in 0..polygon.len() {
+        let vi = polygon[i];
+        let vj = polygon[j];
+        
+        // Ray casting algorithm - count intersections
+        if ((vi.y > point.y) != (vj.y > point.y)) &&
+           (point.x < (vj.x - vi.x) * (point.y - vi.y) / (vj.y - vi.y) + vi.x)
+        {
+            inside = !inside;
+        }
+        
+        j = i;
+    }
+    
+    inside
 }
 
 

@@ -117,7 +117,7 @@ impl DecisionScene {
 						vec![
 							ContinuousAudio{
 								key : DilemmaSounds::TrainApproaching,
-								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/train_approaching.ogg")),
+								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/train/approaching.ogg")),
 								settings : PlaybackSettings{
 									volume : Volume::new(1.0),
 									..continuous_audio()

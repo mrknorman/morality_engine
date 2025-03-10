@@ -1,15 +1,26 @@
-use bevy::{audio::Volume, prelude::*};
-use enum_map::Enum;
+use bevy::{
+    audio::Volume, 
+    prelude::*
+};
+use enum_map::{
+    enum_map, 
+    Enum
+};
 
-use crate::{ascii_fonts::AsciiString, audio::{continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, MusicAudio, TransientAudioPallet}, background::Background, colors::{DIM_BACKGROUND_COLOR, MENU_COLOR}, common_ui::NextButton, game_states::GameState, text::TextRaw, track::Track};
+use crate::{
+    ascii_fonts::{AsciiString, TextEmotion}, audio::{
+        continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
+    }, background::Background, colors::{DIM_BACKGROUND_COLOR, MENU_COLOR}, common_ui::NextButton, game_states::GameState, interaction::{ActionPallet, Draggable, InputAction}, sprites::window::WindowTitle, stats::GameStats, text::{TextButton, TextRaw, WindowedTable}, track::Track, train::{Train, TrainState, STEAM_TRAIN}
+};
+
 
 struct Ending {
     name : String,
     description : String
 }
 
-pub struct MenuScenePlugin;
-impl Plugin for MenuScenePlugin {
+pub struct EndingScenePlugin;
+impl Plugin for EndingScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(GameState::Ending), 
@@ -24,9 +35,21 @@ impl Plugin for MenuScenePlugin {
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EndingSounds {
+    Wind,
 	Static,
 	Office,
     Click
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EndingActions {
+    ResetGame
+}
+
+impl std::fmt::Display for EndingActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 
@@ -36,13 +59,14 @@ struct EndingScene;
 
 impl EndingScene{
 
-    const TITLE_TRANSLATION : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
-    const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 1.0);
-    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
-    const SIGNATURE_TRANSLATION : Vec3 = Vec3::new(0.0, -100.0, 1.0);
+    const TITLE_TRANSLATION : Vec3 = Vec3::new(-380.0, 225.0, 0.5);
+    const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
+    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 0.5);
+    const RESULTS_TRANSLATION : Vec3 = Vec3::new(220.0, 130.0, 1.0);
 
     fn setup(
         mut commands: Commands, 
+        stats : Res<GameStats>,
         asset_server: Res<AssetServer>
     ) {
         commands.spawn(
@@ -56,6 +80,19 @@ impl EndingScene{
                     BackgroundAudio,
                     ContinuousAudioPallet::new(
                         vec![
+                            ContinuousAudio{
+                                key : EndingSounds::Wind,
+                                source : AudioPlayer::<AudioSource>(
+                                    asset_server.load(
+                                        "./audio/effects/desert_wind.ogg"
+                                    )
+                                ), 
+                                settings : PlaybackSettings{
+                                    volume : Volume::new(1.0),
+                                    ..continuous_audio()
+                                },
+                                dilatable : true
+                            },
                             ContinuousAudio{
                                 key : EndingSounds::Static,
                                 source : AudioPlayer::<AudioSource>(
@@ -77,7 +114,7 @@ impl EndingScene{
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(0.5),
+                                    volume : Volume::new(0.2),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -86,15 +123,40 @@ impl EndingScene{
                     )
                 ));
 
+                parent.spawn(
+                    OneShotAudioPallet::new(
+                        vec![
+                            OneShotAudio{
+                                source: asset_server.load("./audio/effects/game_over.ogg"),
+                                volume : 0.4,
+                                persistent : true,
+                                dilatable: false
+                            }
+                        ]
+                    )
+                );
+
+                parent.spawn((
+                    Draggable::default(),
+                    WindowedTable{
+                        title : Some(WindowTitle{
+                            text : String::from("Overall Results"),
+                            ..default()
+                        }),
+                        ..default()
+                    },
+                    stats.to_table(),
+                    Transform::from_translation(Self::RESULTS_TRANSLATION)
+                ));
+
                 parent.spawn((         
                     Background::load_from_json(
                         "text/backgrounds/desert.json",	
                         0.00002,
-                        -0.5
+                        0.0
                     ),
                     TextColor(DIM_BACKGROUND_COLOR)
-                    )
-                );
+                ));
 
                 parent.spawn((
                     Track::new(600),
@@ -102,22 +164,12 @@ impl EndingScene{
                     Transform::from_translation(Self::TRAIN_TRANSLATION + Self::TRACK_DISPLACEMENT)
                 ));
 
-                parent.spawn((
-                    MusicAudio,
-                    AudioPlayer::<AudioSource>(asset_server.load(
-                        "./audio/music/the_last_decision.ogg", 
-                    )),
-                    PlaybackSettings{
-                        volume : Volume::new(0.3),
-                        ..continuous_audio()
-                    }
-                ));
-
                 parent.spawn(
                     (
                         AsciiString(
-                            "THE TROLLEY\n  ALGORITHM".to_string()
+                            "FALSE START".to_string()
                         ),
+                        TextEmotion::Afraid,
                         TextColor(MENU_COLOR),
                         Transform::from_translation(Self::TITLE_TRANSLATION)
                     )
@@ -125,25 +177,11 @@ impl EndingScene{
 
                 parent.spawn(
                     (                    
-                        Train::init(
-                            &asset_server,
-                            STEAM_TRAIN,
-                            0.0
-                        ),
+                        Train::new(STEAM_TRAIN),
+                        TrainState::Wrecked,
                         Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),
                     )  
-                );
-
-                parent.spawn(
-                    (
-                        TextRaw,
-                        TextColor(MENU_COLOR),
-                        Text2d::new(
-                            "A game by Michael Norman"
-                        ),
-                        Transform::from_translation(Self::SIGNATURE_TRANSLATION)
-                    )
                 );
 
                 parent.spawn(
@@ -152,24 +190,18 @@ impl EndingScene{
                         TextColor(MENU_COLOR),
                         TextButton::new(
                             vec![
-                                MenuActions::ResetGame
+                                EndingActions::ResetGame
                             ],
                             vec![KeyCode::Enter],
-                            "[Click Here or Press Enter to Begin]",
+                            "[Click Here or Press Enter to Fade into Oblivion]",
                         ),
-                        ActionPallet::<MenuActions, EndingSounds>(
+                        ActionPallet::<EndingActions, EndingSounds>(
                             enum_map!(
-                                MenuActions::EnterGame => vec![
+                                EndingActions::ResetGame => vec![
                                     InputAction::PlaySound(
                                         EndingSounds::Click
                                     ),
-                                    InputAction::ChangeState(
-                                        StateVector::new(
-                                            Some(MainState::InGame),
-                                            None,
-                                            None
-                                        )
-                                    )
+                                    InputAction::ResetGame
                                 ]
                             )
                         ),

@@ -13,7 +13,7 @@ use phases::{
 use crate::{
 	ascii_fonts::{
 		AsciiPlugin, 
-		AsciiString
+		AsciiString, TextEmotion
 	}, audio::{
 		continuous_audio, 
 		MusicAudio
@@ -152,6 +152,7 @@ impl DilemmaScene {
 
 				parent.spawn((
 					TextColor(PRIMARY_COLOR),
+					TextEmotion::Happy,
 					AsciiString(format!("DILEMMA {}", dilemma.index)),
 					Fade{
 						duration : transition_duration, 
@@ -199,11 +200,7 @@ impl DilemmaScene {
 				);
 
 				parent.spawn((
-					Train::init(
-						&asset_server,
-						STEAM_TRAIN,
-						0.0
-					),
+					Train::new(STEAM_TRAIN),
 					Transform::from_translation(train_initial_position), 
 					PointToPointTranslation::new(
 						train_initial_position + train_x_displacement,

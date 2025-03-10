@@ -106,7 +106,7 @@ impl Default for TextTitle {
     }
 }
 
-#[derive(Component, Deserialize)]
+#[derive(Component, Deserialize, Clone)]
 pub struct TextFrames {
     pub frames: Vec<String>
 }
@@ -149,6 +149,15 @@ impl TextFrames {
 pub struct Animated {
     pub current_frame: usize,
     pub timer: Timer,
+}
+
+impl Animated {
+    pub fn new(current_frame : usize, time_seconds : f32) -> Self {
+        Self {
+            current_frame,
+            timer: Timer::from_seconds(time_seconds, TimerMode::Repeating),
+        }
+    }
 }
 
 impl Default for Animated {

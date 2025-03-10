@@ -1,11 +1,22 @@
 use bevy::{
-    ecs::component::StorageType, prelude::*, render::primitives::Aabb, window::PrimaryWindow
+    ecs::component::StorageType,
+    prelude::*,
+    render::primitives::Aabb,
+    window::PrimaryWindow,
+    time::TimerMode,
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
-use rand::seq::SliceRandom; 
+use rand::{Rng, seq::SliceRandom};
 
-use crate::{interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region}, motion::{Bounce, Pulse}, sprites::compound::{AssembleShape, Plus}, time::Dilation, startup::rng::GlobalRng, startup::render::MainCamera};
+use crate::{
+    interaction::{get_cursor_world_position, is_cursor_within_bounds, is_cursor_within_region},
+    motion::{Bounce, Pulse},
+    sprites::compound::{AssembleShape, Plus},
+    time::Dilation,
+    startup::rng::GlobalRng,
+    startup::render::MainCamera,
+};
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -19,8 +30,8 @@ pub const DIM_BACKGROUND_COLOR: Color = Color::Srgba(Srgba::new(1.0, 1.0, 1.0, 0
 pub const BACKGROUND_COLOR: Color = Color::Srgba(Srgba::new(1.0, 1.0, 1.0, 0.8));
 
 pub const OPTION_GLOW : f32 = 6.0;
-pub const OPTION_1_COLOR : Color = Color::srgb(0.1015*OPTION_GLOW, 0.5195*OPTION_GLOW, 0.9961*OPTION_GLOW);
-pub const OPTION_2_COLOR : Color = Color::srgb(0.8314*OPTION_GLOW, 0.0664*OPTION_GLOW, 0.3477*OPTION_GLOW);
+pub const OPTION_1_COLOR : Color = Color::srgb(0.1015 * OPTION_GLOW, 0.5195 * OPTION_GLOW, 0.9961 * OPTION_GLOW);
+pub const OPTION_2_COLOR : Color = Color::srgb(0.8314 * OPTION_GLOW, 0.0664 * OPTION_GLOW, 0.3477 * OPTION_GLOW);
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ColorsSystemsActive {
@@ -30,9 +41,9 @@ pub enum ColorsSystemsActive {
 }
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-enum ColorSystemOrder{
+enum ColorSystemOrder {
     ResetFlag,
-    CheckColorChangeEvents
+    CheckColorChangeEvents,
 }
 
 pub struct ColorsPlugin;
@@ -43,11 +54,12 @@ impl Plugin for ColorsPlugin {
             .add_systems(Update,
                 ColorChangeOn::reset_event_flag.in_set(ColorSystemOrder::ResetFlag))
             .add_systems(Update,
-            (
-                ColorChangeOn::handle_physics_events,
-                ColorChangeOn::handle_cursor_events,
-                ColorChangeOn::handle_cursor_events_shapes::<Plus>
-            ).in_set(ColorSystemOrder::CheckColorChangeEvents).after(ColorSystemOrder::ResetFlag))
+                (
+                    ColorChangeOn::handle_physics_events,
+                    ColorChangeOn::handle_cursor_events,
+                    ColorChangeOn::handle_cursor_events_shapes::<Plus>,
+                    ColorChangeOn::handle_flicker_events
+                ).in_set(ColorSystemOrder::CheckColorChangeEvents).after(ColorSystemOrder::ResetFlag))
             .add_systems(Update, 
                 (
                     ColorChangeOn::finalize_color_events, 
@@ -58,7 +70,8 @@ impl Plugin for ColorsPlugin {
                 (activate_systems,
                 ColorTranslation::translate,
                 Fade::despawn_after_fade,
-            )
+                // Add the flicker event system here if needed:
+                )
             )           
             .init_resource::<ColorPallet>()
             .insert_resource(ColorPallet::default());
@@ -66,19 +79,18 @@ impl Plugin for ColorsPlugin {
 }
 
 fn activate_systems(
-	mut state: ResMut<NextState<ColorsSystemsActive>>,
-	query: Query<&ColorTranslation>
+    mut state: ResMut<NextState<ColorsSystemsActive>>,
+    query: Query<&ColorTranslation>
 ) {
-	if !query.is_empty() {
-		state.set(ColorsSystemsActive::True)
-	} else {
-		state.set(ColorsSystemsActive::False)
-	}
+    if !query.is_empty() {
+        state.set(ColorsSystemsActive::True)
+    } else {
+        state.set(ColorsSystemsActive::False)
+    }
 }
 
-
 #[derive(Resource)]
-struct ColorPallet{
+struct ColorPallet {
     pub primary : Color,
     pub highlight : Color,
     pub hovered : Color,
@@ -97,18 +109,17 @@ impl Default for ColorPallet {
             danger : DANGER_COLOR,
             options : vec![
                 OPTION_1_COLOR,
-                OPTION_2_COLOR
+                OPTION_2_COLOR,
             ]
         }
     }
-
 }
 
 #[derive(Clone)]
 pub struct ColorTranslation {
     pub initial_color: Vec4,
     pub final_color: Vec4,
-	pub timer : Timer
+    pub timer : Timer,
 }
 
 impl Component for ColorTranslation {
@@ -151,71 +162,64 @@ impl ColorExt for Color {
 }
 
 impl ColorTranslation {
-    pub fn new(final_color: Color, duration: Duration, paused : bool) -> ColorTranslation {
-
-		let mut translation = ColorTranslation {
-			initial_color : Vec4::default(),
-			final_color : final_color.to_vec4(),
-			timer : Timer::new(
-				duration,
-				TimerMode::Once
-			)
-		};
+    pub fn new(final_color: Color, duration: Duration, paused: bool) -> ColorTranslation {
+        let mut translation = ColorTranslation {
+            initial_color: Vec4::default(),
+            final_color: final_color.to_vec4(),
+            timer: Timer::new(duration, TimerMode::Once),
+        };
 
         if paused {
             translation.timer.pause();
         }
-		translation
-	}
+        translation
+    }
 
-	pub fn translate(
-		time: Res<Time>, 
-        dilation : Res<Dilation>,
-		mut query: Query<(&mut ColorTranslation, &mut TextColor)>
-	) {
-		for (mut motion, mut color) in query.iter_mut() {
+    pub fn translate(
+        time: Res<Time>, 
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut ColorTranslation, &mut TextColor)>
+    ) {
+        for (mut motion, mut color) in query.iter_mut() {
+            motion.timer.tick(time.delta().mul_f32(dilation.0));
 
-			motion.timer.tick(time.delta().mul_f32(dilation.0));
-
-			if !motion.timer.paused() && !motion.timer.finished() {
-
-				let fraction_complete = motion.timer.fraction();
-				let difference = motion.final_color - motion.initial_color;
-
-                let new_color = motion.initial_color + difference*fraction_complete;
-				color.0 = Color::LinearRgba(LinearRgba{
-                    red : new_color.x,
-                    green : new_color.y,
-                    blue : new_color.z,
-                    alpha : new_color.w
+            if !motion.timer.paused() && !motion.timer.finished() {
+                let fraction_complete = motion.timer.fraction();
+                let difference = motion.final_color - motion.initial_color;
+                let new_color = motion.initial_color + difference * fraction_complete;
+                color.0 = Color::LinearRgba(LinearRgba {
+                    red: new_color.x,
+                    green: new_color.y,
+                    blue: new_color.z,
+                    alpha: new_color.w,
                 });
-			} else if motion.timer.just_finished() {
+            } else if motion.timer.just_finished() {
                 let new_color = motion.final_color;
-                color.0 = Color::LinearRgba(LinearRgba{
-                    red : new_color.x,
-                    green : new_color.y,
-                    blue : new_color.z,
-                    alpha : new_color.w
+                color.0 = Color::LinearRgba(LinearRgba {
+                    red: new_color.x,
+                    green: new_color.y,
+                    blue: new_color.z,
+                    alpha: new_color.w,
                 });
             }
-		}
-	}
+        }
+    }
 
-	pub fn start(&mut self) {
-		self.timer.unpause();
-	}
+    pub fn start(&mut self) {
+        self.timer.unpause();
+    }
 }
 
 #[derive(Clone)]
-pub struct Fade{
-    pub duration : Duration,
-    pub paused : bool
+pub struct Fade {
+    pub duration: Duration,
+    pub paused: bool,
 }
 
 impl Fade {
     fn despawn_after_fade(
-        mut commands : Commands,
-        mut query : Query<(Entity, &ColorTranslation), With<Fade>>
+        mut commands: Commands,
+        mut query: Query<(Entity, &ColorTranslation), With<Fade>>
     ) {
         for (entity, transition) in query.iter_mut() {
             if transition.timer.finished() {
@@ -225,7 +229,7 @@ impl Fade {
     }
 }
 
-impl Component for Fade{
+impl Component for Fade {
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
     fn register_component_hooks(
@@ -233,8 +237,7 @@ impl Component for Fade{
     ) {
         hooks.on_insert(
             |mut world, entity, _component_id| {
-				// Step 1: Extract components from the pallet
-				let fade: Option<Fade> = {
+                let fade: Option<Fade> = {
                     let entity_mut = world.entity(entity);
                     entity_mut.get::<Fade>()
                         .map(|fade: &Fade| fade.clone())
@@ -249,7 +252,6 @@ impl Component for Fade{
                         )
                     );
                 }
-
             }
         );
     }
@@ -292,12 +294,89 @@ impl Component for ColorAnchor {
     }
 }
 
+
+/// The Flicker struct controls a flickering effect that periodically
+/// switches the rendered color to one selected randomly from a given vector.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Flicker {
+    enacting: bool,
+    inter_flicker_timer: Timer,
+    flicker_timer: Timer,
+    min_flicker_duration: Duration,
+    max_flicker_duration: Duration,
+    min_interval: Duration,
+    max_interval: Duration,
+    /// How fast the color toggles on/off during a burst.
+    toggle_period: Duration,
+}
+
+impl Flicker {
+    /// Create a new Flicker with randomized durations.
+    /// Note: The RNG is no longer required at creation.
+    pub fn new(
+        min_flicker_duration: Duration,
+        max_flicker_duration: Duration,
+        min_interval: Duration,
+        max_interval: Duration,
+        toggle_period: Duration,
+    ) -> Self {
+        // Initialize with the minimum interval as the initial downtime.
+        Self {
+            enacting: false,
+            inter_flicker_timer: Timer::new(min_interval, TimerMode::Once),
+            // The flicker timer will be set when a burst starts.
+            flicker_timer: Timer::new(Duration::ZERO, TimerMode::Once),
+            min_flicker_duration,
+            max_flicker_duration,
+            min_interval,
+            max_interval,
+            toggle_period,
+        }
+    }
+
+    /// Update the flicker state.
+    /// Returns true only when a burst is active and the sub-cycle (toggle) is "on".
+    /// Otherwise it returns false.
+    pub fn update(&mut self, dt: Duration, rng: &mut Pcg64Mcg) -> bool {
+        if !self.enacting {
+            self.inter_flicker_timer.tick(dt);
+            if self.inter_flicker_timer.finished() {
+                // Begin a new flicker burst with a random duration.
+                let flicker_duration = rng.gen_range(self.min_flicker_duration..self.max_flicker_duration);
+                self.flicker_timer.set_duration(flicker_duration);
+                self.flicker_timer.reset();
+                self.flicker_timer.unpause();
+                self.enacting = true;
+            }
+            return false;
+        } else {
+            self.flicker_timer.tick(dt);
+            if self.flicker_timer.finished() {
+                // End burst and randomize the next interval.
+                let interval = rng.gen_range(self.min_interval..self.max_interval);
+                self.inter_flicker_timer.set_duration(interval);
+                self.inter_flicker_timer.reset();
+                self.inter_flicker_timer.unpause();
+                self.enacting = false;
+                return false;
+            }
+            // Compute sub-cycle toggle: alternate on/off every half toggle_period.
+            let elapsed = self.flicker_timer.elapsed();
+            let cycle = elapsed.as_secs_f32() % self.toggle_period.as_secs_f32();
+            return cycle < (self.toggle_period.as_secs_f32() / 2.0);
+        }
+    }
+}
+
+/// The ColorChangeEvent enum now includes a Flicker variant which
+/// holds a vector of colors and a Flicker instance.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorChangeEvent {
     Bounce(Vec<Color>),
     Pulse(Vec<Color>),
+    Flicker(Vec<Color>, Flicker),
     Hover(Vec<Color>, Option<Vec2>),
-    Click(Vec<Color>, Option<Vec2>)
+    Click(Vec<Color>, Option<Vec2>),
 }
 
 impl ColorChangeEvent {
@@ -305,29 +384,29 @@ impl ColorChangeEvent {
         match self {
             ColorChangeEvent::Bounce(colors)
             | ColorChangeEvent::Pulse(colors)
+            | ColorChangeEvent::Flicker(colors, _)
             | ColorChangeEvent::Hover(colors, _)
             | ColorChangeEvent::Click(colors, _) => colors,
         }
     }
 }
 
-
 #[derive(Clone, Component)]
 #[require(TextColor)]
-pub struct ColorChangeOn{
-    pub events : Vec<ColorChangeEvent>,
-    event_occurring : bool
+pub struct ColorChangeOn {
+    pub events: Vec<ColorChangeEvent>,
+    event_occurring: bool,
 }
 
 impl ColorChangeOn {
-    pub fn new(events : Vec<ColorChangeEvent>) -> Self {
+    pub fn new(events: Vec<ColorChangeEvent>) -> Self {
         Self {
             events,
-            event_occurring : true
+            event_occurring: true,
         }
     }
 
-    fn randomize_color_events(events: &mut [ColorChangeEvent], rng : &mut Pcg64Mcg) {
+    fn randomize_color_events(events: &mut [ColorChangeEvent], rng: &mut Pcg64Mcg) {
         events.iter_mut().for_each(|event| event.get_color_mut().shuffle(rng));
     }
 
@@ -341,7 +420,6 @@ impl ColorChangeOn {
         mut query: Query<(&mut ColorChangeOn, &mut TextColor, Option<&Bounce>, Option<&Pulse>)>,
     ) {
         for (mut color_change, mut text_color, bounce_opt, pulse_opt) in query.iter_mut() {
-            // If an event has already been handled by a previous system, skip.
             if color_change.event_occurring {
                 continue;
             }
@@ -369,7 +447,7 @@ impl ColorChangeOn {
                             warn_once!("Entity with ColorChangeOn Pulse event has no Pulse component!");
                         }
                     }
-                    _ => {} // Skip other event types.
+                    _ => {}
                 }
                 if color_change.event_occurring {
                     break;
@@ -394,7 +472,6 @@ impl ColorChangeOn {
                         if let Some(cursor_position) =
                             get_cursor_world_position(&window_query, &camera_query)
                         {
-                            
                             if is_cursor_within_region(
                                 cursor_position,
                                 transform,
@@ -418,8 +495,7 @@ impl ColorChangeOn {
                                 global_transform,
                                 region.unwrap_or(shape.dimensions()),
                                 Vec2::ZERO,
-                            )                                 
-                            && mouse_input.pressed(MouseButton::Left)
+                            ) && mouse_input.pressed(MouseButton::Left)
                             {
                                 shape.set_color(colors[0]);
                                 color_change.event_occurring = true;
@@ -427,7 +503,7 @@ impl ColorChangeOn {
                             }
                         }
                     }
-                    _ => {} // Skip other event types.
+                    _ => {}
                 }
                 if color_change.event_occurring {
                     break;
@@ -435,7 +511,6 @@ impl ColorChangeOn {
             }
         }
     }
-
 
     fn handle_cursor_events(
         window_query: Single<&Window, With<PrimaryWindow>>,
@@ -473,10 +548,35 @@ impl ColorChangeOn {
                             }
                         }
                     }
-                    _ => {} // Skip other event types.
+                    _ => {}
                 }
                 if color_change.event_occurring {
                     break;
+                }
+            }
+        }
+    }
+
+    fn handle_flicker_events(
+        time: Res<Time>,
+        mut rng: ResMut<GlobalRng>,
+        mut query: Query<(&mut ColorChangeOn, &mut TextColor)>,
+    ) {
+        for (mut color_change, mut text_color) in query.iter_mut() {
+            if color_change.event_occurring {
+                continue;
+            }
+            for event in color_change.events.iter_mut() {
+                if let ColorChangeEvent::Flicker(colors, ref mut flicker) = event {
+                    // Pass the RNG so durations are randomized.
+                    if flicker.update(time.delta(), &mut rng.0) {
+                        // During "on" phase, choose a random color.
+                        if let Some(chosen) = colors.choose(&mut rng.0) {
+                            text_color.0 = *chosen;
+                            color_change.event_occurring = true;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -488,7 +588,6 @@ impl ColorChangeOn {
     ) {
         for (mut color_change, mut text_color, color_anchor_opt) in query.iter_mut() {
             if !color_change.event_occurring {
-                // Randomize the color events.
                 ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.0);
                 if let Some(anchor) = color_anchor_opt {
                     text_color.0 = anchor.0;
@@ -503,7 +602,6 @@ impl ColorChangeOn {
     ) {
         for (mut color_change, mut shape_color, color_anchor_opt) in query.iter_mut() {
             if !color_change.event_occurring {
-                // Randomize the color events.
                 ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.0);
                 if let Some(anchor) = color_anchor_opt {
                     shape_color.set_color(anchor.0);

@@ -7,7 +7,7 @@ use enum_map::{
 use crate::{
     ascii_fonts::{
         AsciiPlugin, 
-        AsciiString
+        AsciiString, TextEmotion
     }, 
     audio::{
         continuous_audio, 
@@ -99,8 +99,8 @@ struct MenuScene;
 impl MenuScene {
 
     const TITLE_TRANSLATION : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
-    const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 1.0);
-    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 1.0);
+    const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
+    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 0.4);
     const SIGNATURE_TRANSLATION : Vec3 = Vec3::new(0.0, -100.0, 1.0);
 
     fn setup(
@@ -177,6 +177,7 @@ impl MenuScene {
 
                 parent.spawn(
                     (
+                        TextEmotion::Happy,
                         AsciiString(
                             "THE TROLLEY\n  ALGORITHM".to_string()
                         ),
@@ -187,11 +188,7 @@ impl MenuScene {
 
                 parent.spawn(
                     (                    
-                        Train::init(
-                            &asset_server,
-                            STEAM_TRAIN,
-                            0.0
-                        ),
+                        Train::new(STEAM_TRAIN),
                         Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),
                     )  
