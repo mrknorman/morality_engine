@@ -8,9 +8,46 @@ use enum_map::{
 };
 
 use crate::{
-    ascii_fonts::{AsciiString, TextEmotion}, audio::{
-        continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
-    }, background::Background, colors::{DIM_BACKGROUND_COLOR, MENU_COLOR}, common_ui::NextButton, game_states::GameState, interaction::{ActionPallet, Draggable, InputAction}, sprites::window::WindowTitle, stats::GameStats, text::{TextButton, TextRaw, WindowedTable}, track::Track, train::{Train, TrainState, STEAM_TRAIN}
+    data::{
+        stats::GameStats, 
+        states::GameState, 
+    },
+    systems::{
+        audio::{
+            continuous_audio, 
+            BackgroundAudio, 
+            ContinuousAudio, 
+            ContinuousAudioPallet, 
+            OneShotAudio, 
+            OneShotAudioPallet, 
+            TransientAudio, 
+            TransientAudioPallet
+        },
+        colors::{
+            DIM_BACKGROUND_COLOR, 
+            MENU_COLOR
+        }, 
+        interaction::{
+            ActionPallet, 
+            Draggable, 
+            InputAction
+        }, 
+        backgrounds::{
+            Background,
+            content::BackgroundTypes
+        }
+    },
+    entities::{
+        large_fonts::{
+            AsciiString, 
+            TextEmotion
+        }, 
+        sprites::window::WindowTitle, 
+        text::{TextButton, WindowedTable},
+        track::Track, 
+        train::{Train, TrainState, content::TrainTypes}
+    },
+    style::common_ui::NextButton
 };
 
 
@@ -101,7 +138,7 @@ impl EndingScene{
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(0.1),
+                                    volume : Volume::new(0.06),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -150,8 +187,8 @@ impl EndingScene{
                 ));
 
                 parent.spawn((         
-                    Background::load_from_json(
-                        "text/backgrounds/desert.json",	
+                    Background::new(
+                        BackgroundTypes::Desert,	
                         0.00002,
                         0.0
                     ),
@@ -177,7 +214,7 @@ impl EndingScene{
 
                 parent.spawn(
                     (                    
-                        Train::new(STEAM_TRAIN),
+                        Train(TrainTypes::SteamTrain),
                         TrainState::Wrecked,
                         Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),

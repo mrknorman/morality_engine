@@ -8,19 +8,26 @@ use bevy::{
 };
 
 use crate::{
-    audio:: {
-        continuous_audio, 
-        ContinuousAudio,
-        ContinuousAudioPallet
-    }, 
-    character::{
-        Character, 
-        CharacterKey
-    }, 
-    game_states::{GameState, Memory}, 
-    graph::Graph, 
-    interaction::InteractionPlugin, 
-    io::IOPlugin
+    systems::{
+        audio:: {
+            continuous_audio, 
+            ContinuousAudio,
+            ContinuousAudioPallet
+        }, 
+        interaction::InteractionPlugin, 
+    },
+    entities::graph::Graph,
+    data::{
+        character::{
+            Character, 
+            CharacterKey
+        }, 
+        states::{
+            GameState, 
+            Memory
+        }, 
+    },
+    style::ui::IOPlugin
 };
 
 pub mod dialogue;

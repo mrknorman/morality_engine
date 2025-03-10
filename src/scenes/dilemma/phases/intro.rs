@@ -8,23 +8,31 @@ use enum_map::{
 };
 
 use crate::{
-    audio::{
-        one_shot_audio, 
-		NarrationAudio, 
-		TransientAudio, 
-		TransientAudioPallet 
-    }, common_ui::NextButton, scenes::dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, game_states::{
+    systems::{
+		audio::{
+			one_shot_audio, 
+			NarrationAudio, 
+			TransientAudio, 
+			TransientAudioPallet 
+    	}, 
+		interaction::{
+			ActionPallet, 
+			InputAction
+		},
+		scheduling::{
+			TimerConfig, 
+			TimerPallet, 
+			TimerStartCondition
+		}
+	},
+	entities::text::TextButton, 
+	style::common_ui::NextButton, 
+	scenes::dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, 
+	data::states::{
         DilemmaPhase,
 		GameState, 
 		MainState, 
 		StateVector
-    }, interaction::{
-		ActionPallet, 
-		InputAction
-	}, text::TextButton, timing::{
-        TimerConfig, 
-        TimerPallet, 
-        TimerStartCondition
     }
 };
 

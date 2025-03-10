@@ -10,15 +10,19 @@ use bevy::diagnostic::{
 };
 
 use crate::{
-    colors::ColorsPlugin, 
-    common_ui::CommonUIPlugin, 
+    systems::{
+        colors::ColorsPlugin, 
+        inheritance::InheritancePlugin, 
+        motion::MotionPlugin,
+        time::DilationPLugin
+    },
+    data::{
+        stats::StatsPlugin, 
+        states::GameStatesPlugin, 
+    },
+    style::common_ui::CommonUIPlugin, 
     scenes::dilemma::lever::Lever, 
-    game_states::GameStatesPlugin, 
-    inheritance::InheritancePlugin, 
-    motion::MotionPlugin, 
-    shaders::PulsingMaterial, 
-    stats::StatsPlugin, 
-    time::DilationPLugin
+    shaders::PulsingMaterial
 };
 
 pub mod shortcuts;

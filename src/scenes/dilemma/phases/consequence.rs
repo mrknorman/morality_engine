@@ -1,32 +1,54 @@
-use std::{path::PathBuf, time::Duration};
+use std::{
+    path::PathBuf, 
+    time::Duration
+};
 
 use bevy::prelude::*;
-use enum_map::{enum_map, Enum};
+use enum_map::{
+    enum_map,
+    Enum
+};
 
 use crate::{
-    audio::{
-        OneShotAudio, 
-        OneShotAudioPallet, 
-        TransientAudio, 
-        TransientAudioPallet 
-    }, common_ui::NextButton, 
+    data::{
+        states::{
+            DilemmaPhase, 
+            GameState, 
+            StateVector
+        },
+        stats::GameStats
+    },
+    systems::{
+        audio::{
+            OneShotAudio, 
+            OneShotAudioPallet, 
+            TransientAudio, 
+            TransientAudioPallet 
+        },
+        interaction::{
+            ActionPallet, 
+            InputAction, 
+        },
+        scheduling::{
+            TimerConfig, 
+            TimerPallet, 
+            TimerStartCondition
+        },
+        time::DilationTranslation,
+        motion::PointToPointTranslation,
+        physics::Velocity
+    },
+    entities::{
+        text::TextButton,
+        train::Train
+    },
+    style::common_ui::NextButton, 
     scenes::dilemma::{
         dilemma:: Dilemma, 
         junction::Junction, 
         lever::Lever,
         DilemmaSounds
-    }, game_states::{
-        DilemmaPhase, 
-        GameState, 
-        StateVector
-    }, interaction::{
-        ActionPallet, 
-        InputAction, 
-    }, motion::PointToPointTranslation, physics::Velocity, stats::GameStats, text::TextButton, time::DilationTranslation, timing::{
-        TimerConfig, 
-        TimerPallet, 
-        TimerStartCondition
-    }, train::Train
+    }
 };
 
 

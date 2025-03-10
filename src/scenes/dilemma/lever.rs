@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::colors::{
+use crate::systems::colors::{
     OPTION_1_COLOR,
     OPTION_2_COLOR
 };

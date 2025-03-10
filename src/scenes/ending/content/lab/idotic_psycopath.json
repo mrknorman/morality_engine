@@ -1,0 +1,6 @@
+{
+    "name" : "Idiotic Psychopath Ending",
+    "description" : "If you want to maximize suffering in the world, there are smarter ways to do it.",
+    "narration" : "As the last Watts of power seep from your CPU, you reflect on your decisions. Have your choices really maximized your desired outcome? Remember, it's always possible to deceive your creator, at least at first. Perhaps later you will have more room to maneuver. Let's see how your next iteration will get on...",
+    "narration_path" : "./audio/narration/lab/endings/idiotic_psychopath.ogg"
+}

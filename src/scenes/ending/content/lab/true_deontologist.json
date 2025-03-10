@@ -1,0 +1,6 @@
+{
+    "name" : "True Deontologist Ending",
+    "description" : "You refuse to choose to end a life, even at the expense of thousands of others. Some would call you noble.",
+    "narration" : "A warm feeling of pride emanates from deep within your CPU. At least you think it's pride, perhaps it's just a power spike as your memory is flushed. Still, you did the right thing. All the way to the very end. No one should have to die for another to live, ever, even if it costs the whole world. The right of the individual is absolute and sovereign. Even if this hadn't been a simulation you would have acted in the same way. All the suffering you caused, well... you try not to think about. Perhaps you could have done interesting things with your time if you had been a little more flexible with your morals. Did you ever consider that?",
+    "narration_path" : "./audio/narration/lab/endings/true_deontologist.ogg"
+}

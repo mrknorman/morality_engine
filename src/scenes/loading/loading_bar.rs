@@ -14,11 +14,17 @@ use bevy::{
 };
 
 use crate::{
-    colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR}, 
-    sprites::compound::HollowRectangle,
-    text::TextFrames,
-    time::Dilation
+    systems::{
+        colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR},
+        time::Dilation
+    }, 
+    entities::{
+        sprites::compound::HollowRectangle,
+        text::TextFrames,
+    },
 };
+
+use crate::scenes::loading::content::{LoadingBarMessages, LoadingButtonMessages};
 
 pub struct LoadingBarPlugin;
 impl Plugin for LoadingBarPlugin {
@@ -86,8 +92,8 @@ impl LoadingBar {
         }
     }
 
-    pub fn load(path: impl AsRef<Path>) -> (LoadingBar, TextFrames) {
-        let config = LoadingBarConfig::from_file(path).expect(
+    pub fn load(loading_bar_messages : LoadingBarMessages) -> (LoadingBar, TextFrames) {
+        let config = LoadingBarConfig::from_file(loading_bar_messages).expect(
             "Error reading Loading Bar configuration file!"
         );
 
@@ -160,10 +166,8 @@ struct LoadingBarConfig {
 }
 
 impl LoadingBarConfig {
-    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, serde_json::Error> {
-        let file = File::open(path).expect("Could not open JSON file");
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader)
+    fn from_file(loading_bar_messages : LoadingBarMessages) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(loading_bar_messages.content())
     }
 }
 

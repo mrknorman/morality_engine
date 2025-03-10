@@ -4,31 +4,13 @@ use bevy::{
 };
 #[forbid(unsafe_code)]
 
-
 mod scenes;
-mod audio;
-mod background;
-mod game_states;
-mod person;
-mod train;
-mod graph;
+mod systems;
+mod entities;
+mod data;
 mod startup;
-mod motion;
-mod text;
-mod track;
-mod interaction;
-mod timing;
-mod character;
-mod io;
-mod sprites;
-mod common_ui;
 mod shaders;
-mod colors;
-mod physics;
-mod ascii_fonts;
-mod inheritance;
-mod time;
-mod stats;
+mod style;
 
 fn main() {
     App::new()
@@ -65,6 +47,9 @@ impl Plugin for GamePlugin {
 /*
     Todo:
 
+    // Weather Shaders
+    // Spacial Audio?
+
     Cursors (Explore Storytelling with Cursor)
         - Idle Animations
         - Sand Timer
@@ -72,7 +57,7 @@ impl Plugin for GamePlugin {
         - Waiting to pull (animated anxious) (directional)
     
     Assistants: 
-        - Twitchy (Twitch Integration) and Trolly - Fight over lever
+        - Twitchy (Twitch Integration) and Lee Ver 2.0 - Fight over lever
     Endings:
     - Rage Ending
     - Many Levers Ending - TrollyMoon           

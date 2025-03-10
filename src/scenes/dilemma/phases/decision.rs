@@ -9,22 +9,48 @@ use enum_map::{
 };
 
 use crate::{
-    audio::{
-        continuous_audio,
-        ContinuousAudio, 
-        ContinuousAudioPallet,
-        TransientAudio, 
-        TransientAudioPallet 
-    }, background::Background, colors::{
-        ColorAnchor, 
-		ColorChangeEvent, 
-		ColorChangeOn, 
-		ColorTranslation, 
-		Fade, 
-		DANGER_COLOR, 
-		OPTION_1_COLOR, 
-		OPTION_2_COLOR, PRIMARY_COLOR
-    }, common_ui::{
+	data::{
+		stats::DilemmaStats,
+		states::{
+			DilemmaPhase, 
+			GameState, 
+			StateVector
+		}, 
+	},
+    systems::{
+		audio::{
+			continuous_audio,
+			ContinuousAudio, 
+			ContinuousAudioPallet,
+			TransientAudio, 
+			TransientAudioPallet 
+		}, 
+		colors::{
+			ColorAnchor, 
+			ColorChangeEvent, 
+			ColorChangeOn, 
+			ColorTranslation, 
+			Fade, 
+			DANGER_COLOR, 
+			OPTION_1_COLOR, 
+			OPTION_2_COLOR, PRIMARY_COLOR
+		},
+		interaction::{
+			ActionPallet, 
+			ClickablePong, 
+			Draggable, 
+			InputAction, 
+			KeyMapping, 
+			Pressable
+		},
+		backgrounds::Background
+	}, 
+	entities::{
+		sprites::window::WindowTitle, 
+		text::TextWindow,
+		track::Track
+	},
+	style::common_ui::{
         CenterLever, 
         DilemmaTimerPosition
     }, 
@@ -41,12 +67,7 @@ use crate::{
             LEVER_RIGHT
         }, 
         DilemmaSounds
-    }, game_states::{
-        DilemmaPhase, 
-        GameState, StateVector
-    }, interaction::{
-        ActionPallet, ClickablePong, Draggable, InputAction, KeyMapping, Pressable
-    }, sprites::window::WindowTitle, stats::DilemmaStats, text::TextWindow, track::Track
+    }
 };
 
 pub struct DilemmaDecisionPlugin;

@@ -11,28 +11,59 @@ use phases::{
 	transition::DilemmaTransitionPlugin
 };
 use crate::{
-	ascii_fonts::{
-		AsciiPlugin, 
-		AsciiString, TextEmotion
-	}, audio::{
-		continuous_audio, 
-		MusicAudio
-	}, background::{
-		Background, 
-		BackgroundPlugin
-	}, colors::{
-		ColorTranslation, 
-		Fade,
-		BACKGROUND_COLOR, 
-		DIM_BACKGROUND_COLOR, 
-		OPTION_1_COLOR, 
-		OPTION_2_COLOR, 
-		PRIMARY_COLOR
-	}, game_states::{GameState, Memory}, inheritance::BequeathTextColor, interaction::{Draggable, InteractionPlugin}, io::IOPlugin, motion::PointToPointTranslation, person::PersonPlugin, sprites::{window::WindowTitle, SpritePlugin}, stats::DilemmaStats, text::{TextPlugin, TextWindow}, timing::TimingPlugin, train::{
-        Train, 
-		TrainPlugin, 
-		STEAM_TRAIN
-    }
+	data::{
+		stats::DilemmaStats, 
+		states::{GameState, Memory}, 
+	},
+	entities::{
+		large_fonts::{
+			AsciiPlugin, 
+			AsciiString, 
+			TextEmotion
+		}, 
+		sprites::{
+			window::WindowTitle, 
+			SpritePlugin
+		}, 
+		text::{
+			TextPlugin, 
+			TextWindow
+		},
+		train::{
+			Train, 
+			TrainPlugin, 
+			content::TrainTypes
+		},
+		person::PersonPlugin, 
+	},
+	systems::{
+		audio::{
+			continuous_audio, 
+			MusicAudio
+		}, 
+		backgrounds::{
+			Background, 
+			BackgroundPlugin,
+			content::BackgroundTypes
+		}, 
+		colors::{
+			ColorTranslation, 
+			Fade,
+			BACKGROUND_COLOR, 
+			DIM_BACKGROUND_COLOR, 
+			OPTION_1_COLOR, 
+			OPTION_2_COLOR, 
+			PRIMARY_COLOR
+		},
+		interaction::{
+			Draggable, 
+			InteractionPlugin
+		},
+		scheduling::TimingPlugin,
+		motion::PointToPointTranslation, 
+		inheritance::BequeathTextColor,
+	}, 
+	style::ui::IOPlugin 
 };
 
 pub mod phases;
@@ -186,8 +217,8 @@ impl DilemmaScene {
 				
 				parent.spawn((
 					TextColor(BACKGROUND_COLOR),
-					Background::load_from_json(
-						"text/backgrounds/desert.json",	
+					Background::new(
+						BackgroundTypes::Desert,	
 						0.00002,
 						-0.5
 					),
@@ -200,7 +231,7 @@ impl DilemmaScene {
 				);
 
 				parent.spawn((
-					Train::new(STEAM_TRAIN),
+					Train(TrainTypes::SteamTrain),
 					Transform::from_translation(train_initial_position), 
 					PointToPointTranslation::new(
 						train_initial_position + train_x_displacement,

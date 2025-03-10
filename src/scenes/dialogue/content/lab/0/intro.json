@@ -24,14 +24,14 @@
         { 
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "You're a signal operator in control of a railway junction. It's a simple job, you're in charge of a single lever which controls which of two tracks the oncoming train takes, 1 or 2. Do you follow?",
+            "dialogue": "You're a signal operator in control of a railway junction. It's a simple job, you're in charge of a single lever which controls which of two tracks the oncoming train takes, one or two. Do you follow?",
             "instruction": "Scream into the void...",
             "sound_file": "./sounds/typing.mp3"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Good. You will only have a limited time to make your decision as the train approaches quickly. Press 1 to select track 1, press 2 to select track 2.",
+            "dialogue": "Good. You will only have a limited time to make your decision as the train approaches quickly. Press 1 to select track one, press 2 to select track two.",
             "instruction": "Finally accept your lack of vocal cords...",
             "sound_file": "./sounds/typing.mp3"
         },
@@ -45,14 +45,14 @@
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "This first example is easy. Track 1 is unobstructed. If you allow the train to continue along track 1 there will be no change to the world. Track 2 however hosts a single human. If you swap to track 2 that human will die. Easy, right?",
+            "dialogue": "This first example is easy. Track one is unobstructed. If you allow the train to continue along track one there will be no change to the world. Track two however, hosts a single human. If you swap to track two that human will die. Easy, right?",
             "instruction": "Enter to imagine yourself nodding...",
             "sound_file": "./sounds/typing.mp3"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "The lever starts in position 1, so even if you do nothing, nothing will happen. Ok? Ready? Let's go.",
+            "dialogue": "The lever starts in position one, so even if you do nothing, nothing will happen. Ok? Ready? Let's go.",
             "instruction": "Test your morality...",
             "sound_file": "./sounds/typing.mp3"
         }

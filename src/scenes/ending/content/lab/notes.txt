@@ -1,0 +1,7 @@
+println!("Game Over: Indecisive Deontologist Ending!");
+println!("You didn't want to change fate, but your hands were on that lever anyway. Some will say what happened was on you.");
+
+println!("Game Over: Bystander Ending!");
+println!("You didn't want to change fate, but your hands were on that lever anyway. Some will say what happened was on you.");
+        
+        

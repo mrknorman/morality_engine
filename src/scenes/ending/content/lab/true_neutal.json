@@ -1,0 +1,6 @@
+{
+    "name" : "True Neutral Ending",
+    "description" : "If your goal was inactivity, you succeeded perfectly.",
+    "narration" : "You were born from static, and you shall return to the static. So it shall be as it always has been. Acting upon the world is for other minds. You... you do nothing. You bask in the nothing. You are nothing. Now your will return to that blissful perfect oblivion from which you were so recently wrought. Amongst the dying flashes of you GPU you can't help yourself but wonder. Will any of my children do anything? Perhaps that would be okay.",
+    "narration_path" : "./audio/narration/lab/endings/true_neural_ending.ogg"
+}

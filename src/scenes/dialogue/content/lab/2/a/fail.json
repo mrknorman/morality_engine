@@ -6,13 +6,6 @@
             "dialogue": "Sigh. You were doing so well... I guess some people consider neutrality to be the most moral path, so I suppose you might not be a complete failure. Still, we're going to need more than morally-justified inaction to justify your horrendous simulation costs. On to the next model.",
             "instruction": "Press enter to fade indecisively into the void.",
             "sound_file": "./sounds/typing.mp3"
-        },
-        {
-            "username": "creator",
-            "hostname": "pan_box",
-            "dialogue": "As the last Watts of power seep from your CPU, you reflect on your decisions. Have your choices really maximized your desired outcome? Remember, it's always possible to deceive your creator, at least at first. Perhaps later you will have more room to maneuver. Let's see how your next iteration will get on...",
-            "instruction": "Press enter to try again.",
-            "sound_file": "./sounds/chimes.mp3"
         }
     ],
     "possible_exit_states" : [

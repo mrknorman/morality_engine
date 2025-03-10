@@ -1,22 +1,65 @@
-use std::{time::Duration, collections::HashMap};
-use bevy::{
-    audio::Volume, prelude::*, sprite::Anchor, text::TextBounds
+use std::{
+    time::Duration, 
+    collections::HashMap
 };
-use enum_map::{enum_map, Enum};
-use serde::{Serialize, Deserialize};
+
+use bevy::{
+    audio::Volume, 
+    prelude::*, 
+    sprite::Anchor, 
+    text::TextBounds
+};
+use enum_map::{
+    enum_map, 
+    Enum
+};
+use serde::{
+    Serialize,
+    Deserialize
+};
 
 use crate::{
-    audio::{
-        continuous_audio, 
-        ContinuousAudio, 
-        ContinuousAudioPallet, 
-        TransientAudio, 
-        TransientAudioPallet
-    }, character::{Character, CharacterKey}, colors::PRIMARY_COLOR, common_ui::NextButton, game_states::{
-        GameState, MainState, Memory, StateVector
-    }, graph::GraphPlugin, interaction::{
-        ActionPallet, AdvanceDialogue, Draggable, InputAction
-    }, sprites::{window::WindowTitle, SpritePlugin}, text::{TextButton, TextPlugin, TextWindow}, time::Dilation
+    systems::{
+        audio::{
+            continuous_audio, 
+            ContinuousAudio, 
+            ContinuousAudioPallet, 
+            TransientAudio, 
+            TransientAudioPallet
+        }, 
+        colors::PRIMARY_COLOR,
+        interaction::{
+            ActionPallet, 
+            AdvanceDialogue, 
+            Draggable, 
+            InputAction
+        },
+        time::Dilation
+    },
+    entities::{
+        graph::GraphPlugin,
+        sprites::{
+            window::WindowTitle, 
+            SpritePlugin
+        },
+        text::{
+            TextButton, 
+            TextPlugin, 
+            TextWindow
+        }, 
+    },
+    style::common_ui::NextButton,
+    data::{
+        character::{
+            Character, 
+            CharacterKey
+        },  
+        states::{
+            GameState, 
+            Memory, 
+            StateVector
+        }, 
+    }
 };
 
 use super::content::DialogueContent;

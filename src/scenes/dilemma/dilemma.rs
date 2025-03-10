@@ -12,7 +12,17 @@ use bevy::{
 };
 
 use crate::{
-	scenes::dialogue::content::*, game_states::{DilemmaPhase, GameState, Memory}, inheritance::BequeathTextColor, motion::Pulse, stats::{DilemmaStats, GameStats}, text::TextRaw, time::Dilation 
+	scenes::dialogue::content::*, 
+	systems::{
+		inheritance::BequeathTextColor, 
+		motion::Pulse,
+		time::Dilation 
+	},
+	data::{
+		stats::{DilemmaStats, GameStats}, 
+		states::{DilemmaPhase, GameState, Memory}, 
+	},
+	entities::text::TextRaw 
 };
 
 use super::content::*;

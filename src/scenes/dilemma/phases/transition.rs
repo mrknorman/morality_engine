@@ -1,24 +1,27 @@
 use bevy::prelude::*;
 
 use crate::{
-    background::{
-        Background, 
-        BackgroundSystems
-    }, 
-    colors::ColorTranslation, 
+    data::states::{
+        DilemmaPhase, 
+        GameState
+    },
+    systems::{
+        backgrounds::{
+            Background, 
+            BackgroundSystems
+        }, 
+        colors::ColorTranslation, 
+        inheritance::BequeathTextColor,
+        motion::{
+            Bounce, 
+            PointToPointTranslation
+        }, 
+    },
+    entities::train::Train,
     scenes::dilemma::{
         dilemma::Dilemma, 
         junction::Junction
-    }, game_states::{
-        DilemmaPhase, 
-        GameState
-    }, 
-    inheritance::BequeathTextColor, 
-    motion::{
-        Bounce, 
-        PointToPointTranslation
-    }, 
-    train::Train
+    }
 };
 
 pub struct DilemmaTransitionPlugin;

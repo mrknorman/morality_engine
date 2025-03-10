@@ -5,47 +5,54 @@ use enum_map::{
 };
 
 use crate::{
-    ascii_fonts::{
-        AsciiPlugin, 
-        AsciiString, TextEmotion
-    }, 
-    audio::{
-        continuous_audio, 
-        BackgroundAudio, 
-        ContinuousAudio, 
-        ContinuousAudioPallet, 
-        MusicAudio, 
-        TransientAudio, 
-        TransientAudioPallet
-    }, 
-    background::{
-        Background, 
-        BackgroundPlugin
-    }, 
-    colors::{
-        DIM_BACKGROUND_COLOR, 
-        MENU_COLOR
-    }, 
-    common_ui::NextButton, 
-    game_states::{
+    data::states::{
         MainState, 
         StateVector
+    },
+    systems::{
+        audio::{
+            continuous_audio, 
+            BackgroundAudio, 
+            ContinuousAudio, 
+            ContinuousAudioPallet, 
+            MusicAudio, 
+            TransientAudio, 
+            TransientAudioPallet
+        }, 
+        backgrounds::{
+            Background, 
+            BackgroundPlugin,
+            content::BackgroundTypes
+        }, 
+        colors::{
+            DIM_BACKGROUND_COLOR, 
+            MENU_COLOR
+        },
+        interaction::{ 
+            ActionPallet, 
+            InputAction, 
+            InteractionPlugin
+        }
     }, 
-    interaction::{ 
-        ActionPallet, 
-        InputAction, 
-        InteractionPlugin
-    }, 
-    io::IOPlugin, 
-    text::{
-        TextButton, 
-        TextRaw
-    }, 
-    track::Track, 
-    train::{
-        Train, 
-        TrainPlugin, 
-        STEAM_TRAIN
+    entities::{
+        large_fonts::{
+            AsciiPlugin, 
+            AsciiString, TextEmotion
+        }, 
+        text::{
+            TextButton, 
+            TextRaw
+        }, 
+        train::{
+            Train, 
+            TrainPlugin, 
+            content::TrainTypes
+        },
+        track::Track, 
+    },
+    style::{
+        common_ui::NextButton, 
+        ui::IOPlugin
     }
 };
 
@@ -149,8 +156,8 @@ impl MenuScene {
                 ));
 
                 parent.spawn((         
-                    Background::load_from_json(
-                        "text/backgrounds/desert.json",	
+                    Background::new(
+                        BackgroundTypes::Desert,	
                         0.00002,
                         -0.5
                     ),
@@ -188,7 +195,7 @@ impl MenuScene {
 
                 parent.spawn(
                     (                    
-                        Train::new(STEAM_TRAIN),
+                        Train(TrainTypes::SteamTrain),
                         Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),
                     )  

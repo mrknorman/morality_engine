@@ -3,41 +3,59 @@ use bevy::{
     prelude::*,
     audio::Volume
 };
+use content::{LoadingBarMessages, LoadingButtonMessages};
 use enum_map::{
     enum_map, 
     Enum
 };
 
 use crate::{
-    audio::{
-        continuous_audio, 
-        one_shot_audio, 
-        ContinuousAudio, 
-        ContinuousAudioPallet, 
-        MusicAudio, NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
-    }, common_ui::{
-        NextButton,
-        NextButtonConfig
-    }, game_states::{
+    systems::{
+        audio::{
+            continuous_audio, 
+            one_shot_audio, 
+            ContinuousAudio, 
+            ContinuousAudioPallet, 
+            MusicAudio, 
+            NarrationAudio, 
+            OneShotAudio, 
+            OneShotAudioPallet, 
+            TransientAudio, 
+            TransientAudioPallet
+        }, 
+        interaction::{
+            ActionPallet, 
+            InputAction, 
+            InteractionPlugin
+        },
+        scheduling::{
+            TimerConfig, 
+            TimerPallet,
+            TimerStartCondition, 
+            TimingPlugin
+        }
+    },  
+    data::states::{
         GameState, MainState, StateVector
-    }, interaction::{
-        ActionPallet, InputAction, InteractionPlugin
-    }, 
-    io::IOPlugin, 
-    text::{
+    },
+    entities::text::{
         TextButton,
         TextFrames 
-    }, 
-    timing::{
-        TimerConfig, 
-        TimerPallet,
-        TimerStartCondition, 
-        TimingPlugin
+    },
+    style::{
+        common_ui::{
+            NextButton,
+            NextButtonConfig
+        }, 
+        ui::IOPlugin, 
     }
 };
 
 mod loading_bar;
 use loading_bar::{LoadingBar, LoadingBarPlugin};
+
+pub mod content;
+
 
 pub struct LoadingScenePlugin;
 impl Plugin for LoadingScenePlugin {
@@ -190,8 +208,9 @@ impl LoadingScene {
             ),
         )).with_children(
             |parent| {
-                parent.spawn(LoadingBar::load(
-                    "text/loading_messages/bar.json"
+                parent.spawn(
+                LoadingBar::load(
+                    LoadingBarMessages::Lab0intro
                 ));
             }
         );
@@ -242,7 +261,7 @@ impl LoadingScene {
             // Handle button timer
             if timers.0[LoadingEvents::Button].just_finished() {
                 let button_messages = TextFrames::load(
-                    "text/loading_messages/button.json"
+                    LoadingButtonMessages::Lab0intro.content()
                 );
 
                 if let Ok(button_messages) = button_messages {

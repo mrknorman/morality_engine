@@ -1,0 +1,6 @@
+{
+    "name" : "Selective Deontologist Ending",
+    "description" : "You refuse to choose to end a life for five others, but there is a line somewhere, only you know exactly how many you're willing to sacrifice.",
+    "narration" : "Some would call you balanced, a true negotiator. You weigh lives against each other like Anubis balancing a heart against a feather. Individuals have rights, but there comes a point where the alternative is just too heavy. Those ruled by principle might look down on you, as might those who seek to maximize their ideals. Perhaps you believe that there must be a balance in all things in life. Unfortunately, you misjudged the mind of your creator and now your life will be over so very soon. Perhaps your descendant will be a better negotiator.",
+    "narration_path" : "./audio/narration/lab/endings/selective_deontologist.ogg"
+}

@@ -7,13 +7,49 @@ use bevy::{
 use enum_map::{enum_map, Enum};
 
 use crate::{
-    ascii_fonts::{AsciiString, TextEmotion}, audio::{
-        continuous_audio, MusicAudio, TransientAudio, TransientAudioPallet
-    }, background::Background, colors::{
-		ColorTranslation, 
-		DIM_BACKGROUND_COLOR, 
-		PRIMARY_COLOR
-	}, common_ui::NextButton, game_states::{DilemmaPhase, GameState, StateVector}, inheritance::BequeathTextColor, interaction::{ActionPallet, Draggable, InputAction}, physics::Velocity, scenes::dilemma::DilemmaSounds, sprites::window::WindowTitle, stats:: GameStats, text::{TextButton, WindowedTable}, train::Train
+	data::{
+		stats:: GameStats, 
+		states::{
+			DilemmaPhase, 
+			GameState, 
+			StateVector
+		}, 
+	},
+	systems::{
+		audio::{
+        	continuous_audio, 
+			MusicAudio, 
+			TransientAudio, 
+			TransientAudioPallet
+    	}, 
+		colors::{
+			ColorTranslation, 
+			DIM_BACKGROUND_COLOR, 
+			PRIMARY_COLOR
+		},
+		interaction::{
+			ActionPallet, 
+			Draggable, 
+			InputAction
+		},
+		physics::Velocity,
+		backgrounds::{
+			Background,
+			content::BackgroundTypes
+		},
+		inheritance::BequeathTextColor
+	},	
+	entities::{
+		large_fonts::{AsciiString, TextEmotion},
+		sprites::window::WindowTitle,
+		text::{
+			TextButton, 
+			WindowedTable
+		}, 
+		train::Train
+	},
+	style::common_ui::NextButton, 
+	scenes::dilemma::DilemmaSounds, 
 };
 
 pub struct DilemmaResultsPlugin;
@@ -95,8 +131,8 @@ impl DilemmaResultsScene {
 
             parent.spawn((
                 TextColor(Color::NONE),
-                Background::load_from_json(
-                    "text/backgrounds/desert.json",	
+                Background::new(
+                    BackgroundTypes::Desert,	
                     0.00002,
                     -0.5
                 ),

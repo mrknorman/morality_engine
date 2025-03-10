@@ -5,33 +5,43 @@ use bevy::{
 };
 
 use crate::{
-    audio::{
-		continuous_audio, ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet
-    }, colors::{
-        ColorAnchor, 
-		ColorChangeEvent, 
-		ColorChangeOn, 
-		ColorTranslation, 
-		DANGER_COLOR,
-		OPTION_1_COLOR, 
-		OPTION_2_COLOR
-    }, scenes::dilemma::{
+    systems::{
+		audio::{
+			continuous_audio, 
+			ContinuousAudio, 
+			ContinuousAudioPallet, 
+			TransientAudio, 
+			TransientAudioPallet
+		}, 
+		colors::{
+			ColorAnchor, 
+			ColorChangeEvent, 
+			ColorChangeOn, 
+			ColorTranslation, 
+			DANGER_COLOR,
+			OPTION_1_COLOR, 
+			OPTION_2_COLOR
+		},
+		motion::{
+			Bounce, 
+			TransformMultiAnchor
+		},
+		inheritance::BequeathTextColor, 
+		time::Dilation 
+	}, 
+	entities::{
+		person::{
+			Emoticon, EmotionSounds, PersonSprite,
+		},
+		track::Track
+	},
+	scenes::dilemma::{
 		lever::{
 	    	Lever, 
        		LeverState
     	}, 
 		Dilemma
-	}, 
-	inheritance::BequeathTextColor, 
-	motion::{
-		Bounce, 
-		TransformMultiAnchor
-	}, 
-	person::{
-		Emoticon, EmotionSounds, PersonSprite
-	}, 
-	time::Dilation, 
-	track::Track
+	},  
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
