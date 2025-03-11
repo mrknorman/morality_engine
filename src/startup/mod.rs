@@ -19,6 +19,7 @@ use crate::{
     data::{
         stats::StatsPlugin, 
         states::GameStatesPlugin, 
+        rng::RngPlugin
     },
     style::common_ui::CommonUIPlugin, 
     scenes::dilemma::lever::Lever, 
@@ -27,11 +28,9 @@ use crate::{
 
 pub mod shortcuts;
 pub mod render;
-pub mod rng;
 pub mod cursor;
 
 use render::RenderPlugin;
-use rng::RngPlugin;
 use cursor::CursorPlugin;
 
 pub struct StartupPlugin;

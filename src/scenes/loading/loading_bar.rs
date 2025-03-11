@@ -1,12 +1,7 @@
-use std::{
-    time::Duration,
-    fs::File,
-    io::BufReader,
-    path::Path
-};
+use std::time::Duration;
+
 use rand::Rng;
 use serde::Deserialize;
-
 use bevy::{
     prelude::*, 
     ecs::component::StorageType, 
@@ -22,9 +17,8 @@ use crate::{
         sprites::compound::HollowRectangle,
         text::TextFrames,
     },
+    scenes::loading::content::LoadingBarMessages
 };
-
-use crate::scenes::loading::content::{LoadingBarMessages, LoadingButtonMessages};
 
 pub struct LoadingBarPlugin;
 impl Plugin for LoadingBarPlugin {

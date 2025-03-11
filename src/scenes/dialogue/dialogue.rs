@@ -377,7 +377,7 @@ impl Dialogue {
 
 	fn advance_dialogue(
         mut commands: Commands,
-        mut memory : Res<Memory>,
+        memory : Res<Memory>,
         mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 

@@ -1,9 +1,4 @@
-use std::{
-	fs::File,
-	io::BufReader, 
-	path::PathBuf,
-	collections::HashMap
-};
+use std::collections::HashMap;
 use serde::{
 	Deserialize, 
 	Serialize
@@ -24,7 +19,7 @@ use bevy::{
 use crate::{
     systems::physics::Velocity, 
     entities::text::TextSprite,
-    startup::rng::GlobalRng
+    data::rng::GlobalRng
 };
 
 pub mod content;

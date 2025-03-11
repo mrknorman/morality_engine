@@ -1,13 +1,14 @@
-use std::{
-	f32::consts::FRAC_PI_4, fs::File, io::BufReader, path::PathBuf
-};
+use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
 	prelude::*,
 	ecs::component::StorageType,
 	audio::Volume
 };
-use enum_map::{Enum,  enum_map};
+use enum_map::{
+    Enum, 
+    enum_map
+};
 use rand::Rng;
 use serde::Deserialize;
 
@@ -16,6 +17,7 @@ pub mod content;
 use content::TrainTypes;
 
 use crate::{
+    data::rng::GlobalRng,
 	systems::{
         audio::{
             continuous_audio, 
@@ -41,8 +43,7 @@ use crate::{
 		Animated, 
 		TextFrames, 
 		TextSprite
-	},
-	startup::rng::GlobalRng
+	}
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -122,7 +123,7 @@ impl TrainType {
         let train_type: TrainType = serde_json::from_str(
 			train_type.content()
 		).unwrap_or_else(|err| {
-            panic!("Failed to parse train from file.");
+            panic!("Failed to parse train from file {}.", err);
         });
 
         // Additional validation
@@ -149,7 +150,6 @@ pub struct Train(pub TrainTypes);
 pub enum TrainState {
 	#[default]
 	Moving, 
-	Stationary,
 	Wrecked
 }
 

@@ -1,8 +1,13 @@
 use bevy::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{
+    Serialize, 
+    Deserialize
+};
 
-use crate::scenes::dialogue::content::*;
-use crate::scenes::dilemma::content::*;
+use crate::scenes::{
+    dialogue::content::*,
+    dilemma::content::*
+};
 
 pub struct GameStatesPlugin;
 impl Plugin for GameStatesPlugin {

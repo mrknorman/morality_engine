@@ -23,10 +23,8 @@ use crate::{
         AssembleShape,
         Plus
     },
-    startup::{
-        rng::GlobalRng,
-        render::MainCamera
-    }
+    data::rng::GlobalRng,
+    startup::render::MainCamera
 };
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));

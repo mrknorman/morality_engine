@@ -1,8 +1,8 @@
 use bevy::prelude::*;
-use crate::systems::colors::{
+use crate::{startup::cursor::CursorMode, systems::{colors::{
     OPTION_1_COLOR,
     OPTION_2_COLOR
-};
+}, interaction::ClickableCursorIcons}};
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LeverSystemsActive {
     #[default]
@@ -98,14 +98,21 @@ impl LeverState {
     }
 }
 
+
 #[derive(Component, Resource)]
-#[require(LeverText)]
+#[require(LeverText, ClickableCursorIcons(Lever::default_cursor_icons))]
 pub struct Lever(pub LeverState);
 
 impl Lever {
+    fn default_cursor_icons() -> ClickableCursorIcons {					
+        ClickableCursorIcons{
+            on_hover : CursorMode::PullLeft
+        }
+    }
+
     pub fn update(
         lever: Option<Res<Lever>>,
-        mut lever_text_query: Query<(&mut Text2d, &mut TextColor), With<Lever>>,
+        mut lever_text_query: Query<(&mut Text2d, &mut TextColor, &mut ClickableCursorIcons ), With<Lever>>,
     ) {
         let lever = match lever {
             Some(lever) => lever,
@@ -114,27 +121,30 @@ impl Lever {
 
         match lever.0 {
             LeverState::Left => {
-                if let Ok(( mut text, mut color)) = lever_text_query.get_single_mut() {
+                if let Ok(( mut text, mut color, mut icons)) = lever_text_query.get_single_mut() {
                     text.0 = LEVER_LEFT.to_string();
                     color.0 = OPTION_1_COLOR;
+                    icons.on_hover = CursorMode::PullRight;
                 } else {
                     warn!("No single lever Text2d entity found to update.");
                 }
             }
 
             LeverState::Right => {
-                if let Ok((mut text, mut color)) = lever_text_query.get_single_mut() {
+                if let Ok((mut text, mut color, mut icons)) = lever_text_query.get_single_mut() {
                     text.0 = LEVER_RIGHT.to_string();
                     color.0 = OPTION_2_COLOR;
+                    icons.on_hover = CursorMode::PullLeft;
                 } else {
                     warn!("No single lever Text2d entity found to update.");
                 }
             }
 
             LeverState::Random => {
-                if let Ok(( mut text, mut color)) = lever_text_query.get_single_mut() {
+                if let Ok(( mut text, mut color, mut icons)) = lever_text_query.get_single_mut() {
                     text.0 = LEVER_MIDDLE.to_string();
                     color.0 = Color::WHITE;
+                    icons.on_hover = CursorMode::PullLeft;
                 } else {
                     warn!("No single lever Text2d entity found to update.");
                 }

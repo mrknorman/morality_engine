@@ -175,12 +175,21 @@ fn activate_prerequisite_states(
 
 #[derive(Event)]
 pub struct AdvanceDialogue;
+#[derive(Copy, Clone, Component)]
+pub struct ClickableCursorIcons {
+    pub on_hover : CursorMode,
+}
 
-#[derive(Component, Default)]
-pub struct IsClickable;
+impl Default for ClickableCursorIcons{
+    fn default() -> Self {
+        Self{
+            on_hover : CursorMode::Clicker,
+        }
+    }
+}
 
 #[derive(Component)]
-#[require(IsClickable)]
+#[require(ClickableCursorIcons)]
 pub struct Clickable<T>
 where
     T: Copy + Send + Sync,
@@ -191,6 +200,39 @@ where
     pub triggered: bool,
 }
 
+
+impl<T> Default for Clickable<T>
+where
+    T: Copy + Send + Sync,
+{
+    fn default() -> Self {
+        Self {
+            actions : vec![],
+            triggered: false,
+            region : None
+        }
+    }
+}
+
+impl<T> Clickable<T>
+where
+    T: Copy + Send + Sync,
+{
+    pub fn new(actions: Vec<T>) -> Self {
+        Self {
+            actions,
+            ..default()
+        }
+    }
+
+    pub fn with_region(actions: Vec<T>, region : Vec2) -> Self {
+        Self {
+            actions,
+            region : Some(region),
+            ..default()
+        }
+    }
+}
 pub struct KeyMapping<T>
 where
     T: Copy + Send + Sync,
@@ -242,6 +284,30 @@ pub struct ClickablePong<T> {
     pub action_vector: Vec<Vec<T>>,
 }
 
+impl<T> Default for ClickablePong<T> where
+    T: Copy + Send + Sync + 'static,
+{ 
+    fn default() -> Self {
+        Self{
+            initial_state : 0,
+            direction : PongDirection::Forward,
+            action_vector : vec![],
+        }
+    }
+}
+
+impl<T: Clone> ClickablePong<T>  where
+    T: Copy + Send + Sync + 'static,
+{
+    pub fn new(action_vector: Vec<Vec<T>>, initial_state : usize) -> Self {
+        Self {
+            initial_state,
+            action_vector,
+            ..default()
+        }
+    }
+}
+
 impl<T> Component for ClickablePong<T> 
 where
     T: Copy + Send + Sync + 'static,
@@ -255,43 +321,15 @@ where
             |mut world, entity, _component_id| {
                 if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
                     world.commands().entity(entity).insert((
-                        Clickable::new(pong.action_vector[pong.initial_state].clone()),
+                        Clickable{
+                            actions : pong.action_vector[pong.initial_state].clone(),
+                            ..default()
+                        },
                         InteractionState(pong.initial_state),
                     ));
                 }
             }
         );
-    }
-}
-
-impl<T> Clickable<T>
-where
-    T: Copy + Send + Sync,
-{
-    pub fn new(actions: Vec<T>) -> Self {
-        Clickable {
-            actions,
-            triggered: false,
-            region : None
-        }
-    }
-
-    pub fn with_region(actions: Vec<T>, region : Vec2) -> Self {
-        Self {
-            actions,
-            triggered: false,
-            region : Some(region)
-        }
-    }
-}
-
-impl<T: Clone> ClickablePong<T> {
-    pub fn new(action_vector: Vec<Vec<T>>, initial_state : usize) -> Self {
-        Self {
-            initial_state,
-            direction: PongDirection::Forward,
-            action_vector,
-        }
     }
 }
 
@@ -428,7 +466,7 @@ macro_rules! handle_triggers {
 
 #[derive(Resource, Default)]
 pub struct InteractionAggregate {
-    option_to_click : bool,
+    option_to_click : Option<CursorMode>,
     option_to_drag : bool,
     is_dragging : bool
 }
@@ -439,8 +477,8 @@ pub fn reset_clickable_aggregate(
 ) {
     if aggregate.is_dragging {
         cursor.current_mode = CursorMode::Dragging;
-    } else if aggregate.option_to_click {
-        cursor.current_mode = CursorMode::Clicker;
+    } else if let Some(mode) = aggregate.option_to_click  {
+        cursor.current_mode = mode;
     } else if aggregate.option_to_drag {
         cursor.current_mode = CursorMode::Dragger;
     } else {
@@ -455,12 +493,13 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         mouse_input: Res<ButtonInput<MouseButton>>,
         mut aggregate : ResMut<InteractionAggregate>,
         camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        mut clickable_q: Query<(Option<&Aabb>, &Transform, &GlobalTransform, &mut Clickable<T>), Without<TextSpan>>,
-    ) {
+        mut clickable_q: Query<
+            (Option<&Aabb>, &Transform, &GlobalTransform, &ClickableCursorIcons, &mut Clickable<T>), Without<TextSpan>>,
+        ) {
 
     let Some(cursor_position) = get_cursor_world_position(&window, &camera_q) else { return };
 
-    for (bound, transform, global_transform, mut clickable) in clickable_q.iter_mut() {
+    for (bound, transform, global_transform, icons, mut clickable) in clickable_q.iter_mut() {
         if let Some(region) = clickable.region {
             if is_cursor_within_region(
                 cursor_position,
@@ -470,12 +509,12 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
                 Vec2::ZERO
             ) {
                 clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
-                aggregate.option_to_click = true;
+                aggregate.option_to_click = Some(icons.on_hover);
             }
         } else if let Some(bound) = bound {
             if is_cursor_within_bounds(cursor_position, global_transform, bound) {
                 clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
-                aggregate.option_to_click = true;
+                aggregate.option_to_click = Some(icons.on_hover);
             }
         }
     }

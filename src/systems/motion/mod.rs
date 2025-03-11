@@ -14,7 +14,7 @@ use crate::{
 		}, 
 		time::Dilation, 
 	},
-	startup::rng::GlobalRng
+	data::rng::GlobalRng
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]

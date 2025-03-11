@@ -3,8 +3,17 @@ use bevy::{prelude::*, sprite::Anchor};
 
 use crate::{
     systems::colors::PRIMARY_COLOR, 
-    scenes::dilemma::{dilemma::DilemmaOptionConsequences, lever::LeverState}, 
-    entities::text::{Cell, Column, Row, Table, TextContent}
+    entities::text::{
+        Cell, 
+        Column, 
+        Row, 
+        Table, 
+        TextContent
+    },
+    scenes::dilemma::{
+        dilemma::DilemmaOptionConsequences, 
+        lever::LeverState
+    },
 };
 
 pub struct StatsPlugin;

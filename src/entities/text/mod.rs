@@ -1,9 +1,16 @@
-use std::{
-    fs::File, io::BufReader, path::Path
-};
 use serde::Deserialize;
-
-use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*, sprite::Anchor, text::{TextBounds, TextLayoutInfo}};
+use bevy::{
+    prelude::*, 
+    ecs::component::{
+        ComponentHooks, 
+        StorageType
+    }, 
+    sprite::Anchor, 
+    text::{
+        TextBounds, 
+        TextLayoutInfo
+    }
+};
 
 use crate::{
     systems::{
@@ -25,8 +32,15 @@ use crate::{
         time::Dilation
     },
     entities::sprites::{
-        compound::{BorderedRectangle, HollowRectangle, RectangleSides}, 
-        window::{Window, WindowTitle},
+        compound::{
+            BorderedRectangle, 
+            HollowRectangle, 
+            RectangleSides
+        }, 
+        window::{
+            Window, 
+            WindowTitle
+        },
         SpritePlugin
     }
 };

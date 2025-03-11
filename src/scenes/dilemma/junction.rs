@@ -5,15 +5,25 @@ use bevy::{
 };
 
 use crate::{
-    systems::{
+    entities::{
+		person::{
+			Emoticon, EmotionSounds, PersonSprite,
+		},
+		track::Track
+	}, scenes::dilemma::{
+		lever::{
+	    	Lever, 
+       		LeverState
+    	}, 
+		Dilemma
+	}, startup::cursor::CursorMode, systems::{
 		audio::{
 			continuous_audio, 
 			ContinuousAudio, 
 			ContinuousAudioPallet, 
 			TransientAudio, 
 			TransientAudioPallet
-		}, 
-		colors::{
+		}, colors::{
 			ColorAnchor, 
 			ColorChangeEvent, 
 			ColorChangeOn, 
@@ -21,27 +31,11 @@ use crate::{
 			DANGER_COLOR,
 			OPTION_1_COLOR, 
 			OPTION_2_COLOR
-		},
-		motion::{
+		}, inheritance::BequeathTextColor, interaction::ClickableCursorIcons, motion::{
 			Bounce, 
 			TransformMultiAnchor
-		},
-		inheritance::BequeathTextColor, 
-		time::Dilation 
-	}, 
-	entities::{
-		person::{
-			Emoticon, EmotionSounds, PersonSprite,
-		},
-		track::Track
-	},
-	scenes::dilemma::{
-		lever::{
-	    	Lever, 
-       		LeverState
-    	}, 
-		Dilemma
-	},  
+		}, time::Dilation 
+	}  
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]

@@ -50,6 +50,9 @@ impl Plugin for GamePlugin {
     // Weather Shaders
     // Spacial Audio?
 
+    // Test deonotlogy vs bystander by waking up having slept on the lever,
+    // Pushing into cablecar cogs 
+    
     Cursors (Explore Storytelling with Cursor)
         - Idle Animations
         - Sand Timer

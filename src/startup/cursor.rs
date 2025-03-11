@@ -1,6 +1,27 @@
-use bevy::{asset::LoadState, prelude::*, render::view::RenderLayers, sprite::Anchor, utils::HashMap};
-use enum_map::{Enum, EnumMap, enum_map};
-use super::render::{convert_to_hdr, MainCamera};
+use bevy::{
+    prelude::*, 
+    render::{
+        view::RenderLayers, 
+        render_asset::RenderAssetUsages
+    },
+    sprite::Anchor,
+    asset::Assets,
+    image::{
+        CompressedImageFormats, 
+        ImageSampler, 
+        ImageType
+    }
+};
+
+use enum_map::{
+    Enum, 
+    EnumMap
+};
+
+use super::render::{
+    convert_to_hdr, 
+    MainCamera
+};
 
 pub struct CursorPlugin;
 impl Plugin for CursorPlugin {
@@ -10,10 +31,8 @@ impl Plugin for CursorPlugin {
             Startup, 
             CustomCursor::setup
         ).add_systems(
-            Update, (
-            CustomCursor::check_texture_loaded,
-            CustomCursor::update_position,
-            )
+            Update, 
+            CustomCursor::update_position
         ).add_systems(
             Update, 
             CustomCursor::update_icon
@@ -28,13 +47,14 @@ pub enum CursorMode {
     Pointer,
     Clicker,
     Dragger,
-    Dragging
+    Dragging,
+    PullLeft,
+    PullRight
 }
 
 
 #[derive(Resource, Default)]
 pub struct CustomCursor {
-    hdr_applied: bool,
     entity: Option<Entity>,
     icons: EnumMap<CursorMode, Handle<Image>>,
     pub current_mode: CursorMode,
@@ -45,112 +65,76 @@ impl CustomCursor {
     fn setup(
         mut commands: Commands,
         mut window: Single<&mut Window>,
-        asset_server: Res<AssetServer>,
-        mut custom_cursor: ResMut<CustomCursor>,
-    ) {
-        window.cursor_options.visible = false;
-    
-        // Define cursor size
-        let cursor_size = Vec2::new(15.0, 15.0);
-    
-        // Load the texture
-        let pointer_handle: Handle<Image> = asset_server.load("textures/pointer.png");
-        let clicker_handle: Handle<Image> = asset_server.load("textures/clicker.png");
-        let dragger_handle: Handle<Image> = asset_server.load("textures/dragger.png");
-        let dragging_handle: Handle<Image> = asset_server.load("textures/dragging.png");
-
-        
-        // Keep original spawning logic
-        let cursor_entity = commands.spawn((
-            Sprite {
-                image: pointer_handle.clone(),
-                custom_size: Some(cursor_size),
-                anchor: Anchor::TopLeft,
-                ..default()
-            },
-            Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
-            RenderLayers::layer(0),
-        )).id();
-        
-        *custom_cursor = CustomCursor {
-            hdr_applied: false,
-            entity: Some(cursor_entity),
-            icons: enum_map![
-                CursorMode::Pointer => pointer_handle.clone(),
-                CursorMode::Clicker => clicker_handle.clone(),
-                CursorMode::Dragger => dragger_handle.clone(),
-                CursorMode::Dragging => dragging_handle.clone()
-            ],
-            current_mode: CursorMode::Pointer,
-        };
-    }
-
-    fn check_texture_loaded(
-        asset_server: Res<AssetServer>,
         mut images: ResMut<Assets<Image>>,
         mut custom_cursor: ResMut<CustomCursor>,
-        mut sprites: Query<&mut Sprite>,
     ) {
-        if custom_cursor.hdr_applied {
-            return; // Skip if HDR already applied to all textures
+        // Hide the default cursor
+        window.cursor_options.visible = false;
+        
+        // Define cursor size
+        let cursor_size = Vec2::new(15.0, 15.0);
+        
+        // Create a struct to define cursor image data
+        struct CursorImageData {
+            bytes: &'static [u8],
+            mode: CursorMode,
         }
-
-        // Check if we need to update any textures
-        let mut all_loaded = true;
-        let mut any_updated = false;
-        let mut updated_handles : EnumMap<CursorMode, _> = EnumMap::default();
-
-        // First pass - check all textures and convert to HDR if needed
-        for (mode, handle) in custom_cursor.icons.iter() {
-            match asset_server.get_load_state(&handle.clone()) {
-                Some(LoadState::Loaded) => {
-                    // Get the loaded image
-                    if let Some(base_image) = images.get(handle) {
-                        // Clone the image and convert to HDR
-                        let base_image_clone = base_image.clone();
-                        let hdr_image = convert_to_hdr(&base_image_clone, 5.0);
-                    
-                        // Add the HDR image to assets
-                        let hdr_handle = images.add(hdr_image);
-                        
-                        // Store the updated handle for later assignment
-                        updated_handles[mode] = Some(hdr_handle);
-                        any_updated = true;
-                    }
-                }
-                Some(LoadState::Failed(_)) => {
-                    println!("Failed to load cursor texture for mode {:?}!", mode);
-                    all_loaded = false;
-                }
-                _ => {
-                    // Still loading, wait for next frame
-                    all_loaded = false;
-                }
-            }
-        }
-
-        // Only update handles if we processed at least one texture
-        if any_updated {
-            // Second pass - update the handles in the custom_cursor resource
-            for (mode, hdr_handle) in updated_handles.iter() {
-                if let Some(hdr_handle) = hdr_handle {
-                    custom_cursor.icons[mode] = hdr_handle.clone();
-                }
-            }
+        
+        // Define all cursor images
+        let cursor_images = [
+            CursorImageData { bytes: include_bytes!("content/pointer.png"), mode: CursorMode::Pointer },
+            CursorImageData { bytes: include_bytes!("content/clicker.png"), mode: CursorMode::Clicker },
+            CursorImageData { bytes: include_bytes!("content/dragger.png"), mode: CursorMode::Dragger },
+            CursorImageData { bytes: include_bytes!("content/dragging.png"), mode: CursorMode::Dragging },
+            CursorImageData { bytes: include_bytes!("content/pull_left.png"), mode: CursorMode::PullLeft },
+            CursorImageData { bytes: include_bytes!("content/pull_right.png"), mode: CursorMode::PullRight },
+        ];
+        
+        // Define parameters that can be copied
+        let compressed_formats = CompressedImageFormats::all();
+        let is_srgb = true;
+        let asset_usage = RenderAssetUsages::default();
+        let image_sampler = ImageSampler::default();
+        
+        // Convert and add all images to assets, then create a mapping of modes to handles
+        let icons = cursor_images.into_iter().map(|data| {
+            let image = Image::from_buffer(
+                data.bytes,
+                ImageType::Extension("png"),
+                compressed_formats,
+                is_srgb,
+                image_sampler.clone(),
+                asset_usage,
+            )
+            .expect("Failed to load cursor image");
             
-            // Update the active cursor sprite
-            if let Some(cursor_entity) = custom_cursor.entity {
-                if let Ok(mut sprite) = sprites.get_mut(cursor_entity) {
-                    // Set sprite to current mode's texture
-                    if let Some(handle) = updated_handles[custom_cursor.current_mode].clone() {
-                        sprite.image = handle;
-                    }
-                }
-            }
+            let hdr_image = convert_to_hdr(&image, 5.0);
+            let handle = images.add(hdr_image);
             
-            // Mark as HDR applied only if all textures were loaded and converted
-            custom_cursor.hdr_applied = all_loaded;
-        }
+            (data.mode, handle)
+        })
+        .collect::<EnumMap<CursorMode, Handle<Image>>>();
+        
+        // Spawn cursor entity with the default pointer image
+        let cursor_entity = commands
+            .spawn((
+                Sprite {
+                    image: icons[CursorMode::Pointer].clone(),
+                    custom_size: Some(cursor_size),
+                    anchor: Anchor::TopLeft,
+                    ..default()
+                },
+                Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
+                RenderLayers::layer(0),
+            ))
+            .id();
+        
+        // Update custom cursor resource
+        *custom_cursor = CustomCursor {
+            entity: Some(cursor_entity),
+            icons,
+            current_mode: CursorMode::Pointer,
+        };
     }
 
     fn update_position(
