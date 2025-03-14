@@ -9,11 +9,7 @@ use enum_map::{enum_map, Enum};
 use crate::{
 	data::{
 		stats:: GameStats, 
-		states::{
-			DilemmaPhase, 
-			GameState, 
-			StateVector
-		}, 
+		states::DilemmaPhase
 	},
 	systems::{
 		audio::{
@@ -174,16 +170,9 @@ impl DilemmaResultsScene {
 					enum_map!(
 						DilemmaResultsActions::ExitResults => vec![
 							InputAction::PlaySound(DilemmaSounds::Click),
-							InputAction::ChangeState(
-								StateVector::new(
-									None,
-									Some(GameState::Dialogue),
-									Some(DilemmaPhase::Intro),
-								)
-							),
+							InputAction::NextScene,
 							InputAction::Despawn(None)
-							]
-						)
+					])
 				),
 				TransientAudioPallet::new(
 					vec![(

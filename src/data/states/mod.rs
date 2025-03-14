@@ -4,10 +4,6 @@ use serde::{
     Deserialize
 };
 
-use crate::scenes::{
-    dialogue::content::*,
-    dilemma::content::*
-};
 
 pub struct GameStatesPlugin;
 impl Plugin for GameStatesPlugin {
@@ -18,8 +14,7 @@ impl Plugin for GameStatesPlugin {
         .add_sub_state::<DilemmaPhase>()
         .enable_state_scoped_entities::<MainState>()
         .enable_state_scoped_entities::<GameState>()
-        .enable_state_scoped_entities::<DilemmaPhase>()
-        .insert_resource(Memory::default());
+        .enable_state_scoped_entities::<DilemmaPhase>();
     }
 }
 
@@ -91,20 +86,4 @@ impl StateVector {
             next_sub_state.set(state.clone());
         }
     }
-}
-
-#[derive(Resource)]
-pub struct Memory{
-    pub next_dialogue : Vec<DialogueContent>,
-    pub next_dilemma : Option<DilemmaContent>
-}
-
-impl Default for Memory{
-    fn default() -> Self {
-        Self{
-            next_dialogue : vec![DialogueContent::Lab0(Lab0Dialogue::Intro)],
-            next_dilemma : Some(DilemmaContent::Lab0(Lab0Dilemma::IncompetentBandit))
-        }
-    }
-
 }

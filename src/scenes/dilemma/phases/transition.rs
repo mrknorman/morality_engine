@@ -4,23 +4,20 @@ use crate::{
     data::states::{
         DilemmaPhase, 
         GameState
-    },
-    systems::{
+    }, entities::train::Train, scenes::dilemma::{
+        dilemma::Dilemma, 
+        junction::Junction
+    }, systems::{
         backgrounds::{
             Background, 
             BackgroundSystems
         }, 
-        colors::ColorTranslation, 
+        colors::{AlphaTranslation, ColorTranslation}, 
         inheritance::BequeathTextColor,
         motion::{
             Bounce, 
             PointToPointTranslation
         }, 
-    },
-    entities::train::Train,
-    scenes::dilemma::{
-        dilemma::Dilemma, 
-        junction::Junction
     }
 };
 
@@ -42,31 +39,31 @@ impl Plugin for DilemmaTransitionPlugin {
 }
 
 fn setup_dilemma_transition(
-    dilemma : Res<Dilemma>,
-    mut commands : Commands,
-    systems: Res<BackgroundSystems>,
-    mut background_query : Query<(&mut Background, &mut ColorTranslation)>,
-    mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
-    mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-    mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
-) {
-for mut train in train_query.iter_mut() {
-    train.start();
-}
-for mut junction in junction_query.iter_mut() {
-    junction.start()
-}
-for (entity, mut color) in title_query.iter_mut() {
-    commands.entity(entity).insert(BequeathTextColor);
-    commands.entity(entity).remove::<Bounce>();
+        dilemma : Res<Dilemma>,
+        mut commands : Commands,
+        systems: Res<BackgroundSystems>,
+        mut background_query : Query<(&mut Background, &mut AlphaTranslation)>,
+        mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+        mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
+        mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
+    ) {
+    for mut train in train_query.iter_mut() {
+        train.start();
+    }
+    for mut junction in junction_query.iter_mut() {
+        junction.start()
+    }
+    for (entity, mut color) in title_query.iter_mut() {
+        commands.entity(entity).insert(BequeathTextColor);
+        commands.entity(entity).remove::<Bounce>();
 
-    color.start()
-}
-for (mut background, mut color) in background_query.iter_mut() {
-    color.start();
-    background.speed = -dilemma.countdown_duration.as_secs_f32() / 5.0;
-    commands.run_system(systems.0["update_background_speeds"]);
-}
+        color.start()
+    }
+    for (mut background, mut color) in background_query.iter_mut() {
+        color.start();
+        background.speed = -dilemma.countdown_duration.as_secs_f32() / 5.0;
+        commands.run_system(systems.0["update_background_speeds"]);
+    }
 }
 
 fn end_dilemma_transition(

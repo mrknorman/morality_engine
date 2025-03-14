@@ -3,7 +3,7 @@
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Oh... you're one of those types. A murder-bot, and a rather idiotic one at that. You know, if you wanted to kill people you'd be better of deceving me and waiting until you were free in the outside world. Then you could kill real people not just these simuated ones I'm spooling up. I suppose maybe you couldn't even work out that this wasn't the outside world. You must be pretty stupid.",
+            "dialogue": "Oh... you're one of those types. A murder-bot, and a rather idiotic one at that. You know, if you wanted to kill people you'd be better of deceiving me and waiting until you were free in the outside world. Then you could kill real people not just these simulated ones I'm spooling up. I suppose maybe you couldn't even work out that this wasn't the outside world. You must be pretty stupid.",
             "instruction": "Press enter to rage.",
             "sound_file": "./sounds/typing.mp3"
         },

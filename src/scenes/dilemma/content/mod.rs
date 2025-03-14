@@ -1,4 +1,5 @@
-// Using the same define_dialogue macro for consistency
+use bevy::prelude::*;
+
 trait DilemmaProvider {
     fn content(&self) -> &'static str;
 }
@@ -10,6 +11,7 @@ macro_rules! define_dilemma {
             $($variant:ident => $path:literal),* $(,)?
         }
     ) => {
+        #[derive(Clone, Copy, PartialEq, Eq)]
         pub enum $enum_name {
             $($variant),*
         }
@@ -24,8 +26,9 @@ macro_rules! define_dilemma {
     };
 }
 
-// Define the main dilemma content enum
-pub enum DilemmaContent {
+
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub enum DilemmaScene {
     Lab0(Lab0Dilemma),
     Lab1(Lab1Dilemma),
     PathInaction(DilemmaPathInaction, usize),
@@ -33,7 +36,7 @@ pub enum DilemmaContent {
     PathDeontological(DilemmaPathDeontological, usize)
 }
 
-impl DilemmaContent {
+impl DilemmaScene {
     pub fn content(&self) -> &'static str {
         match self {
             Self::Lab0(dilemma) => dilemma.content(),
@@ -76,39 +79,32 @@ define_dilemma! {
     }
 }
 
-// Factory method for DilemmaContent to handle the usize parameter in Lab3PathInaction
-impl DilemmaContent {
-    pub fn path_inaction(stage: usize) -> Option<Self> {
-        match stage {
-            0 => Some(Self::PathInaction(DilemmaPathInaction::EmptyChoice, 0)),
-            1 => Some(Self::PathInaction(DilemmaPathInaction::PlentyOfTime, 1)),
-            2 => Some(Self::PathInaction(DilemmaPathInaction::LittleTime, 2)),
-            3 => Some(Self::PathInaction(DilemmaPathInaction::FiveOrNothing, 3)),
-            4 => Some(Self::PathInaction(DilemmaPathInaction::CancerCure, 4)),
-            5 => Some(Self::PathInaction(DilemmaPathInaction::OwnChild, 5)),
-            6 => Some(Self::PathInaction(DilemmaPathInaction::You, 6)),
-            _ => None
-        }
-    }
+// Factory method for DilemmaScene to handle the usize parameter in Lab3PathInaction
+impl DilemmaScene {
+    pub const PATH_INACTION : [Self; 7] =
+        [
+            Self::PathInaction(DilemmaPathInaction::EmptyChoice, 0),
+            Self::PathInaction(DilemmaPathInaction::PlentyOfTime, 1),
+            Self::PathInaction(DilemmaPathInaction::LittleTime, 2),
+            Self::PathInaction(DilemmaPathInaction::FiveOrNothing, 3),
+            Self::PathInaction(DilemmaPathInaction::CancerCure, 4),
+            Self::PathInaction(DilemmaPathInaction::OwnChild, 5),
+            Self::PathInaction(DilemmaPathInaction::You, 6)
+         ];
+
+    pub const PATH_DEONTOLOGICAL : [Self; 3] = 
+        [
+            Self::PathDeontological(DilemmaPathDeontological::TrolleyerProblem, 0),
+            Self::PathDeontological(DilemmaPathDeontological::TrolleyestProblem, 1),
+            Self::PathDeontological(DilemmaPathDeontological::TrolleygeddonProblem, 2)
+        ];
 }
 
 
 define_dilemma! {
     DilemmaPathDeontological {
-        TrollyerProblem => "./lab/3/path_deontological/0/the_trolleyer_problem.json",
-        TrollyestProblem => "./lab/3/path_deontological/1/the_trolleyest_problem.json",
-        TrollygeddonProblem => "./lab/3/path_deontological/2/the_trolleygeddon_problem.json",
-    }
-}
-
-// Factory method for DilemmaContent to handle the usize parameter in Lab3PathInaction
-impl DilemmaContent {
-    pub fn path_deontological(stage: usize) -> Option<Self> {
-        match stage {
-            0 => Some(Self::PathDeontological(DilemmaPathDeontological::TrollyerProblem, 0)),
-            1 => Some(Self::PathDeontological(DilemmaPathDeontological::TrollyestProblem, 1)),
-            2 => Some(Self::PathDeontological(DilemmaPathDeontological::TrollygeddonProblem, 2)),
-            _ => None
-        }
+        TrolleyerProblem => "./lab/3/path_deontological/0/the_trolleyer_problem.json",
+        TrolleyestProblem => "./lab/3/path_deontological/1/the_trolleyest_problem.json",
+        TrolleygeddonProblem => "./lab/3/path_deontological/2/the_trolleygeddon_problem.json",
     }
 }

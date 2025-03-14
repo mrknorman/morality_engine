@@ -19,6 +19,13 @@ use serde::{
 };
 
 use crate::{
+    data::{
+        character::{
+            Character, 
+            CharacterKey
+        },  
+        states::GameState
+    },
     systems::{
         audio::{
             continuous_audio, 
@@ -48,21 +55,10 @@ use crate::{
             TextWindow
         }, 
     },
-    style::common_ui::NextButton,
-    data::{
-        character::{
-            Character, 
-            CharacterKey
-        },  
-        states::{
-            GameState, 
-            Memory, 
-            StateVector
-        }, 
-    }
+    style::common_ui::NextButton
 };
 
-use super::content::DialogueContent;
+use super::content::DialogueScene;
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DialogueSystemsActive {
@@ -194,7 +190,7 @@ impl Dialogue {
         }
     }
 
-    pub fn load(content : &DialogueContent, user_map: &HashMap<String, Character>) -> Self {
+    pub fn load(content : &DialogueScene, user_map: &HashMap<String, Character>) -> Self {
         let loaded_dialogue: DialogueLoader = serde_json::from_str(content.content())
             .expect("Failed to parse embedded JSON");
     
@@ -217,7 +213,7 @@ impl Dialogue {
 
     pub fn init(
         asset_server: &Res<AssetServer>,
-        dialogue_content : &Vec<DialogueContent>,
+        dialogue_content : &Vec<DialogueScene>,
         user_map: &HashMap<String, Character>
     ) -> (ContinuousAudioPallet<CharacterKey>, Dialogue) {
 
@@ -377,7 +373,6 @@ impl Dialogue {
 
 	fn advance_dialogue(
         mut commands: Commands,
-        memory : Res<Memory>,
         mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
         mut writer: Text2dWriter,
         audio_query: Query<&AudioSink>, 
@@ -409,21 +404,7 @@ impl Dialogue {
                     };
 
                     let next_action = if dialogue.current_line_index >= dialogue.lines.len() - 1 {
-
-                        if memory.next_dilemma.is_none() {
-                            InputAction::ChangeState(StateVector::new(
-                                None,
-                                Some(GameState::Ending),
-                                None,
-                            ))
-                        } else {
-                            InputAction::ChangeState(StateVector::new(
-                                None,
-                                Some(GameState::Dilemma),
-                                None,
-                            ))
-                        }
-
+                        InputAction::NextScene
                     } else {
                         InputAction::AdvanceDialogue("placeholder".to_string())
                     };

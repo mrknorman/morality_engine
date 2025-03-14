@@ -16,7 +16,6 @@ use crate::{
             DilemmaPhase, 
             GameState, 
             MainState, 
-            Memory, 
             StateVector
         }, 
         stats::GameStats
@@ -47,6 +46,8 @@ use crate::{
         }
     },
     scenes::{
+        Scene,
+        SceneQueue,
         dialogue::dialogue::{
             DialogueActions, 
             DialogueSounds
@@ -129,6 +130,7 @@ macro_rules! register_interaction_systems {
                 system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Bounce),
                 system_entry!(trigger_reset_game::<$enum_type, $audio_type>, InteractionSystem::ResetGame, after: InteractionSystem::Bounce),
                 system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
+                system_entry!(trigger_next_scene::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
                 system_entry!(trigger_despawn::<$enum_type, $audio_type>, InteractionSystem::Despawn, after: InteractionSystem::StateChange),
             )
         );
@@ -349,6 +351,7 @@ where
 {
     PlaySound(S),
     ChangeState(StateVector),
+    NextScene,
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
     ResetGame, 
@@ -492,14 +495,14 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         window: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         mut aggregate : ResMut<InteractionAggregate>,
-        camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        mut clickable_q: Query<
+        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        mut clickable_query: Query<
             (Option<&Aabb>, &Transform, &GlobalTransform, &ClickableCursorIcons, &mut Clickable<T>), Without<TextSpan>>,
         ) {
 
-    let Some(cursor_position) = get_cursor_world_position(&window, &camera_q) else { return };
+    let Some(cursor_position) = get_cursor_world_position(&window, &camera_query) else { return };
 
-    for (bound, transform, global_transform, icons, mut clickable) in clickable_q.iter_mut() {
+    for (bound, transform, global_transform, icons, mut clickable) in clickable_query.iter_mut() {
         if let Some(region) = clickable.region {
             if is_cursor_within_region(
                 cursor_position,
@@ -606,6 +609,57 @@ where
     }
 }
 
+pub fn trigger_next_scene<K, S>(
+    mut query: Query<(
+        Entity,
+        Option<&mut Clickable<K>>,
+        Option<&mut Pressable<K>>,
+        &ActionPallet<K, S>,
+    )>,
+    mut queue : ResMut<SceneQueue>,
+    mut next_main_state: ResMut<NextState<MainState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
+)
+where
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
+{
+    for (_, clickable, pressable, pallet) in query.iter_mut() {
+        handle_triggers!(clickable, pressable, pallet, handle => {
+            handle_all_actions!(handle, pallet => {
+                NextScene => {
+                        match queue.pop() {
+                            Scene::Menu => {
+                                StateVector::new(Some(MainState::Menu), None, None)
+                            },
+                            Scene::Loading => {
+                                StateVector::new(Some(MainState::InGame), Some(GameState::Loading), None)
+                            },
+                            Scene::Dialogue(_) => {
+                                StateVector::new(Some(MainState::InGame), Some(GameState::Dialogue), None)
+                            },
+                            Scene::Dilemma(_) => {
+                                StateVector::new(Some(MainState::InGame), Some(GameState::Dilemma), Some(DilemmaPhase::Intro))
+                            },
+                            Scene::Ending(_) => {
+                                StateVector::new(Some(MainState::InGame), Some(GameState::Ending), None)
+                            }
+                        }.set_state(
+                            &mut next_main_state,
+                            &mut next_game_state,
+                            &mut next_sub_state,
+                        );
+                    }
+                }
+            );
+        });
+    }
+}
+
+
 pub fn trigger_state_change<K, S>(
     mut query: Query<(
         Entity,
@@ -669,7 +723,7 @@ where
 }
 
 pub fn trigger_reset_game<K, S>(
-    mut memory : ResMut<Memory>,
+    mut queue : ResMut<SceneQueue>,
     mut stats : ResMut<GameStats>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
@@ -691,7 +745,7 @@ where
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
                 ResetGame => {
-                    *memory = Memory::default();
+                    *queue = SceneQueue::default();
                     *stats = GameStats::default();
                     StateVector::new(
                         Some(MainState::Menu), 

@@ -56,6 +56,8 @@ use crate::{
     }
 };
 
+use super::SceneQueue;
+
 pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
@@ -112,10 +114,13 @@ impl MenuScene {
 
     fn setup(
         mut commands: Commands, 
+        queue : Res<SceneQueue>,
         asset_server: Res<AssetServer>
     ) {
+
         commands.spawn(
             (
+                queue.current,
                 MenuScene,
                 StateScoped(MainState::Menu),
             )
@@ -229,13 +234,7 @@ impl MenuScene {
                                     InputAction::PlaySound(
                                         MenuSounds::Click
                                     ),
-                                    InputAction::ChangeState(
-                                        StateVector::new(
-                                            Some(MainState::InGame),
-                                            None,
-                                            None
-                                        )
-                                    )
+                                    InputAction::NextScene
                                 ]
                             )
                         ),

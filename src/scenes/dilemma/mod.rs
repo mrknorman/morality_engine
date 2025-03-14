@@ -12,58 +12,34 @@ use phases::{
 };
 use crate::{
 	data::{
-		stats::DilemmaStats, 
-		states::{GameState, Memory}, 
-	},
-	entities::{
+		states::GameState, stats::DilemmaStats 
+	}, entities::{
 		large_fonts::{
 			AsciiPlugin, 
 			AsciiString, 
 			TextEmotion
-		}, 
-		sprites::{
+		}, person::PersonPlugin, sprites::{
 			window::WindowTitle, 
 			SpritePlugin
-		}, 
-		text::{
+		}, text::{
 			TextPlugin, 
 			TextWindow
-		},
-		train::{
-			Train, 
-			TrainPlugin, 
-			content::TrainTypes
-		},
-		person::PersonPlugin, 
-	},
-	systems::{
+		}, train::{
+			content::TrainTypes, Train, TrainPlugin
+		} 
+	}, style::ui::IOPlugin, systems::{
 		audio::{
 			continuous_audio, 
 			MusicAudio
-		}, 
-		backgrounds::{
-			Background, 
-			BackgroundPlugin,
-			content::BackgroundTypes
-		}, 
-		colors::{
-			ColorTranslation, 
-			Fade,
-			BACKGROUND_COLOR, 
-			DIM_BACKGROUND_COLOR, 
-			OPTION_1_COLOR, 
-			OPTION_2_COLOR, 
-			PRIMARY_COLOR
-		},
-		interaction::{
+		}, backgrounds::{
+			content::BackgroundTypes, Background, BackgroundPlugin
+		}, colors::{
+			AlphaTranslation, ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
+		}, inheritance::{BequeathTextAlpha, BequeathTextColor}, interaction::{
 			Draggable, 
 			InteractionPlugin
-		},
-		scheduling::TimingPlugin,
-		motion::PointToPointTranslation, 
-		inheritance::BequeathTextColor,
-	}, 
-	style::ui::IOPlugin 
+		}, motion::PointToPointTranslation, scheduling::TimingPlugin
+	} 
 };
 
 pub mod phases;
@@ -75,12 +51,15 @@ use dilemma::{
 };
 pub mod lever;
 pub mod content;
+use content::DilemmaScene;
 use lever::LeverPlugin;
 mod junction;
 use junction::{
 	Junction, 
 	JunctionPlugin
 };
+
+use super::{SceneQueue, Scene};
 
 pub struct DilemmaScenePlugin;
 impl Plugin for DilemmaScenePlugin {
@@ -135,21 +114,20 @@ impl Plugin for DilemmaScenePlugin {
     }
 }
 
-#[derive(Component)]
-#[require(Transform, Visibility)]
-struct DilemmaScene;
-
 impl DilemmaScene {
 	fn setup(
 		mut commands : Commands,
-		memory : Res<Memory>,
+		queue : Res<SceneQueue>,
 		asset_server: Res<AssetServer>
 	) {
 
-		let dilemma = if let Some(d) = &memory.next_dilemma {
-			Dilemma::load(&d)
-		} else {
-			panic!("Should have gone to ending!");
+		let scene = queue.current;
+
+		let dilemma = match scene {
+			Scene::Dilemma(content) => {
+				Dilemma::new(&content)
+			},
+			_ => panic!("Scene is not dilemma!") 
 		};
 
 		commands.insert_resource(
@@ -158,7 +136,7 @@ impl DilemmaScene {
 		
 		commands.spawn(
 			(
-				DilemmaScene,
+				scene,
 				StateScoped(GameState::Dilemma)
 			)
 		).with_children(
@@ -222,9 +200,9 @@ impl DilemmaScene {
 						0.00002,
 						-0.5
 					),
-					BequeathTextColor,
-					ColorTranslation::new(
-						DIM_BACKGROUND_COLOR,
+					BequeathTextAlpha,
+					AlphaTranslation::new(
+						DIM_BACKGROUND_COLOR.alpha(),
 						transition_duration,
 						true
 					))

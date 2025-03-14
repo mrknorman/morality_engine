@@ -11,12 +11,7 @@ use enum_map::{
 };
 
 use crate::{
-	systems::audio::NarrationAudioFinished, 
-	scenes::dilemma::{
-		phases::consequence::DilemmaConsequenceEvents, 
-		phases::intro::DilemmaIntroEvents
-	}, 
-	scenes::loading::LoadingEvents
+	scenes::{dilemma::phases::{consequence::DilemmaConsequenceEvents, intro::DilemmaIntroEvents}, ending::EndingEvents, loading::LoadingEvents}, systems::audio::NarrationAudioFinished
 };
 
 pub struct TimingPlugin;
@@ -31,7 +26,9 @@ impl Plugin for TimingPlugin {
 				TimerPallet::<DilemmaConsequenceEvents>::tick,
 				TimerPallet::<DilemmaConsequenceEvents>::check_start_conditions,
 				TimerPallet::<LoadingEvents>::tick,
-				TimerPallet::<LoadingEvents>::check_start_conditions
+				TimerPallet::<LoadingEvents>::check_start_conditions,
+				TimerPallet::<EndingEvents>::tick,
+				TimerPallet::<EndingEvents>::check_start_conditions
             )
         );
     }
@@ -57,7 +54,10 @@ impl ConditionalTimer {
 		config : TimerConfig
 	) -> Self {
 
-		let mut timer = Timer::from_seconds(config.duration_seconds, TimerMode::Once);
+		let mut timer = Timer::from_seconds(
+			config.duration_seconds, 
+			TimerMode::Once
+		);
 
 		if config.start_condition != TimerStartCondition::Immediate {
 			timer.pause();

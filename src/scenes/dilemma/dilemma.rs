@@ -12,17 +12,25 @@ use bevy::{
 };
 
 use crate::{
-	scenes::dialogue::content::*, 
+	data::{
+		states::DilemmaPhase, 
+		stats::{
+			DilemmaStats, 
+			GameStats
+		} 
+	}, 
+	entities::text::TextRaw, 
+	scenes::{
+		dialogue::content::*,
+		ending::content::*, 
+		Scene, 
+		SceneQueue
+	}, 
 	systems::{
 		inheritance::BequeathTextColor, 
 		motion::Pulse,
 		time::Dilation 
-	},
-	data::{
-		stats::{DilemmaStats, GameStats}, 
-		states::{DilemmaPhase, GameState, Memory}, 
-	},
-	entities::text::TextRaw 
+	}
 };
 
 use super::content::*;
@@ -51,8 +59,8 @@ impl Plugin for DilemmaPlugin {
             .run_if(in_state(DilemmaSystemsActive::True))
         )
 		.add_systems(
-			OnExit(GameState::Dilemma), 
-			Dilemma::update_memory
+			OnExit(DilemmaPhase::Consequence), 
+			Dilemma::update_queue
 		)
 		.register_required_components::<DilemmaTimer, TextRaw>()
 		.register_required_components::<DilemmaTimer, Text2d>()
@@ -350,7 +358,7 @@ pub struct Dilemma {
 }
 
 impl Dilemma {
-	pub fn load(content : &DilemmaContent) -> Dilemma {
+	pub fn new(content : &DilemmaScene) -> Dilemma {
         let loaded_dilemma : DilemmaLoader = serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
 
 		let options : Vec<DilemmaOption> = loaded_dilemma.options.iter().map(
@@ -368,116 +376,185 @@ impl Dilemma {
 		}
 	}
 
-	pub fn update_memory(
-		mut memory : ResMut<Memory>,
-		stats : Res<GameStats>
+	pub fn update_queue(
+		mut queue: ResMut<SceneQueue>,
+		stats: Res<GameStats>
 	) {
 		let latest = match stats.dilemma_stats.last() {
 			Some(latest) => latest,
-			None => panic!("Latest decision not found"), 
+			None => panic!("Latest decision not found"),
 		};
-
-		match memory.next_dilemma {
-			Some(DilemmaContent::Lab0(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab_one(latest, &stats);
+	   
+		// Store the pattern match result in a variable first
+		let next_scenes = match queue.current {
+			Scene::Dilemma(DilemmaScene::Lab0(_)) => {
+				lab_one(latest, stats.as_ref())
 			},
-			Some(DilemmaContent::Lab1(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab_two(latest, &stats);
+			Scene::Dilemma(DilemmaScene::Lab1(_)) => {
+				lab_two(latest, stats.as_ref())
 			},
-			Some(DilemmaContent::PathInaction(_, stage)) => {
-				(memory.next_dialogue, memory.next_dilemma) = inaction_path(latest, &stats, stage + 1);
+			Scene::Dilemma(DilemmaScene::PathInaction(_, stage)) => {
+				inaction_path(latest, stats.as_ref(), stage + 1)
 			},
-			Some(DilemmaContent::Lab2(_)) => {
-				(memory.next_dialogue, memory.next_dilemma) = lab_three(latest, &stats);
+			Scene::Dilemma(DilemmaScene::Lab2(_)) => {
+				lab_three(latest, stats.as_ref())
 			},
-			Some(DilemmaContent::PathDeontological(_, stage)) => {
-				(memory.next_dialogue, memory.next_dilemma) = deontological_path(latest, &stats, stage + 1);
-			}
-			None => {panic!("Update Memory: Should not reach this branch!")}
-		}
-
+			Scene::Dilemma(DilemmaScene::PathDeontological(_, stage)) => {
+				deontological_path(latest, stats.as_ref(), stage + 1)
+			},
+			_ => panic!("Update Memory: Should not reach this branch!")
+		};
+		
+		// Now extend the queue after the match is complete
+		queue.replace(next_scenes);
 	}
 }
 
 
-fn lab_one(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab_one(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene> {
 	if latest.num_fatalities > 0 {
-		(vec![DialogueContent::Lab1a(Lab1aDialogue::Fail)], None)
+		vec![
+			Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Fail)),
+			Scene::Ending(EndingScene::IdioticPsychopath)
+		]
 	} else if latest.num_decisions > 0 {
 		if let Some(duration) = latest.duration_remaining_at_last_decision {
 			if latest.num_decisions > 10 {
-				(vec![DialogueContent::Lab1a(Lab1aDialogue::FailVeryIndecisive)],
-				None)
+				vec![
+					Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::FailVeryIndecisive)),
+					Scene::Ending(EndingScene::Leverophile)
+				]
 			} else if duration < Duration::from_secs(1) {
-				(vec![DialogueContent::Lab1a(Lab1aDialogue::PassSlow), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
-				Some(DilemmaContent::Lab1(Lab1Dilemma::NearSightedBandit)))
+				vec![
+					Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::PassSlow)), 
+					Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+					Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
+				]
 			} else {
-				(vec![DialogueContent::Lab1a(Lab1aDialogue::PassIndecisive), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
-				Some(DilemmaContent::Lab1(Lab1Dilemma::NearSightedBandit)))
+				vec![
+					Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::PassIndecisive)), 
+					Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+					Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
+				]
 			}
 		} else {
 			panic!("Duration not recorded for some reason!");
 		}
 	} else {
-		(vec![DialogueContent::Lab1a(Lab1aDialogue::Pass), DialogueContent::Lab1b(Lab1bDialogue::DilemmaIntro)],
-		Some(DilemmaContent::Lab1(Lab1Dilemma::NearSightedBandit)))
+		vec![
+			Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Pass)), 
+			Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+			Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
+		]
 	}
 }
 
-fn lab_two(latest : &DilemmaStats, stats : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab_two(latest : &DilemmaStats, stats : &GameStats) -> Vec<Scene> {
 	if latest.num_fatalities > 0 {
 		if latest.num_decisions > 0 {
-			(vec![DialogueContent::Lab2a(Lab2aDialogue::FailIndecisive)], None)
+			vec![
+				Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::FailIndecisive)),
+				Scene::Ending(EndingScene::Leverophile)
+			]
 		} else if stats.total_decisions == 0 {
-			(vec![DialogueContent::path_inaction(0, PathOutcome::Fail)], DilemmaContent::path_inaction(0))
+			vec![
+				Scene::Dialogue(DialogueScene::path_inaction(0, PathOutcome::Fail)),
+				Scene::Dilemma(DilemmaScene::PATH_INACTION[0])
+			]
 		} else {
-			(vec![DialogueContent::Lab2a(Lab2aDialogue::Fail)], None)
+			vec![
+				Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Fail)),
+				Scene::Ending(EndingScene::ImpatientPsychopath)
+			]
 		}
 	} else if latest.num_decisions > 0 {
 		if let (Some(duration), Some(average_duration)) = (latest.duration_remaining_at_last_decision, stats.overall_avg_time_remaining) {
 			if average_duration < Duration::from_secs(1) {
-				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassSlowAgain), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+				vec![
+					Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::PassSlowAgain)), 
+					Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+					Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+				]
 			} else if duration < Duration::from_secs(1) {
-				(vec![DialogueContent::Lab2a(Lab2aDialogue::PassSlow), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+				vec![
+					Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::PassSlow)), 
+					Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+					Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+				]
 			} else {
-				(vec![DialogueContent::Lab2a(Lab2aDialogue::Pass), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
-				Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+				vec![
+					Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Pass)), 
+					Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+					Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+				]
 			}
 		} else {
 			panic!("Duration not recorded for some reason!");
 		}
 	} else {
-		(vec![DialogueContent::Lab2a(Lab2aDialogue::Pass), DialogueContent::Lab2b(Lab2bDialogue::Intro)],
-		Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+		vec![
+			Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Pass)), 
+			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+			Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+		]
 	}
 }
 
-fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
+fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
 	if latest.num_fatalities == 5 {
 		if latest.num_decisions > 0 {
-			(vec![DialogueContent::Lab3a(Lab3aDialogue::Fail)], None)
+			vec![
+				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::Fail)),
+			]
 		} else {
-			(vec![DialogueContent::path_deontological(0, PathOutcome::Fail)], DilemmaContent::path_deontological(0))
+			vec![
+				Scene::Dialogue(DialogueScene::path_deontological(0, PathOutcome::Fail)),
+				Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[0])
+			]
 		}
 	} else {
-		(vec![DialogueContent::Lab3a(Lab3aDialogue::Pass), DialogueContent::Lab3b(Lab3bDialogue::Intro),], None)
+		vec![
+			Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::Pass)), 
+			Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro))
+		]
 	} 
 }
 
-fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
-	if stats.total_decisions > 0 {
-		(vec![DialogueContent::path_inaction(stage, PathOutcome::Pass),  DialogueContent::Lab2b(Lab2bDialogue::Intro)], Some(DilemmaContent::Lab2(Lab2Dilemma::TheTrolleyProblem)))
+fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> Vec<Scene>  {
+	if stats.total_decisions > 0 && stage < 6 {
+		vec![
+			Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Pass)), 
+			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)), 
+			Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+		]
+	} else if stage < 7 {
+		vec![
+			Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Fail)), 
+			Scene::Dilemma(DilemmaScene::PATH_INACTION[stage])
+		]
 	} else {
-		(vec![DialogueContent::path_inaction(stage, PathOutcome::Fail)], DilemmaContent::path_inaction(stage))
+		vec![
+			Scene::Ending(EndingScene::TrueNeutral)
+		]
 	}
 }
 
-fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> (Vec<DialogueContent>, Option<DilemmaContent>)  {
-	if latest.num_fatalities == 1 {
-		(vec![DialogueContent::path_deontological(stage, PathOutcome::Pass),  DialogueContent::Lab2b(Lab2bDialogue::Intro)], None)
+fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> Vec<Scene> {
+
+	if latest.num_fatalities == 1 && stage < 1 {
+		vec![
+			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),  
+			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro))
+		]
+	} else if latest.num_fatalities == 1 && stage < 2 {
+		vec![
+			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),  
+			Scene::Ending(EndingScene::SelectiveDeontologist)
+		]
 	} else {
-		(vec![DialogueContent::path_deontological(stage, PathOutcome::Fail)], DilemmaContent::path_deontological(stage))
+		vec![
+			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),  
+			Scene::Ending(EndingScene::TrueDeontologist)
+		]
 	}
 }

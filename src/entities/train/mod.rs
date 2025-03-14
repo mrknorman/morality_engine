@@ -169,7 +169,7 @@ impl Component for Train {
                 // Get GlobalRng first, before other borrows
                 let mut rng_option = None;
                 if let Some(rng) = world.get_resource_mut::<GlobalRng>() {
-                    rng_option = Some(rng.0.clone()); // Clone the Rng so we can use it without holding the borrow
+                    rng_option = Some(rng.uniform.clone()); // Clone the Rng so we can use it without holding the borrow
                 }
                 
                 // Now collect other data
@@ -197,7 +197,7 @@ impl Component for Train {
                         });
                         let track_audio: Handle<AudioSource> = asset_server.load(train_type.track_audio_path);
 
-						let hiss_audio = asset_server.load(train_type.stopped_audio_path);
+						let hiss_audio: Handle<AudioSource> = asset_server.load(train_type.stopped_audio_path);
 						let burning_audio = asset_server.load("./audio/effects/train/fire.ogg");
 
                         (
@@ -251,7 +251,7 @@ impl Component for Train {
 							vec![
 								OneShotAudio{
 									source: hiss_audio,
-									volume : 0.4,
+									volume : 0.2,
 									persistent : false,
 									dilatable: true
 								}

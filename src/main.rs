@@ -34,11 +34,7 @@ impl Plugin for GamePlugin {
             .add_plugins(
                 (
                     startup::StartupPlugin,
-                    scenes::menu::MenuScenePlugin,
-                    scenes::loading::LoadingScenePlugin,
-                    scenes::dialogue::DialogueScenePlugin,
-                    scenes::dilemma::DilemmaScenePlugin,
-                    scenes::ending::EndingScenePlugin
+                    scenes::ScenePlugin
                 )
             );
     }

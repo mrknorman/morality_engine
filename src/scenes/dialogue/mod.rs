@@ -1,5 +1,5 @@
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use bevy::{
     asset::AssetServer,
@@ -8,31 +8,28 @@ use bevy::{
 };
 
 use crate::{
-    systems::{
-        audio:: {
-            continuous_audio, 
-            ContinuousAudio,
-            ContinuousAudioPallet
-        }, 
-        interaction::InteractionPlugin, 
-    },
-    entities::graph::Graph,
     data::{
         character::{
             Character, 
             CharacterKey
         }, 
-        states::{
-            GameState, 
-            Memory
-        }, 
-    },
-    style::ui::IOPlugin
+        states::GameState, 
+    }, entities::graph::Graph, scenes::{
+        Scene, 
+        SceneQueue
+    }, style::ui::IOPlugin, systems::{
+        audio:: {
+            continuous_audio, 
+            ContinuousAudio,
+            ContinuousAudioPallet
+        }, cascade::CascadeNumbers, colors::{AlphaTranslation, ColorTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR}, inheritance::{BequeathTextAlpha, BequeathTextColor}, interaction::InteractionPlugin 
+    }
 };
 
 pub mod dialogue;
 pub mod content;
 
+use content::DialogueScene;
 use dialogue::{
     Dialogue, 
     DialoguePlugin, 
@@ -61,16 +58,11 @@ impl Plugin for DialogueScenePlugin {
     }
 }
 
-
-#[derive(Component)]
-#[require(Transform, Visibility)]
-struct DialogueScene;
-
 impl DialogueScene {
 
     pub fn setup(
         mut commands: Commands, 
-        memory : Res<Memory>,
+        mut queue : ResMut<SceneQueue>,
         asset_server : Res<AssetServer>
     ) {
 
@@ -94,10 +86,33 @@ impl DialogueScene {
                 )
             )
         ]);
-        
+
+        let scene = queue.current;
+        let dialogue: DialogueScene = match scene {
+			Scene::Dialogue(content) => {
+				content
+			},
+			_ => panic!("Scene is not dialogue!") 
+		};
+
+        let mut dialogue_vector= vec![dialogue];
+
+        let next_scene = match queue.next {
+            Some(Scene::Dialogue(_)) => {
+                Some(queue.pop())
+            },
+            Some(_) | None => None,
+        };
+        match next_scene {
+            Some(Scene::Dialogue(content)) => {
+				dialogue_vector.push(content);
+			},
+			_ => ()
+        };
+
         commands.spawn(
             (
-                DialogueScene,
+                scene,
                 StateScoped(GameState::Dialogue),
                 ContinuousAudioPallet::new(
                     vec![
@@ -142,7 +157,7 @@ impl DialogueScene {
                 parent.spawn((
                     Dialogue::init(
                         &asset_server,
-                        &memory.next_dialogue,
+                        &dialogue_vector,
                         &character_map
                     ),
                     Transform::from_xyz(-500.0, 0.0, 1.0),
@@ -157,7 +172,21 @@ impl DialogueScene {
                         4.0,
                         2.0
                     ),
-                    Transform::from_xyz(300.0, 0.0, 0.0)
+                    Transform::from_xyz(300.0, 0.0, 0.5)
+                ));
+                parent.spawn((
+                    CascadeNumbers{
+                        speed : 50.0,
+                        visibility_speed : 0.1,
+                        ..default()
+                    },
+                    BequeathTextAlpha,
+                    AlphaTranslation::new(
+                        DIM_BACKGROUND_COLOR.alpha(),
+                        Duration::from_secs_f32(1.0),
+                        false
+                    ),
+                    TextColor(DIM_BACKGROUND_COLOR)
                 ));
             }
         );

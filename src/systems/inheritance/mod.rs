@@ -18,7 +18,8 @@ impl Plugin for InheritancePlugin {
 		).add_systems(
             Update,
             (
-				BequeathTextColor::bequeath
+				BequeathTextColor::bequeath,
+                BequeathTextAlpha::bequeath,
             )
             .run_if(in_state(InheritanceSystemsActive::True))
         );
@@ -58,6 +59,34 @@ impl BequeathTextColor {
 }
 
 impl Default for BequeathTextColor {
+    fn default() -> Self {
+        Self
+    }
+}
+
+
+#[derive(Component)]
+#[require(TextColor)]
+pub struct BequeathTextAlpha;
+
+impl BequeathTextAlpha {
+    fn bequeath(
+        parent_query : Query<(&Children, &TextColor), With<BequeathTextAlpha>>,
+        mut child_query : Query<&mut TextColor, Without<BequeathTextAlpha>>
+    ) {
+
+        for (children, parent_color) in parent_query.iter() {
+            for &child in children.iter() {
+
+                if let Ok(mut child_color) = child_query.get_mut(child) {
+                    child_color.0 = child_color.0.with_alpha(parent_color.0.alpha());
+                }
+            }
+        }
+    }
+}
+
+impl Default for BequeathTextAlpha {
     fn default() -> Self {
         Self
     }

@@ -1,4 +1,4 @@
-use std::vec;
+use std::{time::Duration, vec};
 use bevy::{
     prelude::*,
     audio::Volume
@@ -10,7 +10,16 @@ use enum_map::{
 };
 
 use crate::{
-    systems::{
+    data::states::GameState, entities::text::{
+        TextButton,
+        TextFrames 
+    }, style::{
+        common_ui::{
+            NextButton,
+            NextButtonConfig
+        }, 
+        ui::IOPlugin, 
+    }, systems::{
         audio::{
             continuous_audio, 
             one_shot_audio, 
@@ -22,37 +31,23 @@ use crate::{
             OneShotAudioPallet, 
             TransientAudio, 
             TransientAudioPallet
-        }, 
-        interaction::{
+        }, cascade::{CascadeNumbers, CascadePlugin}, colors::{AlphaTranslation, ColorTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR}, inheritance::{BequeathTextAlpha, BequeathTextColor}, interaction::{
             ActionPallet, 
             InputAction, 
             InteractionPlugin
-        },
-        scheduling::{
+        }, scheduling::{
             TimerConfig, 
             TimerPallet,
             TimerStartCondition, 
             TimingPlugin
         }
-    },  
-    data::states::{
-        GameState, MainState, StateVector
-    },
-    entities::text::{
-        TextButton,
-        TextFrames 
-    },
-    style::{
-        common_ui::{
-            NextButton,
-            NextButtonConfig
-        }, 
-        ui::IOPlugin, 
     }
 };
 
 mod loading_bar;
 use loading_bar::{LoadingBar, LoadingBarPlugin};
+
+use super::SceneQueue;
 
 pub mod content;
 
@@ -76,6 +71,9 @@ impl Plugin for LoadingScenePlugin {
                 .run_if(in_state(GameState::Loading)),
         );
 
+        if !app.is_plugin_added::<CascadePlugin>() {
+            app.add_plugins(CascadePlugin);
+        }
         if !app.is_plugin_added::<LoadingBarPlugin>() {
             app.add_plugins(LoadingBarPlugin);
         }
@@ -126,11 +124,13 @@ impl LoadingScene {
 
     fn setup(
         mut commands: Commands,
+        queue : Res<SceneQueue>,
         asset_server: Res<AssetServer>
     ) {
-        
+
         commands.spawn((
-            Self,
+            queue.current,
+            LoadingScene,
             StateScoped(GameState::Loading),
             TimerPallet::new(
                 vec![
@@ -255,6 +255,17 @@ impl LoadingScene {
                             ..continuous_audio()
                         }
                     ));
+
+                    parent.spawn((
+                        CascadeNumbers::default(),
+                        BequeathTextAlpha,
+                        AlphaTranslation::new(
+                            DIM_BACKGROUND_COLOR.alpha(),
+                            Duration::from_secs_f32(1.0),
+                            false
+                        ),
+                        TextColor(DIM_BACKGROUND_COLOR)
+                    ));
                 });
             }
 
@@ -281,13 +292,7 @@ impl LoadingScene {
                             ActionPallet::<LoadingActions, LoadingSounds>(
                                 enum_map!(
                                     LoadingActions::ExitLoading => vec![
-                                        InputAction::ChangeState(
-                                            StateVector::new(
-                                                Some(MainState::InGame),
-                                                Some(GameState::Dialogue),
-                                                None,
-                                            )
-                                        ),
+                                        InputAction::NextScene,
                                         InputAction::PlaySound(LoadingSounds::Click),
                                     ]
                                 )

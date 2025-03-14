@@ -78,6 +78,7 @@ impl Plugin for ColorsPlugin {
             .add_systems(Update, 
                 (activate_systems,
                 ColorTranslation::translate,
+                AlphaTranslation::translate,
                 Fade::despawn_after_fade,
                 // Add the flicker event system here if needed:
                 )
@@ -125,6 +126,81 @@ impl Default for ColorPallet {
 }
 
 #[derive(Clone)]
+pub struct AlphaTranslation {
+    pub initial_alpha: f32,
+    pub final_alpha: f32,
+    pub timer : Timer,
+}
+
+
+impl Component for AlphaTranslation {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_insert(
+            |mut world, entity, _component_id| {
+                let color: Option<TextColor> = {
+                    let entity_mut = world.entity(entity);
+                    entity_mut.get::<TextColor>().cloned()
+                };
+
+                match color {
+                    Some(color) => {
+                        if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<AlphaTranslation>() {
+                            color_anchor.initial_alpha = color.0.alpha();
+                        } else {
+                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                        }
+                    }
+                    None => {
+                        warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
+                    }
+                }
+            }
+        );
+    }
+}
+
+impl AlphaTranslation {
+    pub fn new(final_alpha: f32, duration: Duration, paused: bool) -> AlphaTranslation {
+        let mut translation = AlphaTranslation {
+            initial_alpha: 0.0,
+            final_alpha,
+            timer: Timer::new(duration, TimerMode::Once),
+        };
+
+        if paused {
+            translation.timer.pause();
+        }
+        translation
+    }
+
+    pub fn translate(
+        time: Res<Time>, 
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut AlphaTranslation, &mut TextColor)>
+    ) {
+        for (mut motion, mut color) in query.iter_mut() {
+            motion.timer.tick(time.delta().mul_f32(dilation.0));
+
+            if !motion.timer.paused() && !motion.timer.finished() {
+                let fraction_complete = motion.timer.fraction();
+                let difference = motion.final_alpha - motion.initial_alpha;
+                let new_alpha = motion.initial_alpha + difference * fraction_complete;
+                color.0 = color.0.with_alpha(new_alpha);
+            } else if motion.timer.just_finished() {
+                let new_alpha = motion.final_alpha;
+                color.0 = color.0.with_alpha(new_alpha);
+            }
+        }
+    }
+
+    pub fn start(&mut self) {
+        self.timer.unpause();
+    }
+}
+
+#[derive(Clone)]
 pub struct ColorTranslation {
     pub initial_color: Vec4,
     pub final_color: Vec4,
@@ -158,6 +234,8 @@ impl Component for ColorTranslation {
         );
     }
 }
+
+
 
 trait ColorExt {
     fn to_vec4(self) -> Vec4;
@@ -578,9 +656,9 @@ impl ColorChangeOn {
             for event in color_change.events.iter_mut() {
                 if let ColorChangeEvent::Flicker(colors, ref mut flicker) = event {
                     // Pass the RNG so durations are randomized.
-                    if flicker.update(time.delta(), &mut rng.0) {
+                    if flicker.update(time.delta(), &mut rng.uniform) {
                         // During "on" phase, choose a random color.
-                        if let Some(chosen) = colors.choose(&mut rng.0) {
+                        if let Some(chosen) = colors.choose(&mut rng.uniform) {
                             text_color.0 = *chosen;
                             color_change.event_occurring = true;
                             break;
@@ -597,7 +675,7 @@ impl ColorChangeOn {
     ) {
         for (mut color_change, mut text_color, color_anchor_opt) in query.iter_mut() {
             if !color_change.event_occurring {
-                ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.0);
+                ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.uniform);
                 if let Some(anchor) = color_anchor_opt {
                     text_color.0 = anchor.0;
                 }
@@ -611,7 +689,7 @@ impl ColorChangeOn {
     ) {
         for (mut color_change, mut shape_color, color_anchor_opt) in query.iter_mut() {
             if !color_change.event_occurring {
-                ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.0);
+                ColorChangeOn::randomize_color_events(&mut color_change.events, &mut rng.uniform);
                 if let Some(anchor) = color_anchor_opt {
                     shape_color.set_color(anchor.0);
                 }

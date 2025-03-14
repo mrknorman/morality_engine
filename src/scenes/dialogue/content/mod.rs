@@ -1,3 +1,5 @@
+use bevy::prelude::*;
+
 trait DialogueProvider {
     fn content(&self) -> &'static str;
 }
@@ -9,6 +11,7 @@ macro_rules! define_dialogue {
             $($variant:ident => $path:literal),* $(,)?
         }
     ) => {
+        #[derive(Clone, Copy, PartialEq, Eq)]
         pub enum $enum_name {
             $($variant),*
         }
@@ -23,8 +26,9 @@ macro_rules! define_dialogue {
     };
 }
 
-// Define the main dialogue content enum
-pub enum DialogueContent {
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[require(Transform, Visibility)]
+pub enum DialogueScene {
     Lab0(Lab0Dialogue),
     Lab1a(Lab1aDialogue),
     Lab1b(Lab1bDialogue),
@@ -32,10 +36,9 @@ pub enum DialogueContent {
     Lab2b(Lab2bDialogue),
     Lab3a(Lab3aDialogue),
     Lab3b(Lab3bDialogue)
-
 }
 
-impl DialogueContent {
+impl DialogueScene {
     pub fn content(&self) -> &'static str {
         match self {
             Self::Lab0(dialogue) => dialogue.content(),
@@ -80,6 +83,7 @@ define_dialogue! {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Lab2aDialogue {
     FailIndecisive,
     Fail,
@@ -95,12 +99,14 @@ define_dialogue! {
     }
 }
 
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
 // Define outcome enum for more flexibility
 pub enum PathOutcome {
     Pass,
     Fail
 }
 
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
 // Path configuration for the inaction path
 pub struct InactionPath {
     number: usize,
@@ -147,6 +153,8 @@ impl DialogueProvider for Lab2aDialogue {
     }
 }
 
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+
 pub struct DeontologicalPath {
     number: usize,
     outcome: PathOutcome,
@@ -175,6 +183,7 @@ impl DeontologicalPath {
     }
 }
 
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Lab3aDialogue {
     Fail,
     Pass,
