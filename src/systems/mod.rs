@@ -8,3 +8,4 @@ pub mod physics;
 pub mod time;
 pub mod scheduling;
 pub mod cascade;
+pub mod resize;

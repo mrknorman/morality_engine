@@ -235,9 +235,7 @@ impl Component for ColorTranslation {
     }
 }
 
-
-
-trait ColorExt {
+pub trait ColorExt {
     fn to_vec4(self) -> Vec4;
 }
 

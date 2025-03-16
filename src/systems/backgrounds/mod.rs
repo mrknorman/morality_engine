@@ -18,6 +18,8 @@ use crate::{
 pub mod content;
 use content::BackgroundTypes;
 
+use super::resize::ResizeDebounce;
+
 // States for background systems activation
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BackgroundSystemsActive {
@@ -37,7 +39,7 @@ impl Plugin for BackgroundPlugin {
                 Update,
                 (
                     BackgroundSprite::wrap_sprites,
-                    Background::handle_resize
+                    Background::resize
                 ).run_if(in_state(BackgroundSystemsActive::True))
             )
             .init_resource::<BackgroundSystems>()
@@ -113,26 +115,16 @@ impl Background {
     }
 
     /// Handles window resize events by recreating all background sprites
-    fn handle_resize(
+    fn resize(
         mut commands: Commands,
-        sprites: Query<Entity, With<BackgroundSprite>>,
         backgrounds: Query<(Entity, &Background)>,
-        mut resize_events: EventReader<WindowResized>,
+        debounce: ResMut<ResizeDebounce>,
     ) {
-        // Skip if no resize events
-        if resize_events.is_empty() {
-            return;
-        }
-        resize_events.clear();
-    
-        // Remove all existing sprites
-        for entity in &sprites {
-            commands.entity(entity).despawn_recursive();
-        }
-    
-        // Re-insert background components to trigger recreation
-        for (entity, background) in &backgrounds {
-            commands.entity(entity).insert(background.clone());
+        if debounce.timer.just_finished() {
+            for (entity, background) in &backgrounds {
+                commands.entity(entity).despawn_descendants();
+                commands.entity(entity).insert(background.clone());
+            }
         }
     }
 

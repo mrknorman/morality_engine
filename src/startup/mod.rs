@@ -9,6 +9,7 @@ use bevy::diagnostic::{
     FrameTimeDiagnosticsPlugin
 };
 
+use crate::systems::resize::ResizePlugin;
 use crate::{
     systems::{
         colors::ColorsPlugin, 
@@ -48,6 +49,7 @@ impl Plugin for StartupPlugin {
                 CursorPlugin,
                 RenderPlugin,
                 RngPlugin,
+                ResizePlugin,
                 GameStatesPlugin,
                 StatsPlugin,
                 CommonUIPlugin,

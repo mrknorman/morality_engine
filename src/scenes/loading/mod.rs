@@ -31,7 +31,7 @@ use crate::{
             OneShotAudioPallet, 
             TransientAudio, 
             TransientAudioPallet
-        }, cascade::{CascadeNumbers, CascadePlugin}, colors::{AlphaTranslation, ColorTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR}, inheritance::{BequeathTextAlpha, BequeathTextColor}, interaction::{
+        }, cascade::{Cascade, CascadePlugin}, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::{
             ActionPallet, 
             InputAction, 
             InteractionPlugin
@@ -257,7 +257,7 @@ impl LoadingScene {
                     ));
 
                     parent.spawn((
-                        CascadeNumbers::default(),
+                        Cascade::default(),
                         BequeathTextAlpha,
                         AlphaTranslation::new(
                             DIM_BACKGROUND_COLOR.alpha(),

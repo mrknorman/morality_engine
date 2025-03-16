@@ -22,7 +22,7 @@ use crate::{
             continuous_audio, 
             ContinuousAudio,
             ContinuousAudioPallet
-        }, cascade::CascadeNumbers, colors::{AlphaTranslation, ColorTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR}, inheritance::{BequeathTextAlpha, BequeathTextColor}, interaction::InteractionPlugin 
+        }, cascade::Cascade, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::InteractionPlugin 
     }
 };
 
@@ -175,7 +175,7 @@ impl DialogueScene {
                     Transform::from_xyz(300.0, 0.0, 0.5)
                 ));
                 parent.spawn((
-                    CascadeNumbers{
+                    Cascade{
                         speed : 50.0,
                         visibility_speed : 0.1,
                         ..default()
