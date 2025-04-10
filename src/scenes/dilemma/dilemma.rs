@@ -527,7 +527,7 @@ fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> Vec<Sc
 			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)), 
 			Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
 		]
-	} else if stage < 7 {
+	} else if stage < DilemmaScene::PATH_INACTION.len() {
 		vec![
 			Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Fail)), 
 			Scene::Dilemma(DilemmaScene::PATH_INACTION[stage])
@@ -540,7 +540,6 @@ fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> Vec<Sc
 }
 
 fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> Vec<Scene> {
-
 	if latest.num_fatalities == 1 && stage < 1 {
 		vec![
 			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),  
@@ -548,8 +547,13 @@ fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> 
 		]
 	} else if latest.num_fatalities == 1 && stage < 2 {
 		vec![
-			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),  
+			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),  
 			Scene::Ending(EndingScene::SelectiveDeontologist)
+		]
+	} else if stage < DilemmaScene::PATH_DEONTOLOGICAL.len() {
+		vec![
+			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),
+			Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[stage])
 		]
 	} else {
 		vec![
