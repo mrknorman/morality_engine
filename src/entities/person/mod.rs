@@ -1,6 +1,5 @@
 use bevy::{
-	prelude::*,
-	sprite::Anchor,
+	prelude::*, render::primitives::Aabb, sprite::Anchor
 };
 use enum_map::Enum;
 use crate::{
@@ -19,7 +18,9 @@ use crate::{
 	},		
 	entities::text::TextSprite,
 	data::states::DilemmaPhase,  
-}; 
+};
+
+use super::train::{Train, TrainCarriage}; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PersonSystemsActive {
@@ -43,6 +44,7 @@ impl Plugin for PersonPlugin {
 				PersonSprite::animate,
 				PersonSprite::scream,
 				PersonSprite::alert,
+				PersonSprite::explode,
 				Emoticon::animate
             )
             .run_if(in_state(PersonSystemsActive::True))
@@ -148,14 +150,51 @@ impl PersonSprite {
 		mut query: Query<(
 			&mut PersonSprite, 
 			&mut Bounce
-		), With<PersonSprite>>
+		)>
 	) {
 		for (person, mut bounce) in query.iter_mut() {
 			bounce.active = person.in_danger;
 		}
 	}
-}
 
+	pub fn explode(
+		person_query: Query<(
+			Entity,
+			&Aabb,
+			&GlobalTransform
+		), (With<PersonSprite>, Without<Train>)>,
+		train_query: Query<(
+			&Aabb,
+			&GlobalTransform
+		), (With<TrainCarriage>, Without<PersonSprite>)>,
+		mut commands: Commands,
+	) {
+		// Iterate through all person sprites
+		for (person_entity, person_aabb, person_transform) in person_query.iter() {
+			// Get person AABB in world space
+			let person_world_min = person_transform.transform_point(Vec3::from(person_aabb.center - person_aabb.half_extents));
+			let person_world_max = person_transform.transform_point(Vec3::from(person_aabb.center + person_aabb.half_extents));
+			
+			// For each person, check collision with all trains
+			for (train_aabb, train_transform) in train_query.iter() {
+				// Get train AABB in world space
+				let train_world_min = train_transform.transform_point(Vec3::from(train_aabb.center - train_aabb.half_extents));
+				let train_world_max = train_transform.transform_point(Vec3::from(train_aabb.center + train_aabb.half_extents));
+				
+				// Simple AABB overlap check in world space
+				if person_world_min.x <= train_world_max.x && 
+				   person_world_max.x >= train_world_min.x && 
+				   person_world_min.y <= train_world_max.y && 
+				   person_world_max.y >= train_world_min.y {
+					// If there's a collision, despawn the person entity
+					commands.entity(person_entity).despawn();
+					// Break out of the inner loop since we've already despawned this person
+					break;
+				}
+			}
+		}
+	}
+}
 
 fn default_emoticon() -> Text2d {
 	Text2d::new(NEUTRAL)
