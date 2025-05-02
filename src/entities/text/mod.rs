@@ -145,7 +145,6 @@ impl TextFrames {
             }
         }
     }
-    
 }
 
 #[derive(Component)]
@@ -206,7 +205,7 @@ pub fn get_text_height(text: &String) -> f32 {
     Text2d = default_button_text(), 
     TextFont = default_button_font(), 
     TextColor = default_font_color(),
-    TextBounds = default_button_bounds(), 
+    TextBounds = default_button_bounds(),
     ColorAnchor
 )]
 
@@ -235,7 +234,7 @@ impl TextButton {
         actions: Vec<T>,
         keys: Vec<KeyCode>,
         text: impl Into<String>
-    ) -> (TextButton, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
+    ) -> (TextButton,  Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
     where 
         T: Clone + Copy + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync,  
     {

@@ -138,10 +138,7 @@ impl Component for AsciiString {
                         // Spawn entity with base components
                         let mut entity_cmd = parent.spawn((
                             AsciiChar,
-                            TextFont{
-                                font_size: 12.0,
-                                ..default()
-                            },
+                            TextTitle,
                             ColorAnchor::default(),
                             Text2d::new(ascii_char),
                             Transform::from_translation(translation),

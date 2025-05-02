@@ -206,7 +206,6 @@ impl MenuScene {
                 parent.spawn(
                     (
                         TextRaw,
-                        TextColor(MENU_COLOR),
                         Text2d::new(
                             "A game by Michael Norman"
                         ),

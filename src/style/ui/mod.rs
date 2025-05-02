@@ -87,7 +87,7 @@ pub struct CenterXAnchor;
 
 impl Default for CenterXAnchor {
     fn default() -> Self {
-        CenterXAnchor
+        Self
     }
 }
 
@@ -101,14 +101,14 @@ impl CenterXAnchor {
             let mut button_x = 0.0; // Centered on the X axis
 
             // If the entity has a parent, subtract the parent's position
-            if let Some(parent) = parent {
-                if let Ok(parent_transform) = parent_query.get(parent.get()) {
+            if let Some(child_of) = parent {
+                if let Ok(parent_transform) = parent_query.get(child_of.parent()) {
                     button_x -= parent_transform.translation.x;
                 }
             }
 
 			*visibility = Visibility::Inherited;
-
+            
             transform.translation.x = button_x;
         }
     }

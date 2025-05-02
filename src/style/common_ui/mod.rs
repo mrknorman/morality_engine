@@ -47,7 +47,6 @@ impl Component for NextButton {
         hooks.on_insert(
             |mut world, context| {           
 
-
                 let mut transform = None;
                 if let Some(window) = world
                 .iter_entities()
@@ -55,7 +54,7 @@ impl Component for NextButton {
                 .next() {
                     transform = Some(NextButton::transform(&window));
                 };
-
+                
                 // Get an immutable reference to the resource
                 let mut previous_entity : Option<Entity> = None;
                 if let Some(config) = world.get_resource::<NextButtonConfig>() {
@@ -72,7 +71,7 @@ impl Component for NextButton {
                 }
 
                 if let Some(entity) = previous_entity {
-                    commands.entity(context.entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 
                 if let Some(mut config) = world.get_resource_mut::<NextButtonConfig>() {
@@ -205,7 +204,7 @@ impl Component for DilemmaTimerPosition {
                     commands.entity(context.entity).insert(transform);
                 }
                 if let Some(entity) = previous_entity {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 
                 if let Some(mut config) = world.get_resource_mut::<DilemmaTimerConfig>() {

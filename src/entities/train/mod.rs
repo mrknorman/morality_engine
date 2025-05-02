@@ -134,7 +134,7 @@ impl TrainType {
 }
 
 #[derive(Component)]
-#[require(TextSprite, Text2d)]
+#[require(TextSprite)]
 pub struct TrainCarriage;
 
 #[derive(Component)]
@@ -265,7 +265,7 @@ impl Component for Train {
                                     key: TrainSounds::Tracks,
                                     source: AudioPlayer::<AudioSource>(burning_audio),
                                     settings: PlaybackSettings{
-                                        volume: Volume::new(0.4),
+                                        volume: Volume::Linear(0.4),
                                         ..continuous_audio()
                                     },
                                     dilatable: true
@@ -289,6 +289,7 @@ impl Component for Train {
                         
                         let mut entity = parent.spawn((
                             TrainCarriage,
+                            TextSprite,
                             Text2d::new(carriage),
                             transform,
                             color
@@ -312,6 +313,7 @@ impl Component for Train {
 					if train_state != TrainState::Wrecked {
 						parent.spawn((
 							TrainSmoke,
+                            TextSprite,
 							Text2d(smoke_frames[0].clone()),
 							TextFrames::new(smoke_frames),
 							Transform::from_xyz(
