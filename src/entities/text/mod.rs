@@ -1,14 +1,10 @@
 use serde::Deserialize;
 use bevy::{
-    prelude::*, 
     ecs::component::{
         ComponentHooks, 
         StorageType
-    }, 
-    sprite::Anchor, 
-    text::{
-        TextBounds, 
-        TextLayoutInfo
+    }, prelude::*, sprite::Anchor, text::{
+        TextBounds, TextLayoutInfo
     }
 };
 
@@ -51,8 +47,7 @@ impl Plugin for TextPlugin {
         app
 		.add_systems(
 			Update,
-                (TextBox::propagate_changes,
-                TextWindow::propagate_changes)
+                TextWindow::propagate_changes
             )
         .register_required_components::<Cell, Transform>()
         .register_required_components::<Cell, Visibility>()
@@ -208,7 +203,14 @@ pub fn get_text_height(text: &String) -> f32 {
 }
 
 #[derive(Component)]
-#[require(Text2d(default_button_text), TextFont(default_button_font), TextColor(default_font_color), TextBounds(default_button_bounds), ColorAnchor)]
+#[require(
+    Text2d(default_button_text), 
+    TextFont(default_button_font), 
+    TextColor(default_font_color),
+    TextBounds(default_button_bounds), 
+    ColorAnchor
+)]
+
 pub struct TextButton;
 
 fn default_button_text() -> Text2d {
@@ -277,62 +279,6 @@ fn get_anchor_offset(anchor : &Anchor, dimensions : Vec2) -> Vec2 {
     }
 }
 
-
-pub struct TextBox{
-    pub padding : Vec2
-}
-impl Default for TextBox{
-    fn default() -> Self {
-        Self{
-            padding : Vec2::new(20.0, 10.0)
-        }
-    }
-}
-
-impl Component for TextBox {
-	const STORAGE_TYPE: StorageType = StorageType::Table;
-
-	fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world, entity, _component_id| {       
-                world.commands().entity(entity).with_children(|parent| {
-                    parent.spawn(
-                        BorderedRectangle::default()
-                    );
-                });
-            }
-        );
-    }
-}
-
-impl TextBox {
-    fn propagate_changes(
-        mut box_query: Query<(Entity, &TextBox, &TextLayoutInfo, &TextBounds, Option<&Anchor>), (With<TextBox>, Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>)>,
-        mut background_query: Query<(&mut Transform, &mut BorderedRectangle)>,
-        children_query: Query<&Children>,
-    ) {
-        for (entity, text_box, text_layout, text_bounds, anchor) in box_query.iter_mut() {
-
-            let dimensions = Vec2::new(
-                text_bounds.width.unwrap_or(text_layout.size.x), 
-                text_bounds.height.unwrap_or(text_layout.size.y)
-            );
-
-            let anchor = anchor.unwrap_or(&Anchor::Center);
-            let anchor_offset = get_anchor_offset(anchor, dimensions).extend(0.1);
-            
-            if let Ok(children) = children_query.get(entity) {
-                for &child in children.iter() {
-                    if let Ok((mut transform, mut rectangle)) = background_query.get_mut(child) {
-                        transform.translation = -anchor_offset;
-                        rectangle.boundary.dimensions = dimensions + text_box.padding;
-                    }
-                }
-            }
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct TextWindow{
     pub title : Option<WindowTitle>,
@@ -369,12 +315,30 @@ impl Component for TextWindow {
                     }
                 };  
 
+                let (text_layout, text_bounds) = {
+                    if let Some(text_layout) = world.entity(entity).get::<TextLayoutInfo>() {
+                        (text_layout.clone(), world.entity(entity).get::<TextBounds>())
+                    } else {
+                        return;
+                    }
+                };
+
+                let dimensions = if let Some(text_bounds) = text_bounds {
+                    Vec2::new(
+                        text_bounds.width.unwrap_or(text_layout.size.x),
+                        text_bounds.height.unwrap_or(text_layout.size.y)
+                    )
+                } else {
+                    text_layout.size
+                };
+
                 world.commands().entity(entity).with_children(|parent| {
                     parent.spawn(
                         Window::new(
                             title,
                             HollowRectangle{
                                 color,
+                                dimensions,
                                 ..default()
                             },
                             header_height,

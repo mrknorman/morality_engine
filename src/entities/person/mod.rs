@@ -187,8 +187,7 @@ impl PersonSprite {
 				   person_world_min.y <= train_world_max.y && 
 				   person_world_max.y >= train_world_min.y {
 					// If there's a collision, despawn the person entity
-					commands.entity(person_entity).despawn();
-					// Break out of the inner loop since we've already despawned this person
+					commands.entity(person_entity).despawn_recursive();
 					break;
 				}
 			}

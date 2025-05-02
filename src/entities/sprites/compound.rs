@@ -105,7 +105,7 @@ pub struct HollowRectangle {
 impl Default for HollowRectangle {
     fn default() -> Self {
         Self {
-            dimensions: Vec2::ONE,
+            dimensions: Vec2::ZERO,
             thickness: 2.0,
             color: PRIMARY_COLOR,
             sides: RectangleSides::default(),
@@ -225,7 +225,6 @@ impl Component for Plus {
         });
     }
 }
-
 
 #[derive(Clone, Copy)]
 pub struct BorderedRectangle {
