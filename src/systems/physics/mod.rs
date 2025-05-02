@@ -1,6 +1,5 @@
 use bevy::{
-    prelude::*,
-    ecs::component::StorageType
+    ecs::component::{Mutable, StorageType}, prelude::*
 };
 
 use crate::systems::time::Dilation;
@@ -113,22 +112,23 @@ impl Default for Gravity {
 
 impl Component for Gravity {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
 
 
                 let transform: Option<Transform> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<Transform>()
                         .map(|transform: &Transform| transform.clone())
                 };
 
                 if let Some(transform) = transform {
-                    if let Some(mut gravity) = world.entity_mut(entity).get_mut::<Gravity>() {
+                    if let Some(mut gravity) = world.entity_mut(context.entity).get_mut::<Gravity>() {
                         gravity.floor_level = Some(transform.translation.y);
                     } else {
                         eprintln!("Warning: Entity does not contain a Gravity component!");

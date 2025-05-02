@@ -1,9 +1,5 @@
 use bevy::{
-    ecs::component::StorageType,
-    prelude::*,
-    render::primitives::Aabb,
-    window::PrimaryWindow,
-    time::TimerMode,
+    ecs::component::{Mutable, StorageType}, prelude::*, render::primitives::Aabb, time::TimerMode, window::PrimaryWindow
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
@@ -135,21 +131,22 @@ pub struct AlphaTranslation {
 
 impl Component for AlphaTranslation {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let color: Option<TextColor> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<TextColor>().cloned()
                 };
 
                 match color {
                     Some(color) => {
-                        if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<AlphaTranslation>() {
+                        if let Some(mut color_anchor) = world.entity_mut(context.entity).get_mut::<AlphaTranslation>() {
                             color_anchor.initial_alpha = color.0.alpha();
                         } else {
-                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", context.entity);
                         }
                     }
                     None => {
@@ -209,21 +206,22 @@ pub struct ColorTranslation {
 
 impl Component for ColorTranslation {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let color: Option<TextColor> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<TextColor>().cloned()
                 };
 
                 match color {
                     Some(color) => {
-                        if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<ColorTranslation>() {
+                        if let Some(mut color_anchor) = world.entity_mut(context.entity).get_mut::<ColorTranslation>() {
                             color_anchor.initial_color = color.0.to_vec4();
                         } else {
-                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", context.entity);
                         }
                     }
                     None => {
@@ -308,7 +306,7 @@ impl Fade {
     ) {
         for (entity, transition) in query.iter_mut() {
             if transition.timer.finished() {
-                commands.entity(entity).despawn_recursive();    
+                commands.entity(entity).despawn();    
             }
         }   
     }
@@ -316,20 +314,21 @@ impl Fade {
 
 impl Component for Fade {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let fade: Option<Fade> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<Fade>()
                         .map(|fade: &Fade| fade.clone())
                 };
                 
                 if let Some(fade) = fade {
-                    world.commands().entity(entity).insert(
+                    world.commands().entity(context.entity).insert(
                         ColorTranslation::new(
                             Color::NONE,
                             fade.duration,
@@ -353,21 +352,22 @@ impl Default for ColorAnchor {
 
 impl Component for ColorAnchor {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let color: Option<TextColor> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<TextColor>().cloned()
                 };
 
                 match color {
                     Some(color) => {
-                        if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<ColorAnchor>() {
+                        if let Some(mut color_anchor) = world.entity_mut(context.entity).get_mut::<ColorAnchor>() {
                             color_anchor.0 = color.0;
                         } else {
-                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", context.entity);
                         }
                     }
                     None => {
@@ -541,7 +541,7 @@ impl ColorChangeOn {
         }
     }
 
-    fn handle_cursor_events_shapes<T: AssembleShape + Component>(
+    fn handle_cursor_events_shapes<T: AssembleShape + Component<Mutability = Mutable>>(
         window_query: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
@@ -681,7 +681,7 @@ impl ColorChangeOn {
         }
     }
 
-    fn finalize_color_events_shapes<T: AssembleShape + Component>(
+    fn finalize_color_events_shapes<T: AssembleShape + Component<Mutability = Mutable>>(
         mut rng: ResMut<GlobalRng>,
         mut query: Query<(&mut ColorChangeOn, &mut T, Option<&ColorAnchor>)>,
     ) {

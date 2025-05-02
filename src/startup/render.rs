@@ -1,3 +1,5 @@
+use core::panic;
+
 use bevy::{
     asset::RenderAssetUsages, color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
@@ -61,7 +63,7 @@ fn setup_cameras(
             RenderLayers::layer(0),
             Camera {
                 hdr: true,
-                target: RenderTarget::Image(render_target.0.clone()),
+                target: RenderTarget::Image(render_target.0.clone().into()),
                 ..default()
             }
         ));
@@ -112,10 +114,9 @@ struct ScanMesh;
 impl RenderTargetHandle {
     fn setup(
         mut commands: Commands,
-        windows: Query<&Window>,
+        window: Single<&Window>,
         mut images: ResMut<Assets<Image>>,
     ) {
-        let window = windows.single();
         let width = window.resolution.width() as u32;
         let height = window.resolution.height() as u32;
         let size = Extent3d {
@@ -202,10 +203,10 @@ impl ScanLinesMaterial {
         render_target: Res<RenderTargetHandle>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
         mut meshes: ResMut<Assets<Mesh>>,
-        windows: Query<&Window>,
+        window: Single<&Window>,
     ) {
+
         // Get the primary window's resolution
-        let window = windows.single();
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
 
         // Create a fullscreen quad mesh.
@@ -290,64 +291,69 @@ impl Material2d for ScanLinesMaterial {
     }
 }
 
-pub fn convert_to_hdr(base_image: &Image, boost : f32) -> Image {
-    // Get dimensions and other properties from base image
-    let width = base_image.texture_descriptor.size.width;
+pub fn convert_to_hdr(base_image: &Image, boost: f32) -> Image {
+    // Texture geometry -------------------------------------------------------
+    let width  = base_image.texture_descriptor.size.width;
     let height = base_image.texture_descriptor.size.height;
-    let size = bevy::render::render_resource::Extent3d {
+
+    let size = Extent3d {
         width,
         height,
         depth_or_array_layers: 1,
     };
-    
-    // For Rgba32Float, each pixel needs 16 bytes (4 channels × 4 bytes per float)
-    let mut hdr_data = Vec::with_capacity((width * height * 16) as usize);
-    
-    // Get the source RGBA u8 data
-    let src_data = &base_image.data;
-    
+
+    // One RGBA32-float pixel = 4 channels × 4 bytes
+    let mut hdr_data =
+        Vec::with_capacity(width as usize * height as usize * 4 /*channels*/ * 4 /*bytes*/);
+
+    // ------------------------------------------------------------------------
+    let src_data = base_image
+        .data
+        .as_ref()
+        .expect("Image has no CPU-side data");     // <-- unwrap the Option
+
+    // Convert every 8-bit sRGB texel to linear f32, apply the boost factor
     for chunk in src_data.chunks(4) {
-        // Make sure we have a complete RGBA pixel
-        if chunk.len() == 4 {
-            // Convert each channel from u8 to f32
-            let r = (chunk[0] as f32 / 255.0) * boost;
-            let g = (chunk[1] as f32 / 255.0) * boost;
-            let b = (chunk[2] as f32 / 255.0) * boost;
-            let a = chunk[3] as f32 / 255.0; // Alpha typically isn't boosted
-            
-            // Add the converted values to our HDR data buffer
-            hdr_data.extend_from_slice(&r.to_le_bytes());
-            hdr_data.extend_from_slice(&g.to_le_bytes());
-            hdr_data.extend_from_slice(&b.to_le_bytes());
-            hdr_data.extend_from_slice(&a.to_le_bytes());
-        }
+        // `chunks(4)` always yields a 4-byte slice for a valid RGBA8 texture
+        let [r, g, b, a] = <[u8; 4]>::try_from(chunk).unwrap();
+
+        let r = (r as f32 / 255.0) * boost;
+        let g = (g as f32 / 255.0) * boost;
+        let b = (b as f32 / 255.0) * boost;
+        let a =  a as f32 / 255.0; // usually you leave alpha un-boosted
+
+        hdr_data.extend_from_slice(&r.to_le_bytes());
+        hdr_data.extend_from_slice(&g.to_le_bytes());
+        hdr_data.extend_from_slice(&b.to_le_bytes());
+        hdr_data.extend_from_slice(&a.to_le_bytes());
     }
-    
-    // Create the new HDR image
-    let mut hdr_image = Image::new_fill(
+
+    // Build the HDR image ----------------------------------------------------
+    let mut hdr_image = Image::new(
         size,
         base_image.texture_descriptor.dimension,
-        &hdr_data,
+        hdr_data,
         TextureFormat::Rgba32Float,
         RenderAssetUsages::default(),
     );
-    
-    // Set proper texture usage flags for HDR
-    hdr_image.texture_descriptor.usage = 
-        TextureUsages::TEXTURE_BINDING | 
-        TextureUsages::COPY_DST | 
-        TextureUsages::RENDER_ATTACHMENT;
-    
-    // Set appropriate sampler for HDR
-    hdr_image.sampler = ImageSampler::Descriptor(SamplerDescriptor {
-        address_mode_u: AddressMode::ClampToEdge,
-        address_mode_v: AddressMode::ClampToEdge,
-        address_mode_w: AddressMode::ClampToEdge,
-        mag_filter: FilterMode::Linear,
-        min_filter: FilterMode::Linear,
-        mipmap_filter: FilterMode::Linear,
-        ..default()
-    }.into());
-    
+
+    // Usage flags
+    hdr_image.texture_descriptor.usage =
+        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
+
+    // Sampler
+    hdr_image.sampler = ImageSampler::Descriptor(
+        SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter:     FilterMode::Linear,
+            min_filter:     FilterMode::Linear,
+            mipmap_filter:  FilterMode::Linear,
+            ..default()
+        }
+        .into(),
+    );
+
     hdr_image
 }

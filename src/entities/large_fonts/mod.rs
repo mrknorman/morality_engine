@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use bevy::{
     ecs:: component::{
-        ComponentHooks, StorageType
+        ComponentHooks, Mutable, StorageType
     },
     prelude::*
 };
@@ -12,13 +12,32 @@ use enum_map::{Enum, enum_map};
 
 use crate::{
     systems::{
-        audio::{TransientAudio, TransientAudioPallet}, 
-        colors::{ColorAnchor, ColorChangeEvent, ColorChangeOn, Flicker, OPTION_1_COLOR, OPTION_2_COLOR}, 
-        interaction::{ActionPallet, Clickable, InputAction}, 
-        motion::{Bounce, Wobble}, 
+        audio::{
+            TransientAudio, 
+            TransientAudioPallet
+        }, 
+        colors::{
+            ColorAnchor, 
+            ColorChangeEvent, 
+            ColorChangeOn, 
+            Flicker,
+            OPTION_1_COLOR, 
+            OPTION_2_COLOR
+        }, 
+        interaction::{
+            ActionPallet,
+            Clickable,
+            InputAction
+        }, 
+        motion::{
+            Bounce, 
+            Wobble
+        }, 
     },
     entities::text::{
-       get_text_height, get_text_width, TextTitle
+       get_text_height, 
+       get_text_width, 
+       TextTitle
     }
 };
 
@@ -80,12 +99,13 @@ pub enum AsciiSounds{
 
 impl Component for AsciiString {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
    
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
+        hooks.on_insert(|mut world, context| {
             // Get the text and components early to avoid borrow conflicts
             let (text, color, beep, emotion) = {
-                let entity_ref = world.entity(entity);
+                let entity_ref = world.entity(context.entity);
                 let text = match entity_ref.get::<AsciiString>() {
                     Some(text) => text.0.clone(),
                     None => return,
@@ -114,10 +134,14 @@ impl Component for AsciiString {
                 for ascii_char in word_vector {
                     let char_width = get_text_width(&ascii_char);
                    
-                    commands.entity(entity).with_children(|parent| {
+                    commands.entity(context.entity).with_children(|parent| {
                         // Spawn entity with base components
                         let mut entity_cmd = parent.spawn((
                             AsciiChar,
+                            TextFont{
+                                font_size: 12.0,
+                                ..default()
+                            },
                             ColorAnchor::default(),
                             Text2d::new(ascii_char),
                             Transform::from_translation(translation),

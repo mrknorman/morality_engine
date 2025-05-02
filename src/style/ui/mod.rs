@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::component::StorageType, prelude::*
+	ecs::component::{Mutable, StorageType}, prelude::*
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -54,7 +54,7 @@ impl Default for BottomAnchor {
 impl BottomAnchor {
     fn bottom_anchor(
         windows: Query<&Window>,
-        mut query: Query<(&BottomAnchor, &mut Transform, Option<&Parent>)>,
+        mut query: Query<(&BottomAnchor, &mut Transform, Option<&ChildOf>)>,
         parent_query: Query<&Transform, Without<BottomAnchor>>, // Query for parent Transform
     ) {
         // Return early if there's not exactly one window
@@ -94,7 +94,7 @@ impl Default for CenterXAnchor {
 impl CenterXAnchor {
 
     fn center_x_anchor(
-        mut query: Query<(&CenterXAnchor, &mut Transform, &mut Visibility, Option<&Parent>)>,
+        mut query: Query<(&CenterXAnchor, &mut Transform, &mut Visibility, Option<&ChildOf>)>,
         parent_query: Query<&Transform, Without<CenterXAnchor>>, // Query for parent Transform
     ) {
         for (_center_x_anchor, mut transform, mut visibility, parent) in query.iter_mut() {
@@ -116,20 +116,21 @@ impl CenterXAnchor {
 
 impl Component for CenterXAnchor {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {        
+            |mut world, context| {        
                 // Get the component ID for Visibility
                 // Try to get mutable access to the Visibility component
-                if let Some(mut visibility) = world.get_mut::<Visibility>(entity) {
+                if let Some(mut visibility) = world.get_mut::<Visibility>(context.entity) {
                     // Modify the Visibility component
                     *visibility = Visibility::Hidden;
                 } else {
                     // If the entity doesn't have Visibility, add it
-                    world.commands().entity(entity).insert( Visibility::Hidden);
+                    world.commands().entity(context.entity).insert( Visibility::Hidden);
                 }
             }
         );

@@ -147,7 +147,7 @@ impl DilemmaResultsScene {
 				)),
 				PlaybackSettings{
 					paused : false,
-					volume : Volume::new(0.3),
+					volume : Volume::Linear(0.3),
 					..continuous_audio()
 				}
 			));

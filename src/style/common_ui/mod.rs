@@ -1,6 +1,5 @@
 use bevy::{
-	prelude::*,
-	ecs::component::StorageType
+	ecs::component::{Mutable, StorageType}, prelude::*
 };
 
 use crate::style::ui::{
@@ -40,12 +39,13 @@ impl NextButton {
 
 impl Component for NextButton {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {           
+            |mut world, context| {           
 
 
                 let mut transform = None;
@@ -68,15 +68,15 @@ impl Component for NextButton {
 
                 let mut commands = world.commands();
                 if let Some(transform) = transform {
-                    commands.entity(entity).insert(transform);
+                    commands.entity(context.entity).insert(transform);
                 }
 
                 if let Some(entity) = previous_entity {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(context.entity).despawn_recursive();
                 }
                 
                 if let Some(mut config) = world.get_resource_mut::<NextButtonConfig>() {
-                    config.0 = Some(entity);
+                    config.0 = Some(context.entity);
                 }
             }
         );
@@ -108,12 +108,13 @@ impl CenterLever {
 
 impl Component for CenterLever {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {       
+            |mut world, context| {       
 
                 let mut transform = None;
                 if let Some(window) = world
@@ -135,13 +136,13 @@ impl Component for CenterLever {
 
                 let mut commands = world.commands();
                 if let Some(transform) = transform {
-                    commands.entity(entity).insert(transform);
+                    commands.entity(context.entity).insert(transform);
                 }
                 if let Some(entity) = previous_entity {
-                    commands.entity(entity).despawn_recursive();
+                    commands.entity(entity).despawn();
                 }
                 if let Some(mut config) = world.get_resource_mut::<CenterLeverConfig>() {
-                    config.0 = Some(entity);
+                    config.0 = Some(context.entity);
                 }
             }
         );
@@ -173,12 +174,13 @@ impl DilemmaTimerPosition {
 
 impl Component for DilemmaTimerPosition {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {       
+            |mut world, context| {       
 
                 let mut transform = None;
                 if let Some(window) = world
@@ -200,14 +202,14 @@ impl Component for DilemmaTimerPosition {
 
                 let mut commands = world.commands();
                 if let Some(transform) = transform {
-                    commands.entity(entity).insert(transform);
+                    commands.entity(context.entity).insert(transform);
                 }
                 if let Some(entity) = previous_entity {
                     commands.entity(entity).despawn_recursive();
                 }
                 
                 if let Some(mut config) = world.get_resource_mut::<DilemmaTimerConfig>() {
-                    config.0 = Some(entity);
+                    config.0 = Some(context.entity);
                 }
             }
         );

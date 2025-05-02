@@ -2,7 +2,7 @@
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
-    ecs::component::{ComponentHooks, StorageType},
+    ecs::{component::{ComponentHooks, Mutable, StorageType}, entity},
     prelude::*,
     sprite::Anchor,
 };
@@ -78,9 +78,12 @@ impl Default for Window {
 
 impl Component for Window {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
+        hooks.on_insert(|mut world, context| {
+
+            let entity = context.entity;
             // ─ fetch once ─
             let (title, boundary, header_h, close_btn, root_entity) = {
                 let mut entity_mut = world.entity_mut(entity);
@@ -253,13 +256,14 @@ pub struct WindowBody {
 }
 impl Component for WindowBody {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
-            let boundary = world.entity(entity).get::<WindowBody>().unwrap().boundary;
+        hooks.on_insert(|mut world, context| {
+            let boundary = world.entity(context.entity).get::<WindowBody>().unwrap().boundary;
             world
                 .commands()
-                .entity(entity)
+                .entity(context.entity)
                 .with_children(|p| {p.spawn(BorderedRectangle { boundary });});
         });
     }
@@ -286,9 +290,12 @@ impl Default for WindowHeader {
 }
 impl Component for WindowHeader {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
+        hooks.on_insert(|mut world, context| {
+
+            let entity = context.entity;
             let (root_entity, boundary, has_btn, title, color) = {
                 let h = world.entity(entity).get::<WindowHeader>().unwrap();
                 (
@@ -368,11 +375,12 @@ pub enum WindowActions {
 
 impl Component for WindowCloseButton {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
+        hooks.on_insert(|mut world, context| {
             let (root, boundary, dimensions, color) = {
-                let b = world.entity(entity).get::<WindowCloseButton>().unwrap();
+                let b = world.entity(context.entity).get::<WindowCloseButton>().unwrap();
                 (
                     b.root_entity,
                     b.boundary,
@@ -384,7 +392,7 @@ impl Component for WindowCloseButton {
             let handle =
                 world.get_resource::<AssetServer>().unwrap().load("./audio/effects/mouse_click.ogg");
 
-            world.commands().entity(entity).with_children(|parent| {
+            world.commands().entity(context.entity).with_children(|parent| {
                 parent.spawn((
                     WindowCloseButtonBorder,
                     BorderedRectangle { boundary },

@@ -48,7 +48,7 @@ impl BequeathTextColor {
     ) {
 
         for (children, parent_color) in parent_query.iter() {
-            for &child in children.iter() {
+            for child in children.iter() {
 
                 if let Ok(mut child_color) = child_query.get_mut(child) {
                     child_color.0 = parent_color.0;
@@ -76,7 +76,7 @@ impl BequeathTextAlpha {
     ) {
 
         for (children, parent_color) in parent_query.iter() {
-            for &child in children.iter() {
+            for child in children.iter() {
 
                 if let Ok(mut child_color) = child_query.get_mut(child) {
                     child_color.0 = child_color.0.with_alpha(parent_color.0.alpha());

@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use bevy::{
     ecs::component::{
-        ComponentHooks, 
-        StorageType
+        ComponentHooks, Mutable, StorageType
     }, 
     prelude::*, 
     sprite::Anchor, 
     text::LineBreak, 
-    time::Stopwatch, 
+    time::{common_conditions::on_timer, Stopwatch}, 
     window::PrimaryWindow
 };
 use noise::NoiseFn;
@@ -38,8 +37,8 @@ impl Plugin for CascadePlugin {
         app
             .add_systems(Update, (
                 Cascade::wrap,
-                Cascade::update_visibility,
-                Cascade::update_numbers,
+                Cascade::update_visibility.run_if(on_timer(Duration::from_millis(50))),
+                Cascade::update_numbers.run_if(on_timer(Duration::from_millis(100))),
                 Cascade::enlarge,
                 Cascade::resize,
                 Ripple::spawn,
@@ -111,13 +110,13 @@ impl Ripple {
             for (children, number) in numbers.iter_mut() {
                 let speed = number.speed * dt;
                 
-                for &child in children.iter() {
+                for child in children.iter() {
                     let Ok((entity, mut ripple)) = child_query.get_mut(child) else { continue };
                     
                     ripple.stopwatch.tick(Duration::from_secs_f32(dt));
                     
                     if ripple.stopwatch.elapsed_secs() >= Self::RIPPLE_DURATION {
-                        commands.entity(entity).despawn_recursive();
+                        commands.entity(entity).despawn();
                         continue;
                     }
                     
@@ -127,8 +126,8 @@ impl Ripple {
         }
       
         fn update_effect(
-            ripples: Query<(&Parent, &Ripple)>,
-            mut numbers: Query<(&Parent, &GlobalTransform, &mut Transform, &mut TextColor, &ColorAnchor, &mut CascadeNumber)>,
+            ripples: Query<(&ChildOf, &Ripple)>,
+            mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform, &mut TextColor, &ColorAnchor, &mut CascadeNumber)>,
         ) {
             // Group numbers by their parent
             for (number_parent, global_transform, mut transform, mut color, anchor, mut number) in numbers.iter_mut() {
@@ -203,11 +202,12 @@ pub struct CascadeNumber {
 // System to spawn the number grid when component is inserted
 impl Component for Cascade {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
+        hooks.on_insert(|mut world, context| {
             // Get component data and validate resources exist
-            let entity_ref = world.entity(entity);
+            let entity_ref = world.entity(context.entity);
             let Some(cascade) = entity_ref.get::<Cascade>().cloned() else { return };
             
             let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
@@ -284,7 +284,7 @@ impl Component for Cascade {
 
             // Spawn all entities at once
             let mut commands = world.commands();
-            commands.entity(entity).with_children(|parent| {
+            commands.entity(context.entity).with_children(|parent| {
                 for ((position, digit, noise_pos), random_height, visibility) in 
                     cascade_configs.into_iter()
                     .zip(random_heights)
@@ -315,7 +315,6 @@ impl Component for Cascade {
         });
     }
 }
-
 
 impl Cascade {
     fn update_visibility(
@@ -374,7 +373,7 @@ impl Cascade {
     
         if debounce.timer.just_finished() {
             for (entity, cascade) in cascades.iter() {
-                commands.entity(entity).despawn_descendants();
+                commands.entity(entity).despawn_related::<Children>();
                 commands.entity(entity).insert(cascade.clone());
             }
         }

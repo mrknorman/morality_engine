@@ -5,7 +5,7 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    ecs::component::StorageType, 
+    ecs::component::{Mutable, StorageType}, 
     prelude::*, 
     render::primitives::Aabb, 
     window::PrimaryWindow
@@ -315,14 +315,15 @@ where
     T: Copy + Send + Sync + 'static,
 {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(  
-            |mut world, entity, _component_id| {
-                if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
-                    world.commands().entity(entity).insert((
+            |mut world, context| {
+                if let Some(pong) = world.entity(context.entity).get::<ClickablePong<T>>().cloned() {
+                    world.commands().entity(context.entity).insert((
                         Clickable{
                             actions : pong.action_vector[pong.initial_state].clone(),
                             ..default()

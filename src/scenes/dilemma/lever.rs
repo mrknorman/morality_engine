@@ -100,7 +100,7 @@ impl LeverState {
 
 
 #[derive(Component, Resource)]
-#[require(LeverText, ClickableCursorIcons(Lever::default_cursor_icons))]
+#[require(LeverText, ClickableCursorIcons = Lever::default_cursor_icons())]
 pub struct Lever(pub LeverState);
 
 impl Lever {

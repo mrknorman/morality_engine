@@ -3,9 +3,7 @@ use std::time::Duration;
 use rand::Rng;
 use serde::Deserialize;
 use bevy::{
-    prelude::*, 
-    ecs::component::StorageType, 
-    sprite::Anchor
+    ecs::component::{Mutable, StorageType}, prelude::*, sprite::Anchor
 };
 
 use crate::{
@@ -124,7 +122,7 @@ impl LoadingBar {
                 );
 
                 // Update sprite (progress indicator)
-                for &child in children.iter() {
+                for child in children.iter() {
 
                     if !bar.finished {
                         if let Ok(mut sprite) = sprite_query.get_mut(child) {
@@ -167,15 +165,16 @@ impl LoadingBarConfig {
 
 impl Component for LoadingBar {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
 
                 let (messages, prefix) = {
-                    let entity_ref = world.entity(entity);
+                    let entity_ref = world.entity(context.entity);
                     let messages: Option<Vec<String>> = entity_ref
                         .get::<TextFrames>()
                         .map(|frames: &TextFrames| frames.frames.clone());
@@ -189,7 +188,7 @@ impl Component for LoadingBar {
                 let mut commands: Commands = world.commands();
 
                 if let Some(messages) = messages {
-                    commands.entity(entity).with_children(|parent| {
+                    commands.entity(context.entity).with_children(|parent| {
                         // Spawn the loading bar components
                         parent.spawn((            
                             Sprite{

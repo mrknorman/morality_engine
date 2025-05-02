@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use bevy::{
-    audio::Volume, ecs::component::StorageType, prelude::*
+    audio::Volume, ecs::component::{Mutable, StorageType}, prelude::*
 };
 
 use crate::{
@@ -104,27 +104,28 @@ pub struct Junction{
 pub struct CrowdPanicNoise;
 
 impl Component for Junction {
+	type Mutability = Mutable;
 	const STORAGE_TYPE: StorageType = StorageType::Table;
 
 	fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
 				let junction: Option<Junction> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<Junction>()
                         .map(|train: &Junction| train.clone())
                 };
 
 				let color: Option<TextColor> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<TextColor>()
                         .map(|color: &TextColor| color.clone())
                 };
 				
 				let color_translation: Option<ColorTranslation> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<ColorTranslation>()
                         .map(|translation: &ColorTranslation| translation.clone())
                 };
@@ -169,7 +170,7 @@ impl Component for Junction {
 					];
 					
 					let mut track_entities = vec![];
-					commands.entity(entity).with_children(
+					commands.entity(context.entity).with_children(
 						|junction| {
 							let mut junction_entity = junction.spawn((
 								TrunkTrack,
@@ -198,7 +199,7 @@ impl Component for Junction {
 										Track::new(300),
 										TextColor(color),
 										y_position		
-									)).with_children(|track: &mut ChildBuilder<'_>| {
+									)).with_children(|track: &mut ChildSpawnerCommands<'_>| {
 
 											if option.consequences.total_fatalities >= 500 {
 												track.spawn((
@@ -209,7 +210,7 @@ impl Component for Junction {
 																key : EmotionSounds::Exclaim,
 																source : AudioPlayer::<AudioSource>(crowd_audio.clone()), 
 																settings : PlaybackSettings{
-																	volume : Volume::new(0.5),
+																	volume : Volume::Linear(0.5),
 																	..continuous_audio()
 																},
 																dilatable : true
@@ -374,7 +375,7 @@ impl Junction  {
 	) {
 		if let Some(lever) = lever {		
 			for (children, track) in lever_query.iter_mut(){
-				for &child in children.iter() {
+				for child in children.iter() {
 					if let Ok(mut person) = text_query.get_mut(child) {
 						person.in_danger = (Some(track.index) == lever.0.to_int()) && !(lever.0 == LeverState::Random);
 					}

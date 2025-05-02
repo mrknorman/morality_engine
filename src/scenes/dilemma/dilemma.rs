@@ -4,10 +4,7 @@ use serde::{
 	Serialize
 };
 use bevy::{
-	ecs::{
-		component::StorageType, 
-		component::StorageType::Table
-	}, 
+	ecs::component::{Mutable, StorageType::{self, Table}}, 
 	prelude::*, 
 };
 
@@ -308,28 +305,29 @@ impl DilemmaTimer {
 impl Component for DilemmaTimer{
 
 	const STORAGE_TYPE: StorageType = Table;
+	type Mutability = Mutable;
 
 	fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
 
-				let timer_duration_seconds = world.entity(entity).get::<DilemmaTimer>().unwrap().timer.duration().as_secs_f32();
+				let timer_duration_seconds = world.entity(context.entity).get::<DilemmaTimer>().unwrap().timer.duration().as_secs_f32();
 
 				let mut commands = world.commands();
-				commands.entity(entity).insert(
+				commands.entity(context.entity).insert(
 					Text2d::new(format!("{:.2}\n", timer_duration_seconds ))
 				);
 
-				commands.entity(entity).insert(
+				commands.entity(context.entity).insert(
 					TextFont{
 						font_size : 50.0,
 						..default()
 					}
 				);
 
-				commands.entity(entity).with_children( | parent | {
+				commands.entity(context.entity).with_children( | parent | {
 					parent.spawn(
 						(
 							TextSpan::new(

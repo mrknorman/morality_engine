@@ -5,10 +5,7 @@ use enum_map::{
 };
 
 use crate::{
-    data::states::{
-        MainState, 
-        StateVector
-    },
+    data::states::MainState,
     systems::{
         audio::{
             continuous_audio, 
@@ -138,7 +135,7 @@ impl MenuScene {
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(0.1),
+                                    volume : Volume::Linear(0.1),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -151,7 +148,7 @@ impl MenuScene {
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(0.5),
+                                    volume : Volume::Linear(0.5),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -182,7 +179,7 @@ impl MenuScene {
                         "./audio/music/the_last_decision.ogg", 
                     )),
                     PlaybackSettings{
-                        volume : Volume::new(0.3),
+                        volume : Volume::Linear(0.3),
                         ..continuous_audio()
                     }
                 ));

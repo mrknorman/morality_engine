@@ -41,10 +41,9 @@ impl Plugin for StartupPlugin {
             .insert_resource(
                 Lever::default()
             )
-            .add_plugins((
-                Material2dPlugin::<PulsingMaterial>::default(),
-                bevy_svg::prelude::SvgPlugin
-            ))
+            .add_plugins(
+                Material2dPlugin::<PulsingMaterial>::default()
+            )
             .add_plugins((
                 CursorPlugin,
                 RenderPlugin,
@@ -65,7 +64,7 @@ impl Plugin for StartupPlugin {
 
             //#[cfg(debug_assertions)]
             app
-            .add_plugins(FrameTimeDiagnosticsPlugin)
+            .add_plugins(FrameTimeDiagnosticsPlugin::default())
             .add_plugins(LogDiagnosticsPlugin::default());
     }
 }

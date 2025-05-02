@@ -140,7 +140,7 @@ impl DilemmaScene {
 				StateScoped(GameState::Dilemma)
 			)
 		).with_children(
-			|parent: &mut ChildBuilder<'_>| {
+			|parent: &mut ChildSpawnerCommands<'_>| {
 				parent.spawn((
 					MusicAudio,
 					AudioPlayer::<AudioSource>(asset_server.load(
@@ -148,7 +148,7 @@ impl DilemmaScene {
 					)),
 					PlaybackSettings{
 						paused : false,
-						volume : Volume::new(0.3),
+						volume : Volume::Linear(0.3),
 						..continuous_audio()
 					}
 				));

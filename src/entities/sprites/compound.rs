@@ -1,4 +1,4 @@
-use bevy::{ecs::component::{ComponentHooks, StorageType}, prelude::*};
+use bevy::{ecs::component::{ComponentHooks, Mutable, StorageType}, prelude::*};
 use crate::systems::colors::PRIMARY_COLOR;
 
 pub struct CompoundPlugin;
@@ -65,7 +65,7 @@ pub fn propagate_changes<T: AssembleShape + Component>(
             let updates = shape.updates();
             // Assuming the number of children matches the number of updates
             for (child, (size, pos)) in children.iter().zip(updates.iter()) {
-                if let Ok((mut sprite, mut transform)) = side_query.get_mut(*child) {
+                if let Ok((mut sprite, mut transform)) = side_query.get_mut(child) {
                     sprite.custom_size = Some(size.max(Vec2::ZERO));
                     sprite.color = color;
                     *transform = Transform::from_translation(*pos);
@@ -154,18 +154,19 @@ impl AssembleShape for HollowRectangle {
 
 impl Component for HollowRectangle {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _component_id| {       
+        hooks.on_insert(|mut world, context| {       
             let rectangle = {
-                if let Some(hollow_rectangle) = world.entity(entity).get::<HollowRectangle>() {
+                if let Some(hollow_rectangle) = world.entity(context.entity).get::<HollowRectangle>() {
                     hollow_rectangle.clone()
                 } else {
                     return;
                 }
             };
             
-            world.commands().entity(entity).with_children(|parent| {
+            world.commands().entity(context.entity).with_children(|parent| {
                 rectangle.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
             });
         });
@@ -208,18 +209,19 @@ impl AssembleShape for Plus {
 
 impl Component for Plus {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
     
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _component_id| {
+        hooks.on_insert(|mut world, context| {
             let plus = {
-                if let Some(plus) = world.entity(entity).get::<Plus>() {
+                if let Some(plus) = world.entity(context.entity).get::<Plus>() {
                     plus.clone()
                 } else {
                     return;
                 }
             };
             
-            world.commands().entity(entity).with_children(|parent| {
+            world.commands().entity(context.entity).with_children(|parent| {
                 plus.assemble().for_each(|sprite| { parent.spawn(sprite); });
             });
         });
@@ -245,11 +247,12 @@ pub struct RectangleBorder;
 
 impl Component for BorderedRectangle {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _component_id| {
+        hooks.on_insert(|mut world, context| {
             let (boundary, width, height) = {
-                if let Some(bordered_rectangle) = world.entity(entity).get::<BorderedRectangle>() {
+                if let Some(bordered_rectangle) = world.entity(context.entity).get::<BorderedRectangle>() {
                     (
                         bordered_rectangle.boundary,
                         bordered_rectangle.boundary.dimensions.x,
@@ -270,7 +273,7 @@ impl Component for BorderedRectangle {
                 (mesh_handle, material_handle)
             };
 
-            world.commands().entity(entity).with_children(|parent| {
+            world.commands().entity(context.entity).with_children(|parent| {
                 parent.spawn((
                     RectangleBackground,
                     Mesh2d(mesh_handle),
@@ -299,7 +302,7 @@ impl BorderedRectangle {
                 let width = bordered_rectangle.boundary.dimensions.x;
                 let height = bordered_rectangle.boundary.dimensions.y;
                 
-                for &child in children.iter() {
+                for child in children.iter() {
                     if let Ok(mut mesh2d) = background_query.get_mut(child) {
                         mesh2d.0 = meshes.add(Mesh::from(Rectangle::new(width, height)));
                     }

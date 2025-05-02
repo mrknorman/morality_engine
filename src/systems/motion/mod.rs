@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
-	prelude::*,
-	ecs::component::StorageType
+	ecs::component::{Mutable, StorageType}, prelude::*
 };
 use rand::Rng;
 use crate::{
@@ -76,23 +75,24 @@ pub struct PointToPointTranslation {
 
 impl Component for PointToPointTranslation {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+	type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let transform: Option<Transform> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<Transform>().cloned()
                 };
 
                 match transform {
                     Some(transform) => {
-                        if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<PointToPointTranslation>() {
+                        if let Some(mut transform_anchor) = world.entity_mut(context.entity).get_mut::<PointToPointTranslation>() {
                             transform_anchor.initial_position = transform.translation;
                         } else {
                             warn!(
 								"Failed to retrieve TransformAnchor component for entity: {:?}", 
-								entity
+								context.entity
 							);
                         }
                     }
@@ -167,21 +167,22 @@ impl Default for TransformMultiAnchor {
 
 impl Component for TransformAnchor {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+	type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let transform: Option<Transform> = {
-                    let entity_mut = world.entity(entity);
+                    let entity_mut = world.entity(context.entity);
                     entity_mut.get::<Transform>().cloned()
                 };
 
                 match transform {
                     Some(transform) => {
-                        if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<TransformAnchor>() {
+                        if let Some(mut transform_anchor) = world.entity_mut(context.entity).get_mut::<TransformAnchor>() {
                             transform_anchor.0.clone_from(&transform);
                         } else {
-                            warn!("Failed to retrieve TransformAnchor component for entity: {:?}", entity);
+                            warn!("Failed to retrieve TransformAnchor component for entity: {:?}", context.entity);
                         }
                     }
                     None => {

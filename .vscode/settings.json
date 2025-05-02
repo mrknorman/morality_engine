@@ -1,7 +1,9 @@
 {
     "cSpell.words": [
         "brainer",
+        "codegen",
         "cooldown",
+        "crossterm",
         "deontological",
         "Deontologist",
         "deque",
@@ -15,6 +17,8 @@
         "lods",
         "Mapface",
         "Perlin",
+        "rodio",
+        "serde",
         "slowmo",
         "srgb",
         "Srgba",
@@ -23,6 +27,7 @@
         "trolleyest",
         "trolleygeddon",
         "wgsl",
-        "winit"
+        "winit",
+        "xorshift"
     ]
 }

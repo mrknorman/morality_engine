@@ -1,7 +1,5 @@
 use bevy::{
-    prelude::*, 
-	ecs::component::StorageType,
-    render::mesh::Mesh2d
+    ecs::component::{Mutable, StorageType}, prelude::*, render::mesh::Mesh2d
 };
 
 use crate::{
@@ -83,7 +81,7 @@ impl Graph {
     }
 
     fn spawn_layer(
-        parent: &mut ChildBuilder<'_>,
+        parent: &mut ChildSpawnerCommands<'_>,
         circle_mesh_handle: &Handle<Mesh>,
         annulus_mesh_handle: &Handle<Mesh>,
         node_material_slice: &[Handle<PulsingMaterial>],
@@ -120,7 +118,7 @@ impl Graph {
     }
 
     fn spawn(
-        parent: &mut ChildBuilder<'_>,
+        parent: &mut ChildSpawnerCommands<'_>,
         circle_mesh_handle: Handle<Mesh>,
         annulus_mesh_handle: Handle<Mesh>,
         node_material_vector: Vec<Handle<PulsingMaterial>>,
@@ -163,15 +161,16 @@ impl Graph {
 
 impl Component for Graph {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 // Step 1: Extract the Graph component (immutable borrow)
                 let graph: Option<Graph> = {
-                    let entity_ref: EntityRef<'_> = world.entity(entity);
+                    let entity_ref: EntityRef<'_> = world.entity(context.entity);
                     entity_ref.get::<Graph>().cloned()
                 };
 
@@ -217,7 +216,7 @@ impl Component for Graph {
                     {
                         let mut commands = world.commands();
 
-                        commands.entity(entity).with_children(|parent: &mut ChildBuilder<'_>| {
+                        commands.entity(context.entity).with_children(|parent: &mut ChildSpawnerCommands<'_>| {
                             Graph::spawn(
                                 parent,
                                 circle_mesh_handle.clone(),

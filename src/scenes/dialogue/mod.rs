@@ -122,7 +122,7 @@ impl DialogueScene {
                                 "./audio/effects/hum.ogg"
                             )),
                             settings : PlaybackSettings{
-                                volume : Volume::new(0.1),
+                                volume : Volume::Linear(0.1),
                                 ..continuous_audio()
                             },
                             dilatable : false
@@ -133,7 +133,7 @@ impl DialogueScene {
                                 "./audio/effects/office.ogg"
                             )),
                             settings : PlaybackSettings{
-                                volume : Volume::new(0.5),
+                                volume : Volume::Linear(0.5),
                                 ..continuous_audio()
                             },
                             dilatable : true
@@ -144,7 +144,7 @@ impl DialogueScene {
                                 "./audio/music/trolley_wires.ogg"
                             )),
                             settings : PlaybackSettings{
-                                volume : Volume::new(0.3),
+                                volume : Volume::Linear(0.3),
                                 ..continuous_audio()
                             },
                             dilatable : false

@@ -135,7 +135,7 @@ impl DilemmaIntroScene {
 							)),
 							PlaybackSettings{
 								paused : false,
-								volume : Volume::new(1.0),
+								volume : Volume::Linear(1.0),
 								..one_shot_audio()
 							}
 						));

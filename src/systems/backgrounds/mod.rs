@@ -4,9 +4,9 @@ use rand::Rng;
 
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
+        component::{ComponentHooks, Mutable, StorageType},
         system::SystemId
-    }, prelude::*, sprite::Anchor, text::LineBreak, window::{PrimaryWindow, WindowResized}
+    }, prelude::*, sprite::Anchor, text::LineBreak, window::PrimaryWindow
 };
 
 use crate::{
@@ -122,7 +122,7 @@ impl Background {
     ) {
         if debounce.timer.just_finished() {
             for (entity, background) in &backgrounds {
-                commands.entity(entity).despawn_descendants();
+                commands.entity(entity).despawn_related::<Children>();
                 commands.entity(entity).insert(background.clone());
             }
         }
@@ -174,11 +174,12 @@ impl BackgroundSprite {
 // Background component storage and lifecycle hooks
 impl Component for Background {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _| {
+        hooks.on_insert(|mut world,context| {
             // Get required components and resources
-            let entity_ref = world.entity(entity);
+            let entity_ref = world.entity(context.entity);
             let Some(background) = entity_ref.get::<Background>().cloned() else { return };
             let color = entity_ref.get::<TextColor>().cloned();
             
@@ -243,7 +244,7 @@ impl Component for Background {
 
             // Now we can use commands with a fresh mutable borrow
             let mut commands = world.commands();
-            let mut parent_commands = commands.entity(entity);
+            let mut parent_commands = commands.entity(context.entity);
 
             // Use the pre-generated configurations to spawn sprites
             for (translation, scale_factor, random_offset, lod, speed) in sprite_configs {

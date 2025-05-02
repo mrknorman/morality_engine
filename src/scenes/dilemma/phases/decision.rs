@@ -140,7 +140,7 @@ impl DecisionScene {
 								key : DilemmaSounds::TrainApproaching,
 								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/train/approaching.ogg")),
 								settings : PlaybackSettings{
-									volume : Volume::new(1.0),
+									volume : Volume::Linear(1.0),
 									..continuous_audio()
 								},
 								dilatable : true 
@@ -149,7 +149,7 @@ impl DecisionScene {
 								key : DilemmaSounds::Clock,
 								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/clock.ogg")),
 								settings : PlaybackSettings{
-									volume : Volume::new(0.3),
+									volume : Volume::Linear(0.3),
 									..continuous_audio()
 								},
 								dilatable : true 

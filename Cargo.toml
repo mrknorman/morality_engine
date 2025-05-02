@@ -12,7 +12,7 @@ crossterm = "0.28.1"
 rodio = "0.20.1"
 serde = { version = "1.0.216", features = ["derive"] }
 serde_json = "1.0.133"
-bevy = "0.15"
+bevy = "0.16"
 phf = { version = "0.11.2", features = ["macros"] }
 rand_xorshift = "0.3.0"
 rand_core = "0.6.4"

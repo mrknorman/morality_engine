@@ -176,7 +176,7 @@ impl LoadingScene {
                             "./audio/effects/hum.ogg"
                         )),
                         settings : PlaybackSettings{
-                            volume : Volume::new(0.1),
+                            volume : Volume::Linear(0.1),
                             ..continuous_audio()
                         },
                         dilatable : false
@@ -187,7 +187,7 @@ impl LoadingScene {
                             "./audio/effects/office.ogg"
                         )),
                         settings : PlaybackSettings{
-                            volume : Volume::new(0.5),
+                            volume : Volume::Linear(0.5),
                             ..continuous_audio()
                         },
                         dilatable : true
@@ -234,7 +234,7 @@ impl LoadingScene {
                             "./audio/effects/intro_lilly_elvenlabs.ogg", 
                         )),
                         PlaybackSettings{
-                            volume : Volume::new(1.0),
+                            volume : Volume::Linear(1.0),
                             ..one_shot_audio()
                         }
                     ));
@@ -251,7 +251,7 @@ impl LoadingScene {
                         )),
                         PlaybackSettings{
                             paused : false,
-                            volume : Volume::new(0.1),
+                            volume : Volume::Linear(0.1),
                             ..continuous_audio()
                         }
                     ));

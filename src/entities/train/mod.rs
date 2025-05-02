@@ -1,9 +1,7 @@
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
-	prelude::*,
-	ecs::component::StorageType,
-	audio::Volume
+	audio::Volume, ecs::component::{Mutable, StorageType}, prelude::*
 };
 use enum_map::{
     Enum, 
@@ -161,11 +159,15 @@ pub enum TrainSounds {
 
 impl Component for Train {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
+    
     fn register_component_hooks(
         hooks: &mut bevy::ecs::component::ComponentHooks,
     ) {
         hooks.on_insert(
-            |mut world, entity, _| {
+            |mut world, context| {
+
+                let entity = context.entity;
                 // Get GlobalRng first, before other borrows
                 let mut rng_option = None;
                 if let Some(rng) = world.get_resource_mut::<GlobalRng>() {
@@ -236,7 +238,7 @@ impl Component for Train {
                                     key: TrainSounds::Tracks,
                                     source: AudioPlayer::<AudioSource>(track_audio),
                                     settings: PlaybackSettings{
-                                        volume: Volume::new(0.1),
+                                        volume: Volume::Linear(0.1),
                                         ..continuous_audio()
                                     },
                                     dilatable: true

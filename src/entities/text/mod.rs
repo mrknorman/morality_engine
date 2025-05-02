@@ -1,9 +1,8 @@
 use serde::Deserialize;
 use bevy::{
-    ecs::component::{
-        ComponentHooks, 
-        StorageType
-    }, prelude::*, sprite::Anchor, text::{
+    ecs::{component::{
+        ComponentHooks, Mutable, StorageType
+    }, entity}, prelude::*, sprite::Anchor, text::{
         TextBounds, TextLayoutInfo
     }
 };
@@ -90,7 +89,7 @@ fn default_nowrap_layout() -> TextLayout {
 
 // Existing components
 #[derive(Component)]
-#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_text_layout))]
+#[require(TextFont = default_font(), TextColor = default_font_color(), TextLayout = default_text_layout())]
 pub struct TextRaw;
 
 impl Default for TextRaw {
@@ -100,7 +99,7 @@ impl Default for TextRaw {
 }
 
 #[derive(Component)]
-#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout))]
+#[require(TextFont = default_font(), TextColor = default_font_color(), TextLayout = default_nowrap_layout())]
 pub struct TextSprite;
 
 impl Default for TextSprite {
@@ -110,7 +109,7 @@ impl Default for TextSprite {
 }
 
 #[derive(Component)]
-#[require(TextFont(default_font), TextColor(default_font_color), TextLayout(default_nowrap_layout))]
+#[require(TextFont = default_font(), TextColor = default_font_color(), TextLayout = default_nowrap_layout())]
 pub struct TextTitle;
 
 impl Default for TextTitle {
@@ -204,10 +203,10 @@ pub fn get_text_height(text: &String) -> f32 {
 
 #[derive(Component)]
 #[require(
-    Text2d(default_button_text), 
-    TextFont(default_button_font), 
-    TextColor(default_font_color),
-    TextBounds(default_button_bounds), 
+    Text2d = default_button_text(), 
+    TextFont = default_button_font(), 
+    TextColor = default_font_color(),
+    TextBounds = default_button_bounds(), 
     ColorAnchor
 )]
 
@@ -302,10 +301,13 @@ impl Default for TextWindow{
 
 impl Component for TextWindow {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
 	fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {       
+            |mut world, context| {
+
+                let entity = context.entity;       
 
                 let (title, header_height, color, has_close_button) = {
                     if let Some(window) = world.entity(entity).get::<TextWindow>() {
@@ -379,7 +381,7 @@ impl TextWindow {
             }   
 
             if let Ok(children) = children_query.get(entity) {
-                for &child in children.iter() {
+                for child in children.iter() {
 
                     if let Ok((mut transform, mut rectangle)) = background_query.get_mut(child) {
                         transform.translation = -anchor_offset;
@@ -455,10 +457,13 @@ impl Cell {
 
 impl Component for Cell {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
 	fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {       
+            |mut world, context| {     
+
+                let entity = context.entity;  
 
                 let (text, border) = {
                     if let Some(cell) = world.entity_mut(entity).get_mut::<Cell>() {
@@ -522,9 +527,13 @@ impl Column {
 
 impl Component for Column {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _component_id| {       
+        hooks.on_insert(|mut world, context| {     
+
+            let entity = context.entity;
+
             let (cells, padding, width, rows, anchor, has_boundary) = {
                 if let Some(column) = world.entity_mut(entity).get_mut::<Column>() {
                     (column.cells.clone(), column.padding, column.width, column.rows.clone(), column.anchor, column.has_boundary)
@@ -589,9 +598,12 @@ pub struct Table{
 
 impl Component for Table {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, entity, _component_id| {
+        hooks.on_insert(|mut world, context| {
+            let entity = context.entity;
+            
             let (columns, rows) = {
                 if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
                     (table.columns.clone(), table.rows.clone())
@@ -653,10 +665,13 @@ impl Default for WindowedTable{
 
 impl Component for WindowedTable {
 	const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
 	fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {      
+            |mut world,context| {      
+
+                let entity = context.entity;
 
                 let (columns, rows) = {
                     if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {

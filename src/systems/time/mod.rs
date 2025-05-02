@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use bevy::{
     ecs::component::{
-        StorageType, 
-        ComponentHooks
+        ComponentHooks, Mutable, StorageType
     },
     prelude::*
 };
@@ -59,20 +58,21 @@ pub struct DilationTranslation {
 
 impl Component for DilationTranslation {
     const STORAGE_TYPE: StorageType = StorageType::Table;
+    type Mutability = Mutable;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_insert(
-            |mut world, entity, _component_id| {
+            |mut world, context| {
                 let dilation = world.get_resource::<Dilation>().map(|d| d.0);
 
                 match dilation {
                     Some(dilation) => {
-                        if let Some(mut dilation_translation) = world.entity_mut(entity).get_mut::<DilationTranslation>() {
+                        if let Some(mut dilation_translation) = world.entity_mut(context.entity).get_mut::<DilationTranslation>() {
                             dilation_translation.initial_dilation = dilation;
                         } else {
                             warn!(
 								"Failed to retrieve TransformAnchor component for entity: {:?}", 
-								entity
+								context.entity
 							);
                         }
                     }

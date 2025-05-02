@@ -152,7 +152,7 @@ fn dialogue_window() -> TextWindow {
 }
 
 #[derive(Component)]
-#[require(Text2d, TextWindow(dialogue_window), Draggable, TextBounds(dialogue_text_bounds), Transform, Anchor(dialogue_anchor))]
+#[require(Text2d, TextWindow = dialogue_window(), Draggable, TextBounds = dialogue_text_bounds(), Transform, Anchor = dialogue_anchor())]
 pub struct Dialogue {
     pub lines: Vec<DialogueLine>,
     pub current_line_index: usize,
@@ -235,7 +235,7 @@ impl Dialogue {
                 )),
                 settings : PlaybackSettings{
                     paused : true,
-                    volume : Volume::new(0.5),
+                    volume : Volume::Linear(0.5),
                     ..continuous_audio()
                 },
                 dilatable : true

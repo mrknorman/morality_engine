@@ -91,7 +91,7 @@ fn default_person() -> Text2d {
 }
 
 #[derive(Component)]
-#[require(Anchor(default_person_anchor), Gravity, TextSprite, Text2d(default_person))]
+#[require(Anchor = default_person_anchor(), Gravity, TextSprite, Text2d = default_person())]
 pub struct PersonSprite{
 	pub in_danger : bool,
 }
@@ -204,7 +204,7 @@ fn default_emoticon_transform() -> Transform {
 }
 
 #[derive(Component)]
-#[require(TextSprite,  Text2d(default_emoticon), Transform(default_emoticon_transform))]
+#[require(TextSprite,  Text2d = default_emoticon(), Transform = default_emoticon_transform())]
 pub struct Emoticon{
 	pub initial_size : f32,
 	pub current_size : f32,
@@ -226,7 +226,7 @@ impl Emoticon {
 		time: Res<Time>,
 		dilation : Res<Dilation>,
 		person_query: Query<&mut Bounce, With<PersonSprite>>,
-		mut emoticon_query: Query<(&Parent, &mut Emoticon, &mut Transform, &mut Text2d)>,
+		mut emoticon_query: Query<(&ChildOf, &mut Emoticon, &mut Transform, &mut Text2d)>,
 	) {
 
 		let duration_seconds = time.delta_secs()*dilation.0;

@@ -180,7 +180,7 @@ impl EndingScene{
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(1.0),
+                                    volume : Volume::Linear(1.0),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -193,7 +193,7 @@ impl EndingScene{
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(0.06),
+                                    volume : Volume::Linear(0.06),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -206,7 +206,7 @@ impl EndingScene{
                                     )
                                 ), 
                                 settings : PlaybackSettings{
-                                    volume : Volume::new(0.2),
+                                    volume : Volume::Linear(0.2),
                                     ..continuous_audio()
                                 },
                                 dilatable : true
@@ -321,7 +321,7 @@ impl EndingScene{
 							)),
 							PlaybackSettings{
 								paused : false,
-								volume : Volume::new(1.0),
+								volume : Volume::Linear(1.0),
 								..one_shot_audio()
 							}
 						));
