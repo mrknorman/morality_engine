@@ -37,8 +37,8 @@ impl Plugin for CascadePlugin {
         app
             .add_systems(Update, (
                 Cascade::wrap,
-                Cascade::update_visibility.run_if(on_timer(Duration::from_millis(50))),
-                Cascade::update_numbers.run_if(on_timer(Duration::from_millis(100))),
+                Cascade::update_visibility.run_if(on_timer(Duration::from_millis(2))),
+                Cascade::update_numbers.run_if(on_timer(Duration::from_millis(2))),
                 Cascade::enlarge,
                 Cascade::resize,
                 Ripple::spawn,

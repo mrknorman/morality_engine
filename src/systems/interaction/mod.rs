@@ -1001,7 +1001,7 @@ pub fn get_cursor_world_position(
     camera_q: &Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) -> Option<Vec2> {
     let cursor_position = window.cursor_position()?;
-    let (camera, camera_transform) = camera_q.get_single().ok()?;
+    let (camera, camera_transform) = camera_q.single().ok()?;
     let world_position = camera.viewport_to_world(camera_transform, cursor_position).ok()?;
     Some(world_position.origin.truncate())
 }

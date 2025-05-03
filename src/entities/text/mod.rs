@@ -234,13 +234,17 @@ impl TextButton {
         actions: Vec<T>,
         keys: Vec<KeyCode>,
         text: impl Into<String>
-    ) -> (TextButton,  Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
+    ) -> (TextButton, TextLayout, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
     where 
         T: Clone + Copy + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync,  
     {
         let text = text.into();
         (
             TextButton,
+            TextLayout{
+                justify: JustifyText::Center,
+                ..default()
+            },   
             Clickable::new(actions.clone()),
             Pressable::new(vec!(
                 KeyMapping{
