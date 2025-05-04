@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use bevy::{
-    ecs::{component::{
+    ecs::component::{
         ComponentHooks, Mutable, StorageType
-    }, entity}, prelude::*, sprite::Anchor, text::{
+    }, prelude::*, sprite::Anchor, text::{
         TextBounds, TextLayoutInfo
     }
 };
@@ -234,11 +234,10 @@ impl TextButton {
         actions: Vec<T>,
         keys: Vec<KeyCode>,
         text: impl Into<String>
-    ) -> (TextButton, TextLayout, Clickable<T>, Pressable<T>, ColorChangeOn, Text2d)
+    ) -> impl Bundle
     where 
-        T: Clone + Copy + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync,  
+        T: Clone + Copy + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync + 'static,  
     {
-        let text = text.into();
         (
             TextButton,
             TextLayout{
@@ -257,7 +256,7 @@ impl TextButton {
                 ColorChangeEvent::Click(vec![CLICKED_BUTTON], None),
                 ColorChangeEvent::Hover(vec![HOVERED_BUTTON], None),
             ]),
-            Text2d::new(text),
+            Text2d::new(text.into()),
         )
     }
 }

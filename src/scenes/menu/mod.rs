@@ -114,77 +114,68 @@ impl MenuScene {
         queue : Res<SceneQueue>,
         asset_server: Res<AssetServer>
     ) {
-
         commands.spawn(
             (
                 queue.current,
                 MenuScene,
                 StateScoped(MainState::Menu),
-            )
-        ).with_children(
-            |parent| {
-                parent.spawn((
-                    BackgroundAudio,
-                    ContinuousAudioPallet::new(
-                        vec![
-                            ContinuousAudio{
-                                key : MenuSounds::Static,
-                                source : AudioPlayer::<AudioSource>(
-                                    asset_server.load(
-                                        "./audio/effects/static.ogg"
-                                    )
-                                ), 
-                                settings : PlaybackSettings{
-                                    volume : Volume::Linear(0.1),
-                                    ..continuous_audio()
+                children![
+                    (
+                        BackgroundAudio,
+                        ContinuousAudioPallet::new(
+                            vec![
+                                ContinuousAudio{
+                                    key : MenuSounds::Static,
+                                    source : AudioPlayer::<AudioSource>(
+                                        asset_server.load(
+                                            "./audio/effects/static.ogg"
+                                        )
+                                    ), 
+                                    settings : PlaybackSettings{
+                                        volume : Volume::Linear(0.1),
+                                        ..continuous_audio()
+                                    },
+                                    dilatable : true
                                 },
-                                dilatable : true
-                            },
-                            ContinuousAudio{
-                                key : MenuSounds::Office,
-                                source : AudioPlayer::<AudioSource>(
-                                    asset_server.load(
-                                        "./audio/effects/office.ogg"
-                                    )
-                                ), 
-                                settings : PlaybackSettings{
-                                    volume : Volume::Linear(0.5),
-                                    ..continuous_audio()
-                                },
-                                dilatable : true
-                            }
-                        ]
-                    )
-                ));
-
-                parent.spawn((         
-                    Background::new(
-                        BackgroundTypes::Desert,	
-                        0.00002,
-                        -0.5
+                                ContinuousAudio{
+                                    key : MenuSounds::Office,
+                                    source : AudioPlayer::<AudioSource>(
+                                        asset_server.load(
+                                            "./audio/effects/office.ogg"
+                                        )
+                                    ), 
+                                    settings : PlaybackSettings{
+                                        volume : Volume::Linear(0.5),
+                                        ..continuous_audio()
+                                    },
+                                    dilatable : true
+                                }
+                            ]
+                        )
                     ),
-                    TextColor(DIM_BACKGROUND_COLOR)
-                    )
-                );
-
-                parent.spawn((
-                    Track::new(600),
-                    TextColor(DIM_BACKGROUND_COLOR),
-                    Transform::from_translation(Self::TRAIN_TRANSLATION + Self::TRACK_DISPLACEMENT)
-                ));
-
-                parent.spawn((
-                    MusicAudio,
-                    AudioPlayer::<AudioSource>(asset_server.load(
-                        "./audio/music/the_last_decision.ogg", 
-                    )),
-                    PlaybackSettings{
-                        volume : Volume::Linear(0.3),
-                        ..continuous_audio()
-                    }
-                ));
-
-                parent.spawn(
+                    (         
+                        Background::new(
+                            BackgroundTypes::Desert,	
+                            0.00002,
+                            -0.5
+                        ),
+                        TextColor(DIM_BACKGROUND_COLOR)
+                    ),
+                    (
+                        Track::new(600),
+                        TextColor(DIM_BACKGROUND_COLOR),
+                        Transform::from_translation(Self::TRAIN_TRANSLATION + Self::TRACK_DISPLACEMENT)
+                    ),
+                    (
+                        MusicAudio,
+                        AudioPlayer::<AudioSource>(asset_server.load(
+                            "./audio/music/the_last_decision.ogg", 
+                        )),
+                        PlaybackSettings{
+                            volume : Volume::Linear(0.3),
+                            ..continuous_audio()
+                        }
+                    ),
                     (
                         TextEmotion::Happy,
                         AsciiString(
@@ -192,28 +183,19 @@ impl MenuScene {
                         ),
                         TextColor(MENU_COLOR),
                         Transform::from_translation(Self::TITLE_TRANSLATION)
-                    )
-                );
-
-                parent.spawn(
+                    ),
                     (                    
                         Train(TrainTypes::SteamTrain),
                         Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),
-                    )  
-                );
-
-                parent.spawn(
+                    ), 
                     (
                         TextRaw,
                         Text2d::new(
                             "A game by Michael Norman"
                         ),
                         Transform::from_translation(Self::SIGNATURE_TRANSLATION)
-                    )
-                );
-
-                parent.spawn(
+                    ),
                     (
                         NextButton,
                         TextColor(MENU_COLOR),
@@ -251,8 +233,8 @@ impl MenuScene {
                             )]
                         ),
                     )
-                );
-            }
+                ]
+            ),
         );
     }
 }

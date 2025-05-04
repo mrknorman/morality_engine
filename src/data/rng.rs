@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::SeedableRng;
 use rand_pcg::Pcg64Mcg;
-use noise::{NoiseFn, Perlin};
+use noise::Perlin;
 
 
 pub struct RngPlugin;
