@@ -4,8 +4,11 @@ use serde::{
 	Serialize
 };
 use bevy::{
-	ecs::component::{Mutable, StorageType::{self, Table}}, 
-	prelude::*, 
+	ecs::{
+		component::HookContext, 
+		world::DeferredWorld, 
+	},
+	prelude::*
 };
 
 use crate::{
@@ -58,12 +61,7 @@ impl Plugin for DilemmaPlugin {
 		.add_systems(
 			OnExit(DilemmaPhase::Consequence), 
 			Dilemma::update_queue
-		)
-		.register_required_components::<DilemmaTimer, TextRaw>()
-		.register_required_components::<DilemmaTimer, Text2d>()
-		.register_required_components::<DilemmaTimer, BequeathTextColor>()
-		.register_required_components::<DilemmaTimer, Pulse>()
-		;
+		);
     }
 }
 
@@ -242,6 +240,9 @@ impl DilemmaOption {
 	}
 }
 
+#[derive(Component)]
+#[require(TextRaw, Text2d, BequeathTextColor, Pulse)]
+#[component(on_insert = DilemmaTimer::on_insert)]
 pub struct DilemmaTimer{
 	pub timer : Timer,
 	pulse_start_time : Duration,
@@ -300,48 +301,41 @@ impl DilemmaTimer {
 			}
 		}
 	}
-}
 
-impl Component for DilemmaTimer{
-
-	const STORAGE_TYPE: StorageType = Table;
-	type Mutability = Mutable;
-
-	fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+	fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {
 
-				let timer_duration_seconds = world.entity(context.entity).get::<DilemmaTimer>().unwrap().timer.duration().as_secs_f32();
+		let timer_duration_seconds = world.entity(entity).get::<DilemmaTimer>().unwrap().timer.duration().as_secs_f32();
 
-				let mut commands = world.commands();
-				commands.entity(context.entity).insert(
-					Text2d::new(format!("{:.2}\n", timer_duration_seconds ))
-				);
+		let mut commands = world.commands();
+		commands.entity(entity).insert(
+			Text2d::new(format!("{:.2}\n", timer_duration_seconds ))
+		);
 
-				commands.entity(context.entity).insert(
-					TextFont{
-						font_size : 50.0,
+		commands.entity(entity).insert(
+			TextFont{
+				font_size : 50.0,
+				..default()
+			}
+		);
+
+		commands.entity(entity).with_children( | parent | {
+			parent.spawn(
+				(
+					TextSpan::new(
+						"seconds remaining.\n".to_string()
+					), 
+					TextFont {
+						font_size: 12.0,
 						..default()
 					}
-				);
+				)
+			);
+		});
 
-				commands.entity(context.entity).with_children( | parent | {
-					parent.spawn(
-						(
-							TextSpan::new(
-								"seconds remaining.\n".to_string()
-							), 
-							TextFont {
-								font_size: 12.0,
-								..default()
-							}
-						)
-					);
-				});
-			});
-		} 
+	}
 }
 
 #[derive(Resource, Clone)]

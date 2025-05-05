@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use bevy::{
-    ecs::component::{
-        ComponentHooks, Mutable, StorageType
-    }, prelude::*, sprite::Anchor, text::{
+    ecs::{component::{
+        ComponentHooks, HookContext, Mutable, StorageType
+    }, world::DeferredWorld}, prelude::*, sprite::Anchor, text::{
         TextBounds, TextLayoutInfo
     }
 };
@@ -47,13 +47,7 @@ impl Plugin for TextPlugin {
 		.add_systems(
 			Update,
                 TextWindow::propagate_changes
-            )
-        .register_required_components::<Cell, Transform>()
-        .register_required_components::<Cell, Visibility>()
-        .register_required_components::<Column, Transform>()
-        .register_required_components::<Column, Visibility>()
-        .register_required_components::<Table, Transform>()
-        .register_required_components::<Table, Visibility>();
+            );
 
         if !app.is_plugin_added::<SpritePlugin>() {
 			app.add_plugins(SpritePlugin);
@@ -280,7 +274,9 @@ fn get_anchor_offset(anchor : &Anchor, dimensions : Vec2) -> Vec2 {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = TextWindow::on_insert)]
 pub struct TextWindow{
     pub title : Option<WindowTitle>,
     pub border_color : Color,
@@ -298,61 +294,6 @@ impl Default for TextWindow{
             padding : Vec2::new(20.0, 10.0),
             has_close_button : true
         }
-    }
-}
-
-impl Component for TextWindow {
-	const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-	fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-
-                let entity = context.entity;       
-
-                let (title, header_height, color, has_close_button) = {
-                    if let Some(window) = world.entity(entity).get::<TextWindow>() {
-                        (window.title.clone(), window.header_height, window.border_color, window.has_close_button)
-                    } else {
-                        return;
-                    }
-                };  
-
-                let (text_layout, text_bounds) = {
-                    if let Some(text_layout) = world.entity(entity).get::<TextLayoutInfo>() {
-                        (text_layout.clone(), world.entity(entity).get::<TextBounds>())
-                    } else {
-                        return;
-                    }
-                };
-
-                let dimensions = if let Some(text_bounds) = text_bounds {
-                    Vec2::new(
-                        text_bounds.width.unwrap_or(text_layout.size.x),
-                        text_bounds.height.unwrap_or(text_layout.size.y)
-                    )
-                } else {
-                    text_layout.size
-                };
-
-                world.commands().entity(entity).with_children(|parent| {
-                    parent.spawn(
-                        Window::new(
-                            title,
-                            HollowRectangle{
-                                color,
-                                dimensions,
-                                ..default()
-                            },
-                            header_height,
-                            has_close_button,
-                            Some(entity)
-                        )
-                    );
-                });
-            }
-        );
     }
 }
 
@@ -393,6 +334,52 @@ impl TextWindow {
             }
         }
     }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (title, header_height, color, has_close_button) = {
+            if let Some(window) = world.entity(entity).get::<TextWindow>() {
+                (window.title.clone(), window.header_height, window.border_color, window.has_close_button)
+            } else {
+                return;
+            }
+        };  
+
+        let (text_layout, text_bounds) = {
+            if let Some(text_layout) = world.entity(entity).get::<TextLayoutInfo>() {
+                (text_layout.clone(), world.entity(entity).get::<TextBounds>())
+            } else {
+                return;
+            }
+        };
+
+        let dimensions = if let Some(text_bounds) = text_bounds {
+            Vec2::new(
+                text_bounds.width.unwrap_or(text_layout.size.x),
+                text_bounds.height.unwrap_or(text_layout.size.y)
+            )
+        } else {
+            text_layout.size
+        };
+
+        world.commands().entity(entity).with_children(|parent| {
+            parent.spawn(
+                Window::new(
+                    title,
+                    HollowRectangle{
+                        color,
+                        dimensions,
+                        ..default()
+                    },
+                    header_height,
+                    has_close_button,
+                    Some(entity)
+                )
+            );
+        });
+    }
 }
 
 #[derive(Clone)]
@@ -431,7 +418,9 @@ impl TextContent {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = Cell::on_insert)]
+#[require(Transform, Visibility)]
 pub struct Cell{
     text : TextContent,
     border : BorderedRectangle
@@ -455,54 +444,57 @@ impl Cell {
             ..default()
         }
     }
-}
 
-impl Component for Cell {
-	const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-	fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {     
-
-                let entity = context.entity;  
-
-                let (text, border) = {
-                    if let Some(cell) = world.entity_mut(entity).get_mut::<Cell>() {
-                        (cell.text.clone(), cell.border)
-                    } else {
-                        return;
-                    }
-                };  
-
-
-                let offset:Vec2 = get_anchor_offset(&text.anchor, text.bounds - text.padding*2.0); 
-
-                world.commands().entity(entity).with_children(|parent| {
-                    parent.spawn((
-                        Text2d(text.content),
-                        TextColor(text.color),
-                        text.anchor,
-                        TextFont{
-                            font_size : text.size,
-                            ..default()
-                        },
-                        TextBounds{
-                            width : Some(text.bounds.x),
-                            height : Some(text.bounds.y),
-                            ..default()
-                        },
-                        Transform::from_translation(offset.extend(0.0))
-                    ));
-                    
-                    parent.spawn(border);
-                });
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (text, border) = {
+            if let Some(cell) = world.entity_mut(entity).get_mut::<Cell>() {
+                (cell.text.clone(), cell.border)
+            } else {
+                return;
             }
-        );
+        };  
+
+        let offset:Vec2 = get_anchor_offset(&text.anchor, text.bounds); 
+
+        let justify = match text.anchor {
+            Anchor::TopLeft | Anchor::CenterLeft | Anchor::BottomLeft => JustifyText::Left,
+            Anchor::TopCenter | Anchor::Center | Anchor::BottomCenter => JustifyText::Center,
+            Anchor::TopRight | Anchor::CenterRight | Anchor::BottomRight => JustifyText::Right,
+            _ => JustifyText::Center
+        };
+
+        world.commands().entity(entity).with_children(|parent| {
+            parent.spawn((
+                Text2d(text.content),
+                TextColor(text.color),
+                text.anchor,
+                TextLayout{
+                    justify,
+                    ..default()
+                },
+                TextFont{
+                    font_size : text.size,
+                    ..default()
+                },
+                TextBounds{
+                    width : Some(text.bounds.x),
+                    height : Some(text.bounds.y),
+                    ..default()
+                },
+                Transform::from_translation(offset.extend(0.0))
+            ));
+            
+            parent.spawn(border);
+        });
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = Column::on_insert)]
+#[require(Transform, Visibility)]
 pub struct Column{
     pub cells : Vec<Cell>,
     pub width : f32,
@@ -525,59 +517,52 @@ impl Column {
             rows : vec![Row::default(); num_cells]
         }
     }
-}
 
-impl Component for Column {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (cells, padding, width, rows, anchor, has_boundary) = {
+            if let Some(column) = world.entity_mut(entity).get_mut::<Column>() {
+                (column.cells.clone(), column.padding, column.width, column.rows.clone(), column.anchor, column.has_boundary)
+            } else {
+                return;
+            }
+        };  
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {     
+        world.commands().entity(entity).with_children(|parent| {
+            let mut current_center_y = 0.0;
+            let mut prev_height = 0.0;
 
-            let entity = context.entity;
-
-            let (cells, padding, width, rows, anchor, has_boundary) = {
-                if let Some(column) = world.entity_mut(entity).get_mut::<Column>() {
-                    (column.cells.clone(), column.padding, column.width, column.rows.clone(), column.anchor, column.has_boundary)
+            for (i, (mut cell, row)) in cells.into_iter().zip(rows.into_iter()).enumerate() {
+                let height = row.height;
+                if i == 0 {
+                    // First row: its center is at -height/2.0 (y is downward)
+                    current_center_y = -height / 2.0;
                 } else {
-                    return;
+                    // For subsequent rows, shift by half of the previous height and half of the current row's height.
+                    current_center_y -= (prev_height / 2.0) + (height / 2.0);
                 }
-            };  
 
-            world.commands().entity(entity).with_children(|parent| {
-                let mut current_center_y = 0.0;
-                let mut prev_height = 0.0;
+                cell.border.boundary.dimensions = Vec2::new(width, height);
+                cell.border.boundary.sides = RectangleSides{
+                    top : false, 
+                    bottom : false,
+                    left : has_boundary,
+                    right : false
+                };
 
-                for (i, (mut cell, row)) in cells.into_iter().zip(rows.into_iter()).enumerate() {
-                    let height = row.height;
-                    if i == 0 {
-                        // First row: its center is at -height/2.0 (y is downward)
-                        current_center_y = -height / 2.0;
-                    } else {
-                        // For subsequent rows, shift by half of the previous height and half of the current row's height.
-                        current_center_y -= (prev_height / 2.0) + (height / 2.0);
-                    }
+                cell.text.bounds = Vec2::new(width, height) - padding;
+                cell.text.padding = padding;
+                cell.text.anchor = anchor;
 
-                    cell.border.boundary.dimensions = Vec2::new(width, height);
-                    cell.border.boundary.sides = RectangleSides{
-                        top : false, 
-                        bottom : false,
-                        left : has_boundary,
-                        right : false
-                    };
+                parent.spawn((
+                    cell.clone(),
+                    Transform::from_translation(Vec3::new(0.0, current_center_y, 0.0)),
+                ));
 
-                    cell.text.bounds = Vec2::new(width, height) - padding;
-                    cell.text.padding = padding;
-                    cell.text.anchor = anchor;
-
-                    parent.spawn((
-                        cell.clone(),
-                        Transform::from_translation(Vec3::new(0.0, current_center_y, 0.0)),
-                    ));
-
-                    prev_height = height;
-                }
-            });
+                prev_height = height;
+            }
         });
     }
 }
@@ -593,60 +578,60 @@ impl Default for Row {
     }
 }
 
+#[derive(Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = Table::on_insert)]
 pub struct Table{
     pub columns : Vec<Column>,
     pub rows : Vec<Row>
 }
 
-impl Component for Table {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
+impl Table {
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (columns, rows) = {
+            if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
+                (table.columns.clone(), table.rows.clone())
+            } else {
+                return;
+            }
+        };
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-            let entity = context.entity;
-            
-            let (columns, rows) = {
-                if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
-                    (table.columns.clone(), table.rows.clone())
+        world.commands().entity(entity).with_children(|parent| {
+            let mut current_center = 0.0;
+            let mut prev_width = 0.0;
+
+            for (i, mut column) in columns.into_iter().enumerate() {
+                let width = column.width;
+
+                if i == 0 {
+                    // For the first column, place its center at half its width.
+                    current_center = width / 2.0;
                 } else {
-                    return;
+                    // For subsequent columns, the center is moved by half of the previous width plus half of the current width.
+                    current_center += (prev_width / 2.0) + (width / 2.0);
                 }
-            };
 
-            world.commands().entity(entity).with_children(|parent| {
-                let mut current_center = 0.0;
-                let mut prev_width = 0.0;
+                // Update the column with the row information.
+                column.rows = rows.clone();
 
-                for (i, mut column) in columns.into_iter().enumerate() {
-                    let width = column.width;
+                // Spawn the column with its computed translation.
+                let translation = Vec3::ZERO.with_x(current_center);
+                parent.spawn((
+                    column,
+                    Transform::from_translation(translation),
+                ));
 
-                    if i == 0 {
-                        // For the first column, place its center at half its width.
-                        current_center = width / 2.0;
-                    } else {
-                        // For subsequent columns, the center is moved by half of the previous width plus half of the current width.
-                        current_center += (prev_width / 2.0) + (width / 2.0);
-                    }
-
-                    // Update the column with the row information.
-                    column.rows = rows.clone();
-
-                    // Spawn the column with its computed translation.
-                    let translation = Vec3::ZERO.with_x(current_center);
-                    parent.spawn((
-                        column,
-                        Transform::from_translation(translation),
-                    ));
-
-                    prev_width = width;
-                }
-            });
+                prev_width = width;
+            }
         });
     }
 }
-
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = WindowedTable::on_insert)]
 pub struct WindowedTable{
     pub title : Option<WindowTitle>,
     pub border_color : Color,
@@ -665,60 +650,53 @@ impl Default for WindowedTable{
     }
 }
 
-impl Component for WindowedTable {
-	const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-	fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world,context| {      
-
-                let entity = context.entity;
-
-                let (columns, rows) = {
-                    if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
-                        (table.columns.clone(), table.rows.clone())
-                    } else {
-                        return;
-                    }
-                };  
-
-                let width = columns.iter().fold(0.0, |acc, column| acc + column.width);
-                let height = rows.iter().fold(0.0, |acc, row| acc + row.height);
-
-                let (title, header_height, color, has_close_button) = {
-                    if let Some(window) = world.entity(entity).get::<WindowedTable>() {
-                        (window.title.clone(), window.header_height, window.border_color, window.has_close_button)
-                    } else {
-                        return;
-                    }
-                };  
-
-                if let Some(mut draggable) = world.entity_mut(entity).get_mut::<Draggable>() {
-                    let edge_padding = 10.0;
-                    draggable.region = Some(DraggableRegion{
-                        region : Vec2::new(width, header_height + edge_padding),
-                        offset : Vec2::new(width/2.0, -height/2.0 + (height + header_height)/2.0)
-                    });
-                }   
-
-                world.commands().entity(entity).with_children(|parent| {
-                    parent.spawn((
-                        Window::new(
-                            title,
-                            HollowRectangle{
-                                color,
-                                dimensions : Vec2::new(width, height),
-                                ..default()
-                            },
-                            header_height,
-                            has_close_button,
-                            Some(entity)
-                        ),
-                        Transform::from_xyz(width/2.0, -height/2.0, -0.1)
-                    ));
-                });
+impl WindowedTable {
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (columns, rows) = {
+            if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
+                (table.columns.clone(), table.rows.clone())
+            } else {
+                return;
             }
-        );
+        };  
+
+        let width = columns.iter().fold(0.0, |acc, column| acc + column.width);
+        let height = rows.iter().fold(0.0, |acc, row| acc + row.height);
+
+        let (title, header_height, color, has_close_button) = {
+            if let Some(window) = world.entity(entity).get::<WindowedTable>() {
+                (window.title.clone(), window.header_height, window.border_color, window.has_close_button)
+            } else {
+                return;
+            }
+        };  
+
+        if let Some(mut draggable) = world.entity_mut(entity).get_mut::<Draggable>() {
+            let edge_padding = 10.0;
+            draggable.region = Some(DraggableRegion{
+                region : Vec2::new(width, header_height + edge_padding),
+                offset : Vec2::new(width/2.0, -height/2.0 + (height + header_height)/2.0)
+            });
+        }   
+
+        world.commands().entity(entity).with_children(|parent| {
+            parent.spawn((
+                Window::new(
+                    title,
+                    HollowRectangle{
+                        color,
+                        dimensions : Vec2::new(width, height),
+                        ..default()
+                    },
+                    header_height,
+                    has_close_button,
+                    Some(entity)
+                ),
+                Transform::from_xyz(width/2.0, -height/2.0, -0.1)
+            ));
+        });
     }
 }

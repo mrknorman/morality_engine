@@ -1,4 +1,4 @@
-use bevy::{ecs::component::{ComponentHooks, Mutable, StorageType}, prelude::*};
+use bevy::{ecs::{component::HookContext, world::DeferredWorld}, prelude::*};
 use crate::systems::colors::PRIMARY_COLOR;
 
 pub struct CompoundPlugin;
@@ -12,13 +12,7 @@ impl Plugin for CompoundPlugin {
                     propagate_changes::<Plus>,
                     BorderedRectangle::propagate_changes,
                 )
-            )
-            .register_required_components::<HollowRectangle, Transform>()
-            .register_required_components::<HollowRectangle, Visibility>()
-            .register_required_components::<BorderedRectangle, Transform>()
-            .register_required_components::<BorderedRectangle, Visibility>()
-            .register_required_components::<Plus, Transform>()
-            .register_required_components::<Plus, Visibility>();
+            );
     }
 }
 
@@ -94,7 +88,28 @@ impl Default for RectangleSides {
     }
 }
 
-#[derive(Clone, Copy)]
+impl HollowRectangle {
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let shape = {
+            if let Some(shape) = world.entity(entity).get::<Self>() {
+                shape.clone()
+            } else {
+                return;
+            }
+        };
+        
+        world.commands().entity(entity).with_children(|parent| {
+            shape.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
+        });
+    }
+}
+
+#[derive(Clone, Copy, Component)]
+#[component(on_insert = HollowRectangle::on_insert)]
+#[require(Transform, Visibility)]
 pub struct HollowRectangle {
     pub dimensions: Vec2,
     pub thickness: f32,
@@ -151,33 +166,32 @@ impl AssembleShape for HollowRectangle {
         updates
     }
 }
-
-impl Component for HollowRectangle {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {       
-            let rectangle = {
-                if let Some(hollow_rectangle) = world.entity(context.entity).get::<HollowRectangle>() {
-                    hollow_rectangle.clone()
-                } else {
-                    return;
-                }
-            };
-            
-            world.commands().entity(context.entity).with_children(|parent| {
-                rectangle.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
-            });
-        });
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = Plus::on_insert)]
+#[require(Transform, Visibility)]
 pub struct Plus {
     pub dimensions: Vec2,
     pub thickness: f32,
     pub color: Color,
+}
+
+impl Plus {
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let shape = {
+            if let Some(shape) = world.entity(entity).get::<Self>() {
+                shape.clone()
+            } else {
+                return;
+            }
+        };
+        
+        world.commands().entity(entity).with_children(|parent| {
+            shape.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
+        });
+    }
 }
 
 #[derive(Component, Default)]
@@ -207,28 +221,9 @@ impl AssembleShape for Plus {
     }
 }
 
-impl Component for Plus {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-    
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-            let plus = {
-                if let Some(plus) = world.entity(context.entity).get::<Plus>() {
-                    plus.clone()
-                } else {
-                    return;
-                }
-            };
-            
-            world.commands().entity(context.entity).with_children(|parent| {
-                plus.assemble().for_each(|sprite| { parent.spawn(sprite); });
-            });
-        });
-    }
-}
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Component)]
+#[component(on_insert = BorderedRectangle::on_insert)]
+#[require(Transform, Visibility)]
 pub struct BorderedRectangle {
     pub boundary: HollowRectangle,
 }
@@ -244,50 +239,6 @@ pub struct RectangleBackground;
 
 #[derive(Component)]
 pub struct RectangleBorder;
-
-impl Component for BorderedRectangle {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-            let (boundary, width, height) = {
-                if let Some(bordered_rectangle) = world.entity(context.entity).get::<BorderedRectangle>() {
-                    (
-                        bordered_rectangle.boundary,
-                        bordered_rectangle.boundary.dimensions.x,
-                        bordered_rectangle.boundary.dimensions.y,
-                    )
-                } else {
-                    return;
-                }
-            };
-            
-            let (mesh_handle, material_handle) = {
-                let mut meshes = world.resource_mut::<Assets<Mesh>>();
-                let mesh_handle = meshes.add(Mesh::from(Rectangle::new(width, height)));
-                
-                let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-                let material_handle = materials.add(Color::BLACK);
-                
-                (mesh_handle, material_handle)
-            };
-
-            world.commands().entity(context.entity).with_children(|parent| {
-                parent.spawn((
-                    RectangleBackground,
-                    Mesh2d(mesh_handle),
-                    MeshMaterial2d(material_handle),
-                ));
-                
-                parent.spawn((
-                    RectangleBorder,
-                    boundary
-                ));
-            });
-        });
-    }
-}
 
 impl BorderedRectangle {
     fn propagate_changes(
@@ -313,5 +264,45 @@ impl BorderedRectangle {
                 }
             }
         }
+    }
+
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (boundary, width, height) = {
+            if let Some(bordered_rectangle) = world.entity(entity).get::<BorderedRectangle>() {
+                (
+                    bordered_rectangle.boundary,
+                    bordered_rectangle.boundary.dimensions.x,
+                    bordered_rectangle.boundary.dimensions.y,
+                )
+            } else {
+                return;
+            }
+        };
+        
+        let (mesh_handle, material_handle) = {
+            let mut meshes = world.resource_mut::<Assets<Mesh>>();
+            let mesh_handle = meshes.add(Mesh::from(Rectangle::new(width, height)));
+            
+            let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
+            let material_handle = materials.add(Color::BLACK);
+            
+            (mesh_handle, material_handle)
+        };
+
+        world.commands().entity(entity).with_children(|parent| {
+            parent.spawn((
+                RectangleBackground,
+                Mesh2d(mesh_handle),
+                MeshMaterial2d(material_handle),
+            ));
+            
+            parent.spawn((
+                RectangleBorder,
+                boundary
+            ));
+        });
     }
 }

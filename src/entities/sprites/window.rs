@@ -2,7 +2,7 @@
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
-    ecs::{component::{ComponentHooks, Mutable, StorageType}, entity},
+    ecs::{component::HookContext, world::DeferredWorld},
     prelude::*,
     sprite::Anchor,
 };
@@ -25,16 +25,7 @@ use crate::{
 pub struct WindowPlugin;
 impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, Window::update) // ← single system
-            // component-requirements kept unchanged for IDE comfort
-            .register_required_components::<Window, Transform>()
-            .register_required_components::<Window, Visibility>()
-            .register_required_components::<WindowHeader, Transform>()
-            .register_required_components::<WindowHeader, Visibility>()
-            .register_required_components::<WindowBody, Transform>()
-            .register_required_components::<WindowBody, Visibility>()
-            .register_required_components::<WindowCloseButton, Transform>()
-            .register_required_components::<WindowCloseButton, Visibility>();
+        app.add_systems(Update, Window::update);
     }
 }
 
@@ -54,7 +45,9 @@ impl Default for WindowTitle {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = Window::on_insert)]
 pub struct Window {
     pub boundary: HollowRectangle,
     pub title: Option<WindowTitle>,
@@ -71,81 +64,6 @@ impl Default for Window {
             has_close_button: true,
             root_entity: None,
         }
-    }
-}
-
-/* ─────────────────────────  COMPONENT impl  ───────────────────────── */
-
-impl Component for Window {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-
-            let entity = context.entity;
-            // ─ fetch once ─
-            let (title, boundary, header_h, close_btn, root_entity) = {
-                let mut entity_mut = world.entity_mut(entity);
-                let mut w = entity_mut.get_mut::<Window>().unwrap();
-                // ensure root is self if not set
-                if w.root_entity.is_none() {
-                    w.root_entity = Some(entity);
-                }
-                (
-                    w.title.clone(),
-                    w.boundary,
-                    w.header_height,
-                    w.has_close_button,
-                    w.root_entity
-                )
-            };
-
-            /*  Spawn children *directly* under Window  */
-            world.commands().entity(entity).with_children(|parent| {
-                // Body -------------
-                parent.spawn(WindowBody { boundary });
-
-                // Header -----------
-                let header_boundary = HollowRectangle {
-                    dimensions: Vec2::new(boundary.dimensions.x, header_h),
-                    ..boundary
-                };
-                parent.spawn((
-                    WindowHeader {
-                        title,
-                        boundary: header_boundary,
-                        has_close_button: false, // header never spawns it now
-                        root_entity,
-                    },
-                    Transform::from_xyz(
-                        0.0,
-                        (boundary.dimensions.y + header_h) / 2.0,
-                        0.0,
-                    ),
-                ));
-
-                // Close button -----
-                if close_btn {
-                    parent.spawn((
-                        WindowCloseButton {
-                            boundary: HollowRectangle {
-                                dimensions: Vec2::splat(header_h),
-                                thickness: boundary.thickness,
-                                color: boundary.color,
-                                ..default()
-                            },
-                            root_entity,
-                        },
-                        Transform::from_xyz(
-                            (boundary.dimensions.x - header_h) / 2.0,
-                            (boundary.dimensions.y + header_h) / 2.0,
-                            0.0,
-                        ),
-                    ));
-                }
-            });
-        });
     }
 }
 
@@ -248,36 +166,107 @@ impl Window {
             }
         }
     }
+
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+
+    ) {
+        let (title, boundary, header_h, close_btn, root_entity) = {
+            let mut entity_mut = world.entity_mut(entity);
+            let mut w = entity_mut.get_mut::<Window>().unwrap();
+            // ensure root is self if not set
+            if w.root_entity.is_none() {
+                w.root_entity = Some(entity);
+            }
+            (
+                w.title.clone(),
+                w.boundary,
+                w.header_height,
+                w.has_close_button,
+                w.root_entity
+            )
+        };
+
+        /*  Spawn children *directly* under Window  */
+        world.commands().entity(entity).with_children(|parent| {
+            // Body -------------
+            parent.spawn(WindowBody { boundary });
+
+            // Header -----------
+            let header_boundary = HollowRectangle {
+                dimensions: Vec2::new(boundary.dimensions.x, header_h),
+                ..boundary
+            };
+            parent.spawn((
+                WindowHeader {
+                    title,
+                    boundary: header_boundary,
+                    has_close_button: false, // header never spawns it now
+                    root_entity,
+                },
+                Transform::from_xyz(
+                    0.0,
+                    (boundary.dimensions.y + header_h) / 2.0,
+                    0.0,
+                ),
+            ));
+
+            // Close button -----
+            if close_btn {
+                parent.spawn((
+                    WindowCloseButton {
+                        boundary: HollowRectangle {
+                            dimensions: Vec2::splat(header_h),
+                            thickness: boundary.thickness,
+                            color: boundary.color,
+                            ..default()
+                        },
+                        root_entity,
+                    },
+                    Transform::from_xyz(
+                        (boundary.dimensions.x - header_h) / 2.0,
+                        (boundary.dimensions.y + header_h) / 2.0,
+                        0.0,
+                    ),
+                ));
+            }
+        });
+    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = WindowBody::on_insert)]
+#[require(Transform, Visibility)]
 pub struct WindowBody {
     pub boundary: HollowRectangle,
 }
-impl Component for WindowBody {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-            let boundary = world.entity(context.entity).get::<WindowBody>().unwrap().boundary;
-            world
-                .commands()
-                .entity(context.entity)
-                .with_children(|p| {p.spawn(BorderedRectangle { boundary });});
-        });
+impl WindowBody {
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let boundary = world.entity(entity).get::<WindowBody>().unwrap().boundary;
+        world
+            .commands()
+            .entity(entity)
+            .with_children(|p| {p.spawn(BorderedRectangle { boundary });});
     }
 }
 
 /* ─────────────────────────  HEADER  ───────────────────────── */
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = WindowHeader::on_insert)]
+#[require(Transform, Visibility)]
 pub struct WindowHeader {
     pub title: Option<WindowTitle>,
     pub boundary: HollowRectangle,
     pub has_close_button: bool,
     pub root_entity: Option<Entity>,
 }
+
 impl Default for WindowHeader {
     fn default() -> Self {
         Self {
@@ -288,75 +277,134 @@ impl Default for WindowHeader {
         }
     }
 }
-impl Component for WindowHeader {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
+impl WindowHeader {
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (root_entity, boundary, has_btn, title, color) = {
+            let h = world.entity(entity).get::<WindowHeader>().unwrap();
+            (
+                h.root_entity,
+                h.boundary,
+                h.has_close_button,
+                h.title.clone(),
+                h.boundary.color,
+            )
+        };
 
-            let entity = context.entity;
-            let (root_entity, boundary, has_btn, title, color) = {
-                let h = world.entity(entity).get::<WindowHeader>().unwrap();
-                (
-                    h.root_entity,
-                    h.boundary,
-                    h.has_close_button,
-                    h.title.clone(),
-                    h.boundary.color,
-                )
-            };
+        world.commands().entity(entity).with_children(|parent| {
+            parent.spawn(BorderedRectangle { boundary });
 
-            world.commands().entity(entity).with_children(|parent| {
-                parent.spawn(BorderedRectangle { boundary });
-
-                if has_btn {
-                    parent.spawn((
-                        WindowCloseButton {
-                            boundary: HollowRectangle {
-                                dimensions: Vec2::splat(boundary.dimensions.y),
-                                thickness: boundary.thickness,
-                                color,
-                                ..default()
-                            },
-                            root_entity,
-                        },
-                        Transform::from_xyz(
-                            (boundary.dimensions.x - boundary.dimensions.y) / 2.0,
-                            0.0,
-                            0.0,
-                        ),
-                    ));
-                }
-
-                if let Some(t) = title {
-                    parent.spawn((
-                        t.clone(),
-                        Text2d(t.text),
-                        TextColor(PRIMARY_COLOR),
-                        TextFont {
-                            font_size: 12.0,
+            if has_btn {
+                parent.spawn((
+                    WindowCloseButton {
+                        boundary: HollowRectangle {
+                            dimensions: Vec2::splat(boundary.dimensions.y),
+                            thickness: boundary.thickness,
+                            color,
                             ..default()
                         },
-                        Anchor::CenterLeft,
-                        Transform::from_xyz(
-                            (-boundary.dimensions.x + t.padding) / 2.0,
-                            0.0,
-                            0.0,
-                        ),
-                    ));
-                }
-            });
+                        root_entity,
+                    },
+                    Transform::from_xyz(
+                        (boundary.dimensions.x - boundary.dimensions.y) / 2.0,
+                        0.0,
+                        0.0,
+                    ),
+                ));
+            }
+
+            if let Some(t) = title {
+                parent.spawn((
+                    t.clone(),
+                    Text2d(t.text),
+                    TextColor(PRIMARY_COLOR),
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    },
+                    Anchor::CenterLeft,
+                    Transform::from_xyz(
+                        (-boundary.dimensions.x + t.padding) / 2.0,
+                        0.0,
+                        0.0,
+                    ),
+                ));
+            }
         });
     }
 }
 
-/* ─────────────────────────  CLOSE BUTTON  ───────────────────────── */
-
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = WindowCloseButton::on_insert)]
+#[require(Transform, Visibility)]
 pub struct WindowCloseButton {
     pub boundary: HollowRectangle,
     pub root_entity: Option<Entity>,
+}
+
+impl WindowCloseButton {
+    fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let (root, boundary, dimensions, color) = {
+            let b = world.entity(entity).get::<WindowCloseButton>().unwrap();
+            (
+                b.root_entity,
+                b.boundary,
+                b.boundary.dimensions,
+                b.boundary.color,
+            )
+        };
+
+        let handle =
+            world.get_resource::<AssetServer>().unwrap().load("./audio/effects/mouse_click.ogg");
+
+        world.commands().entity(entity).with_children(|parent| {
+            parent.spawn((
+                WindowCloseButtonBorder,
+                BorderedRectangle { boundary },
+            ));
+
+            let interaction_region = dimensions + 10.0;
+            let icon_dim = dimensions - 10.0;
+
+            parent.spawn((
+                WindowCloseButtonIcon,
+                Plus {
+                    dimensions: icon_dim,
+                    thickness: 1.0,
+                    color,
+                },
+                Clickable::with_region(
+                    vec![WindowActions::CloseWindow],
+                    interaction_region,
+                ),
+                ColorChangeOn::new(vec![
+                    ColorChangeEvent::Click(vec![CLICKED_BUTTON], Some(interaction_region)),
+                    ColorChangeEvent::Hover(vec![HOVERED_BUTTON], Some(interaction_region)),
+                ]),
+                ColorAnchor(color),
+                Transform {
+                    rotation: Quat::from_rotation_z(FRAC_PI_4),
+                    ..default()
+                },
+                ActionPallet::<WindowActions, WindowSounds>(enum_map!(
+                    WindowActions::CloseWindow => vec![
+                        InputAction::PlaySound(WindowSounds::Close),
+                        InputAction::Despawn(root)
+                    ]
+                )),
+                TransientAudioPallet::new(vec![(
+                    WindowSounds::Close,
+                    vec![TransientAudio::new(handle, 0.1, true, 1.0, true)],
+                )]),
+            ));
+        });
+    }
 }
 
 #[derive(Component)]
@@ -371,68 +419,4 @@ pub enum WindowSounds {
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowActions {
     CloseWindow,
-}
-
-impl Component for WindowCloseButton {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-            let (root, boundary, dimensions, color) = {
-                let b = world.entity(context.entity).get::<WindowCloseButton>().unwrap();
-                (
-                    b.root_entity,
-                    b.boundary,
-                    b.boundary.dimensions,
-                    b.boundary.color,
-                )
-            };
-
-            let handle =
-                world.get_resource::<AssetServer>().unwrap().load("./audio/effects/mouse_click.ogg");
-
-            world.commands().entity(context.entity).with_children(|parent| {
-                parent.spawn((
-                    WindowCloseButtonBorder,
-                    BorderedRectangle { boundary },
-                ));
-
-                let interaction_region = dimensions + 10.0;
-                let icon_dim = dimensions - 10.0;
-
-                parent.spawn((
-                    WindowCloseButtonIcon,
-                    Plus {
-                        dimensions: icon_dim,
-                        thickness: 1.0,
-                        color,
-                    },
-                    Clickable::with_region(
-                        vec![WindowActions::CloseWindow],
-                        interaction_region,
-                    ),
-                    ColorChangeOn::new(vec![
-                        ColorChangeEvent::Click(vec![CLICKED_BUTTON], Some(interaction_region)),
-                        ColorChangeEvent::Hover(vec![HOVERED_BUTTON], Some(interaction_region)),
-                    ]),
-                    ColorAnchor(color),
-                    Transform {
-                        rotation: Quat::from_rotation_z(FRAC_PI_4),
-                        ..default()
-                    },
-                    ActionPallet::<WindowActions, WindowSounds>(enum_map!(
-                        WindowActions::CloseWindow => vec![
-                            InputAction::PlaySound(WindowSounds::Close),
-                            InputAction::Despawn(root)
-                        ]
-                    )),
-                    TransientAudioPallet::new(vec![(
-                        WindowSounds::Close,
-                        vec![TransientAudio::new(handle, 0.1, true, 1.0, true)],
-                    )]),
-                ));
-            });
-        });
-    }
 }

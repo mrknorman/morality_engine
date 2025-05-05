@@ -158,8 +158,8 @@ impl DilemmaStats {
         ];
     
         // Set the column widths and cell padding.
-        let left_column_width = 170.0;
-        let right_column_width = 140.0;
+        let left_column_width = 230.0;
+        let right_column_width = 130.0;
         let padding = Vec2::new(5.0, 5.0);
 
         let rows = vec![Row { height: 20.0 }; left_cells.len()];

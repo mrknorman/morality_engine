@@ -1,22 +1,22 @@
 use std::iter::zip;
 
 use bevy::{
-    audio::Volume, ecs::component::{Mutable, StorageType}, prelude::*
+    audio::Volume, ecs::{component::HookContext, world::DeferredWorld}, prelude::*
 };
 
 use crate::{
     entities::{
 		person::{
 			Emoticon, EmotionSounds, PersonSprite,
-		},
-		track::Track
+		}, text::TextSprite, track::Track
 	}, scenes::dilemma::{
 		lever::{
 	    	Lever, 
        		LeverState
     	}, 
 		Dilemma
-	}, startup::cursor::CursorMode, systems::{
+	},
+	systems::{
 		audio::{
 			continuous_audio, 
 			ContinuousAudio, 
@@ -31,7 +31,9 @@ use crate::{
 			DANGER_COLOR,
 			OPTION_1_COLOR, 
 			OPTION_2_COLOR
-		}, inheritance::BequeathTextColor, interaction::ClickableCursorIcons, motion::{
+		}, 
+		inheritance::BequeathTextColor,
+		motion::{
 			Bounce, 
 			TransformMultiAnchor
 		}, time::Dilation 
@@ -65,10 +67,7 @@ impl Plugin for JunctionPlugin {
 			Junction::update_main_track_color
 			.run_if(in_state(JunctionSystemsActive::True))
 			.run_if(resource_changed::<Lever>)
-		)
-		.register_required_components::<Junction, Transform>()
-		.register_required_components::<Junction, Visibility>()
-		;
+		);
     }
 }
 
@@ -95,211 +94,207 @@ pub struct BranchTrack{
 #[require(Visibility, Transform)]
 pub struct Turnout;
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = Junction::on_insert)]
 pub struct Junction{
 	pub dilemma : Dilemma
 }
 
-#[derive(Component)]
-pub struct CrowdPanicNoise;
+impl Junction {
+	const BRANCH_SEPARATION : Vec3 = Vec3::new(0.0, -100.0, 0.0);
+	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-11800.0, 0.0, 0.0);
+	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(2000.0, 0.0, 0.0);
+	const FATALITY_OFFSET : f32 = -1700.0;
 
-impl Component for Junction {
-	type Mutability = Mutable;
-	const STORAGE_TYPE: StorageType = StorageType::Table;
-
-	fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+	fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {
-				let junction: Option<Junction> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<Junction>()
-                        .map(|train: &Junction| train.clone())
-                };
+		let junction: Option<Junction> = {
+			let entity_mut = world.entity(entity);
+			entity_mut.get::<Junction>()
+				.map(|train: &Junction| train.clone())
+		};
 
-				let color: Option<TextColor> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<TextColor>()
-                        .map(|color: &TextColor| color.clone())
-                };
-				
-				let color_translation: Option<ColorTranslation> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<ColorTranslation>()
-                        .map(|translation: &ColorTranslation| translation.clone())
-                };
+		let color: Option<TextColor> = {
+			let entity_mut = world.entity(entity);
+			entity_mut.get::<TextColor>()
+				.map(|color: &TextColor| color.clone())
+		};
+		
+		let color_translation: Option<ColorTranslation> = {
+			let entity_mut = world.entity(entity);
+			entity_mut.get::<ColorTranslation>()
+				.map(|translation: &ColorTranslation| translation.clone())
+		};
 
-				let asset_server = world.get_resource::<AssetServer>().unwrap();
-				let audio_vector = vec![											
-					TransientAudio::new(
-						asset_server.load("./audio/effects/male_scream_1.ogg"),
-						1.0,
-						false,
-						0.5,
-						true
-					),
-					TransientAudio::new(
-						asset_server.load("./audio/effects/male_scream_2.ogg"),
-						1.0,
-						false,
-						0.5,
-						true
-					),
-					TransientAudio::new(
-						asset_server.load("./audio/effects/male_scream_3.ogg"),
-						1.0,
-						false,
-						0.5,
-						true
-					)
-				];
+		let asset_server = world.get_resource::<AssetServer>().unwrap();
+		let audio_vector = vec![											
+			TransientAudio::new(
+				asset_server.load("./audio/effects/male_scream_1.ogg"),
+				1.0,
+				false,
+				0.5,
+				true
+			),
+			TransientAudio::new(
+				asset_server.load("./audio/effects/male_scream_2.ogg"),
+				1.0,
+				false,
+				0.5,
+				true
+			),
+			TransientAudio::new(
+				asset_server.load("./audio/effects/male_scream_3.ogg"),
+				1.0,
+				false,
+				0.5,
+				true
+			)
+		];
 
-				let crowd_audio = asset_server.load(
-					"./audio/effects/crowd_panic.ogg"
-				);
+		let crowd_audio = asset_server.load(
+			"./audio/effects/crowd_panic.ogg"
+		);
 
-				let mut commands = world.commands();
-				if let Some(junction) = junction {
-					let dilemma = junction.dilemma; 
+		let mut commands = world.commands();
+		if let Some(junction) = junction {
+			let dilemma = junction.dilemma; 
 
-					let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
-					let branch_y_positions = vec![
-						Transform::default(),
-						Transform::from_translation(Vec3::ZERO.with_y(-100.0))
-					];
+			let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
+			let branch_y_positions = vec![
+				Transform::default(),
+				Transform::from_translation(Junction::BRANCH_SEPARATION)
+			];
+			
+			let mut track_entities = vec![];
+			commands.entity(entity).with_children(
+				|junction| {
+					let mut trunk_entity = junction.spawn((
+						TrunkTrack,
+						Track::new(2000),
+						Transform::from_translation(Junction::TRUNK_TRANSLATION),
+					));
 					
-					let mut track_entities = vec![];
-					commands.entity(context.entity).with_children(
-						|junction| {
-							let mut junction_entity = junction.spawn((
-								TrunkTrack,
-								Track::new(2000),
-								Transform::from_translation(Vec3::ZERO.with_x(-7041.0))
-							));
-							
-							if let Some(color) = color {
-								junction_entity.insert(color);
-							}
-							if let Some(color_translation) = color_translation {
-								junction_entity.insert(color_translation);
-							}
-							track_entities.push(junction_entity.id());
+					if let Some(color) = color {
+						trunk_entity.insert(color);
+					}
+					if let Some(color_translation) = color_translation {
+						trunk_entity.insert(color_translation);
+					}
+					track_entities.push(trunk_entity.id());
 
-							let turnout_entity = junction.spawn((
-								Turnout,
-								Transform::from_translation(Vec3::ZERO.with_x(1240.0)),
-								TransformMultiAnchor(branch_y_positions.clone())
-							)).with_children( |turnout| {
-								for (branch_index, ((option, y_position), color)) in zip(
-                                    zip(dilemma.options, branch_y_positions.clone()), track_colors
-                                ).enumerate() {
-									track_entities.push(turnout.spawn((
-										BranchTrack{index : branch_index},
-										Track::new(300),
-										TextColor(color),
-										y_position		
-									)).with_children(|track: &mut ChildSpawnerCommands<'_>| {
+					let turnout_entity = junction.spawn((
+						Turnout,
+						Transform::from_translation(Junction::TURNOUT_TRANSLATION),
+						TransformMultiAnchor(branch_y_positions.clone())
+					)).with_children( |turnout| {
+						for (branch_index, ((option, y_position), color)) in zip(
+							zip(dilemma.options, branch_y_positions.clone()), track_colors
+						).enumerate() {
+							track_entities.push(turnout.spawn((
+								BranchTrack{index : branch_index},
+								Track::new(300),
+								TextColor(color),
+								y_position		
+							)).with_children(|track: &mut ChildSpawnerCommands<'_>| {
 
-											if option.consequences.total_fatalities >= 500 {
-												track.spawn((
-													CrowdPanicNoise,
-													ContinuousAudioPallet::new(
-														vec![
-															ContinuousAudio{
-																key : EmotionSounds::Exclaim,
-																source : AudioPlayer::<AudioSource>(crowd_audio.clone()), 
-																settings : PlaybackSettings{
-																	volume : Volume::Linear(0.5),
-																	..continuous_audio()
-																},
-																dilatable : true
-															}
-														]
-													)
-												));
-											}
-
-											for fatality_index in 0..option.consequences.total_fatalities {
-												let transform = if fatality_index >= 1000 {
-													break;
-												} else {
-													// Define parameters
-													let columns_per_row = 250;
-													let row_height = 10.0;
-													let column_width = 10.0;
-													
-													// Calculate position
-													let row = fatality_index / columns_per_row;
-													let col = fatality_index % columns_per_row;
-													
-													let base_x_offset = -1060.0;
-													let row_x_adjustment = if row % 2 == 1 { 5.0 } else { 0.0 };
-													
-													Transform::from_xyz(
-														base_x_offset + row_x_adjustment + col as f32 * column_width,
-														row as f32 * row_height,
-														0.0
-													)
-												};
-
-												let mut entity_commands = track.spawn(
-													(
-														PersonSprite::default(),
-														transform,
-														Bounce::new(
-															false,
-															40.0, 
-															60.0,
-															1.0,
-															2.0
-														),
-														ColorChangeOn::new(vec![ColorChangeEvent::Bounce(vec![DANGER_COLOR])]),
-														ColorAnchor::default(),
-														BequeathTextColor
-													)
-												);
-												
-												entity_commands.with_children(
-													|parent| {
-														parent.spawn(
-															Emoticon::default()
-														);
+									if option.consequences.total_fatalities >= 500 {
+										track.spawn((
+											CrowdPanicNoise,
+											ContinuousAudioPallet::new(
+												vec![
+													ContinuousAudio{
+														key : EmotionSounds::Exclaim,
+														source : AudioPlayer::<AudioSource>(crowd_audio.clone()), 
+														settings : PlaybackSettings{
+															volume : Volume::Linear(0.5),
+															..continuous_audio()
+														},
+														dilatable : true
 													}
-												);	
+												]
+											)
+										));
+									}
 
-												if fatality_index < 5 {
-													entity_commands.insert(
-														TransientAudioPallet::new(
-															vec![(
-																EmotionSounds::Exclaim,
-																audio_vector.clone()
-															)]
-														)
-													);
-												}
+									for fatality_index in 0..option.consequences.total_fatalities {
+										let transform = if fatality_index >= 1000 {
+											break;
+										} else {
+											// Define parameters
+											let columns_per_row = 250;
+											let row_height = 10.0;
+											let column_width = 10.0;
+											
+											// Calculate position
+											let row = fatality_index / columns_per_row;
+											let col = fatality_index % columns_per_row;
+											
+											let row_x_adjustment = if row % 2 == 1 { 5.0 } else { 0.0 };
+											
+											Transform::from_xyz(
+												Junction::FATALITY_OFFSET + row_x_adjustment + col as f32 * column_width,
+												row as f32 * row_height,
+												0.0
+											)
+										};
+
+										let mut entity_commands = track.spawn(
+											(
+												TextSprite,
+												PersonSprite::default(),
+												transform,
+												Bounce::new(
+													false,
+													40.0, 
+													60.0,
+													1.0,
+													2.0
+												),
+												ColorChangeOn::new(vec![ColorChangeEvent::Bounce(vec![DANGER_COLOR])]),
+												ColorAnchor::default(),
+												BequeathTextColor
+											)
+										);
+										
+										entity_commands.with_children(
+											|parent| {
+												parent.spawn(
+													Emoticon::default()
+												);
 											}
+										);	
+
+										if fatality_index < 5 {
+											entity_commands.insert(
+												TransientAudioPallet::new(
+													vec![(
+														EmotionSounds::Exclaim,
+														audio_vector.clone()
+													)]
+												)
+											);
 										}
-									).id());
+									}
 								}
-							}).id();
-
-							track_entities.push(turnout_entity);
+							).id());
 						}
-					);
-				}
-			}
-        );
-    }
-}
+					}).id();
 
-impl Junction  {
+					track_entities.push(turnout_entity);
+				}
+			);
+		}
+	}
+
 	pub fn cleanup(
 		mut commands : Commands,
 		junction_query : Query<Entity, With<Junction>>
 	){
 		for entity in junction_query.iter() {
-			commands.entity(entity).despawn_recursive();
+			commands.entity(entity).despawn();
 		}
 	}
 
@@ -307,7 +302,7 @@ impl Junction  {
 		lever: Option<Res<Lever>>,
 		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
 	) {
-		let Ok(mut main_track) = track_query.get_single_mut() else {
+		let Ok(mut main_track) = track_query.single_mut() else {
 			return;
 		};
 
@@ -384,3 +379,6 @@ impl Junction  {
 		}
 	}
 }
+
+#[derive(Component)]
+pub struct CrowdPanicNoise;

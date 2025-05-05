@@ -150,45 +150,43 @@ impl DialogueScene {
                             dilatable : false
                         }
                     ]
-                )
-            )
-        ).with_children(
-            |parent| {
-                parent.spawn((
-                    Dialogue::init(
-                        &asset_server,
-                        &dialogue_vector,
-                        &character_map
+                ),
+                children![
+                    (
+                        Dialogue::init(
+                            &asset_server,
+                            &dialogue_vector,
+                            &character_map
+                        ),
+                        Transform::from_xyz(-500.0, 0.0, 1.0),
                     ),
-                    Transform::from_xyz(-500.0, 0.0, 1.0),
+                    (
+                        Graph::new(
+                            45.0,
+                            vec![2, 3, 2],
+                            10.0,
+                            20.0,
+                            4.0,
+                            2.0
+                        ),
+                        Transform::from_xyz(300.0, 0.0, 0.5)
+                    ),
+                    (
+                        Cascade{
+                            speed : 50.0,
+                            visibility_speed : 0.1,
+                            ..default()
+                        },
+                        BequeathTextAlpha,
+                        AlphaTranslation::new(
+                            DIM_BACKGROUND_COLOR.alpha(),
+                            Duration::from_secs_f32(1.0),
+                            false
+                        ),
+                        TextColor(DIM_BACKGROUND_COLOR)
                     )
-                );
-                parent.spawn((
-                    Graph::new(
-                        45.0,
-                        vec![2, 3, 2],
-                        10.0,
-                        20.0,
-                        4.0,
-                        2.0
-                    ),
-                    Transform::from_xyz(300.0, 0.0, 0.5)
-                ));
-                parent.spawn((
-                    Cascade{
-                        speed : 50.0,
-                        visibility_speed : 0.1,
-                        ..default()
-                    },
-                    BequeathTextAlpha,
-                    AlphaTranslation::new(
-                        DIM_BACKGROUND_COLOR.alpha(),
-                        Duration::from_secs_f32(1.0),
-                        false
-                    ),
-                    TextColor(DIM_BACKGROUND_COLOR)
-                ));
-            }
+                ]
+            )
         );
     }
 }

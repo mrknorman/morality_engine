@@ -206,14 +206,12 @@ impl LoadingScene {
                     },
                 ]
             ),
-        )).with_children(
-            |parent| {
-                parent.spawn(
+            children![
                 LoadingBar::load(
                     LoadingBarMessages::Lab0intro
-                ));
-            }
-        );
+                )
+            ]
+        ));
     }
 
     fn spawn_delayed_children(

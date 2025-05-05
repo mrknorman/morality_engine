@@ -75,6 +75,9 @@ impl std::fmt::Display for DilemmaResultsActions {
 pub struct DilemmaResultsScene;
 
 impl DilemmaResultsScene {
+
+	const TEXT_BOX_Z : f32 = 1.0;
+	
 	fn setup(
 		mut commands: Commands,
 		mut train_query : Query<(&mut Transform, &mut Velocity), With<Train>>,
@@ -85,12 +88,85 @@ impl DilemmaResultsScene {
 		commands.spawn((
 			Self,
 			StateScoped(DilemmaPhase::Results),
-		)).with_children(|parent| {
-
-			let text_box_z : f32 = 1.0; 
-
-			if let Some(dilemma_stats) = stats.dilemma_stats.last().cloned() {
-				parent.spawn((
+			children![
+				(
+					Draggable::default(),
+					WindowedTable{
+						title : Some(WindowTitle{
+							text : String::from("Overall Results"),
+							..default()
+						}),
+						..default()
+					},
+					stats.to_table(),
+					Transform::from_xyz(
+						50.0,
+						0.0,
+						Self::TEXT_BOX_Z + 0.2,
+					)
+				),
+				(
+					TextColor(Color::NONE),
+					Background::new(
+						BackgroundTypes::Desert,	
+						0.00002,
+						-0.5
+					),
+					BequeathTextColor,
+					ColorTranslation::new(
+						DIM_BACKGROUND_COLOR,
+						Duration::from_secs_f32(0.2),
+						false
+					)
+				),
+				(
+					MusicAudio,
+					AudioPlayer::<AudioSource>(asset_server.load(
+						"./audio/music/the_right_track.ogg"
+					)),
+					PlaybackSettings{
+						paused : false,
+						volume : Volume::Linear(0.3),
+						..continuous_audio()
+					}
+				),
+				(
+					TextColor(PRIMARY_COLOR),
+					TextEmotion::Happy,
+					AsciiString(format!("DILEMMA RESULTS")),
+					Transform::from_xyz(-550.0,300.0, 1.0)
+				),
+				(
+					NextButton,
+					TextButton::new(
+						vec![DilemmaResultsActions::ExitResults],
+						vec![KeyCode::Enter],
+						"[ Click here or Press Enter to End the Simulation ]",
+					),
+					ActionPallet::<DilemmaResultsActions, DilemmaSounds>(
+						enum_map!(
+							DilemmaResultsActions::ExitResults => vec![
+								InputAction::PlaySound(DilemmaSounds::Click),
+								InputAction::NextScene,
+								InputAction::Despawn(None)
+						])
+					),
+					TransientAudioPallet::new(
+						vec![(
+							DilemmaSounds::Click,
+							vec![
+								TransientAudio::new(
+									asset_server.load("./audio/effects/mech_click.ogg"), 
+									0.1, 
+									true,
+									1.0,
+									true
+								)
+							]
+						)]
+					)
+				),
+				(
 					Draggable::default(),
 					WindowedTable{
 						title : Some(WindowTitle{
@@ -99,98 +175,15 @@ impl DilemmaResultsScene {
 						}),
 						..default()
 					},
-					dilemma_stats.to_table(),
+					stats.dilemma_stats.last().cloned().expect("No last dilemma").to_table(),
 					Transform::from_xyz(
 						-450.0,
 						0.0,
-						text_box_z + 0.2,
-					))
-				);
-			}
-
-			parent.spawn((
-				Draggable::default(),
-				WindowedTable{
-					title : Some(WindowTitle{
-						text : String::from("Overall Results"),
-						..default()
-					}),
-					..default()
-				},
-				stats.to_table(),
-				Transform::from_xyz(
-					50.0,
-					0.0,
-					text_box_z + 0.2,
-				))
-			);
-
-            parent.spawn((
-                TextColor(Color::NONE),
-                Background::new(
-                    BackgroundTypes::Desert,	
-                    0.00002,
-                    -0.5
-                ),
-                BequeathTextColor,
-                ColorTranslation::new(
-                    DIM_BACKGROUND_COLOR,
-                    Duration::from_secs_f32(0.2),
-                    false
-                ))
-            );
-
-			parent.spawn((
-				MusicAudio,
-				AudioPlayer::<AudioSource>(asset_server.load(
-					"./audio/music/the_right_track.ogg"
-				)),
-				PlaybackSettings{
-					paused : false,
-					volume : Volume::Linear(0.3),
-					..continuous_audio()
-				}
-			));
-			
-			parent.spawn((
-				TextColor(PRIMARY_COLOR),
-				TextEmotion::Happy,
-				AsciiString(format!("DILEMMA RESULTS")),
-				Transform::from_xyz(-550.0,300.0, 1.0)
-			));
-
-			parent.spawn((
-				NextButton,
-				TextButton::new(
-					vec![DilemmaResultsActions::ExitResults],
-					vec![KeyCode::Enter],
-					"[ Click here or Press Enter to End the Simulation ]",
-				),
-				ActionPallet::<DilemmaResultsActions, DilemmaSounds>(
-					enum_map!(
-						DilemmaResultsActions::ExitResults => vec![
-							InputAction::PlaySound(DilemmaSounds::Click),
-							InputAction::NextScene,
-							InputAction::Despawn(None)
-					])
-				),
-				TransientAudioPallet::new(
-					vec![(
-						DilemmaSounds::Click,
-						vec![
-							TransientAudio::new(
-								asset_server.load("./audio/effects/mech_click.ogg"), 
-								0.1, 
-								true,
-								1.0,
-								true
-							)
-						]
-					)]
+						Self::TEXT_BOX_Z + 0.2,
+					)
 				)
-			));
-			}
-		);
+			]
+		));
 	
 		for (mut transform, mut velocity) in train_query.iter_mut() {
 			velocity.0 = Vec3::ZERO;

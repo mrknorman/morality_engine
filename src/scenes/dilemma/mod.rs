@@ -35,7 +35,7 @@ use crate::{
 			content::BackgroundTypes, Background, BackgroundPlugin
 		}, colors::{
 			AlphaTranslation, ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
-		}, inheritance::{BequeathTextAlpha, BequeathTextColor}, interaction::{
+		}, inheritance::BequeathTextAlpha, interaction::{
 			Draggable, 
 			InteractionPlugin
 		}, motion::PointToPointTranslation, scheduling::TimingPlugin
@@ -115,6 +115,12 @@ impl Plugin for DilemmaScenePlugin {
 }
 
 impl DilemmaScene {
+
+	const TRAIN_SPEED : f32 = -1000.0;
+	const TRAIN_INITIAL_POSITION : Vec3 = Vec3::new(120.0, -10.0, 1.0);
+	const MAIN_TRACK_TRANSLATION_END : Vec3 = Vec3::new(0.0, -40.0, 0.0);
+	const TRACK_COLORS : [Color; 2] = [OPTION_1_COLOR, OPTION_2_COLOR];
+
 	fn setup(
 		mut commands : Commands,
 		queue : Res<SceneQueue>,
@@ -133,123 +139,111 @@ impl DilemmaScene {
 		commands.insert_resource(
 			DilemmaStats::new(dilemma.countdown_duration)
 		);
+
+		let decision_position = -70.0 * dilemma.countdown_duration.as_secs_f32();
+		let transition_duration = Duration::from_secs_f32(decision_position/Self::TRAIN_SPEED);
+		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
+		let final_position = Vec3::new(
+			150.0 * dilemma.countdown_duration.as_secs_f32(),
+			0.0, 
+			0.0
+		);
+		let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
+		let initial_color = match dilemma.default_option {
+			None => Color::WHITE,
+			Some(ref option) => Self::TRACK_COLORS[*option]
+		};
 		
 		commands.spawn(
 			(
 				scene,
-				StateScoped(GameState::Dilemma)
-			)
-		).with_children(
-			|parent: &mut ChildSpawnerCommands<'_>| {
-				parent.spawn((
-					MusicAudio,
-					AudioPlayer::<AudioSource>(asset_server.load(
-						"./audio/music/algorithm_of_fate.ogg"
-					)),
-					PlaybackSettings{
-						paused : false,
-						volume : Volume::Linear(0.3),
-						..continuous_audio()
-					}
-				));
-
-				let speed: f32 = -1000.0;
-				let decision_position = -70.0 * dilemma.countdown_duration.as_secs_f32();
-				let transition_duration = Duration::from_secs_f32(decision_position/speed);
-				let train_initial_position = Vec3::new(120.0, -10.0, 1.0);
-				let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
-
-				parent.spawn((
-					TextColor(PRIMARY_COLOR),
-					TextEmotion::Happy,
-					AsciiString(format!("DILEMMA {}", dilemma.index)),
-					Fade{
-						duration : transition_duration, 
-						paused : true
-					},
-					Transform::from_xyz(-400.0,300.0, 1.0)
-				));
-
-				parent.spawn((
-					TextWindow{
-						title : Some(WindowTitle{
-							text : format!("Description: {}" , dilemma.name.clone()),
+				StateScoped(GameState::Dilemma),
+				children![
+					(
+						MusicAudio,
+						AudioPlayer::<AudioSource>(asset_server.load(
+							"./audio/music/algorithm_of_fate.ogg"
+						)),
+						PlaybackSettings{
+							paused : false,
+							volume : Volume::Linear(0.3),
+							..continuous_audio()
+						}
+					),
+					(
+						TextColor(PRIMARY_COLOR),
+						TextEmotion::Happy,
+						AsciiString(format!("DILEMMA {}", dilemma.index)),
+						Fade{
+							duration : transition_duration, 
+							paused : true
+						},
+						Transform::from_xyz(-400.0,300.0, 1.0)
+					),
+					(
+						TextWindow{
+							title : Some(WindowTitle{
+								text : format!("Description: {}" , dilemma.name.clone()),
+								..default()
+							}),
 							..default()
-						}),
-						..default()
-					},
-					TextBounds {
-						width : Some(400.0), 
-						height : None
-					},
-					Draggable::default(),
-					TextColor(PRIMARY_COLOR),
-					Text2d::new(&dilemma.description),
-					TextFont{
-						font_size : 12.0,
-						..default()
-					},
-					Anchor::TopLeft,
-					Transform::from_xyz(-600.0,200.0, 2.0)
-				));	
-				
-				parent.spawn((
-					TextColor(BACKGROUND_COLOR),
-					Background::new(
-						BackgroundTypes::Desert,	
-						0.00002,
-						-0.5
+						},
+						TextBounds {
+							width : Some(400.0), 
+							height : None
+						},
+						Draggable::default(),
+						TextColor(PRIMARY_COLOR),
+						Text2d::new(&dilemma.description),
+						TextFont{
+							font_size : 12.0,
+							..default()
+						},
+						Anchor::TopLeft,
+						Transform::from_xyz(-600.0,200.0, 2.0)
 					),
-					BequeathTextAlpha,
-					AlphaTranslation::new(
-						DIM_BACKGROUND_COLOR.alpha(),
-						transition_duration,
-						true
-					))
-				);
-
-				parent.spawn((
-					Train(TrainTypes::SteamTrain),
-					Transform::from_translation(train_initial_position), 
-					PointToPointTranslation::new(
-						train_initial_position + train_x_displacement,
-						transition_duration,
-						true
-					)
-				));
-
-				let final_position = Vec3::new(
-					150.0 * dilemma.countdown_duration.as_secs_f32(),
-					0.0, 
-					0.0
-				);
-
-				let main_track_translation_end: Vec3 = Vec3::new(0.0, -40.0, 0.0);
-				let main_track_translation_start: Vec3 = main_track_translation_end + final_position;
-				let track_colors = vec![OPTION_1_COLOR, OPTION_2_COLOR];
-				let initial_color = match dilemma.default_option {
-					None => Color::WHITE,
-					Some(ref option) => track_colors[*option]
-				};
-
-				parent.spawn((
-					Junction{
-						dilemma : dilemma.clone()
-					},
-					TextColor(BACKGROUND_COLOR),
-					ColorTranslation::new(
-						initial_color,
-						transition_duration,
-						true
+					(
+						TextColor(BACKGROUND_COLOR),
+						Background::new(
+							BackgroundTypes::Desert,	
+							0.00002,
+							-0.5
+						),
+						BequeathTextAlpha,
+						AlphaTranslation::new(
+							DIM_BACKGROUND_COLOR.alpha(),
+							transition_duration,
+							true
+						)
 					),
-					Transform::from_translation(main_track_translation_start),
-					PointToPointTranslation::new(
-						main_track_translation_end,
-						transition_duration,
-						true
-					)
-				));
-			}
+					(
+						Train(TrainTypes::SteamTrain),
+						Transform::from_translation(Self::TRAIN_INITIAL_POSITION), 
+						PointToPointTranslation::new(
+							Self::TRAIN_INITIAL_POSITION + train_x_displacement,
+							transition_duration,
+							true
+						)
+					),
+					(
+						Junction{
+							dilemma : dilemma.clone()
+						},
+						TextColor(BACKGROUND_COLOR),
+						ColorTranslation::new(
+							initial_color,
+							transition_duration,
+							true
+						),
+						Transform::from_translation(main_track_translation_start),
+						PointToPointTranslation::new(
+							Self::MAIN_TRACK_TRANSLATION_END,
+							transition_duration,
+							true
+						)
+					)	
+				]
+			)
 		);
 
 		commands.insert_resource(dilemma);

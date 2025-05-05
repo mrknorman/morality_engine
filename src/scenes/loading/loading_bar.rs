@@ -3,7 +3,7 @@ use std::time::Duration;
 use rand::Rng;
 use serde::Deserialize;
 use bevy::{
-    ecs::component::{Mutable, StorageType}, prelude::*, sprite::Anchor
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, sprite::Anchor
 };
 
 use crate::{
@@ -31,9 +31,7 @@ impl Plugin for LoadingBarPlugin {
                 LoadingBar::fill,
             )
             .run_if(in_state(LoadingSystemsActive::True)),
-        )
-        .register_required_components::<LoadingBar, Transform>()
-        .register_required_components::<LoadingBar, Visibility>();
+        );
     }
 }
 
@@ -61,6 +59,9 @@ pub struct LoadingText;
 #[derive(Component)]
 pub struct ProgressIndicator;
 
+#[derive(Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = LoadingBar::on_insert)]
 pub struct LoadingBar {
     prefix: String,
     final_message: String,
@@ -148,6 +149,88 @@ impl LoadingBar {
             };
         }
     }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+
+        let (messages, prefix) = {
+            let entity_ref = world.entity(entity);
+            let messages: Option<Vec<String>> = entity_ref
+                .get::<TextFrames>()
+                .map(|frames: &TextFrames| frames.frames.clone());
+            let prefix: Option<String> = entity_ref
+                .get::<LoadingBar>()
+                .map(|bar: &LoadingBar| bar.prefix.clone());
+            (messages, prefix)
+        };
+
+        // Step 2: Spawn child entities and collect their IDs
+        let mut commands: Commands = world.commands();
+
+        if let Some(messages) = messages {
+            commands.entity(entity).with_children(|parent| {
+                // Spawn the loading bar components
+                parent.spawn((            
+                    Sprite{
+                        custom_size: Some(Vec2::ZERO),
+                        color : PRIMARY_COLOR,
+                        ..default()
+                    },
+                    Transform::default()
+                ));
+                
+                parent.spawn((
+                    LoadingText,
+                    Text2d::new(prefix.unwrap_or_default()),
+                    TextColor(PRIMARY_COLOR),
+                    TextFont{
+                        font_size : 12.0,
+                        ..default()
+                    },
+                    Transform::from_xyz(-250.0, 20.0, 0.0),
+                    TextLayout{
+                        justify: JustifyText::Center,
+                        ..default()
+                    },
+                    Anchor::CenterLeft,
+                )).with_children( |parent| {
+                    parent.spawn((
+                            TextSpan::new(messages[0].clone()),
+                            TextColor(PRIMARY_COLOR),
+                            TextFont{
+                                font_size : 12.0,
+                                ..default()
+                            },
+                        )
+                    );
+                }); 
+                
+                parent.spawn(
+                    HollowRectangle{
+                        dimensions : Vec2::new(500.0, 20.0),
+                        color : PRIMARY_COLOR,
+                        ..default()
+                    }
+                );
+
+                parent.spawn((
+                    ProgressIndicator,
+                    Sprite {
+                        color: HIGHLIGHT_COLOR,
+                        custom_size: Some(Vec2::new(0.0, 14.0)),
+                        anchor: Anchor::CenterLeft,
+                        ..default()
+                    },
+                    Transform::from_translation(
+                        Vec3::ZERO.with_x(-247.0)
+                    )
+                ));
+            });
+        }
+
+    }
 }
 
 #[derive(Deserialize)]
@@ -160,94 +243,5 @@ struct LoadingBarConfig {
 impl LoadingBarConfig {
     fn from_file(loading_bar_messages : LoadingBarMessages) -> Result<Self, serde_json::Error> {
         serde_json::from_str(loading_bar_messages.content())
-    }
-}
-
-impl Component for LoadingBar {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
-    ) {
-        hooks.on_insert(
-            |mut world, context| {
-
-                let (messages, prefix) = {
-                    let entity_ref = world.entity(context.entity);
-                    let messages: Option<Vec<String>> = entity_ref
-                        .get::<TextFrames>()
-                        .map(|frames: &TextFrames| frames.frames.clone());
-                    let prefix: Option<String> = entity_ref
-                        .get::<LoadingBar>()
-                        .map(|bar: &LoadingBar| bar.prefix.clone());
-                    (messages, prefix)
-                };
-        
-                // Step 2: Spawn child entities and collect their IDs
-                let mut commands: Commands = world.commands();
-
-                if let Some(messages) = messages {
-                    commands.entity(context.entity).with_children(|parent| {
-                        // Spawn the loading bar components
-                        parent.spawn((            
-                            Sprite{
-                                custom_size: Some(Vec2::ZERO),
-                                color : PRIMARY_COLOR,
-                                ..default()
-                            },
-                            Transform::default()
-                        ));
-                        
-                        parent.spawn((
-                            LoadingText,
-                            Text2d::new(prefix.unwrap_or_default()),
-                            TextColor(PRIMARY_COLOR),
-                            TextFont{
-                                font_size : 12.0,
-                                ..default()
-                            },
-                            Transform::from_xyz(-250.0, 20.0, 0.0),
-                            TextLayout{
-                                justify: JustifyText::Center,
-                                ..default()
-                            },
-                            Anchor::CenterLeft,
-                        )).with_children( |parent| {
-                            parent.spawn((
-                                    TextSpan::new(messages[0].clone()),
-                                    TextColor(PRIMARY_COLOR),
-                                    TextFont{
-                                        font_size : 12.0,
-                                        ..default()
-                                    },
-                                )
-                            );
-                        }); 
-                        
-                        parent.spawn(
-                            HollowRectangle{
-                                dimensions : Vec2::new(500.0, 20.0),
-                                color : PRIMARY_COLOR,
-                                ..default()
-                            }
-                        );
-
-                        parent.spawn((
-                            ProgressIndicator,
-                            Sprite {
-                                color: HIGHLIGHT_COLOR,
-                                custom_size: Some(Vec2::new(0.0, 14.0)),
-                                anchor: Anchor::CenterLeft,
-                                ..default()
-                            },
-                            Transform::from_translation(
-                                Vec3::ZERO.with_x(-247.0)
-                            )
-                        ));
-                    });
-                }
-            }
-        );
     }
 }

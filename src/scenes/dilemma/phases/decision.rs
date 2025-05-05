@@ -10,51 +10,16 @@ use enum_map::{
 
 use crate::{
 	data::{
-		stats::DilemmaStats,
 		states::{
 			DilemmaPhase, 
 			GameState, 
 			StateVector
-		}, 
-	},
-    systems::{
-		audio::{
-			continuous_audio,
-			ContinuousAudio, 
-			ContinuousAudioPallet,
-			TransientAudio, 
-			TransientAudioPallet 
-		}, 
-		colors::{
-			ColorAnchor, 
-			ColorChangeEvent, 
-			ColorChangeOn, 
-			ColorTranslation, 
-			Fade, 
-			DANGER_COLOR, 
-			OPTION_1_COLOR, 
-			OPTION_2_COLOR, PRIMARY_COLOR
-		},
-		interaction::{
-			ActionPallet, 
-			ClickablePong, 
-			Draggable, 
-			InputAction, 
-			KeyMapping, 
-			Pressable
-		},
-		backgrounds::Background
-	}, 
-	entities::{
+		}, stats::DilemmaStats 
+	}, entities::{
 		sprites::window::WindowTitle, 
-		text::TextWindow,
+		text::{TextTitle, TextWindow},
 		track::Track
-	},
-	style::common_ui::{
-        CenterLever, 
-        DilemmaTimerPosition
-    }, 
-	scenes::dilemma::{
+	}, scenes::dilemma::{
         dilemma::{
             Dilemma, 
             DilemmaTimer
@@ -67,7 +32,34 @@ use crate::{
             LEVER_RIGHT
         }, 
         DilemmaSounds
-    }
+    }, style::common_ui::{
+        CenterLever, 
+        DilemmaTimerPosition
+    }, systems::{
+		audio::{
+			continuous_audio,
+			ContinuousAudio, 
+			ContinuousAudioPallet,
+			TransientAudio, 
+			TransientAudioPallet 
+		}, backgrounds::Background, colors::{
+			ColorAnchor, 
+			ColorChangeEvent, 
+			ColorChangeOn, 
+			ColorTranslation, 
+			Fade, 
+			DANGER_COLOR, 
+			OPTION_1_COLOR, 
+			OPTION_2_COLOR, PRIMARY_COLOR
+		}, interaction::{
+			ActionPallet, 
+			ClickablePong, 
+			Draggable, 
+			InputAction, 
+			KeyMapping, 
+			Pressable
+		}
+	}
 };
 
 pub struct DilemmaDecisionPlugin;
@@ -112,6 +104,13 @@ pub enum LeverActions {
 struct DecisionScene;
 
 impl DecisionScene {
+
+	const TITLE_TRANSLATION : Vec3 = Vec3::new(0.0, -100.0, 1.0);
+	const OPTION_WINDOW_TRANSLATIONS : [Vec3; 2] = [
+		Vec3::new(-600.0, -200.0, 2.0),
+		Vec3::new(200.0, -200.0, 2.0)
+	];
+
 	fn setup(
 			mut commands : Commands,
 			asset_server: Res<AssetServer>,
@@ -130,75 +129,38 @@ impl DecisionScene {
 		
 		commands.spawn((
 			StateScoped(DilemmaPhase::Decision),
-			DecisionScene
-		)).with_children(
-			|parent| {
-				parent.spawn(
-					ContinuousAudioPallet::new(
-						vec![
-							ContinuousAudio{
-								key : DilemmaSounds::TrainApproaching,
-								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/train/approaching.ogg")),
-								settings : PlaybackSettings{
-									volume : Volume::Linear(1.0),
-									..continuous_audio()
-								},
-								dilatable : true 
+			DecisionScene,
+			children![
+				ContinuousAudioPallet::new(
+					vec![
+						ContinuousAudio{
+							key : DilemmaSounds::TrainApproaching,
+							source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/train/approaching.ogg")),
+							settings : PlaybackSettings{
+								volume : Volume::Linear(1.0),
+								..continuous_audio()
 							},
-							ContinuousAudio{
-								key : DilemmaSounds::Clock,
-								source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/clock.ogg")),
-								settings : PlaybackSettings{
-									volume : Volume::Linear(0.3),
-									..continuous_audio()
-								},
-								dilatable : true 
-							}
-						]
-					)
-				);
-
-				let transforms= vec![
-					Transform::from_xyz(-600.0, -200.0, 2.0),
-					Transform::from_xyz(200.0, -200.0, 2.0)
-				];
-
-				for (option, transform) in zip(dilemma.options.clone(), transforms) {
-					parent.spawn((
-						TextWindow{
-							title : Some(WindowTitle{
-								text : format!(
-									"Option {}: {} [Press {} to select]\n", 
-									option.index + 1, 
-									option.name,
-									option.index + 1),
-								..default()
-							}),
-							..default()
+							dilatable : true 
 						},
-						TextBounds {
-							width : Some(400.0), 
-							height : None
-						},
-						Draggable::default(),
-						TextColor(PRIMARY_COLOR),
-						Text2d::new(&option.description),
-						TextFont{
-							font_size : 12.0,
-							..default()
-						},
-						Anchor::TopLeft,
-						transform
-					));	
-				}
-
-				parent.spawn((
+						ContinuousAudio{
+							key : DilemmaSounds::Clock,
+							source : AudioPlayer::<AudioSource>(asset_server.load("./audio/effects/clock.ogg")),
+							settings : PlaybackSettings{
+								volume : Volume::Linear(0.3),
+								..continuous_audio()
+							},
+							dilatable : true 
+						}
+					]
+				),
+				(
 					Pressable::new(vec![
 						KeyMapping{
 							keys : vec![KeyCode::Enter], 
 							actions : vec![DecisionActions::LockDecision],
 							allow_repeated_activation : false
-						}]),
+						}]
+					),
 					ActionPallet(
 						enum_map!(
 							DecisionActions::LockDecision => vec![
@@ -211,10 +173,9 @@ impl DecisionScene {
 							]
 						)
 					)
-					)
-				);
-
-				parent.spawn((
+				),
+				(
+					TextTitle,
 					DilemmaTimerPosition,
 					DilemmaTimer::new(
 						dilemma.countdown_duration, 
@@ -226,10 +187,9 @@ impl DecisionScene {
 					ColorChangeOn::new(vec![
 						ColorChangeEvent::Pulse(vec![DANGER_COLOR])
 					]),
-					Transform::from_xyz(0.0, -100.0, 1.0)
-				));
-
-				parent.spawn((
+					Transform::from_translation(Self::TITLE_TRANSLATION)
+				),
+				(
 					Lever(state),
 					ClickablePong::new(
 						vec![
@@ -287,7 +247,38 @@ impl DecisionScene {
 							]
 						)]
 					),
-				));
+				)
+			]
+		)).with_children(
+			|parent| {
+				for (option, transform) in zip(dilemma.options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
+					parent.spawn((
+						TextWindow{
+							title : Some(WindowTitle{
+								text : format!(
+									"Option {}: {} [Press {} to select]\n", 
+									option.index + 1, 
+									option.name,
+									option.index + 1),
+								..default()
+							}),
+							..default()
+						},
+						TextBounds {
+							width : Some(400.0), 
+							height : None
+						},
+						Draggable::default(),
+						TextColor(PRIMARY_COLOR),
+						Text2d::new(&option.description),
+						TextFont{
+							font_size : 12.0,
+							..default()
+						},
+						Anchor::TopLeft,
+						Transform::from_translation(*transform)
+					));	
+				}
 			});
 	}
 

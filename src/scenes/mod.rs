@@ -80,6 +80,18 @@ impl Default for SceneQueue{
     }
 }
 
+impl SceneQueue {
+    fn dilemma_start() -> Self {
+        Self {
+            queue : VecDeque::from([
+                Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit))
+            ]),
+            next : None,
+            current :  Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit))
+        }
+    }
+}
+
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 #[require(Transform, Visibility)]
 pub enum Scene {

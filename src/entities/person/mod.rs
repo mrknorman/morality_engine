@@ -20,7 +20,7 @@ use crate::{
 	data::states::DilemmaPhase,  
 };
 
-use super::train::{Train, TrainCarriage}; 
+use super::{text::TextTitle, train::{Train, TrainCarriage}}; 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PersonSystemsActive {

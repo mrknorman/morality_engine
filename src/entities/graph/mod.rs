@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::component::{Mutable, StorageType}, prelude::*, render::mesh::Mesh2d
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::mesh::Mesh2d
 };
 
 use crate::{
@@ -20,9 +20,7 @@ impl Plugin for GraphPlugin {
             .init_state::<GraphSystemsActive>()
             .add_systems(Update, 
                 activate_systems
-            )
-            .register_required_components::<Graph, Transform>()
-            .register_required_components::<Graph, Visibility>();
+            );
     }
 }
 
@@ -40,7 +38,9 @@ fn activate_systems(
 #[derive(Component)]
 pub struct GraphNode;
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = Graph::on_insert)]
 pub struct Graph {
     inter_layer_distance : f32,
     num_nodes_per_layer : Vec<i32>,
@@ -157,78 +157,70 @@ impl Graph {
             );
         }
     }
-}
 
-impl Component for Graph {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {
-                // Step 1: Extract the Graph component (immutable borrow)
-                let graph: Option<Graph> = {
-                    let entity_ref: EntityRef<'_> = world.entity(context.entity);
-                    entity_ref.get::<Graph>().cloned()
+        let graph: Option<Graph> = {
+            let entity_ref: EntityRef<'_> = world.entity(entity);
+            entity_ref.get::<Graph>().cloned()
+        };
+
+        if let Some(graph) = graph {
+
+            let node_outer_radius = graph.node_outer_radius;
+            let node_inner_radius = graph.node_outer_radius - graph.node_border_thickness;
+            let circle_radius = node_inner_radius - 2.0;
+
+            // Step 2: Extract meshes and materials handles in limited scope
+            let (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material) = {
+                // Mutable borrow of `world` starts
+                let mut meshes = world.resource_mut::<Assets<Mesh>>();
+                let circle_mesh_handle = meshes.add(Mesh::from(Circle::new(circle_radius)));
+                let annulus_mesh_handle: Handle<Mesh> = meshes.add(Mesh::from(Annulus::new(
+                    node_inner_radius,
+                    node_outer_radius)
+                ));
+
+                let num_nodes = graph.num_nodes_per_layer.iter().sum();
+                let mut materials = world.resource_mut::<Assets<PulsingMaterial>>();
+
+                let node_material_vector: Vec<Handle<PulsingMaterial>> = if num_nodes > 0 {
+                    (0..num_nodes)
+                        .map(|i| {
+                            let phase = (i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU;
+                            materials.add(PulsingMaterial {
+                                color: HIGHLIGHT_COLOR.into(),
+                                phase,
+                            })
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
                 };
 
-                if let Some(graph) = graph {
+                let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
+                let outline_material  = materials.add(ColorMaterial::from(PRIMARY_COLOR));
 
-                    let node_outer_radius = graph.node_outer_radius;
-                    let node_inner_radius = graph.node_outer_radius - graph.node_border_thickness;
-                    let circle_radius = node_inner_radius - 2.0;
+                (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material)
+            };
 
-                    // Step 2: Extract meshes and materials handles in limited scope
-                    let (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material) = {
-                        // Mutable borrow of `world` starts
-                        let mut meshes = world.resource_mut::<Assets<Mesh>>();
-                        let circle_mesh_handle = meshes.add(Mesh::from(Circle::new(circle_radius)));
-                        let annulus_mesh_handle: Handle<Mesh> = meshes.add(Mesh::from(Annulus::new(
-                            node_inner_radius,
-                            node_outer_radius)
-                        ));
+            {
+                let mut commands = world.commands();
 
-                        let num_nodes = graph.num_nodes_per_layer.iter().sum();
-                        let mut materials = world.resource_mut::<Assets<PulsingMaterial>>();
-
-                        let node_material_vector: Vec<Handle<PulsingMaterial>> = if num_nodes > 0 {
-                            (0..num_nodes)
-                                .map(|i| {
-                                    let phase = (i as f32) / ((num_nodes - 1).max(1) as f32) * 2.0 * std::f32::consts::TAU;
-                                    materials.add(PulsingMaterial {
-                                        color: HIGHLIGHT_COLOR.into(),
-                                        phase,
-                                    })
-                                })
-                                .collect()
-                        } else {
-                            Vec::new()
-                        };
-
-                        let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-                        let outline_material  = materials.add(ColorMaterial::from(PRIMARY_COLOR));
-
-                        (circle_mesh_handle, annulus_mesh_handle, node_material_vector, outline_material)
-                    };
-
-                    {
-                        let mut commands = world.commands();
-
-                        commands.entity(context.entity).with_children(|parent: &mut ChildSpawnerCommands<'_>| {
-                            Graph::spawn(
-                                parent,
-                                circle_mesh_handle.clone(),
-                                annulus_mesh_handle.clone(),
-                                node_material_vector.clone(),
-                                outline_material.clone(),
-                                graph
-                            );
-                        });
-                    }
-                }
-            },
-        );
+                commands.entity(entity).with_children(|parent: &mut ChildSpawnerCommands<'_>| {
+                    Graph::spawn(
+                        parent,
+                        circle_mesh_handle.clone(),
+                        annulus_mesh_handle.clone(),
+                        node_material_vector.clone(),
+                        outline_material.clone(),
+                        graph
+                    );
+                });
+            }
+        }
     }
-}    
+
+}
