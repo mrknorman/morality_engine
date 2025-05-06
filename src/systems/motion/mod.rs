@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
-	ecs::component::{Mutable, StorageType}, prelude::*
+	ecs::{component::{HookContext, Mutable, StorageType}, world::DeferredWorld}, prelude::*
 };
 use rand::Rng;
 use crate::{
@@ -41,9 +41,7 @@ impl Plugin for MotionPlugin {
                 PointToPointTranslation::enact
             )
             .run_if(in_state(MotionSystemsActive::True))
-        )
-		.register_required_components::<TransformAnchor, Transform>()
-		;
+        );
 
 		if !app.is_plugin_added::<PhysicsPlugin>() {
 			app.add_plugins(PhysicsPlugin);
@@ -67,44 +65,13 @@ fn activate_systems(
     }
 }
 
+#[derive(Component)]
+#[require(Transform)]
+#[component(on_insert = PointToPointTranslation::on_insert)]
 pub struct PointToPointTranslation {
     pub initial_position: Vec3,
     pub final_position: Vec3,
 	pub timer : Timer
-}
-
-impl Component for PointToPointTranslation {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-	type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-                let transform: Option<Transform> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<Transform>().cloned()
-                };
-
-                match transform {
-                    Some(transform) => {
-                        if let Some(mut transform_anchor) = world.entity_mut(context.entity).get_mut::<PointToPointTranslation>() {
-                            transform_anchor.initial_position = transform.translation;
-                        } else {
-                            warn!(
-								"Failed to retrieve TransformAnchor component for entity: {:?}", 
-								context.entity
-							);
-                        }
-                    }
-                    None => {
-                        warn!(
-
-							"Transform anchor should be inserted after transform! Unable to find Transform.");
-                    }
-                }
-            }
-        );
-    }
 }
 
 impl PointToPointTranslation {
@@ -147,9 +114,39 @@ impl PointToPointTranslation {
 	pub fn start(&mut self) {
 		self.timer.unpause();
 	}
+
+	fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+		let transform: Option<Transform> = {
+			let entity_mut = world.entity(entity);
+			entity_mut.get::<Transform>().cloned()
+		};
+
+		match transform {
+			Some(transform) => {
+				if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<PointToPointTranslation>() {
+					transform_anchor.initial_position = transform.translation;
+				} else {
+					warn!(
+						"Failed to retrieve TransformAnchor component for entity: {:?}", 
+						entity
+					);
+				}
+			}
+			None => {
+				warn!(
+
+					"Transform anchor should be inserted after transform! Unable to find Transform.");
+			}
+		}
+	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform)]
+#[component(on_insert = TransformAnchor::on_insert)]
 pub struct TransformAnchor(pub Transform);
 impl Default for TransformAnchor {
     fn default() -> Self {
@@ -157,40 +154,36 @@ impl Default for TransformAnchor {
     }
 }
 
+
+impl TransformAnchor {
+	fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+		let transform: Option<Transform> = {
+			let entity_mut = world.entity(entity);
+			entity_mut.get::<Transform>().cloned()
+		};
+
+		match transform {
+			Some(transform) => {
+				if let Some(mut transform_anchor) = world.entity_mut(entity).get_mut::<TransformAnchor>() {
+					transform_anchor.0.clone_from(&transform);
+				} else {
+					warn!("Failed to retrieve TransformAnchor component for entity: {:?}", entity);
+				}
+			}
+			None => {
+				warn!("Transform anchor should be inserted after transform! Unable to find Transform.");
+			}
+		}
+	}
+}
 #[derive(Clone, Component)]
 pub struct TransformMultiAnchor(pub Vec<Transform>);
 impl Default for TransformMultiAnchor {
     fn default() -> Self {
         Self(vec![Transform::default()])
-    }
-}
-
-impl Component for TransformAnchor {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-	type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-                let transform: Option<Transform> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<Transform>().cloned()
-                };
-
-                match transform {
-                    Some(transform) => {
-                        if let Some(mut transform_anchor) = world.entity_mut(context.entity).get_mut::<TransformAnchor>() {
-                            transform_anchor.0.clone_from(&transform);
-                        } else {
-                            warn!("Failed to retrieve TransformAnchor component for entity: {:?}", context.entity);
-                        }
-                    }
-                    None => {
-                        warn!("Transform anchor should be inserted after transform! Unable to find Transform.");
-                    }
-                }
-            }
-        );
     }
 }
 

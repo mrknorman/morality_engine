@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::component::{Mutable, StorageType}, prelude::*
+    ecs::{component::{HookContext, Mutable, StorageType}, world::DeferredWorld}, prelude::*
 };
 
 use crate::systems::time::Dilation;
@@ -28,8 +28,6 @@ impl Plugin for PhysicsPlugin {
             )
             .run_if(in_state(PhysicsSystemsActive::True))
         );
-
-        app.register_required_components::<Gravity, Velocity>();
     }
 
 }
@@ -68,7 +66,9 @@ impl Velocity {
     }
 }
 
-#[derive(Clone)]
+#[derive(Component, Clone)]
+#[require(Transform, Velocity)]
+#[component(on_insert = Gravity::on_insert)]
 pub struct Gravity {
     acceleration : Vec3,
     floor_level : Option<f32>,
@@ -96,6 +96,25 @@ impl Gravity{
             }
         }
     }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let transform: Option<Transform> = {
+            let entity_mut = world.entity(entity);
+            entity_mut.get::<Transform>()
+                .map(|transform: &Transform| transform.clone())
+        };
+
+        if let Some(transform) = transform {
+            if let Some(mut gravity) = world.entity_mut(entity).get_mut::<Gravity>() {
+                gravity.floor_level = Some(transform.translation.y);
+            } else {
+                eprintln!("Warning: Entity does not contain a Gravity component!");
+            }
+        }
+    }
 }
 
 impl Default for Gravity {
@@ -107,35 +126,4 @@ impl Default for Gravity {
         }
     }
 
-}
-
-
-impl Component for Gravity {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
-    ) {
-        hooks.on_insert(
-            |mut world, context| {
-
-
-                let transform: Option<Transform> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<Transform>()
-                        .map(|transform: &Transform| transform.clone())
-                };
-
-                if let Some(transform) = transform {
-                    if let Some(mut gravity) = world.entity_mut(context.entity).get_mut::<Gravity>() {
-                        gravity.floor_level = Some(transform.translation.y);
-                    } else {
-                        eprintln!("Warning: Entity does not contain a Gravity component!");
-                    }
-                }
-
-            }
-        );
-    }
 }

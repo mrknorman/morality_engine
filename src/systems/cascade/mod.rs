@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use bevy::{
-    ecs::component::{
-        ComponentHooks, Mutable, StorageType
-    }, 
+    ecs::{component::{
+        ComponentHooks, HookContext, Mutable, StorageType
+    }, world::DeferredWorld}, 
     prelude::*, 
     sprite::Anchor, 
     text::LineBreak, 
@@ -45,12 +45,9 @@ impl Plugin for CascadePlugin {
                 Ripple::update_effect,
                 Ripple::update,
             ))
-            .insert_resource(ResizeDebounce::default())
-            .register_required_components::<Cascade, Transform>()
-            .register_required_components::<Cascade, Visibility>();
+            .insert_resource(ResizeDebounce::default());;
     }
 }
-
 
 #[derive(Clone, Component)]
 pub struct Ripple {
@@ -170,7 +167,9 @@ impl Ripple {
 }
 
 // Main component for the cascading number grid
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = Cascade::on_insert)]
 pub struct Cascade {
     pub speed: f32,
     pub density: f32,
@@ -197,123 +196,6 @@ pub struct CascadeNumber {
     timer: Timer,
     noise_pos: [f64; 3],
     rippling : bool
-}
-
-// System to spawn the number grid when component is inserted
-impl Component for Cascade {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world, context| {
-            // Get component data and validate resources exist
-            let entity_ref = world.entity(context.entity);
-            let Some(cascade) = entity_ref.get::<Cascade>().cloned() else { return };
-            
-            let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
-                warn!("No window found! Cannot spawn cascade.");
-                return;
-            };
-
-            if world.get_resource::<GlobalRng>().is_none() {
-                warn!("GlobalRng not found! Cannot spawn cascade.");
-                return;
-            }
-
-            const EDGE_OVERLAP: f32 = 50.0;
-            let screen_width = window.width() / 2.0;
-            let screen_height = window.height() / 2.0 + EDGE_OVERLAP;
-
-            // Configure grid based on density
-            let cell_size = 25.0 / cascade.density.sqrt();
-            let grid_width = (screen_width * 2.0 / cell_size).ceil() as usize;
-            let grid_height = (screen_height * 2.0 / cell_size).ceil() as usize;
-            let total_cells = grid_width * grid_height;
-
-            // Cache component values
-            let text_font = entity_ref.get::<TextFont>().cloned().unwrap_or_else(|| 
-                TextFont {
-                    font_size: 10.0,
-                    ..default()
-                }
-            );
-            let text_color = entity_ref.get::<TextColor>().cloned().unwrap_or_default();
-
-            // Pre-allocate vectors with capacity
-            let mut cascade_configs = Vec::with_capacity(total_cells);
-            let mut visibility_values = Vec::with_capacity(total_cells);
-            let mut random_heights = Vec::with_capacity(total_cells);
-            
-            // Generate all configurations in one pass
-            {
-                let mut rng = world.resource_mut::<GlobalRng>();
-                let perlin = rng.perlin;
-                let noise_scale = 0.1;
-                
-                for col in 0..grid_width {
-                    for row in 0..grid_height {
-                        let x = (col as f32 * cell_size) - screen_width;
-                        let y = (row as f32 * cell_size) - screen_height;
-                        
-                        let noise_pos = [
-                            col as f64 * noise_scale,
-                            row as f64 * noise_scale,
-                            0.0,
-                        ];
-                        
-                        let noise_value = perlin.get(noise_pos) + rng.uniform.gen_range(0.0..=1.0);
-                        let is_visible = noise_value > 0.05;
-                        let digit = if rng.uniform.gen_bool(0.5) { "1" } else { "0" };
-                        
-                        cascade_configs.push((
-                            Vec3::new(x, y, 0.0),
-                            digit.to_string(),
-                            noise_pos,
-                        ));
-
-                        visibility_values.push(if is_visible { 
-                            Visibility::Visible 
-                        } else { 
-                            Visibility::Hidden 
-                        });
-                        
-                        random_heights.push(rng.uniform.gen_range(0.0..1.0));
-                    }
-                }
-            }
-
-            // Spawn all entities at once
-            let mut commands = world.commands();
-            commands.entity(context.entity).with_children(|parent| {
-                for ((position, digit, noise_pos), random_height, visibility) in 
-                    cascade_configs.into_iter()
-                    .zip(random_heights)
-                    .zip(visibility_values)
-                    .map(|((a, b), c)| (a, b, c)) {
-                    
-                    parent.spawn((
-                        CascadeNumber {
-                            screen_height,
-                            timer: Timer::from_seconds(random_height, TimerMode::Repeating),
-                            noise_pos,
-                            rippling : false
-                        },
-                        Velocity(Vec3::ZERO.with_y(-cascade.speed)),
-                        Anchor::Center,
-                        Text2d::new(digit),
-                        text_font.clone(),
-                        text_color,
-                        TextLayout {
-                            justify: JustifyText::Center,
-                            linebreak: LineBreak::WordBoundary,
-                        },
-                        Transform { translation: position, ..default() },
-                        visibility,
-                    ));
-                }
-            });
-        });
-    }
 }
 
 impl Cascade {
@@ -370,7 +252,6 @@ impl Cascade {
         cascades: Query<(Entity, &Cascade)>,
         debounce: ResMut<ResizeDebounce>,
     ) {
-    
         if debounce.timer.just_finished() {
             for (entity, cascade) in cascades.iter() {
                 commands.entity(entity).despawn_related::<Children>();
@@ -455,5 +336,118 @@ impl Cascade {
                 transform.scale = Vec3::ONE;
             }
         }
+    }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+
+        // Get component data and validate resources exist
+        let entity_ref = world.entity(entity);
+        let Some(cascade) = entity_ref.get::<Cascade>().cloned() else { return };
+        
+        let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
+            warn!("No window found! Cannot spawn cascade.");
+            return;
+        };
+
+        if world.get_resource::<GlobalRng>().is_none() {
+            warn!("GlobalRng not found! Cannot spawn cascade.");
+            return;
+        }
+
+        const EDGE_OVERLAP: f32 = 50.0;
+        let screen_width = window.width() / 2.0;
+        let screen_height = window.height() / 2.0 + EDGE_OVERLAP;
+
+        // Configure grid based on density
+        let cell_size = 25.0 / cascade.density.sqrt();
+        let grid_width = (screen_width * 2.0 / cell_size).ceil() as usize;
+        let grid_height = (screen_height * 2.0 / cell_size).ceil() as usize;
+        let total_cells = grid_width * grid_height;
+
+        // Cache component values
+        let text_font = entity_ref.get::<TextFont>().cloned().unwrap_or_else(|| 
+            TextFont {
+                font_size: 10.0,
+                ..default()
+            }
+        );
+        let text_color = entity_ref.get::<TextColor>().cloned().unwrap_or_default();
+
+        // Pre-allocate vectors with capacity
+        let mut cascade_configs = Vec::with_capacity(total_cells);
+        let mut visibility_values = Vec::with_capacity(total_cells);
+        let mut random_heights = Vec::with_capacity(total_cells);
+        
+        // Generate all configurations in one pass
+        {
+            let mut rng = world.resource_mut::<GlobalRng>();
+            let perlin = rng.perlin;
+            let noise_scale = 0.1;
+            
+            for col in 0..grid_width {
+                for row in 0..grid_height {
+                    let x = (col as f32 * cell_size) - screen_width;
+                    let y = (row as f32 * cell_size) - screen_height;
+                    
+                    let noise_pos = [
+                        col as f64 * noise_scale,
+                        row as f64 * noise_scale,
+                        0.0,
+                    ];
+                    
+                    let noise_value = perlin.get(noise_pos) + rng.uniform.gen_range(0.0..=1.0);
+                    let is_visible = noise_value > 0.05;
+                    let digit = if rng.uniform.gen_bool(0.5) { "1" } else { "0" };
+                    
+                    cascade_configs.push((
+                        Vec3::new(x, y, 0.0),
+                        digit.to_string(),
+                        noise_pos,
+                    ));
+
+                    visibility_values.push(if is_visible { 
+                        Visibility::Visible 
+                    } else { 
+                        Visibility::Hidden 
+                    });
+                    
+                    random_heights.push(rng.uniform.gen_range(0.0..1.0));
+                }
+            }
+        }
+
+        // Spawn all entities at once
+        let mut commands = world.commands();
+        commands.entity(entity).with_children(|parent| {
+            for ((position, digit, noise_pos), random_height, visibility) in 
+                cascade_configs.into_iter()
+                .zip(random_heights)
+                .zip(visibility_values)
+                .map(|((a, b), c)| (a, b, c)) {
+                
+                parent.spawn((
+                    CascadeNumber {
+                        screen_height,
+                        timer: Timer::from_seconds(random_height, TimerMode::Repeating),
+                        noise_pos,
+                        rippling : false
+                    },
+                    Velocity(Vec3::ZERO.with_y(-cascade.speed)),
+                    Anchor::Center,
+                    Text2d::new(digit),
+                    text_font.clone(),
+                    text_color,
+                    TextLayout {
+                        justify: JustifyText::Center,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                    Transform { translation: position, ..default() },
+                    visibility,
+                ));
+            }
+        });
     }
 }

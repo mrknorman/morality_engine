@@ -5,10 +5,7 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    ecs::component::{Mutable, StorageType}, 
-    prelude::*, 
-    render::primitives::Aabb, 
-    window::PrimaryWindow
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 use crate::{
     data::{
@@ -277,8 +274,12 @@ impl Default for InteractionState {
     }
 }
 
-#[derive(Clone)]
-pub struct ClickablePong<T> {
+#[derive(Component, Clone)]
+#[require(Clickable<T>, InteractionState)]
+#[component(on_insert = ClickablePong::<T>::on_insert)]
+pub struct ClickablePong<T> where
+    T: Copy + Send + Sync + 'static,
+{
     initial_state : usize,
     /// The ping–pong index and cycle state.
     direction: PongDirection,
@@ -308,31 +309,20 @@ impl<T: Clone> ClickablePong<T>  where
             ..default()
         }
     }
-}
 
-impl<T> Component for ClickablePong<T> 
-where
-    T: Copy + Send + Sync + 'static,
-{
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(  
-            |mut world, context| {
-                if let Some(pong) = world.entity(context.entity).get::<ClickablePong<T>>().cloned() {
-                    world.commands().entity(context.entity).insert((
-                        Clickable{
-                            actions : pong.action_vector[pong.initial_state].clone(),
-                            ..default()
-                        },
-                        InteractionState(pong.initial_state),
-                    ));
-                }
-            }
-        );
+        if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
+            world.commands().entity(entity).insert((
+                Clickable{
+                    actions : pong.action_vector[pong.initial_state].clone(),
+                    ..default()
+                },
+                InteractionState(pong.initial_state),
+            ));
+        }
     }
 }
 

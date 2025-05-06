@@ -4,8 +4,8 @@ use rand::Rng;
 
 use bevy::{
     ecs::{
-        component::{ComponentHooks, Mutable, StorageType},
-        system::SystemId
+        component::{ComponentHooks, HookContext, Mutable, StorageType},
+        system::SystemId, world::DeferredWorld
     }, prelude::*, sprite::Anchor, text::LineBreak, window::PrimaryWindow
 };
 
@@ -42,9 +42,7 @@ impl Plugin for BackgroundPlugin {
                     Background::resize
                 ).run_if(in_state(BackgroundSystemsActive::True))
             )
-            .init_resource::<BackgroundSystems>()
-            .register_required_components::<Background, Transform>()
-            .register_required_components::<Background, Visibility>();
+            .init_resource::<BackgroundSystems>();
     }
 }
 
@@ -88,7 +86,9 @@ pub struct BackgroundSpriteType {
 }
 
 // Main background component
-#[derive(Clone)]
+#[derive(Component, Clone)]
+#[require(Transform, Visibility)]
+#[component(on_insert = Background::on_insert)]
 pub struct Background {
     sprites: Vec<BackgroundSpriteType>,
     pub density: f32,
@@ -148,6 +148,113 @@ impl Background {
             }
         }
     }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+
+        let entity_ref = world.entity(entity);
+        let Some(background) = entity_ref.get::<Background>().cloned() else { return };
+        let color = entity_ref.get::<TextColor>().cloned();
+        
+        // Find a window in the world
+        let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
+            warn!("No window found! Cannot spawn background.");
+            return;
+        };
+
+        let screen_width = window.width() / 2.0 + 100.0;
+        let screen_height = window.height();
+
+        // Closure to compute perspective scaling
+        let perspective_scale = |y: f32| -> f32 {
+            let t = (y + screen_height / 2.0) / screen_height; // normalized [0,1]
+            1.0 - 0.5 * t // Scale from 1.0 (near) to 0.5 (far)
+        };
+
+        // First, check if the RNG exists
+        if world.get_resource::<GlobalRng>().is_none() {
+            warn!("GlobalRng not found! Cannot spawn background.");
+            return;
+        }
+
+        // Generate all the random values we'll need upfront
+        let mut sprite_configs = Vec::new();
+        {
+            let mut rng = world.resource_mut::<GlobalRng>();
+            
+            // Pre-generate all random positions for all sprites
+            for sprite_type in &background.sprites {
+                let num_lods = sprite_type.lods.len() as f32;
+                let size_per_range = screen_height / num_lods;
+
+                for (i, lod) in sprite_type.lods.iter().enumerate() {
+                    let d0 = i as f32 * size_per_range;
+                    let d1 = (i as f32 + 1.0) * size_per_range;
+                    
+                    let raw_density = background.density * sprite_type.frequency * (d1.powi(2) - d0.powi(2));
+                    let density = raw_density.round() as i32;
+
+                    for _ in 0..density {
+                        let x_range = rng.uniform.gen_range(-screen_width..screen_width + SPAWN_VARIANCE);
+                        let y_in_range = rng.uniform.gen_range(d0..d1);
+                        let y_range = y_in_range - (screen_height / 2.0);
+                        let random_offset = rng.uniform.gen_range(screen_width..screen_width + SPAWN_VARIANCE);
+
+                        let translation = Vec3::new(x_range, y_range, 0.0);
+                        let scale_factor = perspective_scale(translation.y);
+                        
+                        sprite_configs.push((
+                            translation,
+                            scale_factor,
+                            random_offset,
+                            lod.clone(),
+                            (screen_height / 2.0 - y_range).max(0.0) * background.speed * scale_factor
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Now we can use commands with a fresh mutable borrow
+        let mut commands = world.commands();
+        let mut parent_commands = commands.entity(entity);
+
+        // Use the pre-generated configurations to spawn sprites
+        for (translation, scale_factor, random_offset, lod, speed) in sprite_configs {
+            parent_commands.with_children(|parent| {
+                let mut child_entity = parent.spawn((
+                    BackgroundSprite {
+                        screen_width,
+                        random_offset,
+                    },
+                    Velocity(Vec3::new(speed, 0.0, 0.0)),
+                    Anchor::BottomCenter,
+                    Text2d::new(lod),
+                    Transform {
+                        translation,
+                        scale: Vec3::splat(scale_factor),
+                        ..Default::default()
+                    },
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    },
+                    TextLayout {
+                        justify: JustifyText::Left,
+                        linebreak: LineBreak::WordBoundary,
+                    },
+                ));
+
+                // Apply text color if available
+                if let Some(ref text_color) = color {
+                    child_entity.insert(text_color.clone());
+                }
+            });
+        }
+
+    }
 }
 
 // Configuration for sprite positioning and wrapping
@@ -168,116 +275,5 @@ impl BackgroundSprite {
                 transform.translation.x = sprite.random_offset;
             }
         }
-    }
-}
-
-// Background component storage and lifecycle hooks
-impl Component for Background {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(|mut world,context| {
-            // Get required components and resources
-            let entity_ref = world.entity(context.entity);
-            let Some(background) = entity_ref.get::<Background>().cloned() else { return };
-            let color = entity_ref.get::<TextColor>().cloned();
-            
-            // Find a window in the world
-            let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
-                warn!("No window found! Cannot spawn background.");
-                return;
-            };
-
-            let screen_width = window.width() / 2.0 + 100.0;
-            let screen_height = window.height();
-
-            // Closure to compute perspective scaling
-            let perspective_scale = |y: f32| -> f32 {
-                let t = (y + screen_height / 2.0) / screen_height; // normalized [0,1]
-                1.0 - 0.5 * t // Scale from 1.0 (near) to 0.5 (far)
-            };
-
-            // First, check if the RNG exists
-            if world.get_resource::<GlobalRng>().is_none() {
-                warn!("GlobalRng not found! Cannot spawn background.");
-                return;
-            }
-
-            // Generate all the random values we'll need upfront
-            let mut sprite_configs = Vec::new();
-            {
-                let mut rng = world.resource_mut::<GlobalRng>();
-                
-                // Pre-generate all random positions for all sprites
-                for sprite_type in &background.sprites {
-                    let num_lods = sprite_type.lods.len() as f32;
-                    let size_per_range = screen_height / num_lods;
-
-                    for (i, lod) in sprite_type.lods.iter().enumerate() {
-                        let d0 = i as f32 * size_per_range;
-                        let d1 = (i as f32 + 1.0) * size_per_range;
-                        
-                        let raw_density = background.density * sprite_type.frequency * (d1.powi(2) - d0.powi(2));
-                        let density = raw_density.round() as i32;
-
-                        for _ in 0..density {
-                            let x_range = rng.uniform.gen_range(-screen_width..screen_width + SPAWN_VARIANCE);
-                            let y_in_range = rng.uniform.gen_range(d0..d1);
-                            let y_range = y_in_range - (screen_height / 2.0);
-                            let random_offset = rng.uniform.gen_range(screen_width..screen_width + SPAWN_VARIANCE);
-
-                            let translation = Vec3::new(x_range, y_range, 0.0);
-                            let scale_factor = perspective_scale(translation.y);
-                            
-                            sprite_configs.push((
-                                translation,
-                                scale_factor,
-                                random_offset,
-                                lod.clone(),
-                                (screen_height / 2.0 - y_range).max(0.0) * background.speed * scale_factor
-                            ));
-                        }
-                    }
-                }
-            }
-
-            // Now we can use commands with a fresh mutable borrow
-            let mut commands = world.commands();
-            let mut parent_commands = commands.entity(context.entity);
-
-            // Use the pre-generated configurations to spawn sprites
-            for (translation, scale_factor, random_offset, lod, speed) in sprite_configs {
-                parent_commands.with_children(|parent| {
-                    let mut child_entity = parent.spawn((
-                        BackgroundSprite {
-                            screen_width,
-                            random_offset,
-                        },
-                        Velocity(Vec3::new(speed, 0.0, 0.0)),
-                        Anchor::BottomCenter,
-                        Text2d::new(lod),
-                        Transform {
-                            translation,
-                            scale: Vec3::splat(scale_factor),
-                            ..Default::default()
-                        },
-                        TextFont {
-                            font_size: 12.0,
-                            ..default()
-                        },
-                        TextLayout {
-                            justify: JustifyText::Left,
-                            linebreak: LineBreak::WordBoundary,
-                        },
-                    ));
-
-                    // Apply text color if available
-                    if let Some(ref text_color) = color {
-                        child_entity.insert(text_color.clone());
-                    }
-                });
-            }
-        });
     }
 }

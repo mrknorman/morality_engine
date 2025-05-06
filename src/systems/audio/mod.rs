@@ -11,7 +11,7 @@ use bevy::{
         PlaybackMode, 
         Volume
     },
-    ecs::component::{Mutable, StorageType},
+    ecs::{component::HookContext, world::DeferredWorld},
     prelude::*
 };
 
@@ -146,6 +146,8 @@ T: Enum + EnumArray<Entity> + Send + Sync + Clone,
     pub dilatable : bool
 }
 
+#[derive(Component)]
+#[component(on_insert = ContinuousAudioPallet::<T>::on_insert, on_remove = ContinuousAudioPallet::<T>::on_remove)]
 pub struct ContinuousAudioPallet<T> where
 T: Enum + EnumArray<Entity> + Send + Sync + Clone,
 <T as EnumArray<Entity>>::Array: Send + Sync + Clone
@@ -155,7 +157,7 @@ T: Enum + EnumArray<Entity> + Send + Sync + Clone,
 }
 
 impl<T> ContinuousAudioPallet<T> where
-T: Enum + EnumArray<Entity> + Send + Sync + Clone,
+T: Enum + EnumArray<Entity> + Send + Sync + Clone + 'static,
 <T as EnumArray<Entity>>::Array: Send + Sync + Clone
 {
     pub fn new(
@@ -166,81 +168,69 @@ T: Enum + EnumArray<Entity> + Send + Sync + Clone,
             components
         }
     }
-}
 
-impl<T> Component for ContinuousAudioPallet<T> where
-T: Enum + EnumArray<Entity> + Send + Sync + Clone + 'static,
-<T as EnumArray<Entity>>::Array: Send + Sync + Clone
-{
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
-    ) {
-        hooks.on_insert(|mut world, context| {
-            // Extract components from the pallet.
-            let components = {
-                world.entity_mut(context.entity)
-                    .get_mut::<ContinuousAudioPallet<T>>()
-                    .map(|pallet| pallet.components.clone())
-            };
-        
-            let dilation = world.get_resource::<Dilation>().map(|d| d.0);
-            let mut entities = enum_map::enum_map! { _ => Entity::PLACEHOLDER };
-        
-            // Spawn child entities if components exist.
-            if let Some(components) = components {
-                world.commands().entity(context.entity).with_children(|parent| {
-                    for component in components.iter() {
-                        let mut playback_settings = component.settings.clone();
-                        if component.dilatable {
-                            if let Some(d) = dilation {
-                                playback_settings.speed = d;
-                            }
-                        }
-        
-                        let mut child = parent.spawn((component.source.clone(), playback_settings));
-                        if component.dilatable {
-                            child.insert(DilatableAudio);
-                        }
-                        entities[component.key.clone()] = child.id();
-                    }
-                });
-            }
-        
-            // Update the pallet with the new entity map.
-            if let Some(mut pallet) = world.entity_mut(context.entity).get_mut::<ContinuousAudioPallet<T>>() {
-                pallet.entities = entities;
-            }
-        });
-        hooks.on_remove(
-            |mut world, context| {
-                // Step 1: Extract the entity map from the pallet
-                let entities = {
-                    let mut entity_mut = world.entity_mut(context.entity);
-                    entity_mut.get_mut::<ContinuousAudioPallet<T>>()
-                        .map(|pallet| pallet.entities.clone())
-                };
-        
-                // Step 2: Attempt to despawn each child entity
-                if let Some(entities) = entities {
-                    let mut commands = world.commands();
-                    for (_name, child_entity) in entities {
-                        // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
-                        if commands.get_entity(child_entity).is_ok() {
-                            commands.entity(child_entity).despawn();
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let components = {
+            world.entity_mut(entity)
+                .get_mut::<ContinuousAudioPallet<T>>()
+                .map(|pallet| pallet.components.clone())
+        };
+    
+        let dilation = world.get_resource::<Dilation>().map(|d| d.0);
+        let mut entities = enum_map::enum_map! { _ => Entity::PLACEHOLDER };
+    
+        // Spawn child entities if components exist.
+        if let Some(components) = components {
+            world.commands().entity(entity).with_children(|parent| {
+                for component in components.iter() {
+                    let mut playback_settings = component.settings.clone();
+                    if component.dilatable {
+                        if let Some(d) = dilation {
+                            playback_settings.speed = d;
                         }
                     }
+    
+                    let mut child = parent.spawn((component.source.clone(), playback_settings));
+                    if component.dilatable {
+                        child.insert(DilatableAudio);
+                    }
+                    entities[component.key.clone()] = child.id();
+                }
+            });
+        }
+    
+        // Update the pallet with the new entity map.
+        if let Some(mut pallet) = world.entity_mut(entity).get_mut::<ContinuousAudioPallet<T>>() {
+            pallet.entities = entities;
+        }
+    
+    }
+
+    fn on_remove(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+         let entities = {
+            let mut entity_mut = world.entity_mut(entity);
+            entity_mut.get_mut::<ContinuousAudioPallet<T>>()
+                .map(|pallet| pallet.entities.clone())
+        };
+
+        // Step 2: Attempt to despawn each child entity
+        if let Some(entities) = entities {
+            let mut commands = world.commands();
+            for (_name, child_entity) in entities {
+                // Attempt to despawn the entity, this will silently fail if the entity doesn't exist
+                if commands.get_entity(child_entity).is_ok() {
+                    commands.entity(child_entity).despawn();
                 }
             }
-        );
+        }
     }
 }
 
 
+#[derive(Component)]
+#[component(on_insert = TransientAudioPallet::<T>::on_insert)]
 pub struct TransientAudioPallet<T> where
-T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
+T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
 <T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
 {  
     pub entities : EnumMap::<T, Vec<Entity>>,
@@ -319,83 +309,50 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
             );
         }
     }
-}
 
-impl<T> Component for TransientAudioPallet<T> where
-T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
-<T as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone
-{
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {
+        // Step 1: Extract components from the pallet
+        let components = {
+            let mut entity_mut = world.entity_mut(entity);
+            entity_mut.get_mut::<TransientAudioPallet<T>>()
+                .map(|pallet| pallet.components.clone())
+        };
+
+        // Step 2: Spawn child entities and collect their IDs
+        let mut commands = world.commands();
+        let mut entities = enum_map::enum_map! { _ => vec![] };
         
-                // Step 1: Extract components from the pallet
-                let components = {
-                    let mut entity_mut = world.entity_mut(context.entity);
-                    entity_mut.get_mut::<TransientAudioPallet<T>>()
-                        .map(|pallet| pallet.components.clone())
-                };
-        
-                // Step 2: Spawn child entities and collect their IDs
-                let mut commands = world.commands();
-                let mut entities = enum_map::enum_map! { _ => vec![] };
-                
-                if let Some(components) = components {
-                    commands.entity(context.entity).with_children(|parent: &mut ChildSpawnerCommands<'_>| {
-                        for (key, audio_components) in components.iter() {
-                            let mut child_vector = vec![];
-                            for component in audio_components.iter() {
-                                if component.dilatable {
-                                    child_vector.push(
-                                        parent.spawn((
-                                            component.clone(),
-                                            DilatableAudio
-                                        )).id()
-                                    );
-                                } else {
-                                    child_vector.push(
-                                        parent.spawn(component.clone()).id()
-                                    );
-                                }
-      
-                            }
-                            entities[key.clone()] = child_vector;
+        if let Some(components) = components {
+            commands.entity(entity).with_children(|parent: &mut ChildSpawnerCommands<'_>| {
+                for (key, audio_components) in components.iter() {
+                    let mut child_vector = vec![];
+                    for component in audio_components.iter() {
+                        if component.dilatable {
+                            child_vector.push(
+                                parent.spawn((
+                                    component.clone(),
+                                    DilatableAudio
+                                )).id()
+                            );
+                        } else {
+                            child_vector.push(
+                                parent.spawn(component.clone()).id()
+                            );
                         }
-                    });
-                }
-        
-                // Step 3: Update the pallet with the new entity map
-                if let Some(mut pallet) = world.entity_mut(context.entity).get_mut::<TransientAudioPallet<T>>() {
-                    pallet.entities = entities;
-                }
-            }
-        );
-        hooks.on_remove(
-            |mut world, context| {
-                // Step 1: Extract the entity map from the pallet
-                let entities = {
-                    let mut entity_mut = world.entity_mut(context.entity);
-                    entity_mut.get_mut::<TransientAudioPallet<T>>()
-                        .map(|pallet| pallet.entities.clone())
-                };
-                
-                if let Some(entities) = entities {
-                    let mut commands = world.commands();
-                    for (_name, child_entities) in entities {
-                        for child_entity in child_entities {
-                            if commands.get_entity(child_entity).is_ok() {
-                                commands.entity(child_entity).despawn();
-                            }
-                        }
+
                     }
+                    entities[key.clone()] = child_vector;
                 }
-            }
-        );
+            });
+        }
+
+        // Step 3: Update the pallet with the new entity map
+        if let Some(mut pallet) = world.entity_mut(entity).get_mut::<TransientAudioPallet<T>>() {
+            pallet.entities = entities;
+        }
     }
 }
 
@@ -415,6 +372,8 @@ pub fn one_shot_audio() -> PlaybackSettings {
     }
 }
 
+#[derive(Component)]
+#[component(on_insert = OneShotAudioPallet::on_insert)]
 pub struct OneShotAudioPallet {
     pub components: Vec<OneShotAudio>
 }
@@ -427,113 +386,75 @@ impl OneShotAudioPallet {
             components
         }
     }
-}
 
-impl Component for OneShotAudioPallet {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {
-        
-                // Step 1: Extract components from the pallet
-                let components = {
-                    let mut entity_mut = world.entity_mut(context.entity);
-                    entity_mut.get_mut::<OneShotAudioPallet>()
-                        .map(|pallet| pallet.components.clone())
-                };
-                // Step 2: Spawn child entities and collect their IDs
-                let dilation = world.get_resource::<Dilation>().map(|d| d.0);
-                let mut commands = world.commands();
-                if let Some(components) = components {
-                    
-                    for audio_component in components.iter() {
 
-                        if !audio_component.persistent {
-                            commands.entity(context.entity).with_children(
-                                |parent| {
+          // Step 1: Extract components from the pallet
+        let components = {
+            let mut entity_mut = world.entity_mut(entity);
+            entity_mut.get_mut::<OneShotAudioPallet>()
+                .map(|pallet| pallet.components.clone())
+        };
+        // Step 2: Spawn child entities and collect their IDs
+        let dilation = world.get_resource::<Dilation>().map(|d| d.0);
+        let mut commands = world.commands();
+        if let Some(components) = components {
+            
+            for audio_component in components.iter() {
 
-                                    let mut entity_commands = parent.spawn((
-                                        AudioPlayer::<AudioSource>(audio_component.source.clone()),
-                                        PlaybackSettings {
-                                            paused: false,
-                                            mode: PlaybackMode::Despawn,
-                                            volume: Volume::Linear(audio_component.volume),
-                                            speed: dilation.filter(|_| audio_component.dilatable).unwrap_or(1.0),
-                                            ..default()
-                                        }
-                                    ));
-                                    
-                                    if audio_component.dilatable {
-                                        entity_commands.insert(DilatableAudio);
-                                    } 
+                if !audio_component.persistent {
+                    commands.entity(entity).with_children(
+                        |parent| {
+
+                            let mut entity_commands = parent.spawn((
+                                AudioPlayer::<AudioSource>(audio_component.source.clone()),
+                                PlaybackSettings {
+                                    paused: false,
+                                    mode: PlaybackMode::Despawn,
+                                    volume: Volume::Linear(audio_component.volume),
+                                    speed: dilation.filter(|_| audio_component.dilatable).unwrap_or(1.0),
+                                    ..default()
                                 }
-                            );
-                        } else {
-                            commands.spawn(
-                                (
-                                    AudioPlayer::<AudioSource>(audio_component.source.clone()), 
-                                    PlaybackSettings {
-                                        paused : false,
-                                        mode: PlaybackMode::Despawn,
-                                        volume: Volume::Linear(
-                                            audio_component.volume
-                                        ),
-                                        ..default()
-                                    }
-                                )
-                            );
+                            ));
+                            
+                            if audio_component.dilatable {
+                                entity_commands.insert(DilatableAudio);
+                            } 
                         }
-                    } 
+                    );
+                } else {
+                    commands.spawn(
+                        (
+                            AudioPlayer::<AudioSource>(audio_component.source.clone()), 
+                            PlaybackSettings {
+                                paused : false,
+                                mode: PlaybackMode::Despawn,
+                                volume: Volume::Linear(
+                                    audio_component.volume
+                                ),
+                                ..default()
+                            }
+                        )
+                    );
                 }
-            }
-        );
+            } 
+        }
     }
 }
-
 // Define the AudioLayer trait with a volume field
+
+
 trait AudioLayer {
     fn volume(&self) -> f32;
     fn set_volume(&mut self, volume: f32);
 }
 
+#[derive(Component)]
+#[component(on_insert = MusicAudioConfig::on_insert)]
 pub struct MusicAudio;
-
-impl Component for MusicAudio {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
-    ) {
-        hooks.on_insert(
-            |mut world, context| {            
-
-                // Get an immutable reference to the resource
-                let mut previous_entity : Option<Entity> = None;
-                if let Some(audio_config) = world.get_resource::<MusicAudioConfig>() {
-                    if let Some(entity) = audio_config.entity {
-                        if world.get_entity(entity).is_ok() {
-                            previous_entity = Some(entity);
-                        }
-                    }
-                }
-
-                let mut commands = world.commands();
-                if let Some(entity) = previous_entity {
-                    commands.entity(entity).despawn();
-                }
-                
-                if let Some(mut audio_config) = world.get_resource_mut::<MusicAudioConfig>() {
-                    audio_config.entity = Some(context.entity);
-                }
-            }
-        );
-    }
-}
 
 #[derive(Resource)]
 struct MusicAudioConfig {
@@ -547,6 +468,30 @@ impl MusicAudioConfig {
             volume,
             entity : None
         }
+    }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+          // Get an immutable reference to the resource
+          let mut previous_entity : Option<Entity> = None;
+          if let Some(audio_config) = world.get_resource::<MusicAudioConfig>() {
+              if let Some(entity) = audio_config.entity {
+                  if world.get_entity(entity).is_ok() {
+                      previous_entity = Some(entity);
+                  }
+              }
+          }
+
+          let mut commands = world.commands();
+          if let Some(entity) = previous_entity {
+              commands.entity(entity).despawn();
+          }
+          
+          if let Some(mut audio_config) = world.get_resource_mut::<MusicAudioConfig>() {
+              audio_config.entity = Some(entity);
+          }
     }
 }
 
@@ -563,6 +508,8 @@ impl AudioLayer for MusicAudioConfig {
 #[derive(Event)]
 pub struct NarrationAudioFinished;
 
+#[derive(Component)]
+#[component(on_insert = NarrationAudio::on_insert)]
 pub struct NarrationAudio;
 impl NarrationAudio {
     fn check_if_finished(  
@@ -576,40 +523,32 @@ impl NarrationAudio {
             }
         }
     }
-}
 
-impl Component for NarrationAudio {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {            
+          // Get an immutable reference to the resource
+          let mut previous_entity : Option<Entity> = None;
+          if let Some(audio_config) = world.get_resource::<NarrationAudioConfig>() {
+              if let Some(entity) = audio_config.entity {
+                  if world.get_entity(entity).is_ok() {
+                      previous_entity = Some(entity);
+                  }
+              }
+          }
 
-                // Get an immutable reference to the resource
-                let mut previous_entity : Option<Entity> = None;
-                if let Some(audio_config) = world.get_resource::<NarrationAudioConfig>() {
-                    if let Some(entity) = audio_config.entity {
-                        if world.get_entity(entity).is_ok() {
-                            previous_entity = Some(entity);
-                        }
-                    }
-                }
-
-                let mut commands = world.commands();
-                if let Some(entity) = previous_entity {
-                    commands.entity(entity).despawn();
-                }
-                
-                if let Some(mut audio_config) = world.get_resource_mut::<NarrationAudioConfig>() {
-                    audio_config.entity = Some(context.entity);
-                }
-            }
-        );
+          let mut commands = world.commands();
+          if let Some(entity) = previous_entity {
+              commands.entity(entity).despawn();
+          }
+          
+          if let Some(mut audio_config) = world.get_resource_mut::<NarrationAudioConfig>() {
+              audio_config.entity = Some(entity);
+          }
     }
 }
+
 
 // Define the Narration component
 #[derive(Resource)]

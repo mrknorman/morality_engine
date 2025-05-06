@@ -445,40 +445,37 @@ impl Dialogue {
         instruction: &str
     ) {
 
-        commands.entity(dialogue_entity).with_children(|parent| {
-            parent.spawn((
-                NextButton,
-                TextButton::new(
-                    vec![DialogueActions::AdvanceDialogue],
-                    vec![KeyCode::Enter],
-                    format!("[{}]", instruction),
-                ),
-                ActionPallet::<DialogueActions, DialogueSounds>(
-                    enum_map!(
-                        DialogueActions::AdvanceDialogue => vec![
-                            InputAction::PlaySound(DialogueSounds::Click),
-                            next_action.clone(),
-                            InputAction::Despawn(None)
-                         ]
-                     )
-                ),
-                TransientAudioPallet::new(
-                    vec![(
-                        DialogueSounds::Click,
-                        vec![
-                            TransientAudio::new(
-                                asset_server.load("./audio/effects/mech_click.ogg"), 
-                                0.1, 
-                                true,
-                                1.0,
-                                true
-                            )
+        commands.spawn((
+            NextButton,
+            TextButton::new(
+                vec![DialogueActions::AdvanceDialogue],
+                vec![KeyCode::Enter],
+                format!("[{}]", instruction),
+            ),
+            ActionPallet::<DialogueActions, DialogueSounds>(
+                enum_map!(
+                    DialogueActions::AdvanceDialogue => vec![
+                        InputAction::PlaySound(DialogueSounds::Click),
+                        next_action.clone(),
+                        InputAction::Despawn(None)
                         ]
-                    )]
-                ),
-                
-            ));
-        });
+                    )
+            ),
+            TransientAudioPallet::new(
+                vec![(
+                    DialogueSounds::Click,
+                    vec![
+                        TransientAudio::new(
+                            asset_server.load("./audio/effects/mech_click.ogg"), 
+                            0.1, 
+                            true,
+                            1.0,
+                            true
+                        )
+                    ]
+                )]
+            )   
+        ));
     }
 }
 

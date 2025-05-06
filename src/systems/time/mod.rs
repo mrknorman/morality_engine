@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use bevy::{
-    ecs::component::{
-        ComponentHooks, Mutable, StorageType
-    },
+    ecs::{component::{
+        ComponentHooks, HookContext, Mutable, StorageType
+    }, world::DeferredWorld},
     prelude::*
 };
 
@@ -50,41 +50,12 @@ fn activate_systems(
     }
 }
 
+#[derive(Component)]
+#[component(on_insert = DilationTranslation::on_insert)]
 pub struct DilationTranslation {
     pub initial_dilation: f32,
     pub final_dilation: f32,
 	pub timer : Timer
-}
-
-impl Component for DilationTranslation {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-                let dilation = world.get_resource::<Dilation>().map(|d| d.0);
-
-                match dilation {
-                    Some(dilation) => {
-                        if let Some(mut dilation_translation) = world.entity_mut(context.entity).get_mut::<DilationTranslation>() {
-                            dilation_translation.initial_dilation = dilation;
-                        } else {
-                            warn!(
-								"Failed to retrieve TransformAnchor component for entity: {:?}", 
-								context.entity
-							);
-                        }
-                    }
-                    None => {
-                        warn!(
-
-							"Transform anchor should be inserted after transform! Unable to find Transform.");
-                    }
-                }
-            }
-        );
-    }
 }
 
 impl DilationTranslation {
@@ -113,8 +84,35 @@ impl DilationTranslation {
 				dilation.0 = motion.initial_dilation + difference*fraction_complete;
 			} else if motion.timer.finished() {
 				dilation.0 = motion.final_dilation;
-                commands.entity(entity).despawn_recursive();    
+                commands.entity(entity).despawn();    
 			}
 		}
 	}
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let dilation = world.get_resource::<Dilation>().map(|d| d.0);
+
+        match dilation {
+            Some(dilation) => {
+                if let Some(mut dilation_translation) = world.entity_mut(entity).get_mut::<DilationTranslation>() {
+                    dilation_translation.initial_dilation = dilation;
+                } else {
+                    warn!(
+                        "Failed to retrieve TransformAnchor component for entity: {:?}", 
+                        entity
+                    );
+                }
+            }
+            None => {
+                warn!(
+
+                    "Transform anchor should be inserted after transform! Unable to find Transform.");
+            }
+        }
+
+        
+    }
 }

@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::component::{Mutable, StorageType}, prelude::*, render::primitives::Aabb, time::TimerMode, window::PrimaryWindow
+    ecs::{component::{HookContext, Mutable, StorageType}, world::DeferredWorld}, prelude::*, render::primitives::Aabb, time::TimerMode, window::PrimaryWindow
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
@@ -121,42 +121,14 @@ impl Default for ColorPallet {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = AlphaTranslation::on_insert)]
 pub struct AlphaTranslation {
     pub initial_alpha: f32,
     pub final_alpha: f32,
     pub timer : Timer,
 }
 
-
-impl Component for AlphaTranslation {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-                let color: Option<TextColor> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<TextColor>().cloned()
-                };
-
-                match color {
-                    Some(color) => {
-                        if let Some(mut color_anchor) = world.entity_mut(context.entity).get_mut::<AlphaTranslation>() {
-                            color_anchor.initial_alpha = color.0.alpha();
-                        } else {
-                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", context.entity);
-                        }
-                    }
-                    None => {
-                        warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
-                    }
-                }
-            }
-        );
-    }
-}
 
 impl AlphaTranslation {
     pub fn new(final_alpha: f32, duration: Duration, paused: bool) -> AlphaTranslation {
@@ -195,42 +167,39 @@ impl AlphaTranslation {
     pub fn start(&mut self) {
         self.timer.unpause();
     }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+
+        let color: Option<TextColor> = {
+            let entity_mut = world.entity(entity);
+            entity_mut.get::<TextColor>().cloned()
+        };
+
+        match color {
+            Some(color) => {
+                if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<AlphaTranslation>() {
+                    color_anchor.initial_alpha = color.0.alpha();
+                } else {
+                    warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                }
+            }
+            None => {
+                warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
+            }
+        }
+
+    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = ColorTranslation::on_insert)]
 pub struct ColorTranslation {
     pub initial_color: Vec4,
     pub final_color: Vec4,
     pub timer : Timer,
-}
-
-impl Component for ColorTranslation {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-                let color: Option<TextColor> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<TextColor>().cloned()
-                };
-
-                match color {
-                    Some(color) => {
-                        if let Some(mut color_anchor) = world.entity_mut(context.entity).get_mut::<ColorTranslation>() {
-                            color_anchor.initial_color = color.0.to_vec4();
-                        } else {
-                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", context.entity);
-                        }
-                    }
-                    None => {
-                        warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
-                    }
-                }
-            }
-        );
-    }
 }
 
 pub trait ColorExt {
@@ -291,9 +260,34 @@ impl ColorTranslation {
     pub fn start(&mut self) {
         self.timer.unpause();
     }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+
+        let color: Option<TextColor> = {
+            let entity_mut = world.entity(entity);
+            entity_mut.get::<TextColor>().cloned()
+        };
+
+        match color {
+            Some(color) => {
+                if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<ColorTranslation>() {
+                    color_anchor.initial_color = color.0.to_vec4();
+                } else {
+                    warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                }
+            }
+            None => {
+                warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
+            }
+        }
+    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = Fade::on_insert)]
 pub struct Fade {
     pub duration: Duration,
     pub paused: bool,
@@ -310,72 +304,64 @@ impl Fade {
             }
         }   
     }
-}
-
-impl Component for Fade {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(
-        hooks: &mut bevy::ecs::component::ComponentHooks,
+    
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
     ) {
-        hooks.on_insert(
-            |mut world, context| {
-                let fade: Option<Fade> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<Fade>()
-                        .map(|fade: &Fade| fade.clone())
-                };
-                
-                if let Some(fade) = fade {
-                    world.commands().entity(context.entity).insert(
-                        ColorTranslation::new(
-                            Color::NONE,
-                            fade.duration,
-                            fade.paused
-                        )
-                    );
-                }
-            }
-        );
+        let fade: Option<Fade> = {
+            let entity_mut = world.entity(entity);
+            entity_mut.get::<Fade>()
+                .map(|fade: &Fade| fade.clone())
+        };
+        
+        if let Some(fade) = fade {
+            world.commands().entity(entity).insert(
+                ColorTranslation::new(
+                    Color::NONE,
+                    fade.duration,
+                    fade.paused
+                )
+            );
+        }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Component)]
+#[component(on_insert = ColorAnchor::on_insert)]
+
 pub struct ColorAnchor(pub Color);
+
+impl ColorAnchor{
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let color: Option<TextColor> = {
+            let entity_mut = world.entity(entity);
+            entity_mut.get::<TextColor>().cloned()
+        };
+
+        match color {
+            Some(color) => {
+                if let Some(mut color_anchor) = world.entity_mut(entity).get_mut::<ColorAnchor>() {
+                    color_anchor.0 = color.0;
+                } else {
+                    warn!("Failed to retrieve ColorAnchor component for entity: {:?}", entity);
+                }
+            }
+            None => {
+                warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
+            }
+        }
+
+    }
+}
 
 impl Default for ColorAnchor {
     fn default() -> Self {
         ColorAnchor(Color::WHITE)
-    }
-}
-
-impl Component for ColorAnchor {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-    type Mutability = Mutable;
-
-    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_insert(
-            |mut world, context| {
-                let color: Option<TextColor> = {
-                    let entity_mut = world.entity(context.entity);
-                    entity_mut.get::<TextColor>().cloned()
-                };
-
-                match color {
-                    Some(color) => {
-                        if let Some(mut color_anchor) = world.entity_mut(context.entity).get_mut::<ColorAnchor>() {
-                            color_anchor.0 = color.0;
-                        } else {
-                            warn!("Failed to retrieve ColorAnchor component for entity: {:?}", context.entity);
-                        }
-                    }
-                    None => {
-                        warn!("Color anchor should be inserted after text color! Unable to find TextColor.");
-                    }
-                }
-            }
-        );
     }
 }
 
