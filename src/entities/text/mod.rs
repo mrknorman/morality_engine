@@ -1,8 +1,6 @@
 use serde::Deserialize;
 use bevy::{
-    ecs::{component::{
-        ComponentHooks, HookContext, Mutable, StorageType
-    }, world::DeferredWorld}, prelude::*, sprite::Anchor, text::{
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, sprite::Anchor, text::{
         TextBounds, TextLayoutInfo
     }
 };

@@ -1,16 +1,11 @@
 use bevy::{
-    prelude::*, 
-    render::{
-        view::RenderLayers, 
-        render_asset::RenderAssetUsages
-    },
-    sprite::Anchor,
-    asset::Assets,
-    image::{
+    asset::Assets, image::{
         CompressedImageFormats, 
         ImageSampler, 
         ImageType
-    }
+    }, prelude::*, render::{
+        render_asset::RenderAssetUsages, view::RenderLayers
+    }, sprite::Anchor, window::PrimaryWindow
 };
 
 use enum_map::{
@@ -58,13 +53,14 @@ pub struct CustomCursor {
     entity: Option<Entity>,
     icons: EnumMap<CursorMode, Handle<Image>>,
     pub current_mode: CursorMode,
+    pub position: Option<Vec2>
 }
 
 impl CustomCursor {
 
     fn setup(
         mut commands: Commands,
-        mut window: Single<&mut Window>,
+        mut window: Single<&mut Window, With<PrimaryWindow>>,
         mut images: ResMut<Assets<Image>>,
         mut custom_cursor: ResMut<CustomCursor>,
     ) {
@@ -128,31 +124,37 @@ impl CustomCursor {
                 RenderLayers::layer(0),
             ))
             .id();
-        
+
+
         // Update custom cursor resource
         *custom_cursor = CustomCursor {
             entity: Some(cursor_entity),
             icons,
             current_mode: CursorMode::Pointer,
+            position : None,
         };
     }
 
     fn update_position(
-        window: Single<&Window>,
-        custom_cursor: Res<CustomCursor>,
+        window: Single<&Window, With<PrimaryWindow>>,
+        mut custom_cursor: ResMut<CustomCursor>,
         mut cursor_query: Query<&mut Transform>,
         camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
     ) {
-
-        if let Some(cursor_position) = window.cursor_position() {
-            // Convert screen coordinates to world coordinates
-            let (camera, camera_transform) = *camera_query; 
-            if let Ok(cursor_pos) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
-                // Update the cursor entity position
-                if let Some(cursor_entity) = custom_cursor.entity {
-                    if let Ok(mut transform) = cursor_query.get_mut(cursor_entity) {                    
-                        transform.translation = cursor_pos.extend(transform.translation.z);
-                    }
+        let (camera, camera_transform) = *camera_query;
+    
+        custom_cursor.position = window
+            .cursor_position()
+            .and_then(|cursor_screen_pos| {
+                camera
+                    .viewport_to_world_2d(camera_transform, cursor_screen_pos)
+                    .ok()
+            });
+    
+        if let Some(world_pos) = custom_cursor.position {
+            if let Some(cursor_entity) = custom_cursor.entity {
+                if let Ok(mut transform) = cursor_query.get_mut(cursor_entity) {
+                    transform.translation = world_pos.extend(transform.translation.z);
                 }
             }
         }

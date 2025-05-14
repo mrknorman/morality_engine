@@ -1,26 +1,22 @@
 use bevy::{
-    ecs::{component::{HookContext, Mutable, StorageType}, world::DeferredWorld}, prelude::*, render::primitives::Aabb, time::TimerMode, window::PrimaryWindow
+    ecs::{component::{HookContext, Mutable}, world::DeferredWorld}, prelude::*, render::primitives::Aabb, time::TimerMode, window::PrimaryWindow
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 use rand::{Rng, seq::SliceRandom};
 
 use crate::{
-    systems::{
+    data::rng::GlobalRng, entities::sprites::compound::{
+        AssembleShape,
+        Plus
+    }, startup::cursor::CustomCursor, systems::{
         interaction::{
-            get_cursor_world_position,
             is_cursor_within_bounds, 
             is_cursor_within_region
         },
         motion::{Bounce, Pulse},
         time::Dilation
-    },
-    entities::sprites::compound::{
-        AssembleShape,
-        Plus
-    },
-    data::rng::GlobalRng,
-    startup::render::MainCamera
+    }
 };
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
@@ -528,9 +524,8 @@ impl ColorChangeOn {
     }
 
     fn handle_cursor_events_shapes<T: AssembleShape + Component<Mutability = Mutable>>(
-        window_query: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        cursor : Res<CustomCursor>,
         mut query: Query<(&mut ColorChangeOn, &mut T, &Transform, &GlobalTransform)>,
     ) {
         for (mut color_change, mut shape, transform, global_transform) in query.iter_mut() {
@@ -540,8 +535,7 @@ impl ColorChangeOn {
             for event in color_change.events.iter() {
                 match event {
                     ColorChangeEvent::Hover(colors, region) => {
-                        if let Some(cursor_position) =
-                            get_cursor_world_position(&window_query, &camera_query)
+                        if let Some(cursor_position) = cursor.position
                         {
                             if is_cursor_within_region(
                                 cursor_position,
@@ -557,8 +551,7 @@ impl ColorChangeOn {
                         }
                     }
                     ColorChangeEvent::Click(colors, region) => {
-                        if let Some(cursor_position) =
-                            get_cursor_world_position(&window_query, &camera_query)
+                        if let Some(cursor_position) = cursor.position
                         {
                             if is_cursor_within_region(
                                 cursor_position,
@@ -584,9 +577,8 @@ impl ColorChangeOn {
     }
 
     fn handle_cursor_events(
-        window_query: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        cursor : Res<CustomCursor>,
         mut query: Query<(&mut ColorChangeOn, &mut TextColor, &Aabb, &GlobalTransform)>,
     ) {
         for (mut color_change, mut text_color, aabb, transform) in query.iter_mut() {
@@ -596,8 +588,7 @@ impl ColorChangeOn {
             for event in color_change.events.iter() {
                 match event {
                     ColorChangeEvent::Hover(colors, _) => {
-                        if let Some(cursor_position) =
-                            get_cursor_world_position(&window_query, &camera_query)
+                        if let Some(cursor_position) = cursor.position
                         {
                             if is_cursor_within_bounds(cursor_position, transform, aabb) {
                                 text_color.0 = colors[0];
@@ -607,8 +598,7 @@ impl ColorChangeOn {
                         }
                     }
                     ColorChangeEvent::Click(colors, _) => {
-                        if let Some(cursor_position) =
-                            get_cursor_world_position(&window_query, &camera_query)
+                        if let Some(cursor_position) = cursor.position
                         {
                             if is_cursor_within_bounds(cursor_position, transform, aabb)
                                 && mouse_input.pressed(MouseButton::Left)

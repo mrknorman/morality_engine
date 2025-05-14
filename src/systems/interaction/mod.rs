@@ -5,7 +5,7 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, window::PrimaryWindow
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, window::PrimaryWindow, winit::cursor
 };
 use crate::{
     data::{
@@ -483,15 +483,14 @@ pub fn reset_clickable_aggregate(
 }
 
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
-        window: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
         mut aggregate : ResMut<InteractionAggregate>,
-        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        cursor : Res<CustomCursor>,
         mut clickable_query: Query<
             (Option<&Aabb>, &Transform, &GlobalTransform, &ClickableCursorIcons, &mut Clickable<T>), Without<TextSpan>>,
         ) {
 
-    let Some(cursor_position) = get_cursor_world_position(&window, &camera_query) else { return };
+    let Some(cursor_position) = cursor.position else { return };
 
     for (bound, transform, global_transform, icons, mut clickable) in clickable_query.iter_mut() {
         if let Some(region) = clickable.region {
@@ -699,7 +698,7 @@ where
     <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
     fn send_dialogue_event(event_writer: &mut EventWriter<AdvanceDialogue>) {
-        event_writer.send(AdvanceDialogue);
+        event_writer.write(AdvanceDialogue);
     }
 
     for (_, clickable, pressable, pallet) in &mut query {
@@ -773,7 +772,7 @@ where
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
                 Despawn(override_entity) => {
-                    commands.entity(override_entity.unwrap_or(entity)).despawn_recursive();
+                    commands.entity(override_entity.unwrap_or(entity)).despawn();
                 }
             });
         });
@@ -904,13 +903,12 @@ impl Default for Draggable {
 
 impl Draggable {
     pub fn enact(
-        window: Single<&Window, With<PrimaryWindow>>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        cursor: Res<CustomCursor>,
         mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<(&GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>), Without<TextSpan>>,
     ) {
-        let Some(cursor_position) = get_cursor_world_position(&window, &camera_q) else { return };
+        let Some(cursor_position) = cursor.position else { return };
         
         // Reset the option_to_drag flag at the beginning of the frame
         aggregate.option_to_drag = false;
@@ -983,19 +981,6 @@ impl Draggable {
         }
     }
 }
-
-
-/// Utility function for cursor handling.
-pub fn get_cursor_world_position(
-    window: &Single<&Window, With<PrimaryWindow>>,
-    camera_q: &Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-) -> Option<Vec2> {
-    let cursor_position = window.cursor_position()?;
-    let (camera, camera_transform) = camera_q.single().ok()?;
-    let world_position = camera.viewport_to_world(camera_transform, cursor_position).ok()?;
-    Some(world_position.origin.truncate())
-}
-
 
 pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
     // Get the transformation matrix

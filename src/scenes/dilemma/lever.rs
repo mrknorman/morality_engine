@@ -121,7 +121,7 @@ impl Lever {
 
         match lever.0 {
             LeverState::Left => {
-                if let Ok(( mut text, mut color, mut icons)) = lever_text_query.get_single_mut() {
+                if let Ok(( mut text, mut color, mut icons)) = lever_text_query.single_mut() {
                     text.0 = LEVER_LEFT.to_string();
                     color.0 = OPTION_1_COLOR;
                     icons.on_hover = CursorMode::PullRight;
@@ -131,7 +131,7 @@ impl Lever {
             }
 
             LeverState::Right => {
-                if let Ok((mut text, mut color, mut icons)) = lever_text_query.get_single_mut() {
+                if let Ok((mut text, mut color, mut icons)) = lever_text_query.single_mut() {
                     text.0 = LEVER_RIGHT.to_string();
                     color.0 = OPTION_2_COLOR;
                     icons.on_hover = CursorMode::PullLeft;
@@ -141,7 +141,7 @@ impl Lever {
             }
 
             LeverState::Random => {
-                if let Ok(( mut text, mut color, mut icons)) = lever_text_query.get_single_mut() {
+                if let Ok(( mut text, mut color, mut icons)) = lever_text_query.single_mut() {
                     text.0 = LEVER_MIDDLE.to_string();
                     color.0 = Color::WHITE;
                     icons.on_hover = CursorMode::PullLeft;

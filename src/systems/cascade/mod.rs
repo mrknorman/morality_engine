@@ -1,21 +1,19 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use bevy::{
-    ecs::{component::{
-        ComponentHooks, HookContext, Mutable, StorageType
-    }, world::DeferredWorld}, 
+    ecs::{component:: HookContext, world::DeferredWorld}, 
     prelude::*, 
     sprite::Anchor, 
     text::LineBreak, 
-    time::{common_conditions::on_timer, Stopwatch}, 
-    window::PrimaryWindow
+    time::Stopwatch
 };
 use noise::NoiseFn;
-use rand::Rng;
+use rand::Rng;    
+use smallvec::SmallVec;
 
 use crate::{
     data::rng::GlobalRng, 
-    startup::render::MainCamera,
+    startup::cursor::CustomCursor,
     systems::physics::Velocity
 };
 
@@ -26,7 +24,6 @@ use super::{
         OPTION_2_COLOR,
         ColorExt
     }, 
-    interaction::get_cursor_world_position, 
     resize::ResizeDebounce, 
     time::Dilation
 };
@@ -37,15 +34,15 @@ impl Plugin for CascadePlugin {
         app
             .add_systems(Update, (
                 Cascade::wrap,
-                Cascade::update_visibility.run_if(on_timer(Duration::from_millis(2))),
-                Cascade::update_numbers.run_if(on_timer(Duration::from_millis(2))),
+                Cascade::update_visibility,
+                Cascade::update_numbers,
                 Cascade::enlarge,
                 Cascade::resize,
                 Ripple::spawn,
                 Ripple::update_effect,
                 Ripple::update,
             ))
-            .insert_resource(ResizeDebounce::default());;
+            .insert_resource(ResizeDebounce::default());
     }
 }
 
@@ -57,113 +54,115 @@ pub struct Ripple {
 }
 
 impl Ripple {
+    const RIPPLE_SPEED: f32 = 100.0;
+    const RIPPLE_WIDTH: f32 = 40.0;
+    const RIPPLE_DURATION: f32 = 1.0;
+    const MAX_SCALE: f32 = 3.0;
 
-      // ----- Ripple Effect Constants -----
-      const RIPPLE_SPEED: f32 = 100.0;   // Units per second
-      const RIPPLE_WIDTH: f32 = 40.0;     // Thickness of the ripple band
-      const RIPPLE_DURATION: f32 = 1.0;   // Total duration of the ripple effect in seconds
-      const MAX_SCALE: f32 = 3.0;         // Maximum scale multiplier (when ripple effect is at its peak)
-      
-        fn spawn(
-            mut commands: Commands,
-            mut cascade_numbers: Query<Entity, With<Cascade>>,
-            input: Res<ButtonInput<MouseButton>>,
-            window: Single<&Window, With<PrimaryWindow>>,
-            camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        ) {
-            // Determine if a left or right click occurred and select the corresponding color.
-            let ripple_color = if input.just_pressed(MouseButton::Left) {
-                Some(OPTION_1_COLOR)
-            } else if input.just_pressed(MouseButton::Right) {
-                Some(OPTION_2_COLOR)
-            } else {
-                None
-            };
+    fn spawn(
+        mut commands: Commands,
+        mut cascade_numbers: Query<Entity, With<Cascade>>,
+        input: Res<ButtonInput<MouseButton>>,
+        cursor: Res<CustomCursor>,
+    ) {
 
-            if let Some(color) = ripple_color {
-                if let Some(cursor_pos) = get_cursor_world_position(&window, &camera_query) {
-                    for entity in cascade_numbers.iter_mut() {
-                        commands.entity(entity).with_children(|parent| {
-                            parent.spawn(Ripple {
-                                origin: cursor_pos,
-                                color,
-                                stopwatch: Stopwatch::new(),
-                            });
-                        });
-                    }
-                }
-            }
+        let Some(cursor_position) = cursor.position else { return };
+
+        // Determine if a left or right click occurred and select the corresponding color.
+        let color = if input.just_pressed(MouseButton::Left) {
+            OPTION_1_COLOR
+        } else if input.just_pressed(MouseButton::Right) {
+            OPTION_2_COLOR
+        } else {
+            return;
+        };
+
+        for entity in cascade_numbers.iter_mut() {
+            commands.entity(entity).with_children(|parent| {
+                parent.spawn(Ripple {
+                    origin: cursor_position,
+                    color,
+                    stopwatch: Stopwatch::new(),
+                });
+            });
         }
-      
-        fn update(
-            mut commands: Commands,
-            time: Res<Time>,
-            mut numbers: Query<(&Children, &mut Cascade)>,
-            mut child_query: Query<(Entity, &mut Ripple)>,
-            dilation: Res<Dilation>
-        ) {
-            let dt = time.delta_secs() * dilation.0;
+    }
+    
+    fn update(
+        mut commands: Commands,
+        time: Res<Time>,
+        mut numbers: Query<(&Children, &mut Cascade)>,
+        mut child_query: Query<(Entity, &mut Ripple)>,
+        dilation: Res<Dilation>
+    ) {
+        let dt = time.delta_secs() * dilation.0;
+        
+        for (children, number) in numbers.iter_mut() {
+            let speed = number.speed * dt;
             
-            for (children, number) in numbers.iter_mut() {
-                let speed = number.speed * dt;
+            for child in children.iter() {
+                let Ok((entity, mut ripple)) = child_query.get_mut(child) else { continue };
                 
-                for child in children.iter() {
-                    let Ok((entity, mut ripple)) = child_query.get_mut(child) else { continue };
-                    
-                    ripple.stopwatch.tick(Duration::from_secs_f32(dt));
-                    
-                    if ripple.stopwatch.elapsed_secs() >= Self::RIPPLE_DURATION {
-                        commands.entity(entity).despawn();
-                        continue;
-                    }
-                    
-                    ripple.origin.y -= speed;
+                ripple.stopwatch.tick(Duration::from_secs_f32(dt));
+                
+                if ripple.stopwatch.elapsed_secs() >= Self::RIPPLE_DURATION {
+                    commands.entity(entity).despawn();
+                    continue;
                 }
+                
+                ripple.origin.y -= speed;
             }
         }
-      
-        fn update_effect(
-            ripples: Query<(&ChildOf, &Ripple)>,
-            mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform, &mut TextColor, &ColorAnchor, &mut CascadeNumber)>,
-        ) {
-            // Group numbers by their parent
-            for (number_parent, global_transform, mut transform, mut color, anchor, mut number) in numbers.iter_mut() {
-                let mut ripple_effect: f32 = 0.0;
-                let number_pos = global_transform.translation().truncate();
-                let mut new_color = anchor.0.to_vec4();
-                
-                // Only process ripples that share the same parent as this number
-                for (ripple_parent, ripple) in ripples.iter() {
-                    // Skip if the ripple and number don't share the same parent
+    }
 
-                    if ripple_parent.get().index() != number_parent.get().index() {
-                        continue;
-                    }
-                    
-                    let t = ripple.stopwatch.elapsed_secs();
-                    let normalized_delta = (number_pos.distance(ripple.origin) - Self::RIPPLE_SPEED * t).abs() / Self::RIPPLE_WIDTH;
-                    let effect = (1.0 - t / Self::RIPPLE_DURATION) 
-                        * 0.5 * (1.0 + (normalized_delta * 0.5 * std::f32::consts::TAU).cos()) 
-                        * f32::exp(-normalized_delta);
+    fn update_effect(
+        ripples: Query<(&ChildOf, &Ripple), Changed<Ripple>>,
+        mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform,
+                        &mut TextColor, &ColorAnchor, &mut CascadeNumber)>,
+    ) {
+        // -------- ① pre-group ripple refs ----------
+        let mut by_parent: HashMap<Entity, SmallVec<[&Ripple; 4]>> = HashMap::default();
+        for (parent, ripple) in ripples.iter() {
+            by_parent.entry(parent.parent())
+                    .or_default()
+                    .push(ripple);
+        }
 
-                    ripple_effect += effect;
-                    new_color += (ripple.color.to_vec4() - anchor.0.to_vec4()) * effect;
+        // -------- ② use tiny per-parent slice ------
+        for (num_parent, gtr, mut tr, mut col, anchor, mut num) in numbers.iter_mut() {
+            if let Some(ripples) = by_parent.get(&num_parent.parent()) {
+                let mut effect = 0.0;
+                let mut blended = anchor.0.to_vec4();
+                let pos = gtr.translation().truncate();
+
+                for r in ripples {
+                    let t = r.stopwatch.elapsed_secs();
+                    let delta = (pos.distance(r.origin) - Ripple::RIPPLE_SPEED * t).abs()
+                                / Ripple::RIPPLE_WIDTH;
+                    let e = (1.0 - t / Ripple::RIPPLE_DURATION)
+                            * 0.5 * (1.0 + (delta * 0.5 * std::f32::consts::TAU).cos())
+                            * (-delta).exp();
+                    effect += e;
+                    blended += (r.color.to_vec4() - anchor.0.to_vec4()) * e;
                 }
-                
-                if ripple_effect > 0.01 {
-                    number.rippling = true;
-                    color.0 = Color::LinearRgba(LinearRgba {
-                        red: new_color.x,
-                        green: new_color.y,
-                        blue: new_color.z,
-                        alpha: color.0.alpha(),
+
+                if effect > 0.01 {
+                    num.rippling = true;
+                    
+                    col.0 = Color::LinearRgba(LinearRgba {
+                        red: blended.x,
+                        green: blended.y,
+                        blue: blended.z,
+                        alpha: col.0.alpha(),
                     });
-                    transform.scale = Vec3::splat(1.0 + (Self::MAX_SCALE - 1.0) * ripple_effect);
+                
+                    tr.scale = Vec3::splat(1.0 + (Ripple::MAX_SCALE - 1.0) * effect);
                 } else {
-                    number.rippling = false;
+                    num.rippling = false;
                 }
             }
         }
+    }
 }
 
 // Main component for the cascading number grid
@@ -192,6 +191,7 @@ impl Default for Cascade {
 #[derive(Component)]
 #[require(ColorAnchor)]
 pub struct CascadeNumber {
+    state : bool,
     screen_height: f32,
     timer: Timer,
     noise_pos: [f64; 3],
@@ -205,19 +205,17 @@ impl Cascade {
         mut cascade_params: Query<&mut Cascade>,
         mut numbers: Query<(&CascadeNumber, &mut Visibility)>,
         global_rng: Res<GlobalRng>,
-    ) {
-    
+    ) {     
+
         for mut cascade in cascade_params.iter_mut() {
-    
             // Update the global timer
             cascade.stopwatch.tick(Duration::from_secs_f32(time.delta_secs() * dilation.0));
             
             let perlin = global_rng.perlin;
-    
-            // Update visibility for all cascade numbers
-            for (number, mut visibility) in &mut numbers {
-                // Create a time-varying noise coordinate
-                let time_noise_pos = [
+            
+            numbers.par_iter_mut().for_each(|(number, mut visibility)| {
+                 // Create a time-varying noise coordinate
+                 let time_noise_pos = [
                     number.noise_pos[0],
                     number.noise_pos[1],
                     (cascade.stopwatch.elapsed_secs_f64() * 0.1 * cascade.visibility_speed) as f64,
@@ -231,20 +229,16 @@ impl Cascade {
                 } else {
                     *visibility = Visibility::Hidden;
                 }
-            }
+            });
         }
     }
-    
-    // System to wrap numbers when they fall off the bottom of the screen
-    fn wrap(
-        mut numbers: Query<(&CascadeNumber, &mut Transform)>,
-    ) {
-        for (number, mut transform) in &mut numbers {
-            // If it's fallen below the screen, wrap it to the top
+
+    fn wrap(mut numbers: Query<(&CascadeNumber, &mut Transform)>) {
+        numbers.par_iter_mut().for_each(|(number, mut transform)| {
             if transform.translation.y < -number.screen_height {
                 transform.translation.y = number.screen_height;
             }
-        }
+        });
     }
     
     fn resize(
@@ -265,77 +259,67 @@ impl Cascade {
         time: Res<Time>,
         dilation : Res<Dilation>,
         mut rng: ResMut<GlobalRng>,
-        mut query: Query<(&mut CascadeNumber, &mut Text2d, &mut TextColor, &ColorAnchor)>,
+        mut numbers: Query<(&mut CascadeNumber, &mut Text2d, &mut TextColor, &ColorAnchor)>,
     ) {
-        for (mut number, mut text, mut color, anchor) in &mut query {
-            number.timer.tick(Duration::from_secs_f32(time.delta_secs() * dilation.0));        
+
+        let dt = Duration::from_secs_f32(time.delta_secs() * dilation.0);
+        numbers.iter_mut().for_each(|(mut number, mut text, mut color, anchor)| {
+            number.timer.tick(dt);        
             if number.timer.just_finished() {
                 number.timer.set_duration(Duration::from_secs_f32(rng.uniform.gen_range(0.0..10.0)));
-                // Flip the number
-                let current_text = text.0.clone();
-                let new_digit = if current_text == "0" { "1" } else { "0" };    
-                
-                // Update the text
-                text.0 = new_digit.to_string();
+                number.state = !number.state;                
+                text.0 = if number.state {"1".to_string()} else { "0".to_string()};
 
-                if number.rippling{
-                    continue;
-                }
-
-                if rng.uniform.gen_range(0.0..1.0) > 0.9 {
-                    if new_digit == "0" {
-                        color.0 = OPTION_1_COLOR;
+                if !number.rippling{
+                    if rng.uniform.gen_range(0.0..1.0) > 0.9 {
+                        if !number.state {
+                            color.0 = OPTION_1_COLOR;
+                        } else {
+                            color.0 = OPTION_2_COLOR;
+                        }
                     } else {
-                        color.0 = OPTION_2_COLOR;
+                        color.0 = anchor.0;
                     }
-                } else {
-                    color.0 = anchor.0;
                 }
             }
-        }
+        });
     }
     
-    
     pub fn enlarge(
-        mut query: Query<(&GlobalTransform, &mut Transform, &CascadeNumber)>,
-        window: Single<&Window, With<PrimaryWindow>>,
-        camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+        mut numbers: Query<(&GlobalTransform, &mut Transform, &CascadeNumber)>,
+        cursor: Res<CustomCursor>
     ) {
-        let Some(cursor_position) = get_cursor_world_position(&window, &camera_query) else { return };
+        let Some(cursor_position) = cursor.position else { return };
         
         // Configuration parameters
         let max_scale_factor = 2.0; // Maximum size multiplier (2x)
         let influence_radius = 150.0; // Distance in world units where scaling begins
         let min_distance = 10.0; // Distance below which maximum scaling is applied
         
-        for (global_transform, mut transform, number) in &mut query {
-
-            if number.rippling {
-                continue;
-            }
-
-            // Get the position of the number in world space
-            let number_position = global_transform.translation().truncate();
-            
-            // Calculate distance between cursor and number
-            let distance = number_position.distance(cursor_position);
-            
-            // Only apply scaling if within influence radius
-            if distance < influence_radius {
-                let scale_factor = if distance <= min_distance {
-                    max_scale_factor
-                } else {
-                    let t = (influence_radius - distance) / (influence_radius - min_distance);
-                    1.0 + (max_scale_factor - 1.0) * t
-                };
+        numbers.par_iter_mut().for_each(|(global_transform,  mut transform, number)| {
+            if !number.rippling {
+                // Get the position of the number in world space
+                let number_position = global_transform.translation().truncate();
                 
-                // Apply the scaling (assuming original scale is 1.0)
-                transform.scale = Vec3::splat(scale_factor);
-            } else {
-                // Reset scale when outside influence radius
-                transform.scale = Vec3::ONE;
+                // Calculate distance between cursor and number
+                let distance = number_position.distance(cursor_position);
+                
+                // Only apply scaling if within influence radius
+                if distance < influence_radius {
+                    let scale_factor = if distance <= min_distance {
+                        max_scale_factor
+                    } else {
+                        let t = (influence_radius - distance) / (influence_radius - min_distance);
+                        1.0 + (max_scale_factor - 1.0) * t
+                    };
+                    
+                    // Apply the scaling (assuming original scale is 1.0)
+                    transform.scale = Vec3::splat(scale_factor);
+                } else {
+                    transform.scale = Vec3::ONE;
+                }
             }
-        }
+        });
     }
 
     fn on_insert(
@@ -400,11 +384,11 @@ impl Cascade {
                     
                     let noise_value = perlin.get(noise_pos) + rng.uniform.gen_range(0.0..=1.0);
                     let is_visible = noise_value > 0.05;
-                    let digit = if rng.uniform.gen_bool(0.5) { "1" } else { "0" };
+                    let digit = rng.uniform.gen_bool(0.5);
                     
                     cascade_configs.push((
                         Vec3::new(x, y, 0.0),
-                        digit.to_string(),
+                        digit,
                         noise_pos,
                     ));
 
@@ -428,8 +412,10 @@ impl Cascade {
                 .zip(visibility_values)
                 .map(|((a, b), c)| (a, b, c)) {
                 
+                let text = if digit { "1" } else { "0" };
                 parent.spawn((
                     CascadeNumber {
+                        state : digit,
                         screen_height,
                         timer: Timer::from_seconds(random_height, TimerMode::Repeating),
                         noise_pos,
@@ -437,7 +423,7 @@ impl Cascade {
                     },
                     Velocity(Vec3::ZERO.with_y(-cascade.speed)),
                     Anchor::Center,
-                    Text2d::new(digit),
+                    Text2d::new(text.to_string()),
                     text_font.clone(),
                     text_color,
                     TextLayout {

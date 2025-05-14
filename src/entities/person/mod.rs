@@ -1,253 +1,358 @@
 use bevy::{
-	prelude::*, render::primitives::Aabb, sprite::Anchor
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, sprite::Anchor
 };
 use enum_map::Enum;
 use crate::{
-	systems::{
-		audio::{
-			DilatableAudio, 
-			TransientAudio, 
-			TransientAudioPallet,
-		},
-		motion::Bounce,
-		physics::{
-			Gravity, 
-			PhysicsPlugin
-		},
-		time::Dilation
-	},		
-	entities::text::TextSprite,
-	data::states::DilemmaPhase,  
+    data::{rng::GlobalRng, states::DilemmaPhase}, entities::text::TextSprite, systems::{
+        audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
+        motion::Bounce,
+        physics::{Friction, Gravity, PhysicsPlugin, Velocity},
+        time::Dilation,
+    }
 };
+use super::train::{Train, TrainCarriage};
+use rand::Rng;
 
-use super::{text::TextTitle, train::{Train, TrainCarriage}}; 
-
+/// ─────────────────────────────────────────────────────────────
+///  General plugin plumbing (unchanged except for imports)
+/// ─────────────────────────────────────────────────────────────
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PersonSystemsActive {
-    #[default]
-	False,
-    True
+    #[default] False,
+    True,
 }
 
 pub struct PersonPlugin;
 
 impl Plugin for PersonPlugin {
-    fn build(&self, app: &mut App) {	
-		app
-		.init_state::<PersonSystemsActive>()
-		.add_systems(
-			Update,
-			activate_systems
-		).add_systems(
-            Update,
-            (
-				PersonSprite::animate,
-				PersonSprite::scream,
-				PersonSprite::alert,
-				PersonSprite::explode,
-				Emoticon::animate
-            )
-            .run_if(in_state(PersonSystemsActive::True))
-			.run_if(
-				in_state(DilemmaPhase::Decision).or(in_state(DilemmaPhase::Consequence))
-			)
-        );
+    fn build(&self, app: &mut App) {
+        app.init_state::<PersonSystemsActive>()
+            .add_systems(Update, activate_systems)
+            .add_systems(
+                Update,
+                (
+                    PersonSprite::animate,
+                    PersonSprite::scream,
+                    PersonSprite::alert,
+                    PersonSprite::explode,
+                    Emoticon::animate,
+                )
+                    .run_if(in_state(PersonSystemsActive::True))
+                    .run_if(
+                        in_state(DilemmaPhase::Decision)
+                            .or(in_state(DilemmaPhase::Consequence)),
+                    ),
+            );
 
-		if !app.is_plugin_added::<PhysicsPlugin>() {
-			app.add_plugins(PhysicsPlugin);
-		}
+        if !app.is_plugin_added::<PhysicsPlugin>() {
+            app.add_plugins(PhysicsPlugin);
+        }
     }
 }
 
 fn activate_systems(
-	mut person_state: ResMut<NextState<PersonSystemsActive>>,
-	person_query: Query<&PersonSprite>
+    mut person_state: ResMut<NextState<PersonSystemsActive>>,
+    person_query: Query<&PersonSprite>,
 ) {
-	if !person_query.is_empty() {
-		person_state.set(PersonSystemsActive::True)
-	} else {
-		person_state.set(PersonSystemsActive::False)
-	}
+    person_state.set(if person_query.is_empty() {
+        PersonSystemsActive::False
+    } else {
+        PersonSystemsActive::True
+    });
 }
 
+/// ─────────────────────────────────────────────────────────────
+///  Constants & helper structs
+/// ─────────────────────────────────────────────────────────────
+const PERSON: &str = " @ \n/|\\\n/ \\";
+const PERSON_IN_DANGER: &str = "\\@/\n | \n/ \\";
 
-#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EmotionSounds {
-	Exclaim
+const EXCLAMATION: &str = "!";
+const NEUTRAL: &str = "    ";
+
+/// Hard-coded layout for the 3 × 3 ASCII art.
+const COLS: usize = 3;
+const LINES: usize = 3;
+const CHAR_WIDTH: f32 = 9.0;
+const LINE_HEIGHT: f32 = 16.0;
+
+/// Each visible (or space) glyph in the figure.
+#[derive(Component)]
+pub struct CharacterSprite {
+    row: usize,
+    col: usize,
 }
 
-const PERSON : &str = " @ \n/|\\\n/ \\";
-const PERSON_IN_DANGER : &str= "\\@/\n | \n/ \\";
-
-const EXCLAMATION : &str = "!";
-const NEUTRAL : &str = "    ";
+impl CharacterSprite {
+    fn offset(&self) -> Vec3 {
+        // Bottom line sits at y = 0, figure centred on parent’s X axis
+        let x = (self.col as f32 - (COLS as f32 - 1.) * 0.5) * CHAR_WIDTH;
+        let y = ((LINES - 1 - self.row) as f32) * LINE_HEIGHT;
+        Vec3::new(x, y, 0.)
+    }
+}
 
 fn default_person_anchor() -> Anchor {
-	Anchor::BottomCenter
+    Anchor::BottomCenter
 }
 
-fn default_person() -> Text2d {
-	Text2d::new(PERSON)
-}
-
+/// ─────────────────────────────────────────────────────────────
+///  PersonSprite  (parent entity)
+/// ─────────────────────────────────────────────────────────────
 #[derive(Component)]
-#[require(Anchor = default_person_anchor(), Gravity, TextSprite, Text2d = default_person())]
-pub struct PersonSprite{
-	pub in_danger : bool,
+#[component(on_insert = PersonSprite::on_insert)]
+#[require(Anchor = default_person_anchor(), Gravity, TextSprite, Bounce, Visibility)]
+pub struct PersonSprite {
+    pub in_danger: bool,
 }
 
 impl Default for PersonSprite {
-	fn default() -> Self {
-		PersonSprite {
-			in_danger : false,
-		}
-	}
+    fn default() -> Self {
+        Self { in_danger: false }
+    }
 }
 
 impl PersonSprite {
-	pub fn animate(
-		mut query: Query<(
-			&mut Text2d, 
-			&mut Bounce,
-		), With<PersonSprite>>,
-	) {
-		for (mut text, bounce) in query.iter_mut() {
+    // -----------------------------------------------------------------------------------------
+    // Spawning
+    // -----------------------------------------------------------------------------------------
+    /// Helper: `PersonSprite::spawn(commands, position)` creates the parent and every child glyph.
 
-			if bounce.enacting {
-				text.0 = String::from(PERSON_IN_DANGER);
-			} else {
-				text.0 = String::from(PERSON);
-			}
-		}
-	}
+	fn on_insert(
+        mut world: DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
 
-	pub fn scream(
-		mut query: Query<(
-			Entity,  
-			&TransientAudioPallet<EmotionSounds>, 
-			&mut PersonSprite, 
-			&mut Bounce
-		), With<PersonSprite>>,
-		dilation : Res<Dilation>,
-		mut commands : Commands,
-		mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>
-	) {
-		for (entity,  pallet, person, bounce) in query.iter_mut() {
-			if person.in_danger && bounce.timer.just_finished() {
-				TransientAudioPallet::<EmotionSounds>::play_transient_audio(
-					entity,
-					&mut commands,
-					pallet,
-					EmotionSounds::Exclaim,
-					dilation.0,
-					&mut audio_query
-				);
-			}
-		}
-	}
+        for (row, line) in PERSON.lines().enumerate() {
+            for (col, ch) in line.chars().enumerate() {
+                world.commands().entity(entity).with_children(|p| {
+                    p.spawn((
+                        CharacterSprite { row, col },
+                        TextSprite,
+                        Text2d::new(ch.to_string()),
+                        Transform::from_translation(CharacterSprite { row, col }.offset()),
+                        GlobalTransform::default()
+                    ));
+                });
+            }
+        }
+    }
 
-	pub fn alert(
-		mut query: Query<(
-			&mut PersonSprite, 
-			&mut Bounce
-		)>
-	) {
-		for (person, mut bounce) in query.iter_mut() {
-			bounce.active = person.in_danger;
-		}
-	}
+    // -----------------------------------------------------------------------------------------
+    // Animation     (updates the glyphs instead of one big string)
+    // -----------------------------------------------------------------------------------------
+    pub fn animate(
+        mut parent_q: Query<(&Children, &mut Bounce), With<PersonSprite>>,
+        mut char_q: Query<(&mut Text2d, &CharacterSprite)>,
+    ) {
+        for (children, bounce) in parent_q.iter_mut() {
+            let template = if bounce.enacting { PERSON_IN_DANGER } else { PERSON };
+
+            for (row, line) in template.lines().enumerate() {
+                for (col, ch) in line.chars().enumerate() {
+                    let new_char = ch.to_string();
+
+                    if let Some(child) = children.iter().find(|e| {
+                        char_q.get(*e)
+                            .map(|(_, c)| c.row == row && c.col == col)
+                            .unwrap_or(false)
+                    }) {
+                        if let Ok((mut text, _)) = char_q.get_mut(child) {
+                            if text.0 != new_char {
+                                text.0 = new_char;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // The rest of the original behavior is unchanged
+    // -----------------------------------------------------------------------------------------
+    pub fn scream(
+        mut query: Query<(
+            Entity,
+            &TransientAudioPallet<EmotionSounds>,
+            &mut PersonSprite,
+            &mut Bounce,
+        )>,
+        dilation: Res<Dilation>,
+        mut commands: Commands,
+        mut audio_q: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    ) {
+        for (e, pallet, person, bounce) in query.iter_mut() {
+            if person.in_danger && bounce.timer.just_finished() {
+                TransientAudioPallet::<EmotionSounds>::play_transient_audio(
+                    e,
+                    &mut commands,
+                    pallet,
+                    EmotionSounds::Exclaim,
+                    dilation.0,
+                    &mut audio_q,
+                );
+            }
+        }
+    }
+
+    pub fn alert(mut q: Query<(&mut PersonSprite, &mut Bounce)>) {
+        for (p, mut b) in q.iter_mut() {
+            b.active = p.in_danger;
+        }
+    }
+
+    /// Despawns the whole figure when **any** glyph collides with a train.
+    /// How fast the parts shoot away from the figure’s centre (in units · s-¹)
+	const EXPLOSION_SPEED: f32 = 250.0;
 
 	pub fn explode(
-		person_query: Query<(
-			Entity,
-			&Aabb,
-			&GlobalTransform
-		), (With<PersonSprite>, Without<Train>)>,
-		train_query: Query<(
-			&Aabb,
-			&GlobalTransform
-		), (With<TrainCarriage>, Without<PersonSprite>)>,
-		mut commands: Commands,
+		// glyph, its AABB, world-transform and parent PersonSprite
+		char_q : Query<(Entity, &Aabb, &GlobalTransform, &ChildOf), With<CharacterSprite>>,
+		// PersonSprite world-transform *and* optional velocity
+		person_q : Query<(&GlobalTransform, Option<&Velocity>), With<PersonSprite>>,
+		// carriage AABB, world-transform and parent Train
+		carriage_q : Query<(&Aabb, &GlobalTransform, &ChildOf), With<TrainCarriage>>,
+		// velocity of each Train root
+		train_q : Query<&Velocity, With<Train>>,
+		mut rng: ResMut<GlobalRng>,
+		mut commands : Commands,
 	) {
-		// Iterate through all person sprites
-		for (person_entity, person_aabb, person_transform) in person_query.iter() {
-			// Get person AABB in world space
-			let person_world_min = person_transform.transform_point(Vec3::from(person_aabb.center - person_aabb.half_extents));
-			let person_world_max = person_transform.transform_point(Vec3::from(person_aabb.center + person_aabb.half_extents));
-			
-			// For each person, check collision with all trains
-			for (train_aabb, train_transform) in train_query.iter() {
-				// Get train AABB in world space
-				let train_world_min = train_transform.transform_point(Vec3::from(train_aabb.center - train_aabb.half_extents));
-				let train_world_max = train_transform.transform_point(Vec3::from(train_aabb.center + train_aabb.half_extents));
-				
-				// Simple AABB overlap check in world space
-				if person_world_min.x <= train_world_max.x && 
-				   person_world_max.x >= train_world_min.x && 
-				   person_world_min.y <= train_world_max.y && 
-				   person_world_max.y >= train_world_min.y {
-					// If there's a collision, despawn the person entity
-					commands.entity(person_entity).despawn();
-					break;
+		// ─────────────────────────────────────────
+		// 1. detect the very first collision
+		// ─────────────────────────────────────────
+	
+		for (char_e, char_aabb, char_tf, char_parent) in char_q.iter() {
+			let c_min = char_tf.transform_point(Vec3::from(char_aabb.center - char_aabb.half_extents));
+			let c_max = char_tf.transform_point(Vec3::from(char_aabb.center + char_aabb.half_extents));
+	
+			for (train_aabb, train_tf, carriage_parent) in carriage_q.iter() {
+				let t_min = train_tf.transform_point(Vec3::from(train_aabb.center - train_aabb.half_extents));
+				let t_max = train_tf.transform_point(Vec3::from(train_aabb.center + train_aabb.half_extents));
+	
+				if c_min.x <= t_max.x
+					&& c_max.x >= t_min.x
+					&& c_min.y <= t_max.y
+					&& c_max.y >= t_min.y
+				{
+					// ─────────────────────────────────────────
+					// 2. gather context for this particular pair
+					// ─────────────────────────────────────────
+					let person_ent  = char_parent.parent();
+					let train_ent   = carriage_parent.parent();
+	
+					let (person_tf, person_vel_opt) = person_q
+						.get(person_ent)
+						.unwrap_or((&GlobalTransform::IDENTITY, None));
+					let person_ctr  = person_tf.translation();
+					let person_vel  = person_vel_opt.map_or(Vec3::ZERO, |v| v.0);
+	
+					let train_vel   = train_q.get(train_ent).map_or(Vec3::ZERO, |v| v.0);
+	
+					// ─────────────────────────────────────────
+					// 3. apply impulse to every glyph of *this* person
+					// ─────────────────────────────────────────
+					for (glyph_e, _aabb, glyph_tf, glyph_parent) in char_q.iter() {
+						if glyph_parent.parent() == person_ent {
+							// base direction: centre → glyph
+							let mut dir = (glyph_tf.translation() - person_ctr)
+								.try_normalize()
+								.unwrap_or(Vec3::X);
+	
+							if dir == Vec3::ZERO {
+								dir = Vec3::X;
+							}
+	
+							// ────── randomness ──────
+							// a tiny angular nudge (-0.2 … 0.2 on each axis then re-normalise)
+							let jitter = Vec3::new(
+								rng.uniform.gen_range(-0.2..0.2),
+								rng.uniform.gen_range(-0.2..0.2),
+								rng.uniform.gen_range(-0.2..0.2),
+							);
+							dir = (dir + jitter).try_normalize().unwrap_or(dir);
+	
+							// speed multiplier 0.9 … 1.1 (±10 %)
+							let speed_scale: f32 = rng.uniform.gen_range(0.9..1.1);
+	
+							let velocity = dir * Self::EXPLOSION_SPEED * speed_scale   // blast + jitter
+											+ train_vel                                   // impart train momentum
+											+ person_vel;                                 // keep parent momentum
+	
+							// world-space transform so the glyph stays where it is
+							let world_tf = Transform::from_matrix(glyph_tf.compute_matrix());
+	
+							commands.entity(glyph_e)
+								.remove::<ChildOf>()   // detach
+								.insert((
+									world_tf,          // keep position / rotation / scale
+									Gravity::default(),
+									Friction::default(),
+									Velocity(velocity),
+								));
+						}
+					}
+	
+					// ─────────────────────────────────────────
+					// 4. remove the now-empty PersonSprite
+					// ─────────────────────────────────────────
+					commands.entity(person_ent).despawn();
+	
+					return; // prevent double explosions this frame
 				}
 			}
 		}
 	}
 }
 
-fn default_emoticon() -> Text2d {
-	Text2d::new(NEUTRAL)
-}
-
-fn default_emoticon_transform() -> Transform {
-	Transform::from_xyz(0.0, 50.0, 0.0)
-}
+/// ─────────────────────────────────────────────────────────────
+///  Emoticon (unchanged)
+/// ─────────────────────────────────────────────────────────────
+fn default_emoticon() -> Text2d { Text2d::new(NEUTRAL) }
+fn default_emoticon_transform() -> Transform { Transform::from_xyz(0.0, 50.0, 0.0) }
 
 #[derive(Component)]
-#[require(TextSprite,  Text2d = default_emoticon(), Transform = default_emoticon_transform())]
-pub struct Emoticon{
-	pub initial_size : f32,
-	pub current_size : f32,
-	pub translation : Vec3
+#[require(TextSprite, Text2d = default_emoticon(), Transform = default_emoticon_transform())]
+pub struct Emoticon {
+    pub initial_size: f32,
+    pub current_size: f32,
+    pub translation: Vec3,
 }
 
 impl Default for Emoticon {
-	fn default() -> Self {
-		Self{
-			initial_size : 1.0,
-			current_size : 1.0,
-			translation : Vec3{x: 0.0, y: 50.0, z:0.0}
-		}	
-	}
+    fn default() -> Self {
+        Self { initial_size: 1.0, current_size: 1.0, translation: Vec3::new(0.0, 50.0, 0.0) }
+    }
 }
 
 impl Emoticon {
-	pub fn animate(
-		time: Res<Time>,
-		dilation : Res<Dilation>,
-		person_query: Query<&mut Bounce, With<PersonSprite>>,
-		mut emoticon_query: Query<(&ChildOf, &mut Emoticon, &mut Transform, &mut Text2d)>,
-	) {
-
-		let duration_seconds = time.delta_secs()*dilation.0;
-		for (parent, mut sprite, mut transform, mut text) in emoticon_query.iter_mut() {
-			if let Ok(animation) = person_query.get(parent.get()) {
-				if animation.enacting {
-					sprite.current_size += duration_seconds*2.0;
-					transform.translation.y += duration_seconds*15.0;
-					transform.scale = Vec3::new(
-						sprite.current_size, 
-						sprite.current_size, 
-						1.0
-					);
-					text.0 = String::from(EXCLAMATION);
-				} else {
-					sprite.current_size = sprite.initial_size;
-					transform.translation.y = sprite.translation.y;
-					transform.scale = Vec3::ONE;
-					text.0 = String::from(NEUTRAL);
-				}
-			}
-		}
-	}
+    pub fn animate(
+        time: Res<Time>,
+        dilation: Res<Dilation>,
+        person_q: Query<&mut Bounce, With<PersonSprite>>,
+        mut emoticon_q: Query<(&ChildOf, &mut Emoticon, &mut Transform, &mut Text2d)>,
+    ) {
+        let dt = time.delta_secs() * dilation.0;
+        for (parent, mut sprite, mut tf, mut text) in emoticon_q.iter_mut() {
+            if let Ok(bounce) = person_q.get(parent.parent()) {
+                if bounce.enacting {
+                    sprite.current_size += dt * 2.0;
+                    tf.translation.y += dt * 15.0;
+                    tf.scale = Vec3::splat(sprite.current_size);
+                    text.0 = EXCLAMATION.to_string();
+                } else {
+                    sprite.current_size = sprite.initial_size;
+                    tf.translation.y = sprite.translation.y;
+                    tf.scale = Vec3::ONE;
+                    text.0 = NEUTRAL.to_string();
+                }
+            }
+        }
+    }
 }
+
+/// ─────────────────────────────────────────────────────────────
+///  Enum for the scream sfx (unchanged)
+/// ─────────────────────────────────────────────────────────────
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmotionSounds { Exclaim }

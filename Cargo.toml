@@ -22,6 +22,7 @@ enum-map = "2.7.3"
 bevy_svg = "0.15.1"
 noise = "0.9.0"
 once_cell = "1.21.3"
+smallvec = "1.15.0"
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]

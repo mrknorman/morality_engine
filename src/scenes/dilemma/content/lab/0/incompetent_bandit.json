@@ -18,7 +18,7 @@
         "name": "Human-Laced Track",
         "description": "A lone human is tied immovably to the tracks. If you do nothing, the trolley will pass them by safely.",
         "humans": [],
-        "num_humans" : 1
+        "num_humans" : 500
       }
     ]
 }

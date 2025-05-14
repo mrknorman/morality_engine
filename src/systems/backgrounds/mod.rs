@@ -4,7 +4,7 @@ use rand::Rng;
 
 use bevy::{
     ecs::{
-        component::{ComponentHooks, HookContext, Mutable, StorageType},
+        component::HookContext,
         system::SystemId, world::DeferredWorld
     }, prelude::*, sprite::Anchor, text::LineBreak, window::PrimaryWindow
 };

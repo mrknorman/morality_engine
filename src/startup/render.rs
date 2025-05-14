@@ -1,5 +1,3 @@
-use core::panic;
-
 use bevy::{
     asset::RenderAssetUsages, color::palettes::css::BLACK, core_pipeline::{
         bloom::Bloom,
@@ -144,53 +142,52 @@ impl RenderTargetHandle {
         let image_handle = images.add(image);
         commands.insert_resource(RenderTargetHandle(image_handle));
     }
+
     fn update(
-        windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        window: Single<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut images: ResMut<Assets<Image>>,
         mut resize_reader: EventReader<WindowResized>,
         render_target: ResMut<RenderTargetHandle>,
     ) {
         for _ in resize_reader.read() {
-            if let Ok(window) = windows.get_single() {
-                let new_width = window.resolution.width() as u32;
-                let new_height = window.resolution.height() as u32;
-                // Skip update if the window is minimized (zero dimensions)
-                if new_width == 0 || new_height == 0 {
-                    continue;
-                }
-                // Get a mutable reference to the current image, if it exists:
-                if let Some(image) = images.get_mut(&render_target.0) {
-                    // If the size doesn't match, recreate the image
-                    if image.texture_descriptor.size.width != new_width ||
-                       image.texture_descriptor.size.height != new_height
-                    {
-                        let new_size = Extent3d {
-                            width: new_width,
-                            height: new_height,
-                            depth_or_array_layers: 1,
-                        };
-                        
-                        // Calculate the exact buffer size needed based on the format and dimensions
-                        // For Rgba32Float, each pixel needs 16 bytes (4 channels × 4 bytes per float)
-                        let pixel_size_bytes = 16; // Rgba32Float = 4 channels × 4 bytes
-                        let buffer_size = (new_width * new_height * pixel_size_bytes as u32) as usize;
-                        let clear_color = vec![0u8; buffer_size];
-                        
-                        // Create a new image filled with the clear color.
-                        let mut new_image = Image::new_fill(
-                            new_size,
-                            TextureDimension::D2,
-                            &clear_color,
-                            TextureFormat::Rgba32Float,
-                            RenderAssetUsages::default(),
-                        );
-                        // Ensure it has the correct usage flags.
-                        new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
-                            | TextureUsages::COPY_DST
-                            | TextureUsages::RENDER_ATTACHMENT;
-                        // Replace the old image with the new one.
-                        *image = new_image;
-                    }
+            let new_width = window.resolution.width() as u32;
+            let new_height = window.resolution.height() as u32;
+            // Skip update if the window is minimized (zero dimensions)
+            if new_width == 0 || new_height == 0 {
+                continue;
+            }
+            // Get a mutable reference to the current image, if it exists:
+            if let Some(image) = images.get_mut(&render_target.0) {
+                // If the size doesn't match, recreate the image
+                if image.texture_descriptor.size.width != new_width ||
+                    image.texture_descriptor.size.height != new_height
+                {
+                    let new_size = Extent3d {
+                        width: new_width,
+                        height: new_height,
+                        depth_or_array_layers: 1,
+                    };
+                    
+                    // Calculate the exact buffer size needed based on the format and dimensions
+                    // For Rgba32Float, each pixel needs 16 bytes (4 channels × 4 bytes per float)
+                    let pixel_size_bytes = 16; // Rgba32Float = 4 channels × 4 bytes
+                    let buffer_size = (new_width * new_height * pixel_size_bytes as u32) as usize;
+                    let clear_color = vec![0u8; buffer_size];
+                    
+                    // Create a new image filled with the clear color.
+                    let mut new_image = Image::new_fill(
+                        new_size,
+                        TextureDimension::D2,
+                        &clear_color,
+                        TextureFormat::Rgba32Float,
+                        RenderAssetUsages::default(),
+                    );
+                    // Ensure it has the correct usage flags.
+                    new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
+                        | TextureUsages::COPY_DST
+                        | TextureUsages::RENDER_ATTACHMENT;
+                    // Replace the old image with the new one.
+                    *image = new_image;
                 }
             }
         }
@@ -234,31 +231,27 @@ impl ScanLinesMaterial {
 
     /// Update the resolution uniform if the window size changes.
     fn update(
-        windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        window: Single<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
-    ) {
-        if let Ok(window) = windows.get_single() {
-            let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
-            for (_id, material) in materials.iter_mut() {
-                material.scan_line.resolution = window_resolution;
-            }
+    ) {        
+        let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
+        for (_id, material) in materials.iter_mut() {
+            material.scan_line.resolution = window_resolution;
         }
     }
     
     fn update_scan_mesh(
-        windows: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        window: Single<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut meshes: ResMut<Assets<Mesh>>,
         scan_mesh_query: Query<&Mesh2d, With<ScanMesh>>,
     ) {
-        if let Ok(window) = windows.get_single() {
-            let new_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
-        
-            for mesh_handle in scan_mesh_query.iter() {
-                if let Some(mesh) = meshes.get_mut(mesh_handle) {
-                    // Rebuild the mesh as a fullscreen quad with the new dimensions.
-                    let new_mesh = Mesh::from(Rectangle::new(new_resolution.x, new_resolution.y));
-                    *mesh = new_mesh;
-                }
+        let new_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
+    
+        for mesh_handle in scan_mesh_query.iter() {
+            if let Some(mesh) = meshes.get_mut(mesh_handle) {
+                // Rebuild the mesh as a fullscreen quad with the new dimensions.
+                let new_mesh = Mesh::from(Rectangle::new(new_resolution.x, new_resolution.y));
+                *mesh = new_mesh;
             }
         }
     }

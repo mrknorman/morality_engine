@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::{HookContext, Mutable, StorageType}, world::DeferredWorld}, prelude::*
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*
 };
 
 use crate::systems::time::Dilation;
@@ -24,7 +24,8 @@ impl Plugin for PhysicsPlugin {
             Update,
             (
 				Velocity::enact,
-                Gravity::enact
+                Gravity::enact,
+                Friction::enact
             )
             .run_if(in_state(PhysicsSystemsActive::True))
         );
@@ -91,7 +92,7 @@ impl Gravity{
                 } else if gravity.is_falling && transform.translation.y < floor_level {
                     gravity.is_falling = false;
                     transform.translation.y = floor_level;
-                    velocity.0 = Vec3::ZERO;
+                    velocity.0.y = 0.0;
                 }
             }
         }
@@ -126,4 +127,64 @@ impl Default for Gravity {
         }
     }
 
+}
+
+#[derive(Component, Clone)]
+#[require(Transform, Velocity)]
+#[component(on_insert = Friction::on_insert)]
+pub struct Friction {
+    coefficient : f32,
+    floor_level : Option<f32>,
+    pub is_sliding : bool
+}
+
+impl Friction{
+    fn enact(
+        time: Res<Time>,
+        dilation : Res<Dilation>,
+        mut query : Query<(&mut Friction, &mut Velocity, &mut Transform)>, 
+    ) {
+        let duration_seconds = time.delta_secs()*dilation.0;
+        for (mut friction, mut velocity, mut transform) in query.iter_mut() {
+
+            if let Some(floor_level) = friction.floor_level {
+                if transform.translation.y <= floor_level && velocity.0.x != 0.0 {
+                    friction.is_sliding = true;
+                    velocity.0.x -= friction.coefficient*velocity.0.x*duration_seconds;
+                } else if friction.is_sliding && velocity.0.x <= 0.01 {
+                    friction.is_sliding = false;
+                    velocity.0.x = 0.0;
+                }
+            }
+        }
+    }
+
+    fn on_insert(
+        mut world : DeferredWorld,
+        HookContext{entity, ..} : HookContext
+    ) {
+        let transform: Option<Transform> = {
+            let entity_mut = world.entity(entity);
+            entity_mut.get::<Transform>()
+                .map(|transform: &Transform| transform.clone())
+        };
+
+        if let Some(transform) = transform {
+            if let Some(mut friction) = world.entity_mut(entity).get_mut::<Friction>() {
+                friction.floor_level = Some(transform.translation.y);
+            } else {
+                eprintln!("Warning: Entity does not contain a friction component!");
+            }
+        }
+    }
+}
+
+impl Default for Friction {
+    fn default() -> Self {
+        Self{
+            coefficient : 0.5,
+            floor_level : Some(0.0),
+            is_sliding : false
+        }
+    }
 }
