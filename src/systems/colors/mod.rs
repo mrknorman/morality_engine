@@ -1,9 +1,9 @@
 use bevy::{
-    ecs::{component::{HookContext, Mutable}, world::DeferredWorld}, prelude::*, render::primitives::Aabb, time::TimerMode, window::PrimaryWindow
+    ecs::{component::{HookContext, Mutable}, world::DeferredWorld}, prelude::*, render::primitives::Aabb, time::TimerMode,
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, seq::{IndexedRandom, SliceRandom}};
 
 use crate::{
     data::rng::GlobalRng, entities::sprites::compound::{
@@ -409,7 +409,7 @@ impl Flicker {
             self.inter_flicker_timer.tick(dt);
             if self.inter_flicker_timer.finished() {
                 // Begin a new flicker burst with a random duration.
-                let flicker_duration = rng.gen_range(self.min_flicker_duration..self.max_flicker_duration);
+                let flicker_duration = rng.random_range(self.min_flicker_duration..self.max_flicker_duration);
                 self.flicker_timer.set_duration(flicker_duration);
                 self.flicker_timer.reset();
                 self.flicker_timer.unpause();
@@ -420,7 +420,7 @@ impl Flicker {
             self.flicker_timer.tick(dt);
             if self.flicker_timer.finished() {
                 // End burst and randomize the next interval.
-                let interval = rng.gen_range(self.min_interval..self.max_interval);
+                let interval = rng.random_range(self.min_interval..self.max_interval);
                 self.inter_flicker_timer.set_duration(interval);
                 self.inter_flicker_timer.reset();
                 self.inter_flicker_timer.unpause();

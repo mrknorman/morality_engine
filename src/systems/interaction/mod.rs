@@ -5,7 +5,7 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, window::PrimaryWindow, winit::cursor
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb,
 };
 use crate::{
     data::{
@@ -82,8 +82,7 @@ use crate::{
         cursor::{
             CursorMode, 
             CustomCursor
-        }, 
-        render::MainCamera
+        }
     }
 };
 

@@ -90,10 +90,10 @@ impl LoadingBar {
             "Error reading Loading Bar configuration file!"
         );
 
-        let mut rng: rand::prelude::ThreadRng = rand::thread_rng();
+        let mut rng: rand::prelude::ThreadRng = rand::rng();
 
         let timer_duration: Duration = Duration::from_secs_f32(
-            rng.gen_range(1.0..=2.0)
+            rng.random_range(1.0..=2.0)
         );
 
         (
@@ -110,13 +110,13 @@ impl LoadingBar {
         mut text_query: Query<Entity, With<LoadingText>>,
         mut writer: Text2dWriter
     ) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (children, mut bar, frames) in loading_query.iter_mut() {
             if bar.timer.tick(time.delta().mul_f32(dilation.0)).just_finished() {
                 bar.index += 1;
 
-                let secs = rng.gen_range(0.5..=2.0) as f32;
+                let secs = rng.random_range(0.5..=2.0) as f32;
                 bar.timer = Timer::new(
                     Duration::from_secs_f32(secs), 
                     TimerMode::Once
@@ -128,7 +128,7 @@ impl LoadingBar {
                     if !bar.finished {
                         if let Ok(mut sprite) = sprite_query.get_mut(child) {
                             if let Some(custom_size) = &mut sprite.custom_size {
-                                let bar_size_increase = rng.gen_range(5.0..=50.0);
+                                let bar_size_increase = rng.random_range(5.0..=50.0);
                                 custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
                                 bar.finished = custom_size.x >= 494.0;
                             }

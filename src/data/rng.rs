@@ -25,3 +25,11 @@ impl Default for GlobalRng {
         }
     }
 }
+
+use rand_core::RngCore;
+
+impl RngCore for GlobalRng {
+    #[inline] fn next_u32(&mut self) -> u32 { self.uniform.next_u32() }
+    #[inline] fn next_u64(&mut self) -> u64 { self.uniform.next_u64() }
+    #[inline] fn fill_bytes(&mut self, dest: &mut [u8])       { self.uniform.fill_bytes(dest) }
+}

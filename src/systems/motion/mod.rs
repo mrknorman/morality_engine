@@ -217,8 +217,8 @@ impl Wobble {
 	) {
 		for (mut transform, mut wobble, translation_anchor) in wobble_query.iter_mut() {
 			if wobble.timer.tick(time.delta().mul_f32(dilation.0)).finished() {
-				let dx = rng.uniform.gen_range(-1.0..=1.0);
-				let dy = rng.uniform.gen_range(-1.0..=1.0);  
+				let dx = rng.uniform.random_range(-1.0..=1.0);
+				let dy = rng.uniform.random_range(-1.0..=1.0);  
 
 				transform.translation.x = translation_anchor.0.translation.x + dx as f32;
 				transform.translation.y = translation_anchor.0.translation.y + dy as f32;
@@ -292,7 +292,7 @@ impl Bounce {
 			} else if bounce.timer.just_finished() && !gravity.is_falling && bounce.active {
 				velocity.0 = Vec3::new(
 					0.0, 
-					rng.uniform.gen_range(
+					rng.uniform.random_range(
 						bounce.initial_velocity_min..bounce.initial_velocity_max
 					), 
 					0.0

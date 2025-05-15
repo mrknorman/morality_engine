@@ -5,7 +5,7 @@ use enum_map::{
     EnumArray,
     EnumMap
 };
-use rand::prelude::*;
+use rand::{prelude::*, rng};
 use bevy::{
     audio::{
         PlaybackMode, 
@@ -295,7 +295,7 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
         audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     ) {
 
-        let Some(random_sound) = pallet.entities[key].choose(&mut thread_rng()).cloned() else {
+        let Some(random_sound) = pallet.entities[key].choose(&mut rng()).cloned() else {
             return;
         };
 

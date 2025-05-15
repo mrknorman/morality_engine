@@ -197,10 +197,10 @@ impl Background {
                     let density = raw_density.round() as i32;
 
                     for _ in 0..density {
-                        let x_range = rng.uniform.gen_range(-screen_width..screen_width + SPAWN_VARIANCE);
-                        let y_in_range = rng.uniform.gen_range(d0..d1);
+                        let x_range = rng.uniform.random_range(-screen_width..screen_width + SPAWN_VARIANCE);
+                        let y_in_range = rng.uniform.random_range(d0..d1);
                         let y_range = y_in_range - (screen_height / 2.0);
-                        let random_offset = rng.uniform.gen_range(screen_width..screen_width + SPAWN_VARIANCE);
+                        let random_offset = rng.uniform.random_range(screen_width..screen_width + SPAWN_VARIANCE);
 
                         let translation = Vec3::new(x_range, y_range, 0.0);
                         let scale_factor = perspective_scale(translation.y);

@@ -25,6 +25,7 @@ impl Plugin for PhysicsPlugin {
             (
 				Velocity::enact,
                 AngularVelocity::enact,
+                ScaleVelocity::enact,
                 Gravity::enact,
                 Friction::enact
             )
@@ -96,12 +97,39 @@ impl AngularVelocity {
 }
 
 
-#[derive(Component, Clone)]
+#[derive(Component, Default)]
+#[require(Transform)]
+pub struct ScaleVelocity(pub Vec3); // Radians per second for rotation around X, Y, Z axes
+
+impl ScaleVelocity {
+    pub fn enact(
+        time: Res<Time>,
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut Transform, &ScaleVelocity)>,
+    ) {
+        let delta_time = time.delta_secs() * dilation.0;
+
+        for (mut transform, scale_velocity) in query.iter_mut() {
+            if scale_velocity.0 != Vec3::ZERO {
+                transform.scale += scale_velocity.0*delta_time;
+            }
+        }
+    }
+}
+
+
+#[derive(Component)]
+pub struct Colidable;
+
+#[derive(Component)]
+pub struct InertialMass(f32);
+
+#[derive(Component)]
 #[require(Transform, Velocity)]
 #[component(on_insert = Gravity::on_insert)]
 pub struct Gravity {
-    acceleration : Vec3,
-    floor_level : Option<f32>,
+    pub acceleration : Vec3,
+    pub floor_level : Option<f32>,
     pub is_falling : bool
 }
 
@@ -139,7 +167,9 @@ impl Gravity{
 
         if let Some(transform) = transform {
             if let Some(mut gravity) = world.entity_mut(entity).get_mut::<Gravity>() {
-                gravity.floor_level = Some(transform.translation.y);
+                if gravity.floor_level.is_none() {
+                    gravity.floor_level = Some(transform.translation.y);
+                }
             } else {
                 eprintln!("Warning: Entity does not contain a Gravity component!");
             }
@@ -151,7 +181,7 @@ impl Default for Gravity {
     fn default() -> Self {
         Self{
             acceleration : Vec3::new(0.0, -200.0, 1.0),
-            floor_level : Some(0.0),
+            floor_level : None,
             is_falling : false
         }
     }
@@ -162,8 +192,8 @@ impl Default for Gravity {
 #[require(Transform, Velocity)]
 #[component(on_insert = Friction::on_insert)]
 pub struct Friction {
-    coefficient : f32,
-    floor_level : Option<f32>,
+    pub coefficient : f32,
+    pub floor_level : Option<f32>,
     pub is_sliding : bool
 }
 
@@ -175,14 +205,19 @@ impl Friction{
             &mut Friction,
             &mut Velocity,                 // linear velocity
             Option<&mut AngularVelocity>,   // angular velocity (optional)
+            Option<&mut ScaleVelocity>,
             &mut Transform,
         )>,
     ) {
         let dt = time.delta_secs() * dilation.0;
 
-        for (mut friction, mut linear_v, angular_opt, transform) in query.iter_mut() {
+        for (mut friction, mut linear_v, angular_opt, scalar_opt, transform) in query.iter_mut() {
             if let Some(floor) = friction.floor_level {
                 let on_floor = transform.translation.y <= floor;
+
+                if on_floor {
+                    linear_v.0.y = 0.0;
+                }
 
                 /* ---------- LINEAR FRICTION ---------- */
                 if on_floor && linear_v.0.length_squared() > 0.0 {
@@ -198,12 +233,19 @@ impl Friction{
 
                 /* ---------- ANGULAR FRICTION ---------- */
                 if let Some(mut angular) = angular_opt {
-                    if on_floor && angular.0.length_squared() > 0.0 {
-                        let w0 = angular.0;                             // copy
-                        angular.0 -= w0 * friction.coefficient * dt;     // mutate
+                    if on_floor {
+                        angular.0 = Vec3::ZERO;
+                    }
+                }
 
-                        if angular.0.length_squared() < 0.01 {
-                            angular.0 = Vec3::ZERO;
+                /* ---------- SCALAR FRICTION ---------- */
+                if let Some(mut scalar_opt) = scalar_opt {
+                    if on_floor && scalar_opt.0.length_squared() > 0.0 {
+                        let w0 = scalar_opt.0;                             // copy
+                        scalar_opt.0 -= w0 * friction.coefficient * dt;     // mutate
+
+                        if scalar_opt.0.length_squared() < 0.01 {
+                            scalar_opt.0 = Vec3::ZERO;
                         }
                     }
                 }
@@ -228,7 +270,9 @@ impl Friction{
 
         if let Some(transform) = transform {
             if let Some(mut friction) = world.entity_mut(entity).get_mut::<Friction>() {
-                friction.floor_level = Some(transform.translation.y);
+                if friction.floor_level.is_none() {
+                    friction.floor_level = Some(transform.translation.y);
+                }
             } else {
                 eprintln!("Warning: Entity does not contain a friction component!");
             }
@@ -239,8 +283,8 @@ impl Friction{
 impl Default for Friction {
     fn default() -> Self {
         Self{
-            coefficient : 0.5,
-            floor_level : Some(0.0),
+            coefficient : 1.5,
+            floor_level : None,
             is_sliding : false
         }
     }

@@ -1,7 +1,7 @@
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
-	audio::Volume, ecs::{component::HookContext, world::DeferredWorld}, prelude::*
+	audio::Volume, ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb
 };
 use enum_map::{
     Enum, 
@@ -15,8 +15,11 @@ pub mod content;
 use content::TrainTypes;
 
 use crate::{
-    data::rng::GlobalRng,
-	systems::{
+    data::rng::GlobalRng, entities::text::{
+		Animated, 
+		TextFrames, 
+		TextSprite
+	}, systems::{
         audio::{
             continuous_audio, 
             AudioPlugin, 
@@ -26,22 +29,13 @@ use crate::{
             OneShotAudioPallet, 
             TransientAudio, 
             TransientAudioPallet
-        }, 
-        interaction::{
+        }, colors::ColorAnchor, interaction::{
             ActionPallet, 
             Clickable, 
             InputAction, 
             InteractionPlugin
-        },
-	    colors::ColorAnchor, 
-        motion::Wobble, 
-        physics::Velocity
-    },
-    entities::text::{
-		Animated, 
-		TextFrames, 
-		TextSprite
-	}
+        }, motion::Wobble, physics::Velocity
+    }
 };
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -267,15 +261,15 @@ impl Train {
             );
         }
         
+        let mut carriage_translation = Vec3::default();
         commands.entity(entity).with_children(
             |parent| {
-            let mut carriage_translation = Vec3::default();
             for carriage in carriages.clone() {
                 let mut transform = Transform::from_translation(carriage_translation);
                 
                 if train_state == TrainState::Wrecked {
                     // Add random rotation between 0 and 20 degrees for wrecked carriages (except first)
-                    let random_rotation = rng.gen_range(-FRAC_PI_4..FRAC_PI_4);
+                    let random_rotation = rng.random_range(-FRAC_PI_4..FRAC_PI_4);
                     transform.rotate(Quat::from_rotation_z(random_rotation));
                 }
                 
@@ -296,7 +290,7 @@ impl Train {
                 // Update translation for next carriage
                 if train_state == TrainState::Wrecked {
                     // Vary the distance for wrecked trains (except first position)
-                    carriage_translation.x -= rng.gen_range(70.0..100.0);
+                    carriage_translation.x -= rng.random_range(70.0..100.0);
                 } else {
                     carriage_translation.x -= 85.0;
                 }
@@ -373,5 +367,21 @@ impl Train {
                 );
             };
         }
+
+            // padding constants
+        // ── constants ───────────────────────────────────────────────
+        const PAD_X: f32      = 10.0;
+        const PAD_Y: f32      = 4.0;
+        const TRAIN_WIDTH: f32 = 10.0;   // total width in Z
+        // ────────────────────────────────────────────────────────────
+
+        let len_x = (carriages.len() as f32 - 1.0) * 85.0 + 50.0 * 2.0; // front+rear buffer
+        let centre = Vec3::new(-len_x * 0.5 + 25.0, 0.0, 0.0);
+
+        world.commands().entity(entity).insert(Aabb {
+            center:       Vec3A::from(centre),
+            half_extents: Vec3A::from(Vec3::new(len_x * 0.5, 32.0 * 0.5, TRAIN_WIDTH * 0.5)),
+        });
+
     }
 }

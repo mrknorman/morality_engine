@@ -7,7 +7,7 @@ use bevy::{
 use crate::{
     entities::{
 		person::{
-			CharacterSprite, Emoticon, EmotionSounds, PersonSprite
+			BloodSprite, CharacterSprite, Emoticon, EmotionSounds, PersonSprite
 		}, text::TextSprite, track::Track
 	}, scenes::dilemma::{
 		lever::{
@@ -154,6 +154,27 @@ impl Junction {
 			)
 		];
 
+		let splat_audio = vec![
+			TransientAudio::new(
+				asset_server.load("./audio/effects/blood.ogg"),
+				1.0,
+				true,
+				0.5,
+				true
+			)
+		];
+
+		
+		let pop_audio = vec![
+			TransientAudio::new(
+				asset_server.load("./audio/effects/pop.ogg"),
+				1.0,
+				true,
+				0.7,
+				true
+			)
+		];
+
 		let crowd_audio = asset_server.load(
 			"./audio/effects/crowd_panic.ogg"
 		);
@@ -270,10 +291,35 @@ impl Junction {
 										if fatality_index < 5 {
 											entity_commands.insert(
 												TransientAudioPallet::new(
-													vec![(
+													vec![
+														(
 														EmotionSounds::Exclaim,
 														audio_vector.clone()
-													)]
+													),
+													(
+														EmotionSounds::Splat,
+														splat_audio.clone()
+													),
+													(
+														EmotionSounds::Pop,
+														pop_audio.clone()
+													)
+													]
+												)
+											);
+										} else {
+											entity_commands.insert(
+												TransientAudioPallet::new(
+													vec![
+														(
+															EmotionSounds::Splat,
+															splat_audio.clone()
+														),
+														(
+															EmotionSounds::Pop,
+															pop_audio.clone()
+														)
+													]
 												)
 											);
 										}
@@ -293,6 +339,7 @@ impl Junction {
 		mut commands : Commands,
 		junction_query : Query<Entity, With<Junction>>,
 		body_parts_query : Query<Entity, (With<CharacterSprite>, Without<ChildOf>)>,
+		blood_query : Query<Entity, With<BloodSprite>>,
 	){
 		for entity in junction_query.iter() {
 			commands.entity(entity).despawn();
@@ -303,6 +350,10 @@ impl Junction {
 				entity_cmds.despawn();
 			}
         }
+
+		for entity in blood_query.iter() {
+			commands.entity(entity).despawn();
+		}
 	}
 
 	pub fn update_main_track_color(

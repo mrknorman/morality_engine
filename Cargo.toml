@@ -1,40 +1,49 @@
 [package]
-name = "morality_engine"
+name    = "morality_engine"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+# ──────────────────────────────
+# Hard requirements (top-level)
+# ──────────────────────────────
 [dependencies]
-tokio = { version = "1.42.0", features = ["full"] }
-rand = "0.8.3"
-crossterm = "0.28.1"
-rodio = "0.20.1"
-serde = { version = "1.0.216", features = ["derive"] }
-serde_json = "1.0.133"
-bevy = "0.16"
-phf = { version = "0.11.2", features = ["macros"] }
-rand_xorshift = "0.3.0"
-rand_core = "0.6.4"
-rand_pcg = "0.3.1"
-log = { version = "*", features = ["max_level_debug", "release_max_level_warn"] }
-enum-map = "2.7.3"
-bevy_svg = "0.15.1"
-noise = "0.9.0"
-once_cell = "1.21.3"
-smallvec = "1.15.0"
+# async / io
+tokio      = { version = "1.42.0", features = ["full"] }
+rodio      = "0.20.1"
+crossterm  = "0.29.0"
 
-# Enable only a small amount of optimization in debug mode
+# game / engine
+bevy       = "0.16"             # keep the Bevy version you’re on
+
+# maths / randomness
+rand         = "0.9.1"          # <── PICK **ONE** RAND
+rand_distr   = "0.5.1"
+rand_pcg     = "0.9.0"
+rand_xorshift = "0.4.0"
+noise        = "0.9.0"          # ≥0.9 already uses rand 0.8
+
+# data / misc
+serde        = { version = "1.0.216", features = ["derive"] }
+serde_json   = "1.0.133"
+phf          = { version = "0.11.2", features = ["macros"] }
+enum-map     = "2.7.3"
+once_cell    = "1.21.3"
+smallvec     = "1.15.0"
+log          = { version = "*", features = ["max_level_debug", "release_max_level_warn"] }
+rand_core = "0.9.3"
+
+# ──────────────────────────────
+# Profile tweaks
+# ──────────────────────────────
 [profile.dev]
 opt-level = 0
 
-# Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
 
 [profile.release]
-lto = true
-opt-level = 3
-codegen-units = 1
-incremental = false
-debug = false
+lto             = true
+opt-level       = 3
+codegen-units   = 1
+incremental     = false
+debug           = false

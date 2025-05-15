@@ -266,12 +266,12 @@ impl Cascade {
         numbers.iter_mut().for_each(|(mut number, mut text, mut color, anchor)| {
             number.timer.tick(dt);        
             if number.timer.just_finished() {
-                number.timer.set_duration(Duration::from_secs_f32(rng.uniform.gen_range(0.0..10.0)));
+                number.timer.set_duration(Duration::from_secs_f32(rng.uniform.random_range(0.0..10.0)));
                 number.state = !number.state;                
                 text.0 = if number.state {"1".to_string()} else { "0".to_string()};
 
                 if !number.rippling{
-                    if rng.uniform.gen_range(0.0..1.0) > 0.9 {
+                    if rng.uniform.random_range(0.0..1.0) > 0.9 {
                         if !number.state {
                             color.0 = OPTION_1_COLOR;
                         } else {
@@ -382,9 +382,9 @@ impl Cascade {
                         0.0,
                     ];
                     
-                    let noise_value = perlin.get(noise_pos) + rng.uniform.gen_range(0.0..=1.0);
+                    let noise_value = perlin.get(noise_pos) + rng.uniform.random_range(0.0..=1.0);
                     let is_visible = noise_value > 0.05;
-                    let digit = rng.uniform.gen_bool(0.5);
+                    let digit = rng.uniform.random_bool(0.5);
                     
                     cascade_configs.push((
                         Vec3::new(x, y, 0.0),
@@ -398,7 +398,7 @@ impl Cascade {
                         Visibility::Hidden 
                     });
                     
-                    random_heights.push(rng.uniform.gen_range(0.0..1.0));
+                    random_heights.push(rng.uniform.random_range(0.0..1.0));
                 }
             }
         }
