@@ -17,37 +17,27 @@ use crate::{
             StateVector
         },
         stats::GameStats
-    },
-    systems::{
+    }, entities::{
+        text::TextButton, train::Train
+    }, scenes::dilemma::{
+        dilemma:: Dilemma, 
+        junction::Junction, 
+        lever::Lever,
+        DilemmaSounds
+    }, style::common_ui::NextButton, systems::{
         audio::{
             OneShotAudio, 
             OneShotAudioPallet, 
             TransientAudio, 
             TransientAudioPallet 
-        },
-        interaction::{
+        }, interaction::{
             ActionPallet, 
             InputAction, 
-        },
-        scheduling::{
+        }, motion::PointToPointTranslation, physics::Velocity, scheduling::{
             TimerConfig, 
             TimerPallet, 
             TimerStartCondition
-        },
-        time::DilationTranslation,
-        motion::PointToPointTranslation,
-        physics::Velocity
-    },
-    entities::{
-        text::TextButton,
-        train::Train
-    },
-    style::common_ui::NextButton, 
-    scenes::dilemma::{
-        dilemma:: Dilemma, 
-        junction::Junction, 
-        lever::Lever,
-        DilemmaSounds
+        }, time::DilationTranslation
     }
 };
 

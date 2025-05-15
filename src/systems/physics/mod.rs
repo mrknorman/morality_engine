@@ -24,6 +24,7 @@ impl Plugin for PhysicsPlugin {
             Update,
             (
 				Velocity::enact,
+                AngularVelocity::enact,
                 Gravity::enact,
                 Friction::enact
             )
@@ -66,6 +67,34 @@ impl Velocity {
         }
     }
 }
+
+#[derive(Component, Default)]
+#[require(Transform)]
+pub struct AngularVelocity(pub Vec3); // Radians per second for rotation around X, Y, Z axes
+
+
+impl AngularVelocity {
+    pub fn enact(
+        time: Res<Time>,
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut Transform, &AngularVelocity)>,
+    ) {
+        let delta_time = time.delta_secs() * dilation.0;
+
+        for (mut transform, angular_velocity) in query.iter_mut() {
+            if angular_velocity.0 != Vec3::ZERO {
+                let rotation_delta = Quat::from_euler(
+                    EulerRot::XYZ,
+                    angular_velocity.0.x * delta_time,
+                    angular_velocity.0.y * delta_time,
+                    angular_velocity.0.z * delta_time,
+                );
+                transform.rotation = transform.rotation * rotation_delta;
+            }
+        }
+    }
+}
+
 
 #[derive(Component, Clone)]
 #[require(Transform, Velocity)]
@@ -141,19 +170,47 @@ pub struct Friction {
 impl Friction{
     fn enact(
         time: Res<Time>,
-        dilation : Res<Dilation>,
-        mut query : Query<(&mut Friction, &mut Velocity, &mut Transform)>, 
+        dilation: Res<Dilation>,
+        mut query: Query<(
+            &mut Friction,
+            &mut Velocity,                 // linear velocity
+            Option<&mut AngularVelocity>,   // angular velocity (optional)
+            &mut Transform,
+        )>,
     ) {
-        let duration_seconds = time.delta_secs()*dilation.0;
-        for (mut friction, mut velocity, mut transform) in query.iter_mut() {
+        let dt = time.delta_secs() * dilation.0;
 
-            if let Some(floor_level) = friction.floor_level {
-                if transform.translation.y <= floor_level && velocity.0.x != 0.0 {
+        for (mut friction, mut linear_v, angular_opt, transform) in query.iter_mut() {
+            if let Some(floor) = friction.floor_level {
+                let on_floor = transform.translation.y <= floor;
+
+                /* ---------- LINEAR FRICTION ---------- */
+                if on_floor && linear_v.0.length_squared() > 0.0 {
                     friction.is_sliding = true;
-                    velocity.0.x -= friction.coefficient*velocity.0.x*duration_seconds;
-                } else if friction.is_sliding && velocity.0.x <= 0.01 {
+
+                    let v0 = linear_v.0;                               // copy
+                    linear_v.0 -= v0 * friction.coefficient * dt;       // mutate
+
+                    if linear_v.0.length_squared() < 0.01 {
+                        linear_v.0 = Vec3::ZERO;
+                    }
+                }
+
+                /* ---------- ANGULAR FRICTION ---------- */
+                if let Some(mut angular) = angular_opt {
+                    if on_floor && angular.0.length_squared() > 0.0 {
+                        let w0 = angular.0;                             // copy
+                        angular.0 -= w0 * friction.coefficient * dt;     // mutate
+
+                        if angular.0.length_squared() < 0.01 {
+                            angular.0 = Vec3::ZERO;
+                        }
+                    }
+                }
+
+                /* ---------- RESET SLIDING FLAG ---------- */
+                if linear_v.0 == Vec3::ZERO {
                     friction.is_sliding = false;
-                    velocity.0.x = 0.0;
                 }
             }
         }

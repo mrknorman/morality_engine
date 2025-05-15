@@ -411,7 +411,6 @@ impl Dialogue {
     
                     Self::spawn_next_button(
                         &mut commands, 
-                        entity,   // Pass the dialogue entity as the parent
                         &asset_server, 
                         next_action, 
                         &line.instruction
@@ -439,7 +438,6 @@ impl Dialogue {
     
     fn spawn_next_button(
         commands: &mut Commands,
-        dialogue_entity: Entity,  // Add parent entity parameter
         asset_server: &Res<AssetServer>,
         next_action: InputAction<DialogueSounds>,
         instruction: &str

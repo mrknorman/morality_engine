@@ -6,7 +6,7 @@ use crate::{
     data::{rng::GlobalRng, states::DilemmaPhase}, entities::text::TextSprite, systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         motion::Bounce,
-        physics::{Friction, Gravity, PhysicsPlugin, Velocity},
+        physics::{AngularVelocity, Friction, Gravity, PhysicsPlugin, Velocity},
         time::Dilation,
     }
 };
@@ -130,6 +130,7 @@ impl PersonSprite {
                         CharacterSprite { row, col },
                         TextSprite,
                         Text2d::new(ch.to_string()),
+                        Anchor::BottomCenter,
                         Transform::from_translation(CharacterSprite { row, col }.offset()),
                         GlobalTransform::default()
                     ));
@@ -206,6 +207,9 @@ impl PersonSprite {
     /// How fast the parts shoot away from the figure’s centre (in units · s-¹)
 	const EXPLOSION_SPEED: f32 = 250.0;
 
+    // new constant – tweak to taste (rad · s-¹ per Bevy unit² · s-¹)
+    const EXPLOSION_SPIN_SCALE: f32 = 0.006;
+
 	pub fn explode(
 		// glyph, its AABB, world-transform and parent PersonSprite
 		char_q : Query<(Entity, &Aabb, &GlobalTransform, &ChildOf), With<CharacterSprite>>,
@@ -222,7 +226,7 @@ impl PersonSprite {
 		// 1. detect the very first collision
 		// ─────────────────────────────────────────
 	
-		for (char_e, char_aabb, char_tf, char_parent) in char_q.iter() {
+		for (_, char_aabb, char_tf, char_parent) in char_q.iter() {
 			let c_min = char_tf.transform_point(Vec3::from(char_aabb.center - char_aabb.half_extents));
 			let c_max = char_tf.transform_point(Vec3::from(char_aabb.center + char_aabb.half_extents));
 	
@@ -253,45 +257,67 @@ impl PersonSprite {
 					// 3. apply impulse to every glyph of *this* person
 					// ─────────────────────────────────────────
 					for (glyph_e, _aabb, glyph_tf, glyph_parent) in char_q.iter() {
-						if glyph_parent.parent() == person_ent {
-							// base direction: centre → glyph
-							let mut dir = (glyph_tf.translation() - person_ctr)
-								.try_normalize()
-								.unwrap_or(Vec3::X);
-	
-							if dir == Vec3::ZERO {
-								dir = Vec3::X;
-							}
-	
-							// ────── randomness ──────
-							// a tiny angular nudge (-0.2 … 0.2 on each axis then re-normalise)
-							let jitter = Vec3::new(
-								rng.uniform.gen_range(-0.2..0.2),
-								rng.uniform.gen_range(-0.2..0.2),
-								rng.uniform.gen_range(-0.2..0.2),
-							);
-							dir = (dir + jitter).try_normalize().unwrap_or(dir);
-	
-							// speed multiplier 0.9 … 1.1 (±10 %)
-							let speed_scale: f32 = rng.uniform.gen_range(0.9..1.1);
-	
-							let velocity = dir * Self::EXPLOSION_SPEED * speed_scale   // blast + jitter
-											+ train_vel                                   // impart train momentum
-											+ person_vel;                                 // keep parent momentum
-	
-							// world-space transform so the glyph stays where it is
-							let world_tf = Transform::from_matrix(glyph_tf.compute_matrix());
-	
-							commands.entity(glyph_e)
-								.remove::<ChildOf>()   // detach
-								.insert((
-									world_tf,          // keep position / rotation / scale
-									Gravity::default(),
-									Friction::default(),
-									Velocity(velocity),
-								));
-						}
-					}
+                        if glyph_parent.parent() == person_ent {
+                            /* base direction centre → glyph */
+                            let mut dir = (glyph_tf.translation() - person_ctr)
+                                .try_normalize()
+                                .unwrap_or(Vec3::X);
+        
+                            if dir == Vec3::ZERO {
+                                dir = Vec3::X;
+                            }
+        
+                            /* ───── randomness (same jitter) ───── */
+                            let jitter = Vec3::new(
+                                rng.uniform.gen_range(-0.2..0.2),
+                                rng.uniform.gen_range(-0.2..0.2),
+                                rng.uniform.gen_range(-0.2..0.2),
+                            );
+                            dir = (dir + jitter).try_normalize().unwrap_or(dir);
+        
+                            /* speed 0.9 … 1.1 of baseline */
+                            let speed_scale: f32 = rng.uniform.gen_range(0.9..1.1);
+        
+                            let velocity =
+                                dir * Self::EXPLOSION_SPEED * speed_scale + train_vel + person_vel;
+        
+                            /* ────── NEW: angular velocity ──────
+                               A quick physical approximation:
+                               L  = r × p  (angular momentum)
+                               ω  ∝ L      (if I≈1 for debris shard)
+                               So: ω ≈ k * (r × v)
+                            */
+                            let r = glyph_tf.translation() - person_ctr; // centre → glyph (world)
+                            let l = r.cross(velocity);                  // angular momentum direction
+        
+                            // Scale to pseudo-realistic magnitude and add tiny random wobble
+                            let mut omega = l * Self::EXPLOSION_SPIN_SCALE;
+        
+                            omega *= Vec3::new(
+                                rng.uniform.gen_range(0.9..1.1),
+                                rng.uniform.gen_range(0.9..1.1),
+                                rng.uniform.gen_range(0.9..1.1),
+                            );
+        
+                            // Clamp absurdly large values (explosions near origin can give big l)
+                            if omega.length() > 100.0 {
+                                omega = omega.normalize() * 100.0;
+                            }
+        
+                            /* world-space transform so the glyph stays where it is */
+                            let world_tf = Transform::from_matrix(glyph_tf.compute_matrix());
+        
+                            commands.entity(glyph_e)
+                                .remove::<ChildOf>() 
+                                .insert((
+                                    world_tf,
+                                    Gravity::default(),
+                                    Friction::default(),
+                                    Velocity(velocity),
+                                    AngularVelocity(omega),   // ← NEW COMPONENT
+                                ));
+                        }
+                    }
 	
 					// ─────────────────────────────────────────
 					// 4. remove the now-empty PersonSprite

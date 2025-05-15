@@ -7,7 +7,7 @@ use bevy::{
 use crate::{
     entities::{
 		person::{
-			Emoticon, EmotionSounds, PersonSprite,
+			CharacterSprite, Emoticon, EmotionSounds, PersonSprite
 		}, text::TextSprite, track::Track
 	}, scenes::dilemma::{
 		lever::{
@@ -105,7 +105,7 @@ impl Junction {
 	const BRANCH_SEPARATION : Vec3 = Vec3::new(0.0, -100.0, 0.0);
 	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-11800.0, 0.0, 0.0);
 	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(2000.0, 0.0, 0.0);
-	const FATALITY_OFFSET : f32 = -1700.0;
+	const FATALITY_OFFSET : f32 = -1800.0;
 
 	fn on_insert(
         mut world : DeferredWorld,
@@ -291,11 +291,18 @@ impl Junction {
 
 	pub fn cleanup(
 		mut commands : Commands,
-		junction_query : Query<Entity, With<Junction>>
+		junction_query : Query<Entity, With<Junction>>,
+		body_parts_query : Query<Entity, (With<CharacterSprite>, Without<ChildOf>)>,
 	){
 		for entity in junction_query.iter() {
 			commands.entity(entity).despawn();
 		}
+
+		for entity in body_parts_query.iter() {
+            if let Ok(mut entity_cmds) = commands.get_entity(entity) {
+				entity_cmds.despawn();
+			}
+        }
 	}
 
 	pub fn update_main_track_color(
