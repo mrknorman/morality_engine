@@ -203,6 +203,18 @@ impl Train {
                 panic!("Train unable to spawn!");
             }
         };
+
+        const TRAIN_HEIGHT: f32 = 32.0;        // 3 glyph lines
+        const TRAIN_WIDTH : f32 = 20.0;        // side-to-side depth
+
+        let len_x   = 85.0 * (carriages.len() as f32 - 1.0) + 100.0; // whole train
+        let centre  = Vec3::new(-(carriages.len() as f32 - 1.0) * 42.5, 0.0, 0.0); // ← new
+        let half    = Vec3::new(len_x * 0.5, TRAIN_HEIGHT * 0.5, TRAIN_WIDTH * 0.5);
+
+        world.commands().entity(entity).insert(Aabb {
+            center:       centre.into(),
+            half_extents: half.into(),
+        });
         
         // Continue only if we got the RNG
         let mut rng = match rng_option {
@@ -367,21 +379,5 @@ impl Train {
                 );
             };
         }
-
-            // padding constants
-        // ── constants ───────────────────────────────────────────────
-        const PAD_X: f32      = 10.0;
-        const PAD_Y: f32      = 4.0;
-        const TRAIN_WIDTH: f32 = 10.0;   // total width in Z
-        // ────────────────────────────────────────────────────────────
-
-        let len_x = (carriages.len() as f32 - 1.0) * 85.0 + 50.0 * 2.0; // front+rear buffer
-        let centre = Vec3::new(-len_x * 0.5 + 25.0, 0.0, 0.0);
-
-        world.commands().entity(entity).insert(Aabb {
-            center:       Vec3A::from(centre),
-            half_extents: Vec3A::from(Vec3::new(len_x * 0.5, 32.0 * 0.5, TRAIN_WIDTH * 0.5)),
-        });
-
     }
 }

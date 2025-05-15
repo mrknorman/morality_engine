@@ -241,11 +241,11 @@ impl Junction {
 									}
 
 									for fatality_index in 0..option.consequences.total_fatalities {
-										let transform = if fatality_index >= 1000 {
+										let transform = if fatality_index >= 450 {
 											break;
 										} else {
 											// Define parameters
-											let columns_per_row = 250;
+											let columns_per_row = 150;
 											let row_height = 10.0;
 											let column_width = 10.0;
 											

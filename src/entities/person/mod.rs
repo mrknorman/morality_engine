@@ -158,11 +158,31 @@ impl Default for PersonSprite {
     }
 }
 
+// helper: world-space AABB for any entity
+fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
+    let he = Vec3::from(local.half_extents);
+    let c  = Vec3::from(local.center);
+    let mut min = Vec3::splat(f32::INFINITY);
+    let mut max = Vec3::splat(f32::NEG_INFINITY);
+
+    for &sx in &[-1.0, 1.0] {
+        for &sy in &[-1.0, 1.0] {
+            for &sz in &[-1.0, 1.0] {
+                let p = tf.transform_point(c + he * Vec3::new(sx, sy, sz));
+                min = min.min(p);
+                max = max.max(p);
+            }
+        }
+    }
+    (min, max)
+}
+
 impl PersonSprite {
     // ─────────────────────────────────────────────────────────────
     //  Spawn hook
     // ─────────────────────────────────────────────────────────────
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        // ───── 1. spawn the individual glyphs exactly as before ─────
         for (row, line) in PERSON.lines().enumerate() {
             for (col, ch) in line.chars().enumerate() {
                 world.commands().entity(entity).with_children(|p| {
@@ -177,6 +197,27 @@ impl PersonSprite {
                 });
             }
         }
+
+        // ───── 2. add ONE parent-level AABB collider ─────
+        //
+        // Layout recap:
+        // • X axis centred on the figure (COLS glyphs wide, CHAR_WIDTH per glyph)
+        // • Y bottom line at 0.0, each line LINE_HEIGHT tall (LINES lines)
+        // • Z depth is arbitrary; give the sprite a small thickness.
+        const PERSON_DEPTH: f32 = 2.0; // ±1 in Z
+
+        let half_x = (COLS as f32 * CHAR_WIDTH) * 0.5;
+        let half_y = (LINES as f32 * LINE_HEIGHT) * 0.5;
+        let half_z = PERSON_DEPTH * 0.5;
+
+        // bottom line sits at y = 0 → centre is half-height up
+        let centre = Vec3::new(0.0, half_y, 0.0);
+        let half   = Vec3::new(half_x, half_y, half_z);
+
+        world.commands().entity(entity).insert(Aabb {
+            center:       Vec3A::from(centre),
+            half_extents: Vec3A::from(half),
+        });
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -246,41 +287,33 @@ impl PersonSprite {
     // ─────────────────────────────────────────────────────────────
     //  Explosion stage 1 – detect collision & emit event
     // ─────────────────────────────────────────────────────────────
-    pub fn explode(
-        char_q: Query<(&Aabb, &GlobalTransform, &ChildOf), With<CharacterSprite>>,
-        person_q: Query<(&GlobalTransform, Option<&Velocity>), With<PersonSprite>>,
-        carriage_q: Query<(&Aabb, &GlobalTransform, &ChildOf), With<TrainCarriage>>,
-        train_q: Query<&Velocity, With<Train>>,
+   pub fn explode(
+        // each person now has its own collider cube
+        person_q : Query<
+            (Entity, &Aabb, &GlobalTransform, Option<&Velocity>),
+            With<PersonSprite>
+        >,
+        // each train already has a root-level Aabb and Velocity
+        train_q  : Query<(&Aabb, &GlobalTransform, &Velocity), With<Train>>,
         mut ev_writer: EventWriter<PersonExplosionEvent>,
     ) {
-        for (c_aabb, c_tf, c_parent) in char_q.iter() {
-            let c_min = c_tf.transform_point(Vec3::from(c_aabb.center - c_aabb.half_extents));
-            let c_max = c_tf.transform_point(Vec3::from(c_aabb.center + c_aabb.half_extents));
+        for (person_ent, p_box, p_tf, p_vel_opt) in person_q.iter() {
+            let (p_min, p_max) = world_aabb(p_box, p_tf);      // helper you already have
 
-            for (t_aabb, t_tf, carriage_parent) in carriage_q.iter() {
-                let t_min = t_tf.transform_point(Vec3::from(t_aabb.center - t_aabb.half_extents));
-                let t_max = t_tf.transform_point(Vec3::from(t_aabb.center + t_aabb.half_extents));
+            for (t_box, t_tf, t_vel) in train_q.iter() {
+                let (t_min, t_max) = world_aabb(t_box, t_tf);
 
-                if c_min.x <= t_max.x
-                    && c_max.x >= t_min.x
-                    && c_min.y <= t_max.y
-                    && c_max.y >= t_min.y
+                // 2-D overlap check (X/Y only, no Z test)
+                if p_min.x <= t_max.x && p_max.x >= t_min.x &&
+                p_min.y <= t_max.y && p_max.y >= t_min.y
                 {
-                    let person_ent = c_parent.parent();
-                    let train_ent = carriage_parent.parent();
-                    let (person_tf, person_vel_opt) = person_q
-                        .get(person_ent)
-                        .unwrap_or((&GlobalTransform::IDENTITY, None));
-                    let person_vel = person_vel_opt.map_or(Vec3::ZERO, |v| v.0);
-                    let train_vel = train_q.get(train_ent).map_or(Vec3::ZERO, |v| v.0);
-
                     ev_writer.write(PersonExplosionEvent {
                         person_ent,
-                        person_ctr: person_tf.translation(),
-                        person_vel,
-                        train_vel,
+                        person_ctr: p_tf.translation(),
+                        person_vel: p_vel_opt.map_or(Vec3::ZERO, |v| v.0),
+                        train_vel : t_vel.0,
                     });
-                    return;
+                    return;          // one explosion per frame is enough
                 }
             }
         }
@@ -427,90 +460,102 @@ impl PersonSprite {
     }
 
     pub fn bounce_off_train(
-        mut debris_q : Query<
-            (&mut Velocity, &Aabb, &GlobalTransform),
-            (Or<(With<CharacterSprite>, With<BloodSprite>)>, Without<Train>)
+        mut commands: Commands, // Added Commands
+        mut debris_q: Query<
+            (Entity, &mut Velocity, &Aabb, &GlobalTransform), // Added Entity
+            (
+                Or<(With<CharacterSprite>, With<BloodSprite>)>,
+                Without<Train>,
+                Without<IgnoreTrainCollision>, // Added filter
+            ),
         >,
-        carriage_q  : Query<(&Aabb, &GlobalTransform, &ChildOf), With<TrainCarriage>>,
-        train_q     : Query<&Velocity, With<Train>>,
+        train_q: Query<(&Aabb, &GlobalTransform, &Velocity), With<Train>>,
     ) {
-        // tuning knobs
-        const RESTITUTION : f32 = 0.8;   // bounce energy (1 = perfect)
-        const TRAIN_SHARE : f32 = 0.8;   // how much current train velocity to inherit
-        const PUSH_OUT    : f32 = 0.05;  // metres to move outward after bounce
-        const CAR_WIDTH   : f32 = 10.0;   // ±z half-extent for every carriage
+        const RESTITUTION: f32 = 0.8;
+        const TRAIN_SHARE: f32 = 0.8;
+        const PUSH_OUT: f32 = 0.05;
 
-        // helper: world-space AABB for any entity
-        fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
-            let he = Vec3::from(local.half_extents);
-            let c  = Vec3::from(local.center);
-            let mut min = Vec3::splat(f32::INFINITY);
-            let mut max = Vec3::splat(f32::NEG_INFINITY);
-
-            for &sx in &[-1.0, 1.0] {
-                for &sy in &[-1.0, 1.0] {
-                    for &sz in &[-1.0, 1.0] {
-                        let p = tf.transform_point(c + he * Vec3::new(sx, sy, sz));
-                        min = min.min(p);
-                        max = max.max(p);
-                    }
-                }
-            }
-            (min, max)
+        let mut trains_data: Vec<(Vec3, Vec3, Vec3, Vec3)> = Vec::new(); // min_aabb, max_aabb, velocity, center
+        for (box_local, tf, vel) in train_q.iter() {
+            let (min, max) = world_aabb(box_local, tf);
+            trains_data.push((min, max, vel.0, tf.translation()));
         }
 
-        // build all carriage boxes once (saves eight-corner loop per debris)
-        let mut car_boxes: Vec<(Vec3, Vec3, Entity, Vec3)> = Vec::with_capacity(carriage_q.iter().len());
-        for (c_box, c_tf, child) in carriage_q.iter() {
-            let (mut min, mut max) = world_aabb(c_box, c_tf);
-            // widen in Z so sprites can hit sides/front
-            min.z -= CAR_WIDTH * 0.5;
-            max.z += CAR_WIDTH * 0.5;
-            car_boxes.push((min, max, child.parent(), (min + max) * 0.5));
+        if trains_data.is_empty() {
+            // No trains to collide with or be ignored by.
+            return;
         }
 
-        for (mut vel, d_box, d_tf) in debris_q.iter_mut() {
+        for (debris_entity, mut vel, d_box, d_tf) in debris_q.iter_mut() {
             let (d_min, d_max) = world_aabb(d_box, d_tf);
+            let mut collided_this_frame = false;
 
-            for &(c_min, c_max, train_ent, centre) in &car_boxes {
-                // axis-aligned overlap with epsilon = 0
-                if d_min.x > c_max.x || d_max.x < c_min.x ||
-                   d_min.y > c_max.y || d_max.y < c_min.y ||
-                   d_min.z > c_max.z || d_max.z < c_min.z
-                { continue; }
+            for &(t_min, t_max, train_vel, t_centre) in &trains_data {
+                // AABB overlap check (3D)
+                if d_min.x > t_max.x || d_max.x < t_min.x ||
+                d_min.y > t_max.y || d_max.y < t_min.y ||
+                d_min.z > t_max.z || d_max.z < t_min.z {
+                    continue; // No overlap with this train
+                }
 
-                // penetration depth on each axis
-                let pen_x = (c_max.x - d_min.x).min(d_max.x - c_min.x);
-                let pen_y = (c_max.y - d_min.y).min(d_max.y - c_min.y);
-                let pen_z = (c_max.z - d_min.z).min(d_max.z - c_min.z);
+                // Collision occurred
+                collided_this_frame = true;
 
-                // choose axis of smallest penetration
-                let (normal, penetration) = {
-                    if pen_x < pen_y && pen_x < pen_z {
-                        (Vec3::X * (d_tf.translation().x - centre.x).signum(), pen_x)
-                    } else if pen_y < pen_z {
-                        (Vec3::Y * (d_tf.translation().y - centre.y).signum(), pen_y)
-                    } else {
-                        (Vec3::Z * (d_tf.translation().z - centre.z).signum(), pen_z)
-                    }
+                // Penetration on three axes
+                let pen = Vec3::new(
+                    (t_max.x - d_min.x).min(d_max.x - t_min.x),
+                    (t_max.y - d_min.y).min(d_max.y - t_min.y),
+                    (t_max.z - d_min.z).min(d_max.z - t_min.z),
+                );
+
+                // Smallest axis = bounce normal
+                let debris_centre = d_tf.translation(); // Cache for calculating normal direction
+                let (normal, depth) = if pen.x < pen.y && pen.x < pen.z {
+                    (Vec3::X * (debris_centre.x - t_centre.x).signum(), pen.x)
+                } else if pen.y < pen.z {
+                    (Vec3::Y * (debris_centre.y - t_centre.y).signum(), pen.y)
+                } else {
+                    (Vec3::Z * (debris_centre.z - t_centre.z).signum(), pen.z)
                 };
 
-                // reflect & damp velocity
                 vel.0 = (vel.0 - 2.0 * vel.0.dot(normal) * normal) * RESTITUTION;
+                vel.0 += train_vel * TRAIN_SHARE;
+                vel.0 += normal * (depth + PUSH_OUT); // Apply push out
 
-                // inherit slice of current train velocity
-                if let Ok(train_vel) = train_q.get(train_ent) {
-                    vel.0 += train_vel.0 * TRAIN_SHARE;
+                break; // Debris bounces off the first train it hits in a frame
+            }
+
+            // After checking collisions with all trains for this debris particle:
+            if !collided_this_frame {
+                // Only consider tagging if no collision happened this frame.
+                // If it collided, its position/velocity changed, so re-evaluate next frame.
+                let mut can_be_ignored_for_all_trains = true;
+                for &(t_min, t_max, _train_vel, _t_centre) in &trains_data {
+                    let is_outside_width = d_max.z < t_min.z || d_min.z > t_max.z;
+                    // "Behind the train" (negative Y): debris is fully "below" the train's min Y.
+                    // This assumes Y is the primary axis of train length/movement.
+                    // Adjust if your "behind" definition differs (e.g., based on train's velocity vector).
+                    let is_behind = d_max.x < t_min.x;
+
+                    if !(is_outside_width || is_behind) {
+                        // If for any train, the debris is NOT (outside_width OR behind),
+                        // then it cannot be definitively ignored yet.
+                        can_be_ignored_for_all_trains = false;
+                        break;
+                    }
                 }
 
-                // push debris outside plus extra bias so it won’t get stuck
-                vel.0 += normal * (penetration + PUSH_OUT);
-
-                break; // one bounce per frame is fine
+                if can_be_ignored_for_all_trains {
+                    commands.entity(debris_entity).insert(IgnoreTrainCollision);
+                }
             }
         }
     }
+
 }
+
+#[derive(Component)]
+pub struct IgnoreTrainCollision;
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Emoticon helper sprite
