@@ -16,9 +16,7 @@ use content::TrainTypes;
 
 use crate::{
     data::rng::GlobalRng, entities::text::{
-		Animated, 
-		TextFrames, 
-		TextSprite
+		Animated, GlyphString, TextFrames, TextSprite
 	}, systems::{
         audio::{
             continuous_audio, 
@@ -288,7 +286,7 @@ impl Train {
                 let mut entity = parent.spawn((
                     TrainCarriage,
                     TextSprite,
-                    Text2d::new(carriage),
+                    GlyphString(carriage),
                     transform,
                     color
                 ));

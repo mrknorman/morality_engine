@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, sprite::Anchor, text::{
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, sprite::Anchor, text::{
         TextBounds, TextLayoutInfo
     }
 };
@@ -136,6 +136,76 @@ impl TextFrames {
                 Err(Box::new(e))
             }
         }
+    }
+}
+
+
+const PERSON_DEPTH: f32 =  2.0;       // ±1 in Z
+const CHAR_WIDTH: f32 = 8.0;
+const LINE_HEIGHT: f32 = 16.0;
+
+// ────────────────────────────────────────────────────────────────
+//  CharacterSprite now carries figure dimensions so `offset()` works
+// ────────────────────────────────────────────────────────────────
+#[derive(Component)]
+pub struct CharacterSprite {
+    pub row : usize,
+    pub col : usize,
+    pub cols: usize,
+    pub lines: usize,
+}
+
+impl CharacterSprite {
+    fn offset(&self) -> Vec3 {
+        let x = (self.col as f32 - (self.cols as f32 - 1.) * 0.5) * CHAR_WIDTH;
+        let y = ((self.lines - 1 - self.row) as f32) * LINE_HEIGHT;
+        Vec3::new(x, y, 0.0)
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  NEW  GlyphString component – spawns glyphs + AABB on insert
+// ────────────────────────────────────────────────────────────────
+#[derive(Component)]
+#[component(on_insert = GlyphString::on_insert)]
+#[require(Transform, Visibility)]
+pub struct GlyphString(pub String);
+
+impl GlyphString {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let text = world.entity(entity).get::<GlyphString>().unwrap().0.clone();
+        let lines: Vec<&str> = text.lines().collect();
+        let lines_count      = lines.len();
+        let max_cols         = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+
+        // 1. spawn each glyph as a child
+        for (row, line) in lines.iter().enumerate() {
+            for (col, ch) in line.chars().enumerate() {
+                world.commands().entity(entity).with_children(|p| {
+                    p.spawn((
+                        CharacterSprite { row, col, cols: max_cols, lines: lines_count },
+                        TextSprite,
+                        Text2d::new(ch.to_string()),
+                        Anchor::BottomCenter,
+                        Transform::from_translation(
+                            CharacterSprite { row, col, cols: max_cols, lines: lines_count }.offset()
+                        ),
+                        GlobalTransform::default(),
+                    ));
+                });
+            }
+        }
+
+        // 2. add one parent-level AABB
+        let half_x = max_cols  as f32 * CHAR_WIDTH  * 0.5;
+        let half_y = lines_count as f32 * LINE_HEIGHT * 0.5;
+        let half_z = PERSON_DEPTH * 0.5;
+        let centre = Vec3::new(0.0, half_y, 0.0);
+
+        world.commands().entity(entity).insert(Aabb {
+            center:       centre.into(),
+            half_extents: Vec3::new(half_x, half_y, half_z).into(),
+        });
     }
 }
 

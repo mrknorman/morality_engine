@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::HookContext, schedule::SystemSet, world::DeferredWorld},
+    ecs::{component::HookContext, world::DeferredWorld},
     prelude::*,
     render::primitives::Aabb,
     sprite::Anchor,
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-use super::train::{Train, TrainCarriage};
+use super::{text::{CharacterSprite, GlyphString}, train::Train};
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Runtime events & system-sets
@@ -61,7 +61,8 @@ impl Plugin for PersonPlugin {
                     .run_if(in_state(PersonSystemsActive::True))
                     .run_if(
                         in_state(DilemmaPhase::Decision)
-                            .or(in_state(DilemmaPhase::Consequence)),
+                            .or(in_state(DilemmaPhase::Consequence))
+                            .or(in_state(DilemmaPhase::Skip)),
                     ),
             )
             .add_systems(
@@ -118,22 +119,7 @@ const NEUTRAL: &str = "    ";
 
 const COLS: usize = 3;
 const LINES: usize = 3;
-const CHAR_WIDTH: f32 = 9.0;
-const LINE_HEIGHT: f32 = 16.0;
 
-#[derive(Component)]
-pub struct CharacterSprite {
-    row: usize,
-    col: usize,
-}
-
-impl CharacterSprite {
-    fn offset(&self) -> Vec3 {
-        let x = (self.col as f32 - (COLS as f32 - 1.0) * 0.5) * CHAR_WIDTH;
-        let y = ((LINES - 1 - self.row) as f32) * LINE_HEIGHT;
-        Vec3::new(x, y, 0.0)
-    }
-}
 
 fn default_person_anchor() -> Anchor {
     Anchor::BottomCenter
@@ -142,20 +128,13 @@ fn default_person_anchor() -> Anchor {
 #[derive(Component)]
 pub struct BloodSprite;
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  PersonSprite (parent entity)
-// ═══════════════════════════════════════════════════════════════════════════
 #[derive(Component)]
-#[component(on_insert = PersonSprite::on_insert)]
 #[require(Anchor = default_person_anchor(), Gravity, TextSprite, Bounce, Visibility)]
-pub struct PersonSprite {
-    pub in_danger: bool,
-}
+#[component(on_insert = PersonSprite::on_insert)]
+pub struct PersonSprite { pub in_danger: bool }
 
 impl Default for PersonSprite {
-    fn default() -> Self {
-        Self { in_danger: false }
-    }
+    fn default() -> Self { Self { in_danger: false } }
 }
 
 // helper: world-space AABB for any entity
@@ -182,42 +161,8 @@ impl PersonSprite {
     //  Spawn hook
     // ─────────────────────────────────────────────────────────────
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        // ───── 1. spawn the individual glyphs exactly as before ─────
-        for (row, line) in PERSON.lines().enumerate() {
-            for (col, ch) in line.chars().enumerate() {
-                world.commands().entity(entity).with_children(|p| {
-                    p.spawn((
-                        CharacterSprite { row, col },
-                        TextSprite,
-                        Text2d::new(ch.to_string()),
-                        Anchor::BottomCenter,
-                        Transform::from_translation(CharacterSprite { row, col }.offset()),
-                        GlobalTransform::default(),
-                    ));
-                });
-            }
-        }
-
-        // ───── 2. add ONE parent-level AABB collider ─────
-        //
-        // Layout recap:
-        // • X axis centred on the figure (COLS glyphs wide, CHAR_WIDTH per glyph)
-        // • Y bottom line at 0.0, each line LINE_HEIGHT tall (LINES lines)
-        // • Z depth is arbitrary; give the sprite a small thickness.
-        const PERSON_DEPTH: f32 = 2.0; // ±1 in Z
-
-        let half_x = (COLS as f32 * CHAR_WIDTH) * 0.5;
-        let half_y = (LINES as f32 * LINE_HEIGHT) * 0.5;
-        let half_z = PERSON_DEPTH * 0.5;
-
-        // bottom line sits at y = 0 → centre is half-height up
-        let centre = Vec3::new(0.0, half_y, 0.0);
-        let half   = Vec3::new(half_x, half_y, half_z);
-
-        world.commands().entity(entity).insert(Aabb {
-            center:       Vec3A::from(centre),
-            half_extents: Vec3A::from(half),
-        });
+        // attach the glyph string; the GlyphString::on_insert hook does the rest
+        world.commands().entity(entity).insert(GlyphString(PERSON.to_string()));
     }
 
     // ─────────────────────────────────────────────────────────────

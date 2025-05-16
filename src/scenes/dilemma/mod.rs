@@ -4,11 +4,7 @@ use bevy::{
 };
 use enum_map::Enum;
 use phases::{
-	consequence::DilemmaConsequencePlugin, 
-	decision::DilemmaDecisionPlugin,
-	intro::DilemmaIntroPlugin, 
-	results::DilemmaResultsPlugin, 
-	transition::DilemmaTransitionPlugin
+	consequence::DilemmaConsequencePlugin, decision::DilemmaDecisionPlugin, intro::DilemmaIntroPlugin, results::DilemmaResultsPlugin, skip::DilemmaSkipPlugin, transition::DilemmaTransitionPlugin
 };
 use crate::{
 	data::{
@@ -73,7 +69,8 @@ impl Plugin for DilemmaScenePlugin {
 		.add_plugins(DilemmaTransitionPlugin)
 		.add_plugins(DilemmaDecisionPlugin)
 		.add_plugins(DilemmaConsequencePlugin)
-		.add_plugins(DilemmaResultsPlugin);
+		.add_plugins(DilemmaResultsPlugin)
+		.add_plugins(DilemmaSkipPlugin);
 
 		if !app.is_plugin_added::<SpritePlugin>() {
 			app.add_plugins(SpritePlugin);

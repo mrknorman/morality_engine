@@ -166,7 +166,7 @@ impl DecisionScene {
 							DecisionActions::LockDecision => vec![
 								InputAction::ChangeState(
 									StateVector::new(
-										None, None, Some(DilemmaPhase::Consequence)
+										None, None, Some(DilemmaPhase::Skip)
 									),
 								),
 								InputAction::PlaySound(DilemmaSounds::Lever)

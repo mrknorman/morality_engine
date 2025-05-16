@@ -7,8 +7,8 @@ use bevy::{
 use crate::{
     entities::{
 		person::{
-			BloodSprite, CharacterSprite, Emoticon, EmotionSounds, PersonSprite
-		}, text::TextSprite, track::Track
+			BloodSprite, Emoticon, EmotionSounds, PersonSprite
+		}, text::{CharacterSprite, TextSprite}, track::Track
 	}, scenes::dilemma::{
 		lever::{
 	    	Lever, 
@@ -105,7 +105,7 @@ impl Junction {
 	const BRANCH_SEPARATION : Vec3 = Vec3::new(0.0, -100.0, 0.0);
 	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-11800.0, 0.0, 0.0);
 	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(2000.0, 0.0, 0.0);
-	const FATALITY_OFFSET : f32 = -1800.0;
+	const FATALITY_OFFSET : f32 = -1780.0;
 
 	fn on_insert(
         mut world : DeferredWorld,

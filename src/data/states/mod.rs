@@ -44,6 +44,7 @@ pub enum DilemmaPhase {
     Intro,
     IntroDecisionTransition,
     Decision,
+    Skip,
     Consequence,
     Results
 }
