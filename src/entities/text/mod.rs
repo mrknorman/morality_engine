@@ -141,7 +141,7 @@ impl TextFrames {
 
 
 const PERSON_DEPTH: f32 =  2.0;       // ±1 in Z
-const CHAR_WIDTH: f32 = 8.0;
+const CHAR_WIDTH: f32 = 7.0;
 const LINE_HEIGHT: f32 = 16.0;
 
 // ────────────────────────────────────────────────────────────────

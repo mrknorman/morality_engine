@@ -203,9 +203,9 @@ impl Train {
         };
 
         const TRAIN_HEIGHT: f32 = 32.0;        // 3 glyph lines
-        const TRAIN_WIDTH : f32 = 20.0;        // side-to-side depth
+        const TRAIN_WIDTH : f32 = 30.0;        // side-to-side depth
 
-        let len_x   = 85.0 * (carriages.len() as f32 - 1.0) + 100.0; // whole train
+        let len_x   = 85.0 * (carriages.len() as f32 - 1.0) + 110.0; // whole train
         let centre  = Vec3::new(-(carriages.len() as f32 - 1.0) * 42.5, 0.0, 0.0); // ← new
         let half    = Vec3::new(len_x * 0.5, TRAIN_HEIGHT * 0.5, TRAIN_WIDTH * 0.5);
 
@@ -271,7 +271,7 @@ impl Train {
             );
         }
         
-        let mut carriage_translation = Vec3::default();
+        let mut carriage_translation = Vec3::new(0.0, -46.0, 0.0);
         commands.entity(entity).with_children(
             |parent| {
             for carriage in carriages.clone() {
