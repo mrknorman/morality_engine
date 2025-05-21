@@ -143,7 +143,8 @@ pub enum TrainState {
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrainSounds {
 	Tracks,
-	Horn
+	Horn,
+    Bounce
 }
 
 impl Train {
@@ -159,7 +160,7 @@ impl Train {
         }
         
         // Now collect other data
-        let (carriages, smoke_frames, burning_frames, horn_audio, track_audio, hiss_audio, burning_audio, color, train_state) = {
+        let (carriages, smoke_frames, burning_frames, horn_audio, track_audio, hiss_audio, burning_audio, color, train_state, bounce_audio) = {
             if let (Some(train), Some(color), Some(train_state)) = (
                 world.entity(entity).get::<Train>(),
                 world.entity(entity).get::<TextColor>(),
@@ -183,6 +184,38 @@ impl Train {
                 });
                 let track_audio: Handle<AudioSource> = asset_server.load(train_type.track_audio_path);
 
+                let VOLUME = 2.0;
+                let bounce_audio = vec![
+                    TransientAudio::new(
+                        asset_server.load("./audio/effects/meat_bounce/meat_bounce_1.ogg"),
+                        0.2,
+                        true,
+                        VOLUME,
+                        true
+                    ),
+                    TransientAudio::new(
+                        asset_server.load("./audio/effects/meat_bounce/meat_bounce_2.ogg"),
+                        0.2,
+                        true,
+                        VOLUME,
+                        true
+                    ),
+                    TransientAudio::new(
+                        asset_server.load("./audio/effects/meat_bounce/meat_bounce_3.ogg"),
+                        0.2,
+                        true,
+                        VOLUME,
+                        true
+                    ),
+                    TransientAudio::new(
+                        asset_server.load("./audio/effects/meat_bounce/meat_bounce_4.ogg"),
+                        0.2,
+                        true,
+                        VOLUME,
+                        true
+                    )
+                ];
+
                 let hiss_audio: Handle<AudioSource> = asset_server.load(train_type.stopped_audio_path);
                 let burning_audio = asset_server.load("./audio/effects/train/fire.ogg");
 
@@ -195,7 +228,8 @@ impl Train {
                     hiss_audio,
                     burning_audio,
                     *color,
-                    *train_state
+                    *train_state,
+                    bounce_audio
                 )
             } else {
                 panic!("Train unable to spawn!");
@@ -225,6 +259,18 @@ impl Train {
         
         // Use the commands to modify entities
         let mut carriage_entities: Vec<Entity> = vec![];
+
+        commands.entity(entity).insert(
+            TransientAudioPallet::new(
+                vec![
+                    (
+                        TrainSounds::Bounce,
+                        bounce_audio.clone()
+                    )
+                ]
+            )
+        );
+
 
         if train_state == TrainState::Moving {
             commands.entity(entity).insert(
@@ -286,7 +332,10 @@ impl Train {
                 let mut entity = parent.spawn((
                     TrainCarriage,
                     TextSprite,
-                    GlyphString(carriage),
+                    GlyphString{
+                        text : carriage,
+                        depth : TRAIN_WIDTH,
+                    },
                     transform,
                     color
                 ));

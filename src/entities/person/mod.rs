@@ -1,8 +1,5 @@
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
-    prelude::*,
-    render::primitives::Aabb,
-    sprite::Anchor,
+    ecs::{component::HookContext, world::DeferredWorld}, pbr::PreviousGlobalTransform, prelude::*, render::primitives::Aabb, sprite::Anchor
 };
 use enum_map::Enum;
 use rand::{seq::IndexedRandom, Rng};
@@ -19,7 +16,7 @@ use crate::{
     },
 };
 
-use super::{text::{CharacterSprite, GlyphString}, train::Train};
+use super::{text::{CharacterSprite, GlyphString}, train::{Train, TrainSounds}};
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Runtime events & system-sets
@@ -69,6 +66,7 @@ impl Plugin for PersonPlugin {
                 Update,
                 (
                     PersonSprite::bounce_off_train,
+                    PersonSprite::blood_soak_train,
                 )
                     .run_if(
                         in_state(DilemmaPhase::Decision)
@@ -156,13 +154,21 @@ fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
     (min, max)
 }
 
+#[derive(Component)]
+pub struct Bloodied;
+
 impl PersonSprite {
+
+    const PERSON_DEPTH: f32 = 5.0;
     // ─────────────────────────────────────────────────────────────
     //  Spawn hook
     // ─────────────────────────────────────────────────────────────
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         // attach the glyph string; the GlyphString::on_insert hook does the rest
-        world.commands().entity(entity).insert(GlyphString(PERSON.to_string()));
+        world.commands().entity(entity).insert(GlyphString{
+            text : PERSON.to_string(),
+            depth : Self::PERSON_DEPTH
+        });
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -409,21 +415,24 @@ impl PersonSprite {
         mut debris_q: Query<
             (Entity, &mut Velocity, &Aabb, &GlobalTransform), // Added Entity
             (
-                Or<(With<CharacterSprite>, With<BloodSprite>)>,
+                With<CharacterSprite>,
                 Without<Train>,
                 Without<IgnoreTrainCollision>, // Added filter
             ),
         >,
-        train_q: Query<(&Aabb, &GlobalTransform, &Velocity), With<Train>>,
+        dilation: Res<Dilation>,
+        mut rng: ResMut<GlobalRng>,
+        mut audio_q: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+        train_q: Query<(Entity, &Aabb, &GlobalTransform, &Velocity, Option<&TransientAudioPallet::<TrainSounds>>), With<Train>>,
     ) {
         const RESTITUTION: f32 = 0.8;
         const TRAIN_SHARE: f32 = 0.8;
         const PUSH_OUT: f32 = 0.05;
 
-        let mut trains_data: Vec<(Vec3, Vec3, Vec3, Vec3)> = Vec::new(); // min_aabb, max_aabb, velocity, center
-        for (box_local, tf, vel) in train_q.iter() {
+        let mut trains_data: Vec<(Vec3, Vec3, Vec3, Vec3, Option<&TransientAudioPallet::<TrainSounds>>, Entity)> = Vec::new(); // min_aabb, max_aabb, velocity, center
+        for (train_entity, box_local, tf, vel, pallet) in train_q.iter() {
             let (min, max) = world_aabb(box_local, tf);
-            trains_data.push((min, max, vel.0, tf.translation()));
+            trains_data.push((min, max, vel.0, tf.translation(), pallet, train_entity));
         }
 
         if trains_data.is_empty() {
@@ -431,11 +440,15 @@ impl PersonSprite {
             return;
         }
 
+        //  extra punch when hit by the *front* of a moving train
+        const FRONT_BONUS : f32 = 1.2;     // 120 % of train speed minimum
+        const RANDOM_FAN  : f32 = 1.0;     // radial spray ≤ 30 % train speed
+
         for (debris_entity, mut vel, d_box, d_tf) in debris_q.iter_mut() {
             let (d_min, d_max) = world_aabb(d_box, d_tf);
             let mut collided_this_frame = false;
 
-            for &(t_min, t_max, train_vel, t_centre) in &trains_data {
+            for &(t_min, t_max, train_vel, t_centre, pallet, train_entity) in &trains_data {
                 // AABB overlap check (3D)
                 if d_min.x > t_max.x || d_max.x < t_min.x ||
                 d_min.y > t_max.y || d_max.y < t_min.y ||
@@ -467,6 +480,26 @@ impl PersonSprite {
                 vel.0 += train_vel * TRAIN_SHARE;
                 vel.0 += normal * (depth + PUSH_OUT); // Apply push out
 
+                if train_vel.length_squared() > 0.01 && vel.0.dot(normal) > 0.0 {
+                    let extra_needed = train_vel * FRONT_BONUS - vel.0;
+                    vel.0 += extra_needed.max(Vec3::ZERO); // ensure at least FRONT_BONUS
+
+                    // random sideways spray
+                    let fan_dir: Vec3 = Vec3::from(UnitSphere.sample(&mut *rng));
+                    vel.0 += fan_dir * train_vel.length() * RANDOM_FAN;
+                } else if train_vel.length_squared() > 0.01 && vel.0.dot(normal) > 0.0 {
+                    if let Some(pallet) = pallet {
+                        TransientAudioPallet::<TrainSounds>::play_transient_audio(
+                            train_entity,
+                            &mut commands,
+                            pallet,
+                            TrainSounds::Bounce,
+                            dilation.0,
+                            &mut audio_q,
+                        );
+                    }
+                }
+
                 break; // Debris bounces off the first train it hits in a frame
             }
 
@@ -475,7 +508,7 @@ impl PersonSprite {
                 // Only consider tagging if no collision happened this frame.
                 // If it collided, its position/velocity changed, so re-evaluate next frame.
                 let mut can_be_ignored_for_all_trains = true;
-                for &(t_min, t_max, _train_vel, _t_centre) in &trains_data {
+                for &(t_min, t_max, _train_vel, _t_centre, _, _) in &trains_data {
                     let is_outside_width = d_max.z < t_min.z || d_min.z > t_max.z;
                     // "Behind the train" (negative Y): debris is fully "below" the train's min Y.
                     // This assumes Y is the primary axis of train length/movement.
@@ -494,6 +527,62 @@ impl PersonSprite {
                     commands.entity(debris_entity).insert(IgnoreTrainCollision);
                 }
             }
+        }
+    }
+
+     pub fn blood_soak_train(
+        mut commands: Commands, // Added Commands
+        mut debris_q: Query<
+            (Entity, &Aabb, &GlobalTransform), // Added Entity
+            (
+                With<BloodSprite>, Without<IgnoreTrainCollision>,
+            ),
+        >,
+        dilation: Res<Dilation>,
+        mut rng: ResMut<GlobalRng>,
+        mut audio_q: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+        sprite_q: Query<(Entity, &Aabb, &GlobalTransform, &TextColor), (With<CharacterSprite>, Without<Bloodied>, Without<Gravity>, Without<BloodSprite>)>
+    ) {
+
+        let mut part_data: Vec<(Vec3, Vec3, Vec3, Entity, &TextColor)> = Vec::new(); // min_aabb, max_aabb, velocity, center
+        for (entity, box_local, tf, color) in sprite_q.iter() {
+            let (min, max) = world_aabb(box_local, tf);
+            part_data.push((min, max,  tf.translation(), entity, color));
+        }
+
+        if part_data.is_empty() {
+            return;
+        }
+
+        for (debris_entity,  d_box, d_tf) in debris_q.iter_mut() {
+
+            let (d_min, d_max) = world_aabb(d_box, d_tf);
+
+            for &(t_min, t_max, _, entity, color) in &part_data {
+
+                // AABB overlap check (3D)
+                if d_min.x > t_max.x || d_max.x < t_min.x ||
+                d_min.y > t_max.y || d_max.y < t_min.y {
+                //d_min.z > t_max.z || d_max.z < t_min.z {
+                    continue; // No overlap with this train
+                }
+
+                let tint_shade: f32 = rng.random_range(0.0..=3.0);
+
+                if color.to_linear().to_vec4()[1] > tint_shade {
+                    commands.entity(entity).insert((
+                        TextColor(Color::srgba(3.0, tint_shade, tint_shade, 1.0)),
+                    ));
+                    commands.entity(debris_entity).insert(IgnoreTrainCollision);
+                }
+
+                if tint_shade < 0.1 {
+                    commands.entity(entity).insert(Bloodied);
+                }
+                break; // Debris bounces off the first train it hits in a frame
+            }
+
+            // After checking collisions with all trains for this debris particle:
         }
     }
 

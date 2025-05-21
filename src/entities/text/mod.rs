@@ -140,7 +140,6 @@ impl TextFrames {
 }
 
 
-const PERSON_DEPTH: f32 =  2.0;       // ±1 in Z
 const CHAR_WIDTH: f32 = 7.0;
 const LINE_HEIGHT: f32 = 16.0;
 
@@ -169,11 +168,18 @@ impl CharacterSprite {
 #[derive(Component)]
 #[component(on_insert = GlyphString::on_insert)]
 #[require(Transform, Visibility)]
-pub struct GlyphString(pub String);
+pub struct GlyphString{
+    pub text : String, 
+    pub depth : f32    
+}
 
 impl GlyphString {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let text = world.entity(entity).get::<GlyphString>().unwrap().0.clone();
+        let glyph_string = world.entity(entity).get::<GlyphString>().unwrap();
+
+        let text = glyph_string.text.clone();
+        let depth = glyph_string.depth.clone();
+
         let lines: Vec<&str> = text.lines().collect();
         let lines_count      = lines.len();
         let max_cols         = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
@@ -189,8 +195,7 @@ impl GlyphString {
                         Anchor::BottomCenter,
                         Transform::from_translation(
                             CharacterSprite { row, col, cols: max_cols, lines: lines_count }.offset()
-                        ),
-                        GlobalTransform::default(),
+                        )
                     ));
                 });
             }
@@ -199,7 +204,7 @@ impl GlyphString {
         // 2. add one parent-level AABB
         let half_x = max_cols  as f32 * CHAR_WIDTH  * 0.5;
         let half_y = lines_count as f32 * LINE_HEIGHT * 0.5;
-        let half_z = PERSON_DEPTH * 0.5;
+        let half_z = depth * 0.5;
         let centre = Vec3::new(0.0, half_y, 0.0);
 
         world.commands().entity(entity).insert(Aabb {
