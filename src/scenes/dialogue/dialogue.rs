@@ -25,25 +25,7 @@ use crate::{
             CharacterKey
         },  
         states::GameState
-    },
-    systems::{
-        audio::{
-            continuous_audio, 
-            ContinuousAudio, 
-            ContinuousAudioPallet, 
-            TransientAudio, 
-            TransientAudioPallet
-        }, 
-        colors::PRIMARY_COLOR,
-        interaction::{
-            ActionPallet, 
-            AdvanceDialogue, 
-            Draggable, 
-            InputAction
-        },
-        time::Dilation
-    },
-    entities::{
+    }, entities::{
         graph::GraphPlugin,
         sprites::{
             window::WindowTitle, 
@@ -54,8 +36,19 @@ use crate::{
             TextPlugin, 
             TextWindow
         }, 
-    },
-    style::common_ui::NextButton
+    }, style::common_ui::NextButton, systems::{
+        audio::{
+            continuous_audio, ContinuousAudio, ContinuousAudioPallet, DialogueAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet
+        }, 
+        colors::PRIMARY_COLOR,
+        interaction::{
+            ActionPallet, 
+            AdvanceDialogue, 
+            Draggable, 
+            InputAction
+        },
+        time::Dilation
+    }
 };
 
 use super::content::DialogueScene;
@@ -121,7 +114,8 @@ pub struct DialogueLine {
     pub raw_text: String,
     pub hostname: String,
     pub instruction: String,
-    pub character: Character,
+    pub sound_file : String,
+    pub character: Character
 }
 
 fn dialogue_text_bounds() -> TextBounds {
@@ -203,6 +197,7 @@ impl Dialogue {
                     raw_text: line.dialogue,
                     hostname: line.hostname,
                     instruction: line.instruction,
+                    sound_file : line.sound_file,
                     character,
                 }
             })
@@ -277,9 +272,11 @@ impl Dialogue {
 
 	fn play(
         mut commands: Commands,
+        asset_server: Res<AssetServer>,
 		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
 		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
+        dialogue_audio : Option<Single<Entity, With<DialogueAudio>>>
 	) {
 		for (
             entity,
@@ -293,6 +290,11 @@ impl Dialogue {
                     !ev_advance_dialogue.is_empty() || 
                     dialogue.current_line_index == 0
                 ) {
+
+                    if let Some(dialogue_audio) = &dialogue_audio {
+                        commands.entity(**dialogue_audio).despawn();
+                    }
+
 					ev_advance_dialogue.clear();
 
                     commands.get_entity(entity).unwrap().with_children(
@@ -307,7 +309,21 @@ impl Dialogue {
                                 parent.spawn(
                                     span 
                                 );
-                            }         
+                            }     
+
+                            parent.spawn((
+                                DialogueAudio,
+                                OneShotAudioPallet::new(
+                                    vec![
+                                        OneShotAudio{
+                                            source : asset_server.load(line.sound_file.clone()),
+                                            persistent : false,
+                                            volume : 1.0,
+                                            dilatable : true
+                                        }
+                                    ]
+                                ))
+                            );
                         }
                     );
                     dialogue.num_spans += 2;
@@ -408,7 +424,7 @@ impl Dialogue {
                     } else {
                         InputAction::AdvanceDialogue("placeholder".to_string())
                     };
-    
+                    
                     Self::spawn_next_button(
                         &mut commands, 
                         &asset_server, 
@@ -490,6 +506,7 @@ struct DialogueLineLoader {
     hostname: String,
     dialogue: String,
     instruction: String,
+    sound_file : String
 }
 
 #[derive(Serialize, Deserialize, Debug)]

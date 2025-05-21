@@ -1,0 +1,24 @@
+{
+    "index" : "THREE Bc",
+    "name" : "Negligible Difference",
+    "narration_path": "./audio/narration/lab/2/the_trolley_problem.ogg",
+    "description" : "Surely the difference now is negligible? Your hands could be clean. You could entirely remove yourself from the situation and slip away. No-one would know. Well, except the bandit-philosopher, but do you really want to give him what he wants?",
+    "default_option" : 0,
+    "countdown_duration_seconds" : 15,
+    "options": [
+      {
+        "index" : 0,
+        "name": "Human-Dense Track",
+        "description": "Five-hundred humans are tied to the track. It's really quite the sight.",
+        "humans" : [],
+        "num_humans": 500
+      },
+      {
+        "index" : 1,
+        "name": "Slightly Less Dense Track",
+        "description": "Four hundred and ninety nine lives are tied to the track. They all have lives, families, some have children. All will be ripped apart if you chose to pull, and four what, the difference of less than a percent?",
+        "humans": [],
+        "num_humans": 499
+      }
+    ]
+}

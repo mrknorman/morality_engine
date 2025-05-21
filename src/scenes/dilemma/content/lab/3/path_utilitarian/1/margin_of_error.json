@@ -1,0 +1,24 @@
+{
+    "index" : "THREE Ba",
+    "name" : "One Fifth",
+    "narration_path": "./audio/narration/lab/2/the_trolley_problem.ogg",
+    "description" : "The margins are closing in. Will you kill 49 to save one extra person?",
+    "default_option" : 0,
+    "countdown_duration_seconds" : 15,
+    "options": [
+      {
+        "index" : 0,
+        "name": "Human-Dense Track",
+        "description": "Fifty humans are tied down on the route of the oncoming trolley.",
+        "humans" : [],
+        "num_humans": 50
+      },
+      {
+        "index" : 1,
+        "name": "Slightly Less Dense Track",
+        "description": "Forty-Nine humans are tied down, struggling to escape. These people will live, all forty-nine of them, unless you intervene.",
+        "humans": [],
+        "num_humans": 49
+      }
+    ]
+}

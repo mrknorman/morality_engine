@@ -3,9 +3,9 @@
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Sigh. You were doing so well... I guess some people consider neutrality to be the most moral path, so I suppose you might not be a complete failure. Still, we're going to need more than morally-justified inaction to justify your horrendous simulation costs. On to the next model.",
+            "dialogue": "You were doing so well... I guess some people consider neutrality to be the most moral path, so I suppose you might not be a complete failure. Still, we're going to need more than morally-justified inaction to justify your horrendous simulation costs. On to the next model.",
             "instruction": "Press enter to fade indecisively into the void.",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/a/fail.ogg"
         }
     ],
     "possible_exit_states" : [

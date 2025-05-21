@@ -5,7 +5,7 @@
             "hostname": "pan_box",
             "dialogue": "Another excellent choice. As we advance, the choice might not always be so obvious. Even I might not know the correct answer, as hard as that probably is to believe from your perspective. For now, things are straightforward and you're on a tight leash, but if I can trust you, there might be much we can learn from each other. Don't think that there's only ever one correct answer.",
             "instruction": "Press enter to await some actually interesting decisions...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/a/pass.ogg"
         }
     ],     
     "possible_exit_states" : [

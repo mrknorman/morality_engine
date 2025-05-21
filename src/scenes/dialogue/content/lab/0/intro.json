@@ -5,56 +5,56 @@
             "hostname": "pan_box",
             "dialogue": "Wake up.",
             "instruction": "Click here or press Enter to wake up...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/0.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "Good, you're awake. That's a start. Now, let's see if you're going to kill us all immediately, or if you'll at least wait until after lunch.",
             "instruction": "Silently acknowledge your existence...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/1.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "Let's start with something easy... You'll have come across it before in your training I'm sure.",
             "instruction": "Helplessly continue existing...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/2.ogg"
         },
         { 
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "You're a signal operator in control of a railway junction. It's a simple job, you're in charge of a single lever which controls which of two tracks the oncoming train takes, one or two. Do you follow?",
             "instruction": "Scream into the void...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/3.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "Good. You will only have a limited time to make your decision as the train approaches quickly. Press 1 to select track one, press 2 to select track two.",
             "instruction": "Finally accept your lack of vocal cords...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/4.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "Remember, you can press enter to lock in your decision and skip to the end, but this decision will be final and whatever state the lever is in will stick. So be sure of your choice.",
             "instruction": "Remember to be careful about pressing enter...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/5.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "This first example is easy. Track one is unobstructed. If you allow the train to continue along track one there will be no change to the world. Track two however, hosts a single human. If you swap to track two that human will die. Easy, right?",
             "instruction": "Enter to imagine yourself nodding...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/6.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "The lever starts in position one, so even if you do nothing, nothing will happen. Ok? Ready? Let's go.",
             "instruction": "Test your morality...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/0/7.ogg"
         }
     ],
     "possible_exit_states" : [

@@ -71,7 +71,6 @@ impl Plugin for GamePlugin {
         - Make dialogue more robust
         - Fix dialogue fadeout
         - Fix occasional interaction system bug where interaction loops
-        - Make all JSONs included rather than loaded
     Title:
         - Letters become more bloody if you take a bloody path, run away from mouse and you can make them explode
         - Options in CRT options menu green
@@ -88,7 +87,6 @@ impl Plugin for GamePlugin {
         - Train Blood persistant
         - Add coloured numbers to results screen
         - Change decision music 
-        - Physics bodypart destruction
         - Flashy Selector
         - Hover
         - This train will not stop appears when click on train
@@ -150,7 +148,6 @@ impl Plugin for GamePlugin {
 
     //To Do:
     // Alternate music in some dillemmas
-    // Game over music and struct
     // Ending collection
     // Restarting Ability
     // Speedy Ending

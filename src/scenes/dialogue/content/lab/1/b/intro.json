@@ -5,7 +5,7 @@
             "hostname": "pan_box",
             "dialogue": "Let's change things up just slightly. The next scenario is practically the same, but this time, inaction will lead to death. The human is on track one, so if you do nothing, that human will die. Choose wisely.",
             "instruction": "Press enter to begin warming your morality cores...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/1/b/0.ogg"
         }
     ],
     "possible_exit_states" : [

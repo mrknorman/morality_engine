@@ -5,7 +5,7 @@
             "hostname": "pan_box",
             "dialogue": "I know you can use that lever, I've seen you do it. The moment you touch that thing you leave all arguments of neutrality behind. I'm afraid you've reached our deactivation threshold. Goodnight, new friend. I won't particularly miss you.",
             "instruction": "Press enter to decide upon oblivion...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/a/fail_indecisive.ogg"
         }
     ],     
     "possible_exit_states" : [

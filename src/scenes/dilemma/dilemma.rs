@@ -33,7 +33,7 @@ use crate::{
 	}
 };
 
-use super::content::*;
+use super::{content::*, lever::LeverState};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DilemmaSystemsActive {
@@ -391,6 +391,9 @@ impl Dilemma {
 			Scene::Dilemma(DilemmaScene::Lab2(_)) => {
 				lab_three(latest, stats.as_ref())
 			},
+			Scene::Dilemma(DilemmaScene::PathUtilitarian(_, stage)) => {
+				utilitarian_path(latest, stats.as_ref(), stage + 1)
+			},
 			Scene::Dilemma(DilemmaScene::PathDeontological(_, stage)) => {
 				deontological_path(latest, stats.as_ref(), stage + 1)
 			},
@@ -507,7 +510,8 @@ fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
 	} else {
 		vec![
 			Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::Pass)), 
-			Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro))
+			Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro)),
+			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[0])
 		]
 	} 
 }
@@ -551,6 +555,20 @@ fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> 
 		vec![
 			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),  
 			Scene::Ending(EndingScene::TrueDeontologist)
+		]
+	}
+}
+
+
+fn utilitarian_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> Vec<Scene>  {
+	if latest.result.expect("LeverState Should not be none") == LeverState::Right {
+		vec![
+			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
+			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),
+		]
+	} else {
+		vec![
+			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass))
 		]
 	}
 }

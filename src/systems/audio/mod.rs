@@ -641,3 +641,6 @@ impl DilatableAudio {
         }
     }
 }
+
+#[derive(Component)]
+pub struct DialogueAudio;

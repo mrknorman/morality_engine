@@ -3,16 +3,16 @@
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Jesus Christ! You're going to give me a heart attack if you keep this up. It's really not looking good on your score card! Make your decision before the last second won't you? Give it some breathing space... Well done, I suppose.",
+            "dialogue": "Jesus Christ! You're going to give me a heart attack if you keep this up. It's really not looking good on your score card! Make your decision before the last second won't you? Give it some breathing space...",
             "instruction": "Press enter to apply oil the level...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/a/pass_slow_again_0.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "Well done, I suppose. You made the right choice eventually. Let's continue.",
             "instruction": "Press enter to continue...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/a/pass_slow_again_1.ogg"
         }
     ],     
     "possible_exit_states" : [
