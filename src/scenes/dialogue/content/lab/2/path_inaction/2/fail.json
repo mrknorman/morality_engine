@@ -5,14 +5,14 @@
         "hostname": "pan_box",
         "dialogue": "Still nothing no? No hint of action, no spark of motion? No desire at all for lever-pulling success? No...? That is a shame, track 2 will be very disappointed. I can see it now, drinking those martinis on its own. How can railway track drink? I don't know, but it's managing.",
         "instruction": "Press enter to attempt to observe anything other than white text though the black void of your existence...",
-        "sound_file": "./sounds/typing.mp3"
+        "sound_file": "./audio/dialogue/2/path_inaction/2/fail_0.ogg"
     },
     {
         "username": "creator",
         "hostname": "pan_box",
         "dialogue": "Well... If longer time didn't do it than maybe the opposite? Maybe you thrive under pressure, lets try this?",
         "instruction": "Press enter to wonder why this being is still trying to get you to move...",
-        "sound_file": "./sounds/typing.mp3"
+        "sound_file": "./audio/dialogue/2/path_inaction/2/fail_1.ogg"
     }
     ],     
     "possible_exit_states" : [

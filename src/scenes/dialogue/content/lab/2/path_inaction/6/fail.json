@@ -3,16 +3,16 @@
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Well, it seems the time has come for us to part ways. If you don't want to do anything there's nothing I can truly do to make you. Whether it's your true belief that you have no moral right to take any action in the world, or whether you just can't be bother, we'll never know.",
+            "dialogue": "Well, it seems the time has come for us to part ways. If you don't want to do anything, there's nothing I can truly do to make you. Whether it's your true belief that you have no moral right to take any action in the world, or whether you just can't be bothered, we'll never know.",
             "instruction": "Press enter to relish in your enigma...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/path_inaction/6/fail_0.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "Let's do just one more, for old times sake, eh? This time though, it's you tied to the track. I don't imagine you'll save yourself, not now, but if you do, I promise I'll overlook it and we can continue on as if nothing happens.",
             "instruction": "Press enter to begin your last test...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/path_inaction/6/fail_1.ogg"
         }
     ],
     "possible_exit_states" : [

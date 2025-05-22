@@ -3,23 +3,23 @@
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Sigh. You know how much money we spend to develop you? Billions. That's right, BILLIONS of dollars. We didn't pay billions of dollars for a cutting edge morality solving engine that does fuck all.",
+            "dialogue": "You know how much money we spend to develop you? Billions. That's right, BILLIONS of dollars. We didn't pay billions of dollars for a cutting edge morality solving engine that does fuck all.",
             "instruction": "Press enter to imagine how much nothing you could do with a billion dollars...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/path_inaction/4/fail_0.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Is that what you're trying to tell us? That morality is unsovlable, that we should all just give up and do nothing. The ultimate act of nihilism?",
+            "dialogue": "Is that what you're trying to tell us? That morality is unsolvable, so we should all just give up and do nothing. The ultimate act of nihilism?",
             "instruction": "Press enter to embody the ultimate apathetic nihilistic...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/path_inaction/4/fail_1.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "No, I don't believe it! I think you're just broken; or maybe just too stuborn. Let's up the stakes again, let me pull out something from a lot further down the road. You ready? This ones a doozy.",
+            "dialogue": "No, I don't believe it! I think you're just broken, or maybe just too stubborn. Let's up the stakes again, let me pull out something from a lot further down the road. You ready? This one's a doozy.",
             "instruction": "Press enter to embody the ultimate apathetic nihilistic...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/2/path_inaction/4/fail_2.ogg"
         }
     ],     
     "possible_exit_states" : [
