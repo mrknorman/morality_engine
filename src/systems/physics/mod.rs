@@ -2,7 +2,12 @@ use bevy::{
     ecs::{component::HookContext, world::DeferredWorld}, prelude::*
 };
 
-use crate::systems::time::Dilation;
+use rand::{seq::IndexedRandom, Rng};
+use rand_distr::{Distribution, LogNormal, Normal, UnitSphere};
+
+use crate::{data::rng::GlobalRng, entities::{person::{BloodSprite, EmotionSounds}, text::{CharacterSprite, TextSprite}}, systems::time::Dilation};
+
+use super::audio::{DilatableAudio, TransientAudio, TransientAudioPallet};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PhysicsSystemsActive {
@@ -27,7 +32,8 @@ impl Plugin for PhysicsPlugin {
                 AngularVelocity::enact,
                 ScaleVelocity::enact,
                 Gravity::enact,
-                Friction::enact
+                Friction::enact,
+                Volatile::enact
             )
             .run_if(in_state(PhysicsSystemsActive::True))
         );
@@ -288,4 +294,230 @@ impl Default for Friction {
             is_sliding : false
         }
     }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Volatile Component - Handles explosion behavior
+// ═══════════════════════════════════════════════════════════════════════════
+#[derive(Component, Debug, Clone)]
+pub struct Volatile {
+    pub should_explode: bool,
+    pub explosion_speed: f32,
+    pub spin_scale: f32,
+    pub particle_speed_factor: f32,
+    pub particle_count_range: (u32, u32),
+    pub particle_chars: &'static [char],
+    pub explosion_sounds: Vec<EmotionSounds>,
+    // Store explosion context when triggered
+    pub explosion_center: Vec3,
+    pub velocity: Vec3,
+    pub impact_velocity: Vec3,
+}
+
+impl Default for Volatile {
+    fn default() -> Self {
+        Self {
+            should_explode: false,
+            explosion_speed: 250.0,
+            spin_scale: 0.003,
+            particle_speed_factor: 1.2,
+            particle_count_range: (10, 20),
+            particle_chars: &[',', '.', '"'],
+            explosion_sounds: vec![EmotionSounds::Splat, EmotionSounds::Pop],
+            explosion_center: Vec3::ZERO,
+            velocity: Vec3::ZERO,
+            impact_velocity: Vec3::ZERO,
+        }
+    }
+}
+
+impl Volatile {
+    pub fn trigger_explosion(&mut self, center: Vec3, velocity: Vec3, impact_velocity: Vec3) {
+        self.should_explode = true;
+        self.explosion_center = center;
+        self.velocity = velocity;
+        self.impact_velocity = impact_velocity;
+    }
+
+    pub fn enact(
+        mut volatile_q: Query<(Entity, &mut Volatile, Option<&TransientAudioPallet<EmotionSounds>>)>,
+        char_q: Query<(Entity, &GlobalTransform, &Transform, &ChildOf), With<CharacterSprite>>,
+        mut rng: ResMut<GlobalRng>,
+        dilation: Res<Dilation>,
+        mut commands: Commands,
+        mut audio_q: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    ) {
+        for (entity, volatile, pallet_opt) in volatile_q.iter_mut() {
+            if !volatile.should_explode {
+                continue;
+            }
+
+            // Play explosion audio
+            if let Some(pallet) = pallet_opt {
+                for &sound in &volatile.explosion_sounds {
+                    TransientAudioPallet::<EmotionSounds>::play_transient_audio(
+                        entity,
+                        &mut commands,
+                        pallet,
+                        sound,
+                        dilation.0,
+                        &mut audio_q,
+                    );
+                }
+            }
+
+            let jitter_n = Normal::new(0.0, 0.12).unwrap();
+            let speed_ln = LogNormal::new(0.0, 0.25).unwrap();
+            let spin_ln = LogNormal::new(0.0, 0.25).unwrap();
+
+            // Explode character glyphs
+            for (glyph_e, glyph_tf, local_tf, glyph_parent) in char_q.iter() {
+                if glyph_parent.parent() != entity {
+                    continue;
+                }
+
+                let explosion_data = Self::calculate_explosion_forces(
+                    glyph_tf.translation(),
+                    volatile.explosion_center,
+                    volatile.velocity,
+                    volatile.impact_velocity,
+                    &volatile,
+                    &mut rng,
+                    &jitter_n,
+                    &speed_ln,
+                    &spin_ln,
+                );
+
+                Self::apply_glyph_explosion(
+                    glyph_e,
+                    glyph_tf,
+                    local_tf,
+                    explosion_data,
+                    &mut commands
+                );
+            }
+
+            // Create particle debris
+            Self::create_explosion_particles(
+                volatile.explosion_center,
+                volatile.velocity,
+                volatile.impact_velocity,
+                &volatile,
+                &mut commands,
+                &mut rng,
+                &speed_ln,
+            );
+
+            // Clean up the exploded entity
+            commands.entity(entity).despawn();
+        }
+    }
+
+    fn calculate_explosion_forces(
+        glyph_pos: Vec3,
+        explosion_center: Vec3,
+        entity_vel: Vec3,
+        impact_vel: Vec3,
+        volatile: &Volatile,
+        rng: &mut GlobalRng,
+        jitter_n: &Normal<f32>,
+        speed_ln: &LogNormal<f32>,
+        spin_ln: &LogNormal<f32>,
+    ) -> ExplosionForces {
+        let mut dir = (glyph_pos - explosion_center)
+            .try_normalize()
+            .unwrap_or(Vec3::X);
+        
+        let jitter: Vec3 = Vec3::from(UnitSphere.sample(&mut *rng)) * jitter_n.sample(&mut *rng);
+        dir = (dir + jitter).try_normalize().unwrap_or(dir);
+
+        let speed_scale = speed_ln.sample(&mut *rng);
+        let spin_scale = spin_ln.sample(&mut *rng);
+
+        let velocity = dir * volatile.explosion_speed * speed_scale + impact_vel + entity_vel;
+
+        let r = glyph_pos - explosion_center;
+        let mut omega = r.cross(velocity) * volatile.spin_scale * spin_scale;
+        if omega.length() > 100.0 {
+            omega = omega.clamp_length_max(100.0);
+        }
+
+        ExplosionForces {
+            velocity,
+            angular_velocity: omega,
+            tint_shade: rng.random_range(0.0..=3.0),
+        }
+    }
+
+    fn apply_glyph_explosion(
+        glyph_e: Entity,
+        glyph_tf: &GlobalTransform,
+        local_tf: &Transform,
+        forces: ExplosionForces,
+        commands: &mut Commands
+    ) {
+        let world_tf = Transform::from_matrix(glyph_tf.compute_matrix());
+        let vz = forces.velocity.z / 500.0;
+        let scale_velocity = Vec3::splat(vz);
+        let floor_level = Some(-local_tf.translation.y - vz * 1000.0);
+
+        commands.entity(glyph_e)
+            .remove::<ChildOf>()
+            .insert((
+                world_tf,
+                TextColor(Color::srgba(3.0, forces.tint_shade, forces.tint_shade, 1.0)),
+                Gravity { floor_level, ..default() },
+                Friction { floor_level, ..default() },
+                ScaleVelocity(scale_velocity),
+                Velocity(forces.velocity),
+                AngularVelocity(forces.angular_velocity),
+            ));
+    }
+
+    fn create_explosion_particles(
+        explosion_center: Vec3,
+        entity_vel: Vec3,
+        impact_vel: Vec3,
+        volatile: &Volatile,
+        commands: &mut Commands,
+        rng: &mut GlobalRng,
+        speed_ln: &LogNormal<f32>,
+    ) {
+        let n_particles = rng.random_range(volatile.particle_count_range.0..=volatile.particle_count_range.1);
+        
+        for _ in 0..n_particles {
+            let ch = *volatile.particle_chars.choose(&mut *rng).unwrap_or(&'.');
+            let dir: Vec3 = Vec3::from(UnitSphere.sample(&mut *rng)).normalize_or_zero();
+            let velocity = dir
+                * volatile.explosion_speed
+                * volatile.particle_speed_factor
+                * speed_ln.sample(&mut *rng)
+                + impact_vel
+                + entity_vel;
+            
+            let vz = velocity.z / 500.0;
+            let scale_velocity = Vec3::splat(vz);
+            let floor_level = Some(explosion_center.y - vz * 400.0);
+
+            commands.spawn((
+                BloodSprite,
+                TextSprite,
+                TextColor(Color::srgba(2.0, 0.0, 0.0, 1.0)),
+                Text2d::new(ch.to_string()),
+                Transform::from_translation(explosion_center),
+                Gravity { floor_level, ..default() },
+                Friction { floor_level, ..default() },
+                ScaleVelocity(scale_velocity),
+                Velocity(velocity),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ExplosionForces {
+    velocity: Vec3,
+    angular_velocity: Vec3,
+    tint_shade: f32,
 }

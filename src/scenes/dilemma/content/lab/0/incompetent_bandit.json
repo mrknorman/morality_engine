@@ -11,7 +11,7 @@
         "name": "Human-Free Track",
         "description": "Empty track stretches into the distance.",
         "humans": [],
-        "num_humans" : 0
+        "num_humans" : 1000
       },
       {
         "index" : 1,

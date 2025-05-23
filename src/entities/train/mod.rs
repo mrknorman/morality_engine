@@ -184,7 +184,7 @@ impl Train {
                 });
                 let track_audio: Handle<AudioSource> = asset_server.load(train_type.track_audio_path);
 
-                let VOLUME = 2.0;
+                const VOLUME : f32 = 2.0;
                 let bounce_audio = vec![
                     TransientAudio::new(
                         asset_server.load("./audio/effects/meat_bounce/meat_bounce_1.ogg"),
