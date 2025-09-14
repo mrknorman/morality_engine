@@ -245,7 +245,7 @@ impl EndingScene{
                                 source: asset_server.load("./audio/effects/game_over.ogg"),
                                 volume : 0.4,
                                 persistent : true,
-                                dilatable: false
+                                ..default()
                             }
                         ]
                     )

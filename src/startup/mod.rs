@@ -33,7 +33,6 @@ pub mod cursor;
 
 use render::RenderPlugin;
 use cursor::CursorPlugin;
-
 pub struct StartupPlugin;
 impl Plugin for StartupPlugin {
     fn build(&self, app: &mut App) {

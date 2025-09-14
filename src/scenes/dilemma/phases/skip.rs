@@ -57,9 +57,7 @@ impl DilemmaSkipScene{
                             source : asset_server.load(
                                 PathBuf::from("./audio/effects/fast_forward.ogg")
                             ),
-                            persistent : false,
-                            volume :1.0,
-                            dilatable : false
+                            ..default()
                         }
                     ]
                 )

@@ -361,7 +361,20 @@ pub struct OneShotAudio {
     pub source: Handle<AudioSource>,
     pub persistent : bool,
     pub volume: f32,
-    pub dilatable : bool
+    pub dilatable : bool,
+    pub speed : f32
+}
+
+impl Default for OneShotAudio{
+    fn default() -> Self {
+        Self {
+            source: Handle::default(),
+            persistent: false,
+            volume: 1.0,
+            dilatable: false,
+            speed : 1.0
+        }
+    }
 }
 
 pub fn one_shot_audio() -> PlaybackSettings {
@@ -415,7 +428,7 @@ impl OneShotAudioPallet {
                                     paused: false,
                                     mode: PlaybackMode::Despawn,
                                     volume: Volume::Linear(audio_component.volume),
-                                    speed: dilation.filter(|_| audio_component.dilatable).unwrap_or(1.0),
+                                    speed: dilation.filter(|_| audio_component.dilatable).unwrap_or(audio_component.speed),
                                     ..default()
                                 }
                             ));

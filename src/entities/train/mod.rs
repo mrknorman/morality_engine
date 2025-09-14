@@ -296,8 +296,8 @@ impl Train {
                         OneShotAudio{
                             source: hiss_audio,
                             volume : 0.2,
-                            persistent : false,
-                            dilatable: true
+                            dilatable: true,
+                            ..default()
                         }
                     ]
                 ),

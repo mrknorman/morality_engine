@@ -138,9 +138,7 @@ impl DilemmaConsequenceScene{
                             source : asset_server.load(
                                 PathBuf::from("./audio/effects/slowmo.ogg")
                             ),
-                            persistent : false,
-                            volume :1.0,
-                            dilatable : false
+                            ..default()
                         }
                     ]
                 ),
@@ -159,11 +157,9 @@ impl DilemmaConsequenceScene{
         lever: Res<Lever>,
         asset_server: Res<AssetServer>
     ) {
-        // Constants for asset paths and parameters.
         const SCREAM_SOUND: &str = "./audio/effects/male_scream_long.ogg";
         const SPEEDUP_SOUND: &str = "./audio/effects/speedup.ogg";
         const SPEEDUP_DURATION_SECONDS: f32 = 1.057; // Exact duration of the speedup sound.
-        const DEFAULT_VOLUME: f32 = 1.0;
     
         // Determine if there are fatalities based on the current dilemma option.
         let are_fatalities = dilemma.options[lever.0 as usize].num_humans > 0;
@@ -174,9 +170,8 @@ impl DilemmaConsequenceScene{
         if timers.0[DilemmaConsequenceEvents::Scream].just_finished() && are_fatalities {
             let scream_audio = OneShotAudio {
                 source: asset_server.load(SCREAM_SOUND),
-                persistent: false,
-                volume: DEFAULT_VOLUME,
-                dilatable : true
+                dilatable : true,
+                ..default()
             };
 
             commands.entity(entity).with_children(|parent| {
@@ -188,9 +183,7 @@ impl DilemmaConsequenceScene{
         if timers.0[DilemmaConsequenceEvents::SpeedUp].just_finished() {
             let speedup_audio = OneShotAudio {
                 source: asset_server.load(SPEEDUP_SOUND),
-                persistent: false,
-                volume: DEFAULT_VOLUME,
-                dilatable : false
+                ..default()
             };
 
             commands.entity(entity).with_children(|parent| {

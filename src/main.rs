@@ -11,7 +11,6 @@ mod data;
 mod startup;
 mod shaders;
 mod style;
-
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {

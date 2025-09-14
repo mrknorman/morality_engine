@@ -201,8 +201,7 @@ impl LoadingScene {
                                 "./audio/effects/startup_beep.ogg"
                             ),
                         persistent : true,
-                        volume : 1.0,
-                        dilatable : false
+                        ..default()
                     },
                 ]
             ),

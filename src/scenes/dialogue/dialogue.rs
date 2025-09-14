@@ -317,9 +317,9 @@ impl Dialogue {
                                     vec![
                                         OneShotAudio{
                                             source : asset_server.load(line.sound_file.clone()),
-                                            persistent : false,
-                                            volume : 1.0,
-                                            dilatable : true
+                                            dilatable : true,
+                                            speed : 2.0,
+                                            ..default()
                                         }
                                     ]
                                 ))
