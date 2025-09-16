@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use super::{Scene};
+
 
 trait DilemmaProvider {
     fn content(&self) -> &'static str;
@@ -26,9 +28,9 @@ macro_rules! define_dilemma {
     };
 }
 
-
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum DilemmaScene {
+    RandomDeaths,
     Lab0(Lab0Dilemma),
     Lab1(Lab1Dilemma),
     PathInaction(DilemmaPathInaction, usize),
@@ -41,6 +43,7 @@ pub enum DilemmaScene {
 impl DilemmaScene {
     pub fn content(&self) -> &'static str {
         match self {
+            Self::RandomDeaths => "",
             Self::Lab0(dilemma) => dilemma.content(),
             Self::Lab1(dilemma) => dilemma.content(),
             Self::PathInaction(dilemma, _) => dilemma.content(),
@@ -50,6 +53,12 @@ impl DilemmaScene {
             Self::Lab3(dilemma) => dilemma.content()
         }
     }
+
+        pub fn random_deaths(number: u32) -> Vec<Scene> {
+            (0..number)
+            .map(|_| Scene::Dilemma(Self::RandomDeaths))
+            .collect()
+        }
 }
 
 // Define each dilemma type using the macro

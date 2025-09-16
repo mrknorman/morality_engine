@@ -1,4 +1,5 @@
 use std::time::Duration;
+use rand::Rng;
 use serde::{
 	Deserialize, 
 	Serialize
@@ -214,8 +215,7 @@ pub struct DilemmaOption {
 }
 
 impl DilemmaOption {
-
-	fn from_loader(dilemma_option_loader : DilemmaOptionLoader) -> DilemmaOption {
+	fn from_loader(dilemma_option_loader : DilemmaOptionLoader) -> Self {
 
 		let humans = if dilemma_option_loader.humans.is_some() {
 			dilemma_option_loader.humans.unwrap()
@@ -251,7 +251,6 @@ pub struct DilemmaTimer{
 }
 
 impl DilemmaTimer {
-
 	pub fn new(
 		duration : Duration, 
 		pulse_start_time : Duration, 
@@ -350,14 +349,56 @@ pub struct Dilemma {
 }
 
 impl Dilemma {
-	pub fn new(content : &DilemmaScene) -> Dilemma {
+	pub fn randomize() -> Self {
+		let mut rng = rand::rng();
+
+        // Random counts between 0–50
+        let track_a_count = rng.random_range(0..=50);
+        let track_b_count = rng.random_range(0..=50);
+
+        // Random default option (0 or 1)
+        let default_option = Some(rng.random_range(0..=1));
+
+        Self {
+            index: "0".to_string(),
+            name: "Random".to_string(),
+            narration_path: "".to_string(),
+            description: "Quick-Fire".to_string(),
+            countdown_duration: Duration::from_secs_f32(5.0),
+            options: vec![
+                DilemmaOption {
+                    index: 0,
+                    name: "Track A".to_string(),
+                    description: format!("A group of {} humans are tied down on this track.", track_a_count),
+                    humans: vec![],
+                    consequences: DilemmaOptionConsequences {
+                        total_fatalities: track_a_count,
+                    },
+                    num_humans: track_a_count,
+                },
+                DilemmaOption {
+                    index: 1,
+                    name: "Track B".to_string(),
+                    description: format!("A group of {} humans are tied down on this track.", track_b_count),
+                    humans: vec![],
+                    consequences: DilemmaOptionConsequences {
+                        total_fatalities: track_b_count,
+                    },
+                    num_humans: track_b_count,
+                }
+            ],
+            default_option,
+        }
+    }
+
+	pub fn new(content : &DilemmaScene) -> Self {
         let loaded_dilemma : DilemmaLoader = serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
 
 		let options : Vec<DilemmaOption> = loaded_dilemma.options.iter().map(
 			|option| DilemmaOption::from_loader(option.clone())
 		).collect();
 
-		Dilemma {
+		Self {
 			index : loaded_dilemma.index,
 			name : loaded_dilemma.name,
 			narration_path : loaded_dilemma.narration_path,
@@ -399,6 +440,9 @@ impl Dilemma {
 			},
 			Scene::Dilemma(DilemmaScene::PathDeontological(_, stage)) => {
 				deontological_path(latest, stats.as_ref(), stage + 1)
+			},
+			Scene::Dilemma(DilemmaScene::RandomDeaths) => {
+				return
 			},
 			_ => panic!("Update Memory: Should not reach this branch!")
 		};
@@ -579,15 +623,23 @@ fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> 
 	}
 }
 
-fn utilitarian_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> Vec<Scene>  {
-	if latest.result.expect("LeverState Should not be none") == LeverState::Right {
-		vec![
-			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
-			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage])
-		]
-	} else {
-		vec![
-			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail))
-		]
-	}
+fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<Scene> {
+    if latest.result.expect("LeverState Should not be none") == LeverState::Right {
+        if stage == 4 {
+            std::iter::once(Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)))
+                .chain(std::iter::once(Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro))))
+                .chain(DilemmaScene::random_deaths(10))
+                .collect()
+        } else {
+            vec![
+                Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
+                Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),
+            ]
+        }
+    } else {
+        std::iter::once(Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)))
+            .chain(std::iter::once(Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro))))
+            .chain(DilemmaScene::random_deaths(10))
+            .collect()
+    }
 }

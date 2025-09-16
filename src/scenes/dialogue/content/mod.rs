@@ -217,13 +217,15 @@ define_dialogue! {
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Lab4Dialogue {
-    UtilitarianPath(UtilitarianPath)
+    UtilitarianPath(UtilitarianPath),
+    Outro
 }
 
 impl DialogueProvider for Lab4Dialogue {
     fn content(&self) -> &'static str {
         match self {
             Self::UtilitarianPath(path) => path.get_json_content(),
+            Self::Outro => include_str!("./lab/4/outro.json")
         }
     }
 }
@@ -238,7 +240,7 @@ pub struct UtilitarianPath {
 
 impl UtilitarianPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
-        assert!(number <= 5, "Path number must be less than 6");
+        assert!(number <= 5, "Path number must be less than 5");
         Self { number, outcome }
     }
     
@@ -256,6 +258,8 @@ impl UtilitarianPath {
             (PathOutcome::Pass, 3) => include_str!("./lab/4/path_utilitarian/3/pass.json"),
             (PathOutcome::Fail, 3) => include_str!("./lab/4/path_utilitarian/3/fail.json"),
 
+            (PathOutcome::Pass, 4) => include_str!("./lab/4/path_utilitarian/4/pass.json"),
+            (PathOutcome::Fail, 4) => include_str!("./lab/4/path_utilitarian/4/fail.json"),
             
             _ => unreachable!("Invalid path configuration"),
         }

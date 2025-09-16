@@ -127,6 +127,7 @@ impl DilemmaScene {
 		let scene = queue.current;
 
 		let dilemma = match scene {
+			Scene::Dilemma(DilemmaScene::RandomDeaths) => Dilemma::randomize(),
 			Scene::Dilemma(content) => {
 				Dilemma::new(&content)
 			},

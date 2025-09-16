@@ -89,7 +89,8 @@ pub enum MenuSounds {
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuActions {
-    EnterGame
+    EnterGame,
+    OpenOptions
 }
 
 impl std::fmt::Display for MenuActions {
@@ -108,6 +109,7 @@ impl MenuScene {
     const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
     const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 0.4);
     const SIGNATURE_TRANSLATION : Vec3 = Vec3::new(0.0, -100.0, 1.0);
+    const OPTIONS_TRANSLATION : Vec3 = Vec3::new(0.0, -150.0, 1.0);
 
     fn setup(
         mut commands: Commands, 
@@ -213,7 +215,45 @@ impl MenuScene {
                                         MenuSounds::Click
                                     ),
                                     InputAction::NextScene
+                                ],
+                                MenuActions::OpenOptions => vec![]
+                            )
+                        ),
+                        TransientAudioPallet::new(
+                            vec![(
+                                MenuSounds::Click,
+                                vec![
+                                    TransientAudio::new(
+                                        asset_server.load(
+                                            "./audio/effects/mech_click.ogg"
+                                        ), 
+                                        0.1, 
+                                        true,
+                                        1.0,
+                                        true
+                                    )
                                 ]
+                            )]
+                        ),
+                    ),
+                    (
+                        Transform::from_translation(Self::OPTIONS_TRANSLATION),
+                        TextColor(MENU_COLOR),
+                        TextButton::new(
+                            vec![
+                                MenuActions::OpenOptions
+                            ],
+                            vec![KeyCode::KeyO],
+                            "[Options]",
+                        ),
+                        ActionPallet::<MenuActions, MenuSounds>(
+                            enum_map!(
+                                MenuActions::EnterGame => vec![],
+                                MenuActions::OpenOptions => vec![
+                                    InputAction::PlaySound(
+                                        MenuSounds::Click
+                                    )
+                                ],
                             )
                         ),
                         TransientAudioPallet::new(
