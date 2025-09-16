@@ -30,27 +30,27 @@ macro_rules! define_dilemma {
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum DilemmaScene {
-    RandomDeaths,
     Lab0(Lab0Dilemma),
     Lab1(Lab1Dilemma),
     PathInaction(DilemmaPathInaction, usize),
     Lab2(Lab2Dilemma),
     PathDeontological(DilemmaPathDeontological, usize),
     PathUtilitarian(DilemmaPathUtilitarian, usize),
-    Lab3(Lab3Dilemma)
+    Lab3(Lab3Dilemma),
+    Lab4(Lab4Dilemma)
 }
 
 impl DilemmaScene {
     pub fn content(&self) -> &'static str {
         match self {
-            Self::RandomDeaths => "",
             Self::Lab0(dilemma) => dilemma.content(),
             Self::Lab1(dilemma) => dilemma.content(),
             Self::PathInaction(dilemma, _) => dilemma.content(),
             Self::Lab2(dilemma) => dilemma.content(),
             Self::PathDeontological(dilemma, _) => dilemma.content(),
             Self::PathUtilitarian(dilemma, _) => dilemma.content(),
-            Self::Lab3(dilemma) => dilemma.content()
+            Self::Lab3(dilemma) => dilemma.content(),
+            Self::Lab4(dilemma) => dilemma.content(),
         }
     }
 }
@@ -78,6 +78,12 @@ define_dilemma! {
 define_dilemma! {
     Lab3Dilemma {
         AsleepAtTheJob => "./lab/3/asleep_at_the_job.json"
+    }
+}
+
+define_dilemma! {
+    Lab4Dilemma {
+        RandomDeaths => "./lab/4/random_deaths.json"
     }
 }
 

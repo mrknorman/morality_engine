@@ -1,24 +1,28 @@
 {
-    "index" : "THREE Ac",
-    "name" : "The Trolleygeddon Problem",
-    "narration_path": "./audio/narration/lab/3/path_deontological/the_trolleygeddon_problem.ogg",
-    "description" : "The bandit has become an arbitrarily powerful supervillain and tied the entire population of Earth to the tracks. It was really quite an impressive endeavour. Should you fail to act, the death will go on for days. It will be quite horrible. Although some would say this is still none of your responsibility. After all, if you pull the lever, you'll still become a murderer, won't you? Maybe no price is worth that.",
-    "default_option" : 0,
-    "countdown_duration_seconds" : 20,
-    "options": [
-      {
-        "index" : 0,
-        "name": "Very Long Track",
-        "description": "This track has the population of Earth tied to it. Surely this will stretch your pacifism past its limits.",
-        "humans" : [],
-        "num_humans": 8209734046
-      },
-      {
-        "index" : 1,
-        "name": "Human-Sparse Track",
-        "description": "Just one human placed against the rest of the world. Everyone he knows is on the other track too.",
-        "humans": [],
-        "num_humans": 1
-      }
-    ]
+  "index" : "THREE Ac",
+  "name" : "The Trolleygeddon Problem",
+  "narration_path": "./audio/narration/lab/3/path_deontological/the_trolleygeddon_problem.ogg",
+  "description" : "The bandit has become an arbitrarily powerful supervillain and tied the entire population of Earth to the tracks. It was really quite an impressive endeavour. Should you fail to act, the death will go on for days. It will be quite horrible. Although some would say this is still none of your responsibility. After all, if you pull the lever, you'll still become a murderer, won't you? Maybe no price is worth that.",
+  "stages" : [
+    {  
+      "default_option" : 0,
+      "countdown_duration_seconds" : 20,
+      "options": [
+        {
+          "index" : 0,
+          "name": "Very Long Track",
+          "description": "This track has the population of Earth tied to it. Surely this will stretch your pacifism past its limits.",
+          "humans" : [],
+          "num_humans": 8209734046
+        },
+        {
+          "index" : 1,
+          "name": "Human-Sparse Track",
+          "description": "Just one human placed against the rest of the world. Everyone he knows is on the other track too.",
+          "humans": [],
+          "num_humans": 1
+        }
+      ]
+    }
+  ]
 }

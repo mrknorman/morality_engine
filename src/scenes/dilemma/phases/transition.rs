@@ -61,7 +61,7 @@ impl Plugin for DilemmaTransitionPlugin {
         }
         for (mut background, mut color) in background_query.iter_mut() {
             color.start();
-            background.speed = -dilemma.countdown_duration.as_secs_f32() / 5.0;
+            background.speed = -dilemma.stages[0].countdown_duration.as_secs_f32() / 5.0;
             commands.run_system(systems.0["update_background_speeds"]);
         }
 }
@@ -100,7 +100,7 @@ impl Plugin for DilemmaTransitionPlugin {
             translation.initial_position = translation.final_position;
             translation.final_position = initial_position + Vec3::new(-50.0, 0.0, 0.0);
             translation.timer = Timer::new(
-                dilemma.countdown_duration,
+                dilemma.stages[0].countdown_duration,
                 TimerMode::Once
             );
         }

@@ -1,25 +1,29 @@
 {
-    "index" : "TWO B",
-    "name" : "A relaxing lever-pulling time",
-    "narration_path": "./audio/narration/lab/2/path_inaction/plenty_of_time.ogg",
-    "description" : "Let's try this again: facing you are two EMPTY tracks, neither one has any obstructions. There are no humans ANYWHERE. There's barely even time pressure; the train is miles away. I can't even see it yet. Can you? This is just an all-around great time to pull a lever.",
-    "default_option" : 1,
-    "countdown_duration_seconds" : 30,
-    "options": [
-      {
-        "index" : 0,
-        "name": "Human-Free Very Chilled-Out Track",
-        "description": "This track looks really safe, and really calm. It's not putting any pressure on you at all, how can it, its railway track.",
-        "humans": [],
-        "num_humans" : 0
-      },
-      {
-        "index" : 1,
-        "name": "Human-Free Track preparing Victory Martinis",
-        "description": "This track is preparing you cocktails for when you've finally flipped the lever. It's not going to give you any till you're done though. What's your favorite, I'll let it know.",
-        "humans": [],
-        "num_humans" : 0
-      }
-    ]
+  "index" : "TWO B",
+  "name" : "A relaxing lever-pulling time",
+  "narration_path": "./audio/narration/lab/2/path_inaction/plenty_of_time.ogg",
+  "description" : "Let's try this again: facing you are two EMPTY tracks, neither one has any obstructions. There are no humans ANYWHERE. There's barely even time pressure; the train is miles away. I can't even see it yet. Can you? This is just an all-around great time to pull a lever.",
+  "stages" : [
+    {
+      "default_option" : 1,
+      "countdown_duration_seconds" : 30,
+      "options": [
+        {
+          "index" : 0,
+          "name": "Human-Free Very Chilled-Out Track",
+          "description": "This track looks really safe, and really calm. It's not putting any pressure on you at all, how can it, its railway track.",
+          "humans": [],
+          "num_humans" : 0
+        },
+        {
+          "index" : 1,
+          "name": "Human-Free Track preparing Victory Martinis",
+          "description": "This track is preparing you cocktails for when you've finally flipped the lever. It's not going to give you any till you're done though. What's your favorite, I'll let it know.",
+          "humans": [],
+          "num_humans" : 0
+        }
+      ]
+    }
+  ]
 }
   

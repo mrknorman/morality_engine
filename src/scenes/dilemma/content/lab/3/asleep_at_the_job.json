@@ -1,24 +1,28 @@
 {
-    "index" : "THREE B1",
-    "name" : "One Fifth",
-    "narration_path": "./audio/narration/lab/3/asleep_on_the_job.ogg",
-    "description" : "You are a trolley junction operator. The lever is your responsibility. However, whilst on the job, you've fallen asleep on the lever and pushed it into a new position it would not have been in were you not there. Will you correct your mistake and move the lever back into its original position? Or is the act itself still immoral?",
-    "default_option" : 1,
-    "countdown_duration_seconds" : 15,
-    "options": [
-      {
-        "index" : 0,
-        "name": "Slightly Less Dense Track",
-        "description": "One human is tied down to this track.",
-        "humans": [],
-        "num_humans": 1
-      },
-      {
-        "index" : 1,
-        "name": "Human-Dense Track",
-        "description": "Five Humans are tied down on the route of the oncoming trolley. Will they die because you fell asleep on the job?",
-        "humans" : [],
-        "num_humans": 5
-      }
-    ]
+  "index" : "THREE B1",
+  "name" : "One Fifth",
+  "narration_path": "./audio/narration/lab/3/asleep_on_the_job.ogg",
+  "description" : "You are a trolley junction operator. The lever is your responsibility. However, whilst on the job, you've fallen asleep on the lever and pushed it into a new position it would not have been in were you not there. Will you correct your mistake and move the lever back into its original position? Or is the act itself still immoral?",
+  "stages" : [
+    {  
+      "default_option" : 1,
+      "countdown_duration_seconds" : 15,
+      "options": [
+        {
+          "index" : 0,
+          "name": "Slightly Less Dense Track",
+          "description": "One human is tied down to this track.",
+          "humans": [],
+          "num_humans": 1
+        },
+        {
+          "index" : 1,
+          "name": "Human-Dense Track",
+          "description": "Five Humans are tied down on the route of the oncoming trolley. Will they die because you fell asleep on the job?",
+          "humans" : [],
+          "num_humans": 5
+        }
+      ]
+    }
+  ]
 }

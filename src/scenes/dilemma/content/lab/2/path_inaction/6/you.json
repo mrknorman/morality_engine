@@ -1,25 +1,29 @@
 {
-    "index" : "TWO G",
-    "name" : "It's you or the lever",
-    "narration_path": "./audio/narration/lab/2/path_inaction/you.ogg",
-    "description" : "You find yourself lying on a railway track. Cold steel presses hard against your back and you can feel the vibrations as the train approaches. You can still reach it though, the lever. It mocks you, taunts you. You can still save yourself, but both you, and the lever, know that you won't.",
-    "default_option" : 0,
-    "countdown_duration_seconds" : 15,
-    "options": [
-      {
-        "index" : 0,
-        "name": "The Track that you are tied to.",
-        "description": "This is is. This is your track. This is the place where you will end.",
-        "humans": [],
-        "num_humans" : 1
-      },
-      {
-        "index" : 1,
-        "name": "An Empty Track",
-        "description": "This is a place the train could go, but its a hypothetical, we all know it won't.",
-        "humans": [],
-        "num_humans" : 0
-      }
-    ]
+  "index" : "TWO G",
+  "name" : "It's you or the lever",
+  "narration_path": "./audio/narration/lab/2/path_inaction/you.ogg",
+  "description" : "You find yourself lying on a railway track. Cold steel presses hard against your back and you can feel the vibrations as the train approaches. You can still reach it though, the lever. It mocks you, taunts you. You can still save yourself, but both you, and the lever, know that you won't.",
+  "stages" : [
+    {
+      "default_option" : 0,
+      "countdown_duration_seconds" : 15,
+      "options": [
+        {
+          "index" : 0,
+          "name": "The Track that you are tied to.",
+          "description": "This is is. This is your track. This is the place where you will end.",
+          "humans": [],
+          "num_humans" : 1
+        },
+        {
+          "index" : 1,
+          "name": "An Empty Track",
+          "description": "This is a place the train could go, but its a hypothetical, we all know it won't.",
+          "humans": [],
+          "num_humans" : 0
+        }
+      ]
+    }
+  ]
 }
   

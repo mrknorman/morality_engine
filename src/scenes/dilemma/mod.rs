@@ -15,22 +15,20 @@ use crate::{
 			AsciiString, 
 			TextEmotion
 		}, person::PersonPlugin, sprites::{
-			window::WindowTitle, 
-			SpritePlugin
+			SpritePlugin, window::WindowTitle
 		}, text::{
 			TextPlugin, 
 			TextWindow
 		}, train::{
-			content::TrainTypes, Train, TrainPlugin
+			Train, TrainPlugin, content::TrainTypes
 		} 
-	}, style::ui::IOPlugin, systems::{
+	}, scenes::dilemma::phases::decision_transition::DilemmaDecisionTransitionPlugin, style::ui::IOPlugin, systems::{
 		audio::{
-			continuous_audio, 
-			MusicAudio
+			MusicAudio, continuous_audio
 		}, backgrounds::{
-			content::BackgroundTypes, Background, BackgroundPlugin
+			Background, BackgroundPlugin, content::BackgroundTypes
 		}, colors::{
-			AlphaTranslation, ColorTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
+			AlphaTranslation, BACKGROUND_COLOR, ColorTranslation, DIM_BACKGROUND_COLOR, Fade, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
 		}, inheritance::BequeathTextAlpha, interaction::{
 			Draggable, 
 			InteractionPlugin
@@ -68,6 +66,7 @@ impl Plugin for DilemmaScenePlugin {
 		.add_plugins(DilemmaIntroPlugin)
 		.add_plugins(DilemmaTransitionPlugin)
 		.add_plugins(DilemmaDecisionPlugin)
+		.add_plugins(DilemmaDecisionTransitionPlugin)
 		.add_plugins(DilemmaConsequencePlugin)
 		.add_plugins(DilemmaResultsPlugin)
 		.add_plugins(DilemmaSkipPlugin);
@@ -127,7 +126,6 @@ impl DilemmaScene {
 		let scene = queue.current;
 
 		let dilemma = match scene {
-			Scene::Dilemma(DilemmaScene::RandomDeaths) => Dilemma::randomize(),
 			Scene::Dilemma(content) => {
 				Dilemma::new(&content)
 			},
@@ -135,19 +133,19 @@ impl DilemmaScene {
 		};
 
 		commands.insert_resource(
-			DilemmaStats::new(dilemma.countdown_duration)
+			DilemmaStats::new(dilemma.stages[0].countdown_duration)
 		);
 
-		let decision_position = -70.0 * dilemma.countdown_duration.as_secs_f32();
+		let decision_position = -70.0 * dilemma.stages[0].countdown_duration.as_secs_f32();
 		let transition_duration = Duration::from_secs_f32(decision_position/Self::TRAIN_SPEED);
 		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
 		let final_position = Vec3::new(
-			150.0 * dilemma.countdown_duration.as_secs_f32(),
+			150.0 * dilemma.stages[0].countdown_duration.as_secs_f32(),
 			0.0, 
 			0.0
 		);
 		let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
-		let initial_color = match dilemma.default_option {
+		let initial_color = match dilemma.stages[0].default_option {
 			None => Color::WHITE,
 			Some(ref option) => Self::TRACK_COLORS[*option]
 		};

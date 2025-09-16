@@ -117,7 +117,7 @@ impl DecisionScene {
 			dilemma: Res<Dilemma>,
 		) {
 
-		let (start_text, state, color) = match dilemma.default_option {
+		let (start_text, state, color) = match dilemma.stages[0].default_option {
 			None => (
 				LEVER_MIDDLE, 
 				LeverState::Random, 
@@ -178,7 +178,7 @@ impl DecisionScene {
 					TextTitle,
 					DilemmaTimerPosition,
 					DilemmaTimer::new(
-						dilemma.countdown_duration, 
+						dilemma.stages[0].countdown_duration, 
 						Duration::from_secs_f32(5.0),
 						Duration::from_secs_f32(2.0)
 					
@@ -196,7 +196,7 @@ impl DecisionScene {
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
 						],	
-						dilemma.default_option.unwrap_or(0)			
+						dilemma.stages[0].default_option.unwrap_or(0)			
 					),
 					Pressable::new(vec![
 						KeyMapping{
@@ -251,7 +251,7 @@ impl DecisionScene {
 			]
 		)).with_children(
 			|parent| {
-				for (option, transform) in zip(dilemma.options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
+				for (option, transform) in zip(dilemma.stages[0].options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
 					parent.spawn((
 						TextWindow{
 							title : Some(WindowTitle{
@@ -325,7 +325,7 @@ impl DecisionScene {
 		mut timer : Query<&mut DilemmaTimer>
 	) {
 
-		let consequence = dilemma.options[lever.0 as usize].consequences;
+		let consequence = dilemma.stages[0].options[lever.0 as usize].consequences;
 
 		for timer in timer.iter_mut() {
 			stats.finalize(&consequence, &lever.0, &timer.timer);

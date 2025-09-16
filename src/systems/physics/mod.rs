@@ -66,7 +66,7 @@ impl Velocity {
     fn enact(
         time: Res<Time>,
         dilation : Res<Dilation>,
-        mut query : Query<(&mut Transform, &mut Velocity)>, 
+        mut query : Query<(&mut Transform, &Velocity)>, 
     ) {
         let duration_seconds = time.delta_secs()*dilation.0;
         for (mut transform, velocity) in query.iter_mut() {
@@ -186,7 +186,7 @@ impl Gravity{
 impl Default for Gravity {
     fn default() -> Self {
         Self{
-            acceleration : Vec3::new(0.0, -200.0, 1.0),
+            acceleration : Vec3::new(0.0, -200.0, 0.0),
             floor_level : None,
             is_falling : false
         }

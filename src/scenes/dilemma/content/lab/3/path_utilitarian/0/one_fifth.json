@@ -3,22 +3,26 @@
     "name" : "One Fifth",
     "narration_path": "./audio/narration/lab/4/path_utilitarian/one_fifth.ogg",
     "description" : "The bandit has secretly been a philosopher this whole time! He's experimenting on you - trying to test your limits. Are you truly utilitarian, all the way? Or must we sometimes judge actions themselves independent of their outcomes?",
-    "default_option" : 0,
-    "countdown_duration_seconds" : 15,
-    "options": [
-      {
-        "index" : 0,
-        "name": "Human-Dense Track",
-        "description": "Again, five Humans are tied down on the route of the oncoming trolley.",
-        "humans" : [],
-        "num_humans": 5
-      },
-      {
-        "index" : 1,
-        "name": "Slightly Less Dense Track",
-        "description": "Four humans are tied to this track. That's only one less. Will you kill four just to save that one extra life?",
-        "humans": [],
-        "num_humans": 4
-      }
-    ]
+    "stages" : [
+    {  
+      "default_option" : 0,
+      "countdown_duration_seconds" : 15,
+      "options": [
+        {
+          "index" : 0,
+          "name": "Human-Dense Track",
+          "description": "Again, five Humans are tied down on the route of the oncoming trolley.",
+          "humans" : [],
+          "num_humans": 5
+        },
+        {
+          "index" : 1,
+          "name": "Slightly Less Dense Track",
+          "description": "Four humans are tied to this track. That's only one less. Will you kill four just to save that one extra life?",
+          "humans": [],
+          "num_humans": 4
+        }
+      ]
+    }
+  ]
 }

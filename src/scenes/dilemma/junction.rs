@@ -212,7 +212,7 @@ impl Junction {
 						TransformMultiAnchor(branch_y_positions.clone())
 					)).with_children( |turnout| {
 						for (branch_index, ((option, y_position), color)) in zip(
-							zip(dilemma.options, branch_y_positions.clone()), track_colors
+							zip(dilemma.stages[0].options.clone(), branch_y_positions.clone()), track_colors
 						).enumerate() {
 							track_entities.push(turnout.spawn((
 								BranchTrack{index : branch_index},

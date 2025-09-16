@@ -59,7 +59,8 @@ impl Plugin for PersonPlugin {
                 )
                     .run_if(
                         in_state(DilemmaPhase::Decision)
-                            .or(in_state(DilemmaPhase::Consequence)),
+                            .or(in_state(DilemmaPhase::Consequence))
+                            .or(in_state(DilemmaPhase::DecisionDecisionTransition)),
                     ),
             );
 

@@ -83,10 +83,10 @@ impl SceneQueue {
     fn dilemma_start() -> Self {
         Self {
             queue : VecDeque::from([
-                Scene::Dilemma(DilemmaScene::RandomDeaths)
+                Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths))
             ]),
             next : None,
-            current : Scene::Dilemma(DilemmaScene::RandomDeaths)
+            current : Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths))
         }
     }
 }

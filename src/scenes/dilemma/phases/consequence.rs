@@ -12,18 +12,13 @@ use enum_map::{
 use crate::{
     data::{
         states::{
-            DilemmaPhase, 
-            GameState, 
-            StateVector
+            DilemmaPhase, GameState, MainState, StateVector
         },
         stats::GameStats
     }, entities::{
         text::TextButton, train::Train
     }, scenes::dilemma::{
-        dilemma:: Dilemma, 
-        junction::Junction, 
-        lever::Lever,
-        DilemmaSounds
+        DilemmaSounds, dilemma:: Dilemma, junction::Junction, lever::Lever
     }, style::common_ui::NextButton, systems::{
         audio::{
             OneShotAudio, 
@@ -74,7 +69,7 @@ impl Plugin for DilemmaConsequencePlugin {
 			.run_if(in_state(GameState::Dilemma)),
 		)
         .add_systems(
-			OnExit(DilemmaPhase::Consequence), 
+			OnEnter(DilemmaPhase::Results), 
 			Junction::cleanup
 		)
 		.add_systems(
@@ -155,14 +150,18 @@ impl DilemmaConsequenceScene{
         loading_query: Single<(Entity, &TimerPallet<DilemmaConsequenceEvents>), With<DilemmaConsequenceScene>>,
         dilemma: Res<Dilemma>,
         lever: Res<Lever>,
-        asset_server: Res<AssetServer>
+        asset_server: Res<AssetServer>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut next_sub_state: ResMut<NextState<DilemmaPhase>>
     ) {
         const SCREAM_SOUND: &str = "./audio/effects/male_scream_long.ogg";
         const SPEEDUP_SOUND: &str = "./audio/effects/speedup.ogg";
-        const SPEEDUP_DURATION_SECONDS: f32 = 1.057; // Exact duration of the speedup sound.
+        const SPEEDUP_DURATION_SECONDS: f32 = 1.057;
     
         // Determine if there are fatalities based on the current dilemma option.
-        let are_fatalities = dilemma.options[lever.0 as usize].num_humans > 0;
+        let are_fatalities = dilemma.stages[0].options[lever.0 as usize].num_humans > 0;
+        let num_stages = dilemma.stages.len();
     
         let (entity, timers) = loading_query.into_inner();
         
@@ -194,47 +193,58 @@ impl DilemmaConsequenceScene{
             });
         }
 
-        if timers.0[DilemmaConsequenceEvents::Button].just_finished() {
-            commands.entity(entity).with_children(|parent| {
-                parent.spawn((
-                    NextButton,
-                    TextButton::new(
-                        vec![DilemmaConsequenceActions::ShowResults],
-                        vec![KeyCode::Enter],
-                        format!("[Behold the consequences!]"),
-                    ),
-                    ActionPallet::<DilemmaConsequenceActions, DilemmaSounds>(
-                        enum_map!(
-                            DilemmaConsequenceActions::ShowResults => vec![
-                                InputAction::PlaySound(DilemmaSounds::Click),
-                                InputAction::ChangeState(
-                                    StateVector::new(
-                                        None,
-                                        None,
-                                        Some(DilemmaPhase::Results),
-                                    )
-                                ),
-                                InputAction::Despawn(None)
-                                ]
-                            )
-                    ),
-                    TransientAudioPallet::new(
-                        vec![(
-                            DilemmaSounds::Click,
-                            vec![
-                                TransientAudio::new(
-                                    asset_server.load("./audio/effects/mech_click.ogg"), 
-                                    0.1, 
-                                    true,
-                                    1.0,
-                                    true
+        if timers.0[DilemmaConsequenceEvents::Button].just_finished() { 
+
+            if num_stages == 1 {
+                commands.entity(entity).with_children(|parent| {
+                    parent.spawn((
+                        NextButton,
+                        TextButton::new(
+                            vec![DilemmaConsequenceActions::ShowResults],
+                            vec![KeyCode::Enter],
+                            format!("[Behold the consequences!]"),
+                        ),
+                        ActionPallet::<DilemmaConsequenceActions, DilemmaSounds>(
+                            enum_map!(
+                                DilemmaConsequenceActions::ShowResults => vec![
+                                    InputAction::PlaySound(DilemmaSounds::Click),
+                                    InputAction::ChangeState(
+                                        StateVector::new(
+                                            None,
+                                            None,
+                                            Some(DilemmaPhase::Results),
+                                        )
+                                    ),
+                                    InputAction::Despawn(None)
+                                    ]
                                 )
-                            ]
-                        )]
-                    ),
-                    
-                ));
-            });
+                        ),
+                        TransientAudioPallet::new(
+                            vec![(
+                                DilemmaSounds::Click,
+                                vec![
+                                    TransientAudio::new(
+                                        asset_server.load("./audio/effects/mech_click.ogg"), 
+                                        0.1, 
+                                        true,
+                                        1.0,
+                                        true
+                                    )
+                                ]
+                            )]
+                        ),
+                    ));
+                });
+            } else {
+                let next_state = StateVector::new(None, None, Some(DilemmaPhase::DecisionDecisionTransition));
+                
+                next_state.set_state(                        
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state
+                );
+            }
+            
         }
     }
 }

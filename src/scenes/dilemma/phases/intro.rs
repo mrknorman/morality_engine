@@ -82,7 +82,7 @@ impl DilemmaIntroScene {
 		mut commands : Commands,
 		dilemma: Res<Dilemma>,
 	) {
-		let state= match dilemma.default_option {
+		let state= match dilemma.stages[0].default_option {
 			None => LeverState::Random,
 			Some(ref option) if *option == 0 => LeverState::Left,
 			Some(_) => LeverState::Right,

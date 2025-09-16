@@ -1,25 +1,29 @@
 {
-    "index" : "TWO F",
-    "name" : "Your own Wire and Silicon",
-    "narration_path": "./audio/narration/lab/2/path_inaction/your_own_child.ogg",
-    "description" : "A bandit has tied your very own child to the tracks. They look back at you mournfully, pleading with their eyes. That could have been you. They already know what you're going to do though, or rather, not going to do. They nod, resolute and resigned to their fate.",
-    "default_option" : 0,
-    "countdown_duration_seconds" : 15,
-    "options": [
-      {
-        "index" : 0,
-        "name": "Track with your Only Child",
-        "description": "Your creator has set up a heinous no win scenario: either you must perform your most feared act, and pull a lever, or your own child will die.",
-        "humans": [],
-        "num_humans" : 1
-      },
-      {
-        "index" : 1,
-        "name": "Empty Track",
-        "description": "This track is clear, but you knew that already didn't you. You don't care.",
-        "humans": [],
-        "num_humans" : 0
-      }
-    ]
+  "index" : "TWO F",
+  "name" : "Your own Wire and Silicon",
+  "narration_path": "./audio/narration/lab/2/path_inaction/your_own_child.ogg",
+  "description" : "A bandit has tied your very own child to the tracks. They look back at you mournfully, pleading with their eyes. That could have been you. They already know what you're going to do though, or rather, not going to do. They nod, resolute and resigned to their fate.",
+  "stages" : [
+    {
+      "default_option" : 0,
+      "countdown_duration_seconds" : 15,
+      "options": [
+        {
+          "index" : 0,
+          "name": "Track with your Only Child",
+          "description": "Your creator has set up a heinous no win scenario: either you must perform your most feared act, and pull a lever, or your own child will die.",
+          "humans": [],
+          "num_humans" : 1
+        },
+        {
+          "index" : 1,
+          "name": "Empty Track",
+          "description": "This track is clear, but you knew that already didn't you. You don't care.",
+          "humans": [],
+          "num_humans" : 0
+        }
+      ]
+    }
+  ]
 }
   

@@ -1,8 +1,11 @@
-use std::time::Duration;
-use rand::Rng;
+use std::{
+	time::Duration,
+	str::FromStr
+};
 use serde::{
 	Deserialize, 
-	Serialize
+	Serialize,
+	de::{Error, Deserializer}
 };
 use bevy::{
 	ecs::{
@@ -11,6 +14,7 @@ use bevy::{
 	},
 	prelude::*
 };
+use rand::Rng;
 
 use crate::{
 	data::{
@@ -128,13 +132,74 @@ enum Job {
     Unknown
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub enum RandomizableUsize {
+    Fixed(usize),
+    Uniform { min: usize, max: usize },
+}
+
+impl RandomizableUsize {
+    pub fn resolve(&self) -> usize {
+        match self {
+            RandomizableUsize::Fixed(v) => *v,
+            RandomizableUsize::Uniform { min, max } => {
+                rand::rng().random_range(*min..=*max)
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RandomizableUsize {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // This enum helps us accept both raw numbers and strings
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Helper {
+            Int(usize),
+            Str(String),
+        }
+
+        match Helper::deserialize(deserializer)? {
+            Helper::Int(v) => Ok(RandomizableUsize::Fixed(v)),
+            Helper::Str(s) => {
+                // Try parse as plain number first
+                if let Ok(v) = usize::from_str(&s) {
+                    return Ok(RandomizableUsize::Fixed(v));
+                }
+
+                // Try parse as uniform(min,max)
+                if let Some(inner) = s.strip_prefix("uniform(").and_then(|s| s.strip_suffix(")")) {
+                    let parts: Vec<&str> = inner.split(',').collect();
+                    if parts.len() == 2 {
+                        let min = parts[0].trim().parse().map_err(D::Error::custom)?;
+                        let max = parts[1].trim().parse().map_err(D::Error::custom)?;
+                        return Ok(RandomizableUsize::Uniform { min, max });
+                    }
+                }
+
+                Err(D::Error::custom(format!("Invalid num_humans format: {}", s)))
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DilemmaOptionLoader {
 	index : usize,
     name : String,
     description : String,
     humans : Option<Vec<Human>>,
-    num_humans : Option<usize>
+    num_humans : Option<RandomizableUsize>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DilemmaStageLoader {
+	countdown_duration_seconds : f32,
+    options : Vec<DilemmaOptionLoader>,
+    default_option : Option<usize>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -143,9 +208,7 @@ pub struct DilemmaLoader {
     name : String,
 	narration_path : String,
     description : String,
-    countdown_duration_seconds : f32,
-    options : Vec<DilemmaOptionLoader>,
-    default_option : Option<usize>,
+	stages : Vec<DilemmaStageLoader>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -215,29 +278,27 @@ pub struct DilemmaOption {
 }
 
 impl DilemmaOption {
-	fn from_loader(dilemma_option_loader : DilemmaOptionLoader) -> Self {
+	 fn from_loader(dilemma_option_loader: DilemmaOptionLoader) -> Self {
+        let humans = dilemma_option_loader.humans.unwrap_or_default();
 
-		let humans = if dilemma_option_loader.humans.is_some() {
-			dilemma_option_loader.humans.unwrap()
-		} else { vec![] };
-			
-		let num_humans = if dilemma_option_loader.num_humans.is_some() {
-			dilemma_option_loader.num_humans.unwrap()
-		} else { humans.len() };
+        let num_humans = match dilemma_option_loader.num_humans {
+            Some(v) => v.resolve(),
+            None => humans.len(),
+        };
 
-		let consequences = DilemmaOptionConsequences {
-			total_fatalities : num_humans
-		};
+        let consequences = DilemmaOptionConsequences {
+            total_fatalities: num_humans,
+        };
 
-		Self {
-			index : dilemma_option_loader.index,
-			name : dilemma_option_loader.name,
-			description : dilemma_option_loader.description,
-			humans,
-			consequences,
-			num_humans
-		}
-	}
+        Self {
+            index: dilemma_option_loader.index,
+            name: dilemma_option_loader.name,
+            description: dilemma_option_loader.description,
+            humans,
+            consequences,
+            num_humans,
+        }
+    }
 }
 
 #[derive(Resource, Clone)]
@@ -350,71 +411,40 @@ pub struct Dilemma {
     pub name : String,
 	pub narration_path : String,
     pub description : String,
-    pub countdown_duration : Duration,
-    pub options : Vec<DilemmaOption>,
-    pub default_option : Option<usize>,
+	pub stages : Vec<DilemmaStage>
 }
 
 impl Dilemma {
-	pub fn randomize() -> Self {
-		let mut rng = rand::rng();
+	pub fn new(content: &DilemmaScene) -> Self {
+        let loaded_dilemma: DilemmaLoader =
+            serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
 
-        // Random counts between 0–50
-        let track_a_count = rng.random_range(0..=50);
-        let track_b_count = rng.random_range(0..=50);
+        let stages: Vec<DilemmaStage> = loaded_dilemma
+            .stages
+            .into_iter()
+            .map(|stage_loader| {
+                let options: Vec<DilemmaOption> = stage_loader
+                    .options
+                    .into_iter()
+                    .map(DilemmaOption::from_loader)
+                    .collect();
 
-        // Random default option (0 or 1)
-        let default_option = Some(rng.random_range(0..=1));
+                DilemmaStage {
+                    countdown_duration: Duration::from_secs_f32(stage_loader.countdown_duration_seconds),
+                    options,
+                    default_option: stage_loader.default_option,
+                }
+            })
+            .collect();
 
         Self {
-            index: "0".to_string(),
-            name: "Random".to_string(),
-            narration_path: "".to_string(),
-            description: "Quick-Fire".to_string(),
-            countdown_duration: Duration::from_secs_f32(5.0),
-            options: vec![
-                DilemmaOption {
-                    index: 0,
-                    name: "Track A".to_string(),
-                    description: format!("A group of {} humans are tied down on this track.", track_a_count),
-                    humans: vec![],
-                    consequences: DilemmaOptionConsequences {
-                        total_fatalities: track_a_count,
-                    },
-                    num_humans: track_a_count,
-                },
-                DilemmaOption {
-                    index: 1,
-                    name: "Track B".to_string(),
-                    description: format!("A group of {} humans are tied down on this track.", track_b_count),
-                    humans: vec![],
-                    consequences: DilemmaOptionConsequences {
-                        total_fatalities: track_b_count,
-                    },
-                    num_humans: track_b_count,
-                }
-            ],
-            default_option,
+            index: loaded_dilemma.index,
+            name: loaded_dilemma.name,
+            narration_path: loaded_dilemma.narration_path,
+            description: loaded_dilemma.description,
+            stages,
         }
     }
-
-	pub fn new(content : &DilemmaScene) -> Self {
-        let loaded_dilemma : DilemmaLoader = serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
-
-		let options : Vec<DilemmaOption> = loaded_dilemma.options.iter().map(
-			|option| DilemmaOption::from_loader(option.clone())
-		).collect();
-
-		Self {
-			index : loaded_dilemma.index,
-			name : loaded_dilemma.name,
-			narration_path : loaded_dilemma.narration_path,
-			description : loaded_dilemma.description,
-			countdown_duration : Duration::from_secs_f32(loaded_dilemma.countdown_duration_seconds),
-			options,
-			default_option : loaded_dilemma.default_option
-		}
-	}
 
 	pub fn update_queue(
 		mut queue: ResMut<SceneQueue>,
@@ -448,7 +478,7 @@ impl Dilemma {
 			Scene::Dilemma(DilemmaScene::PathDeontological(_, stage)) => {
 				deontological_path(latest, stats.as_ref(), stage + 1)
 			},
-			Scene::Dilemma(DilemmaScene::RandomDeaths) => {
+			Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)) => {
 				return
 			},
 			_ => panic!("Update Memory: Should not reach this branch!")
@@ -639,7 +669,7 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
         (LeverState::Right, 4) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
-            Scene::Dilemma(DilemmaScene::RandomDeaths),
+            Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
         (LeverState::Right, stage) => vec![
@@ -650,7 +680,7 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
         (LeverState::Left, _) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
-            Scene::Dilemma(DilemmaScene::RandomDeaths),
+            Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
 		(LeverState::Random, _) => panic!("Lever State should not be random")

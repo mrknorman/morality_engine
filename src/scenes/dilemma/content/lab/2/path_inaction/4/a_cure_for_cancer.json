@@ -1,25 +1,29 @@
 {
-    "index" : "TWO E",
-    "name" : "A Cure For Cancer",
-    "description" : "A bandit has tied the sole doctor who has discovered a cure for cancer to this track. They are also pregnant, with twins. One of those twins will grow up to be a masterful musician, one of the best the world's ever known. The other will go on to follow in their parent's footsteps and cure death - all death, that's right. The train hurtles toward them both. On the other track lies Hitler. Can you make that decision?",
-    "narration_path": "./audio/narration/lab/2/path_inaction/a_cure_for_cancer.ogg",
-    "default_option" : 0,
-    "countdown_duration_seconds" : 15,
-    "options": [
-      {
-        "index" : 0,
-        "name": "A Cure for Cancer",
-        "description": "Surely this one's a no-brainer?",
-        "humans": [],
-        "num_humans" : 1
-      },
-      {
-        "index" : 1,
-        "name": "MegaHitler",
-        "description": "Foolishly, MegaHitler has found himself tied down to this track. He's like Hitler, but a million times worse, and he has laser eyes that turn everyone he gazes upon racist.",
-        "humans": [],
-        "num_humans" : 1
-      }
-    ]
+  "index" : "TWO E",
+  "name" : "A Cure For Cancer",
+  "description" : "A bandit has tied the sole doctor who has discovered a cure for cancer to this track. They are also pregnant, with twins. One of those twins will grow up to be a masterful musician, one of the best the world's ever known. The other will go on to follow in their parent's footsteps and cure death - all death, that's right. The train hurtles toward them both. On the other track lies Hitler. Can you make that decision?",
+  "narration_path": "./audio/narration/lab/2/path_inaction/a_cure_for_cancer.ogg",
+  "stages" : [
+    {
+      "default_option" : 0,
+      "countdown_duration_seconds" : 15,
+      "options": [
+        {
+          "index" : 0,
+          "name": "A Cure for Cancer",
+          "description": "Surely this one's a no-brainer?",
+          "humans": [],
+          "num_humans" : 1
+        },
+        {
+          "index" : 1,
+          "name": "MegaHitler",
+          "description": "Foolishly, MegaHitler has found himself tied down to this track. He's like Hitler, but a million times worse, and he has laser eyes that turn everyone he gazes upon racist.",
+          "humans": [],
+          "num_humans" : 1
+        }
+      ]
+    }
+  ]
 }
   

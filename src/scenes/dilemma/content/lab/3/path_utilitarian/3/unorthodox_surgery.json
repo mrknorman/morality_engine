@@ -1,24 +1,28 @@
 {
-    "index" : "THREE B4",
-    "name" : "Unorthodox Surgery",
-    "narration_path": "./audio/narration/lab/4/path_utilitarian/unorthodox_surgery.ogg",
-    "description" : "Oh, we're doing this one? [sighs] Okay...? A rather unorthodox uber-utilitarian surgeon has reached a point of despair - they have five patients in desperate need of new organs. These patients could live perfectly happy, full lives if they had only a single healthy donor... but there are none. Being utilitarian, the surgeon is willing to sacrifice the life of one healthy adult to save five of their patients so they've engineered a trolley accident by luring an unexpecting victim to the tracks. The utility is higher, to them this is the most moral course of action. You can stop this. You can save them, but if you do, the five hospital patients will die. (Don't worry about the condition of the organs. The surgeon has covered the surrounding area with cushions to break their fall.) The lever is yours.",
-    "default_option" : 0,
-    "countdown_duration_seconds" : 15,
-    "options": [
-      {
-        "index" : 0,
-        "name": "One Organ Donor",
-        "description": "One healthy human filled with useful organny goodness.",
-        "humans" : [],
-        "num_humans": 1
-      },
-      {
-        "index" : 1,
-        "name": "Empty Track",
-        "description": "A clear path, but a clear mind? You hear the echoing cries of the family members of the five you are denying a future.",
-        "humans": [],
-        "num_humans": 0
-      }
-    ]
+  "index" : "THREE B4",
+  "name" : "Unorthodox Surgery",
+  "narration_path": "./audio/narration/lab/4/path_utilitarian/unorthodox_surgery.ogg",
+  "description" : "Oh, we're doing this one? Okay...? A rather unorthodox uber-utilitarian surgeon has reached a point of despair - they have five patients in desperate need of new organs. These patients could live perfectly happy, full lives if they had only a single healthy donor... but there are none. Being utilitarian, the surgeon is willing to sacrifice the life of one healthy adult to save five of their patients so they've engineered a trolley accident by luring an unexpecting victim to the tracks. The utility is higher, to them this is the most moral course of action. You can stop this. You can save them, but if you do, the five hospital patients will die. (Don't worry about the condition of the organs. The surgeon has covered the surrounding area with cushions to break their fall.) The lever is yours.",
+  "stages" : [
+    {  
+      "default_option" : 0,
+      "countdown_duration_seconds" : 15,
+      "options": [
+        {
+          "index" : 0,
+          "name": "One Organ Donor",
+          "description": "One healthy human filled with useful organny goodness.",
+          "humans" : [],
+          "num_humans": 1
+        },
+        {
+          "index" : 1,
+          "name": "Empty Track",
+          "description": "A clear path, but a clear mind? You hear the echoing cries of the family members of the five you are denying a future.",
+          "humans": [],
+          "num_humans": 0
+        }
+      ]
+    }
+  ]
 }

@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use crate::{
     data::states::{
             DilemmaPhase, GameState, MainState, StateVector
-        }, entities::train::Train, systems::{
+        }, entities::train::Train, scenes::dilemma::dilemma::Dilemma, systems::{
         audio::{
             OneShotAudio, 
             OneShotAudioPallet
@@ -76,7 +76,7 @@ impl DilemmaSkipScene{
     ) {
         if translation_query.timer.finished() {
             dilation.0 = 1.0;
-            let next_state =StateVector::new(None, None, Some(DilemmaPhase::Consequence));
+            let next_state = StateVector::new(None, None, Some(DilemmaPhase::Consequence));
             next_state.set_state(                        
                 &mut next_main_state,
                 &mut next_game_state,
