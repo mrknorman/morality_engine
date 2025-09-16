@@ -9,6 +9,7 @@ use bevy::diagnostic::{
     FrameTimeDiagnosticsPlugin
 };
 
+use crate::systems::audio::{OneShotAudio, OneShotAudioPallet};
 use crate::systems::resize::ResizePlugin;
 use crate::{
     systems::{
@@ -59,11 +60,38 @@ impl Plugin for StartupPlugin {
             .add_systems(
                 Update, (
                 shortcuts::close_on_esc, 
-            ));
+            ))
+            .add_systems(
+                Startup,
+                crt_start_up
+            );
 
             //#[cfg(debug_assertions)]
             app
             .add_plugins(FrameTimeDiagnosticsPlugin::default())
             .add_plugins(LogDiagnosticsPlugin::default());
     }
+}
+
+
+fn crt_start_up(
+    mut commands : Commands,
+    asset_server : Res<AssetServer>
+    ) {
+
+    commands.spawn(
+OneShotAudioPallet::new(
+            vec![
+                OneShotAudio{
+                    source : asset_server.load(
+                        "./audio/effects/crt/activate.ogg"
+                    ),
+                    dilatable : true,
+                    speed : 1.0,
+                    volume : 2.0,
+                    ..default()
+                }
+            ]
+        )
+    );
 }

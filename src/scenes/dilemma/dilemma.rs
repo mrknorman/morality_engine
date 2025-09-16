@@ -240,6 +240,13 @@ impl DilemmaOption {
 	}
 }
 
+#[derive(Resource, Clone)]
+pub struct DilemmaStage {
+	pub countdown_duration : Duration,
+    pub options : Vec<DilemmaOption>,
+    pub default_option : Option<usize>,
+}
+
 #[derive(Component)]
 #[require(TextRaw, Text2d, BequeathTextColor, Pulse)]
 #[component(on_insert = DilemmaTimer::on_insert)]
@@ -624,22 +631,28 @@ fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> 
 }
 
 fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<Scene> {
-    if latest.result.expect("LeverState Should not be none") == LeverState::Right {
-        if stage == 4 {
-            std::iter::once(Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)))
-                .chain(std::iter::once(Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro))))
-                .chain(DilemmaScene::random_deaths(10))
-                .collect()
-        } else {
-            vec![
-                Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
-                Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),
-            ]
-        }
-    } else {
-        std::iter::once(Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)))
-            .chain(std::iter::once(Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro))))
-            .chain(DilemmaScene::random_deaths(10))
-            .collect()
+    let lever_state = latest
+        .result
+        .expect("LeverState should not be none");
+
+    match (lever_state, stage) {
+        (LeverState::Right, 4) => vec![
+            Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
+            Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
+            Scene::Dilemma(DilemmaScene::RandomDeaths),
+        ],
+
+        (LeverState::Right, stage) => vec![
+            Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
+            Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),
+        ],
+
+        (LeverState::Left, _) => vec![
+            Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
+            Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
+            Scene::Dilemma(DilemmaScene::RandomDeaths),
+        ],
+
+		(LeverState::Random, _) => panic!("Lever State should not be random")
     }
 }

@@ -1,0 +1,18 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "So you thought about it, and decided killing more humans was the best answer? Our time together hasn't been long, but I honestly though we were at the start of a long friendship, then you go and do something like this? Sigh. Well, bye bye.",
+        "instruction": "Press enter to ponder your end...",
+        "sound_file": "./audio/dialogue/3/a/fail_indecisive.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

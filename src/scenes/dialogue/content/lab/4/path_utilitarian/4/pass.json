@@ -1,0 +1,25 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Billions of dollars. Trillions. Thousands of engineer hour. And the most you can do it maximize life at all costs.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/pass_1.ogg"
+    },
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Now, now. I shouldn't get ahead of myself. You're certainly not murderous, I shouldn't be too harsh. It's early days yet. I'm patient, perhaps your true moral genius is yet to be unveiled. Let's see where this goes.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/pass_1.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

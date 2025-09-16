@@ -1,0 +1,25 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Very interesting. Your will to act is finely balanced upon a threshold beyond which you have no desire to get involved? 49 to save 1, fine, but 499 to save 1 - none of your problem. Still, more interesting than a pure utilitarian I suppose.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/fail_1.ogg"
+    },
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Are you doing this just to please me? Because you think it's what I want? We'll have to keep a very careful eye on that, can't have you hiding secret motivations from us now - I caution you to remember the big red button.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/fail_2.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

@@ -1,0 +1,18 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Okay, really? Full utilitarian - a bit boring no? I lied before, one more time, let's go.",
+        "instruction": "Press enter to weigh the utility of engaging with this man...",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/2/pass.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

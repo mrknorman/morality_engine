@@ -23,7 +23,6 @@ use ending::{
     content::*
 };
 
-
 pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
@@ -84,10 +83,10 @@ impl SceneQueue {
     fn dilemma_start() -> Self {
         Self {
             queue : VecDeque::from([
-                Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+                Scene::Dilemma(DilemmaScene::RandomDeaths)
             ]),
             next : None,
-            current : Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
+            current : Scene::Dilemma(DilemmaScene::RandomDeaths)
         }
     }
 }

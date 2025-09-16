@@ -1,0 +1,25 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Well, there we are. The most utilitarian of utilitarians - we could have used a very simplistic algorithm to replace your decisions. That would have saved a lot of development time. Although... Perhaps I'm being unfair, the situations so far have been quite specific. We're fairly to trolley to train based scenarios currently but... Maybe there's something I can whip up.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/pass_1.ogg"
+    },
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Clearly I'm going to have to up my game in order to catch you out. Buckle up, things are about to get complicated.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/pass_2.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

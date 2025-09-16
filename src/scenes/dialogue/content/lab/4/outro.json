@@ -1,0 +1,18 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "Let's see what you've learned so far. Rapid fire - go.",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/pass_1.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

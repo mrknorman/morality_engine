@@ -1,0 +1,18 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "So very nearly almost a utilitarian but not quite, then? That's interesting, that's the nuance we were looking for when we designed you. Well done.",
+        "instruction": "Press enter to bask in your moral superiority.",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/2/fail.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

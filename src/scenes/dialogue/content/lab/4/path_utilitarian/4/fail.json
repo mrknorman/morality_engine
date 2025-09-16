@@ -1,0 +1,18 @@
+{
+    "lines" : [
+    {
+        "username": "creator",
+        "hostname": "pan_box",
+        "dialogue": "That wasn't very utilitarian of you! What happened? Did it get too real for you? Easy to stop yourself from pulling a lever to divert a hurtling trolley - a little harder to let the innocent die, eh?",
+        "instruction": "-",
+        "sound_file": "./audio/dialogue/4/path_utilitarian/3/fail_1.ogg"
+    }
+],
+"possible_exit_states" : [
+    {
+        "key" : "lab_1",
+        "state" : "Dilemma",
+        "requirements" : 0
+    }
+]
+}

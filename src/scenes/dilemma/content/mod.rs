@@ -53,12 +53,6 @@ impl DilemmaScene {
             Self::Lab3(dilemma) => dilemma.content()
         }
     }
-
-        pub fn random_deaths(number: u32) -> Vec<Scene> {
-            (0..number)
-            .map(|_| Scene::Dilemma(Self::RandomDeaths))
-            .collect()
-        }
 }
 
 // Define each dilemma type using the macro

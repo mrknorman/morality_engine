@@ -59,7 +59,6 @@ impl Plugin for DialogueScenePlugin {
 }
 
 impl DialogueScene {
-
     pub fn setup(
         mut commands: Commands, 
         mut queue : ResMut<SceneQueue>,
