@@ -391,6 +391,9 @@ impl Dilemma {
 			Scene::Dilemma(DilemmaScene::Lab2(_)) => {
 				lab_three(latest, stats.as_ref())
 			},
+			Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob)) => {
+				lab_three_junction(latest, stats.as_ref())
+			},
 			Scene::Dilemma(DilemmaScene::PathUtilitarian(_, stage)) => {
 				utilitarian_path(latest, stats.as_ref(), stage + 1)
 			},
@@ -499,7 +502,28 @@ fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
 	if latest.num_fatalities == 5 {
 		if latest.num_decisions > 0 {
 			vec![
-				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::Fail)),
+				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailIndecisive)),
+			]
+		} else {
+			vec![
+				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailInaction)),
+				Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob))
+			]
+		}
+	} else {
+		vec![
+			Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::PassUtilitarian)), 
+			Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro)),
+			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[0])
+		]
+	} 
+}
+
+fn lab_three_junction(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
+	if latest.num_fatalities == 5 {
+		if latest.num_decisions > 0 {
+			vec![
+				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailIndecisive))
 			]
 		} else {
 			vec![
@@ -508,11 +532,7 @@ fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
 			]
 		}
 	} else {
-		vec![
-			Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::Pass)), 
-			Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro)),
-			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[0])
-		]
+		todo!("?")
 	} 
 }
 
@@ -559,16 +579,15 @@ fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> 
 	}
 }
 
-
 fn utilitarian_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> Vec<Scene>  {
 	if latest.result.expect("LeverState Should not be none") == LeverState::Right {
 		vec![
-			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
-			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),
+			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
+			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage])
 		]
 	} else {
 		vec![
-			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass))
+			Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail))
 		]
 	}
 }

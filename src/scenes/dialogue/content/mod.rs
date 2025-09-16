@@ -63,7 +63,7 @@ impl DialogueScene {
 
     
     pub fn path_utilitarian(number: usize, outcome: PathOutcome) -> Self {
-        Self::Lab3a(Lab3aDialogue::DeontologicalPath(DeontologicalPath::new(number, outcome)))
+        Self::Lab4(Lab4Dialogue::UtilitarianPath(UtilitarianPath::new(number, outcome)))
     }
 }
 
@@ -192,16 +192,18 @@ impl DeontologicalPath {
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Lab3aDialogue {
-    Fail,
-    Pass,
+    FailIndecisive,
+    FailInaction,
+    PassUtilitarian,
     DeontologicalPath(DeontologicalPath)
 }
 
 impl DialogueProvider for Lab3aDialogue {
     fn content(&self) -> &'static str {
         match self {
-            Self::Pass => include_str!("./lab/3/a/pass.json"),
-            Self::Fail => include_str!("./lab/3/a/fail.json"),
+            Self::PassUtilitarian => include_str!("./lab/3/a/pass_utilitarian.json"),
+            Self::FailIndecisive => include_str!("./lab/3/a/fail_indecisive.json"),
+            Self::FailInaction => include_str!("./lab/3/a/fail_inaction.json"),
             Self::DeontologicalPath(path) => path.get_json_content(),
         }
     }
@@ -215,7 +217,7 @@ define_dialogue! {
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Lab4Dialogue {
-    UtilitarianPath(DeontologicalPath)
+    UtilitarianPath(UtilitarianPath)
 }
 
 impl DialogueProvider for Lab4Dialogue {
@@ -236,21 +238,24 @@ pub struct UtilitarianPath {
 
 impl UtilitarianPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
-        assert!(number <= 3, "Path number must be less than 3");
+        assert!(number <= 5, "Path number must be less than 6");
         Self { number, outcome }
     }
     
     // Helper to get the JSON content based on path parameters
     fn get_json_content(&self) -> &'static str {
         match (&self.outcome, self.number) {
-            // All Pass outcomes point to path 7/pass.json
-            (PathOutcome::Pass, _) => include_str!("./lab/4/path_utilitarian/pass.json"),
-            
-            // Fail outcomes go to their respective path number
-            (PathOutcome::Fail, 0) => panic!("No 0th utilitarian dialogue"),
+            (_, 0) => panic!("Should not be 0"),
+
+            (PathOutcome::Pass, 1) => include_str!("./lab/4/path_utilitarian/1/pass.json"),
             (PathOutcome::Fail, 1) => include_str!("./lab/4/path_utilitarian/1/fail.json"),
-            (PathOutcome::Fail, 2) => include_str!("./lab/4/path_utilitarian/1/fail.json"),
-            (PathOutcome::Fail, 3) => include_str!("./lab/4/path_utilitarian/1/fail.json"),
+
+            (PathOutcome::Pass, 2) => include_str!("./lab/4/path_utilitarian/2/pass.json"),
+            (PathOutcome::Fail, 2) => include_str!("./lab/4/path_utilitarian/2/fail.json"),
+
+            (PathOutcome::Pass, 3) => include_str!("./lab/4/path_utilitarian/3/pass.json"),
+            (PathOutcome::Fail, 3) => include_str!("./lab/4/path_utilitarian/3/fail.json"),
+
             
             _ => unreachable!("Invalid path configuration"),
         }

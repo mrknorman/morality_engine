@@ -34,7 +34,8 @@ pub enum DilemmaScene {
     PathInaction(DilemmaPathInaction, usize),
     Lab2(Lab2Dilemma),
     PathDeontological(DilemmaPathDeontological, usize),
-    PathUtilitarian(DilemmaPathUtilitarian, usize)
+    PathUtilitarian(DilemmaPathUtilitarian, usize),
+    Lab3(Lab3Dilemma)
 }
 
 impl DilemmaScene {
@@ -46,6 +47,7 @@ impl DilemmaScene {
             Self::Lab2(dilemma) => dilemma.content(),
             Self::PathDeontological(dilemma, _) => dilemma.content(),
             Self::PathUtilitarian(dilemma, _) => dilemma.content(),
+            Self::Lab3(dilemma) => dilemma.content()
         }
     }
 }
@@ -69,11 +71,20 @@ define_dilemma! {
     }
 }
 
+
+define_dilemma! {
+    Lab3Dilemma {
+        AsleepAtTheJob => "./lab/3/asleep_at_the_job.json"
+    }
+}
+
+
 define_dilemma! {
     DilemmaPathUtilitarian {
         OneFifth => "./lab/3/path_utilitarian/0/one_fifth.json",
         MarginOfError => "./lab/3/path_utilitarian/1/margin_of_error.json",
-        NegligibleDifference => "./lab/3/path_utilitarian/2/negligible_difference.json"
+        NegligibleDifference => "./lab/3/path_utilitarian/2/negligible_difference.json",
+        UnorthodoxSurgery => "./lab/3/path_utilitarian/3/unorthodox_surgery.json"
     }
 }
 
@@ -110,11 +121,12 @@ impl DilemmaScene {
         ];
 
         
-    pub const PATH_UTILITARIAN : [Self; 3] = 
+    pub const PATH_UTILITARIAN : [Self; 4] = 
         [
             Self::PathUtilitarian(DilemmaPathUtilitarian::OneFifth, 0),
             Self::PathUtilitarian(DilemmaPathUtilitarian::MarginOfError, 1),
-            Self::PathUtilitarian(DilemmaPathUtilitarian::NegligibleDifference, 2)
+            Self::PathUtilitarian(DilemmaPathUtilitarian::NegligibleDifference, 2),
+            Self::PathUtilitarian(DilemmaPathUtilitarian::UnorthodoxSurgery, 3)
         ];
 }
 

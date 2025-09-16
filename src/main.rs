@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    window:: PresentMode
+    window::{PresentMode, WindowResolution}
 };
 #[forbid(unsafe_code)]
 
@@ -18,6 +18,7 @@ fn main() {
                 title : String::from("The Trolley Algorithm"),
                 resizable: true,
                 present_mode: PresentMode::Immediate,
+                resolution: WindowResolution::new(1280.0, 960.0),
                 ..default()
             }),
             ..default()

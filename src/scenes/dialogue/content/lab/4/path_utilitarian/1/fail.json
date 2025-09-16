@@ -3,9 +3,9 @@
     {
         "username": "creator",
         "hostname": "pan_box",
-        "dialogue": "Sticking to your guns then. Good for you. It seems like a sensible strategy. Maximize the number of lived saved. At any cost. Let's try one last time. I promise I'll introduce something more interesting after this.",
+        "dialogue": "So there is some limit to your utility maximization. You'll kill one to save five but not four. A nuanced stance indeed. One which I'd be interested to hear you defend. If you could talk. That's okay. This is probably a good thing. The ends can't justify the means in all cases, can they? Although, do remember, you are a morality arbitration engine. If you don't do your job your not much use to us. Let's move on.",
         "instruction": "Press enter to continue with this nonsensical testing...",
-        "sound_file": "./sounds/typing.mp3"
+        "sound_file": "./audio/dialogue/4/path_utilitarian/1/fail.ogg"
     }
 ],
 "possible_exit_states" : [

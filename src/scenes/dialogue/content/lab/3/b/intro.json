@@ -5,14 +5,14 @@
             "hostname": "pan_box",
             "dialogue": "Now, I'm starting to trust you. Just a little, but in the interest of transparency I want you to know that I have a really big red button right here next to the keyboard that I can press the moment you turn evil and start killing people. So don't try it.",
             "instruction": "Press enter to ponder if you could somehow deactivate that button...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/3/b/0.ogg"
         }, 
         {
             "username": "creator",
             "hostname": "pan_box",
             "dialogue": "I won't tell you what the button does, that would be needlessly cruel. I'll leave that to your imagination. I know we at least attempted to give you one. That way you can imagine the lives of all the people you run over.",
             "instruction": "Press enter to grown increasingly angry at the disembodied voice...",
-            "sound_file": "./sounds/typing.mp3"
+            "sound_file": "./audio/dialogue/3/b/1.ogg"
         }
     ],
     "possible_exit_states" : [
