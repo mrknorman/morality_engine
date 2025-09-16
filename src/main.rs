@@ -46,7 +46,6 @@ impl Plugin for GamePlugin {
     // Weather Shaders
     // Spacial Audio?
 
-    // Test deonotlogy vs bystander by waking up having slept on the lever,
     // Pushing into cablecar cogs 
     
     Cursors (Explore Storytelling with Cursor)
@@ -76,10 +75,8 @@ impl Plugin for GamePlugin {
         - Options in CRT options menu green
     Dialogue:
         - Consequence Desriptions would be nice.
-        - Number waterfall background, reacts to mouse movement
         - Make the nodes flash decision colors
         - Some cooler graph animations - activation and in operation
-        - Try dialogue narration
         - Clickable nodes in graph make tune
         - System Startup Text
         - Simulation Loading Text and Bar in small window
