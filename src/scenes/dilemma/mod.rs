@@ -22,7 +22,7 @@ use crate::{
 		}, train::{
 			Train, TrainPlugin, content::TrainTypes
 		} 
-	}, scenes::dilemma::{dilemma::CurrentDilemmaStage, phases::decision_transition::DilemmaDecisionTransitionPlugin}, style::ui::IOPlugin, systems::{
+	}, scenes::dilemma::{dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, phases::decision_transition::DilemmaDecisionTransitionPlugin}, style::ui::IOPlugin, systems::{
 		audio::{
 			MusicAudio, continuous_audio
 		}, backgrounds::{
@@ -142,24 +142,12 @@ impl DilemmaScene {
 		);
 
 		commands.insert_resource(
-			CurrentDilemmaStage(0)
+			CurrentDilemmaStageIndex(0)
 		);
 
-		let stage = dilemma.stages.first().expect("Dilemma has no stages!");
+		let stage: &dilemma::DilemmaStage = dilemma.stages.first().expect("Dilemma has no stages!");
 
-		let decision_position = -70.0 * stage.countdown_duration.as_secs_f32();
-		let transition_duration = Duration::from_secs_f32(decision_position/Self::TRAIN_SPEED);
-		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
-		let final_position = Vec3::new(
-			150.0 * stage.countdown_duration.as_secs_f32(),
-			0.0, 
-			0.0
-		);
-		let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
-		let initial_color = match stage.default_option {
-			None => Color::WHITE,
-			Some(ref option) => Self::TRACK_COLORS[*option]
-		};
+		let (transition_duration, train_x_displacement, main_track_translation_start, initial_color) = Self::generate_common_parameters(stage);
 		
 		commands.spawn(
 			(
@@ -234,9 +222,8 @@ impl DilemmaScene {
 					),
 					(
 						Junction{
-							dilemma : dilemma.clone()
+							stage : dilemma.stages.first().expect("Dilemma has no stages!").clone()
 						},
-						TextColor(BACKGROUND_COLOR),
 						ColorTranslation::new(
 							initial_color,
 							transition_duration,
@@ -252,9 +239,28 @@ impl DilemmaScene {
 				]
 			)
 		);
-
+		
+		commands.insert_resource(dilemma.stages.first().expect("Dilemma has no stages!").clone());
 		commands.insert_resource(dilemma);
 	}	
+
+	fn generate_common_parameters(stage : &DilemmaStage) -> (Duration, Vec3, Vec3, Color) {
+		let decision_position = -70.0 * stage.countdown_duration.as_secs_f32();
+		let transition_duration = Duration::from_secs_f32(decision_position/Self::TRAIN_SPEED);
+		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
+		let final_position = Vec3::new(
+			150.0 * stage.countdown_duration.as_secs_f32(),
+			0.0, 
+			0.0
+		);
+		let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
+		let initial_color = match stage.default_option {
+			None => Color::WHITE,
+			Some(ref option) => Self::TRACK_COLORS[*option]
+		};
+
+		(transition_duration, train_x_displacement, main_track_translation_start, initial_color)
+	}
 }
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]

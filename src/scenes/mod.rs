@@ -36,7 +36,7 @@ impl Plugin for ScenePlugin {
                 EndingScenePlugin
             )
         )  
-        .insert_resource(SceneQueue::default());
+        .insert_resource(SceneQueue::dilemma_start());
     }
 }
 

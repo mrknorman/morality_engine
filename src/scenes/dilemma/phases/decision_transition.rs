@@ -1,24 +1,44 @@
 use std::time::Duration;
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{
+    prelude::*, 
+    window::PrimaryWindow
+};
 
 use crate::{
     data::states::{
         DilemmaPhase, 
         GameState
-    }, entities::{person::BloodSprite, train::Train}, scenes::dilemma::{
-        content::DilemmaScene, dilemma::{CurrentDilemmaStage, Dilemma}, junction::Junction, lever::{Lever, LeverState}
+    }, 
+    entities::{
+        person::BloodSprite, 
+        train::Train
+    }, 
+    scenes::dilemma::{
+        content::DilemmaScene, 
+        dilemma::{
+            CurrentDilemmaStageIndex,
+            Dilemma, DilemmaStage
+        }, 
+        junction::Junction, 
+        lever::{
+            Lever, 
+            LeverState
+        }
     }, systems::{
         backgrounds::{
             Background, 
             BackgroundSystems
         }, 
-        colors::{AlphaTranslation, BACKGROUND_COLOR, ColorTranslation, Fade}, 
-        inheritance::BequeathTextColor,
-        motion::{
-            Bounce, 
-            PointToPointTranslation
-        }, physics::{DespawnOffscreen, ExplodedGlyph, Velocity}, time::Dilation, 
+        colors::{
+            AlphaTranslation, 
+            BACKGROUND_COLOR, 
+            ColorTranslation
+        }, 
+        motion:: PointToPointTranslation, 
+        physics::{
+            CameraVelocity, DespawnOffscreen, ExplodedGlyph, Velocity
+        }
     }
 };
 
@@ -28,66 +48,60 @@ impl Plugin for DilemmaDecisionTransitionPlugin {
         app
 		.add_systems(
 			OnEnter(DilemmaPhase::DecisionDecisionTransition), 
-			setup_dilemma_decision_transition
+			(update_stage, setup, update_viscera_speeds, update_lever).chain()
 		)
 		.add_systems(
 			Update,
-			end_dilemma_decision_transition
+			trigger_exit
 			.run_if(in_state(GameState::Dilemma))
 			.run_if(in_state(DilemmaPhase::DecisionDecisionTransition)),
-		).add_systems(
-			Update,
-			update_viscera_speeds
-			.run_if(in_state(DilemmaPhase::DecisionDecisionTransition)),
-		);
+		)
+        .add_systems(
+            OnExit(DilemmaPhase::DecisionDecisionTransition),
+            stop_viscera
+        );
     }
 }
 
-fn setup_dilemma_decision_transition(
+fn update_stage(
     dilemma : Res<Dilemma>,
-    mut lever : ResMut<Lever>,
-    mut current_dilemma_stage : ResMut<CurrentDilemmaStage>,
-    mut commands : Commands,
+    mut stage_index : ResMut<CurrentDilemmaStageIndex>,
+    mut stage : ResMut<DilemmaStage>
+) {
+    stage_index.0 += 1;
+    *stage = dilemma.stages[stage_index.0].clone();
+}
+
+fn update_lever(
+        stage : Res<DilemmaStage>,
+        mut lever : ResMut<Lever>
+    ) {
+        
+    lever.0 = match stage.default_option {
+        None => LeverState::Random,
+        Some(ref option) if *option == 0 => LeverState::Left,
+        Some(_) => LeverState::Right
+    };
+}
+
+fn setup(
+    stage : Res<DilemmaStage>,
     systems: Res<BackgroundSystems>,
+    mut commands : Commands,
     mut background_query : Query<(Entity, &mut Background)>,
     mut train_query : Query<(Entity, &mut Velocity, &Transform), (With<Train>, Without<Junction>)>,
     mut junction_query: Query<(Entity, &Transform), (With<Junction>, Without<Train>)>,
-) { 
+) {         
+    
 
-        current_dilemma_stage.0 += 1;
+    let (transition_duration, train_x_displacement, main_track_translation_start, initial_color) = DilemmaScene::generate_common_parameters(&stage);
 
-        let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-
-        lever.0 = match current_stage.default_option {
-			None => LeverState::Random,
-			Some(ref option) if *option == 0 => LeverState::Left,
-			Some(_) => LeverState::Right
-		};
-
-    	let decision_position = -70.0 * current_stage.countdown_duration.as_secs_f32();
-		let transition_duration = Duration::from_secs_f32(decision_position/ DilemmaScene::TRAIN_SPEED);
-		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
-		let final_position = Vec3::new(
-			150.0 * current_stage.countdown_duration.as_secs_f32(),
-			0.0, 
-			0.0
-		);
-		let main_track_translation_start: Vec3 = DilemmaScene::MAIN_TRACK_TRANSLATION_END + final_position;
-		let initial_color = match current_stage.default_option {
-			None => Color::WHITE,
-			Some(ref option) => DilemmaScene::TRACK_COLORS[*option]
-		};
-        
     commands.spawn(
 (
             StateScoped(GameState::Dilemma),
-            DespawnOffscreen{
-                margin : 10.0
-            },
             Junction{
-                dilemma : dilemma.clone()
+                stage : stage.clone()
             },
-            TextColor(BACKGROUND_COLOR),
             ColorTranslation::new(
                 initial_color,
                 transition_duration,
@@ -118,7 +132,6 @@ fn setup_dilemma_decision_transition(
     for (entity, transform) in junction_query.iter_mut() {
 
         let displacement = transform.translation - train_transform.translation;
-
         commands.entity(entity).insert(
             PointToPointTranslation::new(
                 transform.translation,
@@ -140,24 +153,20 @@ fn setup_dilemma_decision_transition(
                 )
             }
         );
-        background.speed = -current_stage.countdown_duration.as_secs_f32() / 5.0;
+        background.speed = -stage.countdown_duration.as_secs_f32() / 5.0;
         commands.run_system(systems.0["update_background_speeds"]);
     }
 }
 
-fn end_dilemma_decision_transition(
-    dilemma: Res<Dilemma>,
-    current_dilemma_stage : Res<CurrentDilemmaStage>,
-    mut commands : Commands,
+fn trigger_exit(
+    stage : Res<DilemmaStage>,
     systems: Res<BackgroundSystems>,
+    mut commands : Commands,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
     mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
     mut background_query : Query<&mut Background>
 ) {
-
-    let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-
     let mut all_translations_finished = true;
     for translation in train_query.iter_mut() {
         all_translations_finished &= translation.timer.finished();
@@ -167,7 +176,6 @@ fn end_dilemma_decision_transition(
     }
 
     if all_translations_finished {
-
         for mut background in background_query.iter_mut() {
             background.speed = 0.0;
             commands.run_system(systems.0["update_background_speeds"]);
@@ -181,28 +189,31 @@ fn end_dilemma_decision_transition(
             translation.initial_position = translation.final_position;
             translation.final_position = DilemmaScene::TRAIN_INITIAL_POSITION + Vec3::new(-50.0, 0.0, 0.0);
             translation.timer = Timer::new(
-                current_stage.countdown_duration,
+                stage.countdown_duration,
                 TimerMode::Once
             );
         }
     }
 }
 
-   pub fn update_viscera_speeds(
-        dilemma: Res<Dilemma>,
-        current_dilemma_stage : Res<CurrentDilemmaStage>,
-        dilation : Res<Dilation>,
-        time: Res<Time>,
-        window: Single<&Window, With<PrimaryWindow>>,
-        mut sprites: Query<&mut Transform, Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
-    ) {
-        let screen_height = window.height();
-        let duration_seconds = time.delta_secs()*dilation.0;
-        let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-    
-        for mut transform in &mut sprites {            
-            let distance_from_bottom = (screen_height - transform.translation.y).max(0.0);
-            let x_speed = distance_from_bottom * -current_stage.countdown_duration.as_secs_f32() / 5.0;
-            transform.translation.x += (x_speed/2.5)*duration_seconds;
-        }
+pub fn update_viscera_speeds(
+    stage : Res<DilemmaStage>,
+    window: Single<&Window, With<PrimaryWindow>>,
+    mut sprites: Query<(&mut CameraVelocity, &Transform), Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
+) {
+    let screen_height = window.height();
+
+    for (mut velocity, transform) in &mut sprites {            
+        let distance_from_bottom = (screen_height - transform.translation.y).max(0.0);
+        let x_speed = distance_from_bottom * -stage.countdown_duration.as_secs_f32() / 5.0;
+        velocity.0.x = x_speed;
     }
+}
+
+pub fn stop_viscera(
+    mut sprites: Query<&mut CameraVelocity, Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
+) {
+    for mut velocity in &mut sprites {            
+        velocity.0.x = 0.0;
+    }
+}

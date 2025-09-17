@@ -10,7 +10,7 @@ use crate::{
 			BloodSprite, Emoticon, EmotionSounds, PersonSprite
 		}, text::{CharacterSprite, TextSprite}, track::Track
 	}, scenes::dilemma::{
-		Dilemma, dilemma::CurrentDilemmaStage, lever::{
+		Dilemma, dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, lever::{
 	    	Lever, 
        		LeverState
     	}
@@ -19,19 +19,11 @@ use crate::{
 		audio::{
 			ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet, continuous_audio
 		}, colors::{
-			ColorAnchor, 
-			ColorChangeEvent, 
-			ColorChangeOn, 
-			ColorTranslation, 
-			DANGER_COLOR,
-			OPTION_1_COLOR, 
-			OPTION_2_COLOR
-		}, 
-		inheritance::BequeathTextColor,
-		motion::{
+			BACKGROUND_COLOR, ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR
+		}, inheritance::BequeathTextColor, motion::{
 			Bounce, 
 			TransformMultiAnchor
-		}, time::Dilation 
+		}, physics::DespawnOffscreen, time::Dilation 
 	}  
 };
 
@@ -89,11 +81,12 @@ pub struct BranchTrack{
 #[require(Visibility, Transform)]
 pub struct Turnout;
 
+
 #[derive(Clone, Component)]
-#[require(Transform, Visibility)]
+#[require(Transform, Visibility, TextColor = Junction::track_color(), DespawnOffscreen = Junction::despawn_margin())]
 #[component(on_insert = Junction::on_insert)]
 pub struct Junction{
-	pub dilemma : Dilemma
+	pub stage : DilemmaStage
 }
 
 impl Junction {
@@ -101,6 +94,16 @@ impl Junction {
 	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-11800.0, 0.0, 0.0);
 	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(2000.0, 0.0, 0.0);
 	const FATALITY_OFFSET : f32 = -1780.0;
+
+	fn track_color() -> TextColor {
+		TextColor(BACKGROUND_COLOR)
+	}
+
+	fn despawn_margin() -> DespawnOffscreen {
+		DespawnOffscreen{
+			margin : 10.0
+		}
+	}
 
 	fn on_insert(
         mut world : DeferredWorld,
@@ -174,10 +177,9 @@ impl Junction {
 			"./audio/effects/crowd_panic.ogg"
 		);
 
-		let current_stage = world.get_resource::<CurrentDilemmaStage>().expect("No current stage found!").clone().0;
 		let mut commands = world.commands();
 		if let Some(junction) = junction {
-			let dilemma: Dilemma = junction.dilemma; 
+			let stage: DilemmaStage = junction.stage; 
 
 			let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
 			let branch_y_positions = vec![
@@ -208,7 +210,7 @@ impl Junction {
 						TransformMultiAnchor(branch_y_positions.clone())
 					)).with_children( |turnout| {
 						for (branch_index, ((option, y_position), color)) in zip(
-							zip(dilemma.stages[current_stage].options.clone(), branch_y_positions.clone()), track_colors
+							zip(stage.options.clone(), branch_y_positions.clone()), track_colors
 						).enumerate() {
 							track_entities.push(turnout.spawn((
 								BranchTrack{index : branch_index},

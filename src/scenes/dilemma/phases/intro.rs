@@ -13,7 +13,7 @@ use crate::{
 		GameState, 
 		MainState, 
 		StateVector
-    }, entities::text::TextButton, scenes::dilemma::{DilemmaSounds, dilemma::{CurrentDilemmaStage, Dilemma}, lever::{Lever, LeverState}}, style::common_ui::NextButton, systems::{
+    }, entities::text::TextButton, scenes::dilemma::{DilemmaSounds, dilemma::{Dilemma, DilemmaStage}, lever::{Lever, LeverState}}, style::common_ui::NextButton, systems::{
 		audio::{
 			NarrationAudio, TransientAudio, TransientAudioPallet, one_shot_audio 
     	}, 
@@ -73,12 +73,9 @@ impl DilemmaIntroScene {
 
 	fn setup(
 		mut commands : Commands,
-		dilemma: Res<Dilemma>,
-		current_dilemma_stage : Res<CurrentDilemmaStage>,
+		stage: Res<DilemmaStage>,
 	) {
-		let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-
-		let state= match current_stage.default_option {
+		let state= match stage.default_option {
 			None => LeverState::Random,
 			Some(ref option) if *option == 0 => LeverState::Left,
 			Some(_) => LeverState::Right

@@ -145,7 +145,6 @@ impl PersonSprite {
                 // 2D overlap check (X/Y only)
                 if v_min.x <= t_max.x && v_max.x >= t_min.x &&
                    v_min.y <= t_max.y && v_max.y >= t_min.y {
-                    println!("hI! v_min : {}, v_max {}, t_min {}, t_max {}", v_min, v_max, t_min, t_max);
                     volatile.trigger_explosion(
                         v_tf.translation(),
                         v_vel_opt.map_or(Vec3::ZERO, |v| v.0),

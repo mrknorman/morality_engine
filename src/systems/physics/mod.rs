@@ -29,6 +29,7 @@ impl Plugin for PhysicsPlugin {
             Update,
             (
 				Velocity::enact,
+                CameraVelocity::enact,
                 AngularVelocity::enact,
                 ScaleVelocity::enact,
                 Gravity::enact,
@@ -57,7 +58,7 @@ fn activate_systems(
 pub struct ExplodedGlyph;
 
 #[derive(Component)]
-#[require(Transform)]
+#[require(Transform, CameraVelocity)]
 pub struct Velocity(pub Vec3);
 
 impl Default for Velocity {
@@ -71,6 +72,29 @@ impl Velocity {
         time: Res<Time>,
         dilation : Res<Dilation>,
         mut query : Query<(&mut Transform, &mut Velocity)>, 
+    ) {
+        let duration_seconds = time.delta_secs()*dilation.0;
+        for (mut transform, velocity) in query.iter_mut() {
+            transform.translation += velocity.0*duration_seconds;
+        }
+    }
+}
+
+#[derive(Component)]
+#[require(Transform)]
+pub struct CameraVelocity(pub Vec3);
+
+impl Default for CameraVelocity {
+    fn default() -> Self {
+        Self(Vec3::ZERO)
+    }    
+}
+
+impl CameraVelocity {
+    fn enact(
+        time: Res<Time>,
+        dilation : Res<Dilation>,
+        mut query : Query<(&mut Transform, &mut CameraVelocity)>, 
     ) {
         let duration_seconds = time.delta_secs()*dilation.0;
         for (mut transform, velocity) in query.iter_mut() {

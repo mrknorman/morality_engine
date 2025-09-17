@@ -18,7 +18,7 @@ use crate::{
     }, entities::{
         text::TextButton, train::Train
     }, scenes::dilemma::{
-        DilemmaSounds, dilemma::{CurrentDilemmaStage,  Dilemma}, junction::Junction, lever::Lever
+        DilemmaSounds, dilemma::{CurrentDilemmaStageIndex,  Dilemma}, junction::Junction, lever::Lever
     }, style::common_ui::NextButton, systems::{
         audio::{
             OneShotAudio, 
@@ -149,7 +149,7 @@ impl DilemmaConsequenceScene{
         mut commands: Commands,
         loading_query: Single<(Entity, &TimerPallet<DilemmaConsequenceEvents>), With<DilemmaConsequenceScene>>,
         dilemma: Res<Dilemma>,
-        dilemma_stage : Res<CurrentDilemmaStage>,
+        stage_index : Res<CurrentDilemmaStageIndex>,
         lever: Res<Lever>,
         asset_server: Res<AssetServer>,
         mut next_main_state: ResMut<NextState<MainState>>,
@@ -161,9 +161,8 @@ impl DilemmaConsequenceScene{
         const SPEEDUP_DURATION_SECONDS: f32 = 1.057;
     
         // Determine if there are fatalities based on the current dilemma option.
-        let current_stage = dilemma.stages[dilemma_stage.0].clone();
-
-        let are_fatalities = current_stage.options[lever.0 as usize].num_humans > 0;
+        let stage = dilemma.stages[stage_index.0].clone();
+        let are_fatalities = stage.options[lever.0 as usize].num_humans > 0;
         let num_stages = dilemma.stages.len();
     
         let (entity, timers) = loading_query.into_inner();
@@ -198,7 +197,7 @@ impl DilemmaConsequenceScene{
 
         if timers.0[DilemmaConsequenceEvents::Button].just_finished() { 
 
-            if num_stages - 1 == dilemma_stage.0 {
+            if num_stages - 1 == stage_index.0 {
                 commands.entity(entity).with_children(|parent| {
                     parent.spawn((
                         NextButton,

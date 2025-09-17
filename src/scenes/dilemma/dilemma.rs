@@ -317,7 +317,7 @@ pub struct DilemmaStage {
 }
 
 #[derive(Resource, Clone)]
-pub struct CurrentDilemmaStage(pub usize);
+pub struct CurrentDilemmaStageIndex(pub usize);
 
 #[derive(Component)]
 #[require(TextRaw, Text2d, BequeathTextColor, Pulse)]

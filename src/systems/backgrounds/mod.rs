@@ -10,7 +10,7 @@ use bevy::{
 };
 
 use crate::{
-    systems::physics::Velocity, 
+    systems::physics::CameraVelocity, 
     entities::text::TextSprite,
     data::rng::GlobalRng
 };
@@ -132,7 +132,7 @@ impl Background {
     pub fn update_speeds(
         window: Single<&Window, With<PrimaryWindow>>,
         backgrounds: Query<(&Children, &Background), Without<BackgroundSprite>>,
-        mut sprites: Query<(&mut Velocity, &Transform), Without<Background>>,
+        mut sprites: Query<(&mut CameraVelocity, &Transform), Without<Background>>,
     ) {
         let screen_height = window.height();
     
@@ -229,7 +229,7 @@ impl Background {
                         screen_width,
                         random_offset,
                     },
-                    Velocity(Vec3::new(speed, 0.0, 0.0)),
+                    CameraVelocity(Vec3::new(speed, 0.0, 0.0)),
                     Anchor::BottomCenter,
                     Text2d::new(lod),
                     Transform {

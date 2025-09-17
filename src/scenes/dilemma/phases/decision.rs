@@ -21,7 +21,7 @@ use crate::{
 		track::Track
 	}, scenes::dilemma::{
         DilemmaSounds, dilemma::{
-            CurrentDilemmaStage, Dilemma, DilemmaTimer
+        	DilemmaStage, DilemmaTimer
         }, lever::{
             LEVER_LEFT, LEVER_MIDDLE, LEVER_RIGHT, Lever, LeverState
         }
@@ -96,13 +96,10 @@ impl DecisionScene {
 	fn setup(
 			mut commands : Commands,
 			asset_server: Res<AssetServer>,
-			dilemma: Res<Dilemma>,
-        	current_dilemma_stage : Res<CurrentDilemmaStage>,
+        	stage : Res<DilemmaStage>,
 		) {
-
-		let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-
-		let (start_text, state, color) = match current_stage.default_option {
+		
+		let (start_text, state, color) = match stage.default_option {
 			None => (
 				LEVER_MIDDLE, 
 				LeverState::Random, 
@@ -163,7 +160,7 @@ impl DecisionScene {
 					TextTitle,
 					DilemmaTimerPosition,
 					DilemmaTimer::new(
-						current_stage.countdown_duration, 
+						stage.countdown_duration, 
 						Duration::from_secs_f32(5.0),
 						Duration::from_secs_f32(2.0)
 					
@@ -181,7 +178,7 @@ impl DecisionScene {
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
 						],	
-						current_stage.default_option.unwrap_or(0)			
+						stage.default_option.unwrap_or(0)			
 					),
 					Pressable::new(vec![
 						KeyMapping{
@@ -236,7 +233,7 @@ impl DecisionScene {
 			]
 		)).with_children(
 			|parent| {
-				for (option, transform) in zip(current_stage.options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
+				for (option, transform) in zip(stage.options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
 					parent.spawn((
 						TextWindow{
 							title : Some(WindowTitle{
@@ -307,12 +304,10 @@ impl DecisionScene {
 	fn finalize_stats(
 		mut stats : ResMut<DilemmaStats>,
 		lever : Res<Lever>,
-		dilemma: Res<Dilemma>,
-		current_dilemma_stage : Res<CurrentDilemmaStage>,
+		stage: Res<DilemmaStage>,
 		mut timer : Query<&mut DilemmaTimer>
 	) {
-		let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-		let consequence = current_stage.options[lever.0 as usize].consequences;
+		let consequence = stage.options[lever.0 as usize].consequences;
 
 		for timer in timer.iter_mut() {
 			stats.finalize(&consequence, &lever.0, &timer.timer);

@@ -22,6 +22,7 @@
         "Mapface",
         "organny",
         "Perlin",
+        "Randomizable",
         "rodio",
         "serde",
         "signum",

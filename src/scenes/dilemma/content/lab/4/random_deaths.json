@@ -7,7 +7,7 @@
     {
         "repeat" : 10,
         "default_option" : 1,
-        "countdown_duration_seconds" : 10,
+        "countdown_duration_seconds" : 7,
         "options": [
           {
             "index" : 0,

@@ -43,6 +43,10 @@ impl Plugin for GamePlugin {
 /*
     Todo:
 
+     // Think about stats for multi-stages
+     // more music pls, needed soon
+     // Fireworks on results screen
+
     // Weather Shaders
     // Spacial Audio?
 
@@ -152,7 +156,6 @@ impl Plugin for GamePlugin {
 
     // Bomb if no selection
     // Deontological Nightmare to question single killers
-    // 4 vs 5 to question utilitarians
 
     // Active vs Passive Culpability:
     // 1 or None (Random Default)

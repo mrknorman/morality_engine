@@ -2,10 +2,10 @@ use bevy::prelude::*;
 
 use crate::{
     data::states::{
-        DilemmaPhase, 
+        DilemmaPhase,
         GameState
     }, entities::train::Train, scenes::dilemma::{
-        content::DilemmaScene, dilemma::{CurrentDilemmaStage, Dilemma}, junction::Junction
+        content::DilemmaScene, dilemma::DilemmaStage, junction::Junction
     }, systems::{
         backgrounds::{
             Background, 
@@ -26,58 +26,55 @@ impl Plugin for DilemmaTransitionPlugin {
         app
 		.add_systems(
 			OnEnter(DilemmaPhase::IntroDecisionTransition), 
-			setup_dilemma_transition
+			setup
 		)
 		.add_systems(
 			Update,
-			end_dilemma_transition
+			trigger_exit
 			.run_if(in_state(GameState::Dilemma))
 			.run_if(in_state(DilemmaPhase::IntroDecisionTransition)),
 		);
     }
 }
 
-    fn setup_dilemma_transition(
-            dilemma : Res<Dilemma>,
-            current_dilemma_stage : Res<CurrentDilemmaStage>,
-            mut commands : Commands,
-            systems: Res<BackgroundSystems>,
-            mut background_query : Query<(&mut Background, &mut AlphaTranslation)>,
-            mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
-            mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-            mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
-        ) {
-        let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
-
-        for mut train in train_query.iter_mut() {
-            train.start();
-        }
-        for mut junction in junction_query.iter_mut() {
-            junction.start()
-        }
-        for (entity, mut color) in title_query.iter_mut() {
-            commands.entity(entity).insert(BequeathTextColor);
-            commands.entity(entity).remove::<Bounce>();
-
-            color.start()
-        }
-        for (mut background, mut color) in background_query.iter_mut() {
-            color.start();
-            background.speed = -current_stage.countdown_duration.as_secs_f32() / 5.0;
-            commands.run_system(systems.0["update_background_speeds"]);
-        }
-}
-
-    fn end_dilemma_transition(
-        dilemma: Res<Dilemma>,
+fn setup(
+        stage : Res<DilemmaStage>,
         mut commands : Commands,
         systems: Res<BackgroundSystems>,
-        mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
+        mut background_query : Query<(&mut Background, &mut AlphaTranslation)>,
         mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
         mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-        mut background_query : Query<&mut Background>
+        mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
     ) {
 
+    for mut train in train_query.iter_mut() {
+        train.start();
+    }
+    for mut junction in junction_query.iter_mut() {
+        junction.start()
+    }
+    for (entity, mut color) in title_query.iter_mut() {
+        commands.entity(entity).insert(BequeathTextColor);
+        commands.entity(entity).remove::<Bounce>();
+
+        color.start()
+    }
+    for (mut background, mut color) in background_query.iter_mut() {
+        color.start();
+        background.speed = -stage.countdown_duration.as_secs_f32() / 5.0;
+        commands.run_system(systems.0["update_background_speeds"]);
+    }
+}
+
+fn trigger_exit(
+    stage: Res<DilemmaStage>,
+    systems: Res<BackgroundSystems>,
+    mut commands : Commands,
+    mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
+    mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+    mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
+    mut background_query : Query<&mut Background>
+) {
     let mut all_translations_finished = true;
     for translation in train_query.iter_mut() {
         all_translations_finished &= translation.timer.finished();
@@ -101,7 +98,7 @@ impl Plugin for DilemmaTransitionPlugin {
             translation.initial_position = translation.final_position;
             translation.final_position = DilemmaScene::TRAIN_INITIAL_POSITION + Vec3::new(-50.0, 0.0, 0.0);
             translation.timer = Timer::new(
-                dilemma.stages[0].countdown_duration,
+                stage.countdown_duration,
                 TimerMode::Once
             );
         }

@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use crate::{
     data::states::{
             DilemmaPhase, GameState, MainState, StateVector
-        }, entities::train::Train, scenes::dilemma::dilemma::Dilemma, systems::{
+        }, entities::train::Train, systems::{
         audio::{
             OneShotAudio, 
             OneShotAudioPallet
