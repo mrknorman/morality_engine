@@ -9,10 +9,7 @@ use crate::{
     data::{rng::GlobalRng, states::DilemmaPhase},
     entities::text::TextSprite,
     systems::{
-        audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
-        motion::Bounce,
-        physics::{ Gravity, PhysicsPlugin, Velocity, Volatile},
-        time::Dilation,
+        audio::{DilatableAudio, TransientAudio, TransientAudioPallet}, interaction::world_aabb, motion::Bounce, physics::{ Gravity, PhysicsPlugin, Velocity, Volatile}, time::Dilation
     },
 };
 
@@ -34,7 +31,6 @@ impl Plugin for PersonPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<PersonSystemsActive>()
             .add_systems(Update, activate_systems)
-            // ── core behaviour (non-explosion) ──
             .add_systems(
                 Update,
                 (
@@ -43,12 +39,12 @@ impl Plugin for PersonPlugin {
                     PersonSprite::alert,
                     Emoticon::animate,
                 )
-                    .run_if(in_state(PersonSystemsActive::True))
-                    .run_if(
-                        in_state(DilemmaPhase::Decision)
-                            .or(in_state(DilemmaPhase::Consequence))
-                            .or(in_state(DilemmaPhase::Skip)),
-                    ),
+                .run_if(in_state(PersonSystemsActive::True))
+                .run_if(
+                    in_state(DilemmaPhase::Decision)
+                        .or(in_state(DilemmaPhase::Consequence))
+                        .or(in_state(DilemmaPhase::Skip)),
+                ),
             )
             .add_systems(
                 Update,
@@ -59,8 +55,8 @@ impl Plugin for PersonPlugin {
                 )
                     .run_if(
                         in_state(DilemmaPhase::Decision)
-                            .or(in_state(DilemmaPhase::Consequence))
-                            .or(in_state(DilemmaPhase::DecisionDecisionTransition)),
+                            .or(in_state(DilemmaPhase::DecisionDecisionTransition))
+                            .or(in_state(DilemmaPhase::Consequence)),
                     ),
             );
 
@@ -109,26 +105,6 @@ impl Default for PersonSprite {
         Self { in_danger: false } 
     }
 }
-
-// Helper: world-space AABB for any entity
-fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
-    let he = Vec3::from(local.half_extents);
-    let c = Vec3::from(local.center);
-    let mut min = Vec3::splat(f32::INFINITY);
-    let mut max = Vec3::splat(f32::NEG_INFINITY);
-
-    for &sx in &[-1.0, 1.0] {
-        for &sy in &[-1.0, 1.0] {
-            for &sz in &[-1.0, 1.0] {
-                let p = tf.transform_point(c + he * Vec3::new(sx, sy, sz));
-                min = min.min(p);
-                max = max.max(p);
-            }
-        }
-    }
-    (min, max)
-}
-
 #[derive(Component)]
 pub struct Bloodied;
 
@@ -169,6 +145,7 @@ impl PersonSprite {
                 // 2D overlap check (X/Y only)
                 if v_min.x <= t_max.x && v_max.x >= t_min.x &&
                    v_min.y <= t_max.y && v_max.y >= t_min.y {
+                    println!("hI! v_min : {}, v_max {}, t_min {}, t_max {}", v_min, v_max, t_min, t_max);
                     volatile.trigger_explosion(
                         v_tf.translation(),
                         v_vel_opt.map_or(Vec3::ZERO, |v| v.0),

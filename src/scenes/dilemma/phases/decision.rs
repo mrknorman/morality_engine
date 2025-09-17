@@ -20,37 +20,19 @@ use crate::{
 		text::{TextTitle, TextWindow},
 		track::Track
 	}, scenes::dilemma::{
-        dilemma::{
-            Dilemma, 
-            DilemmaTimer
-        }, 
-        lever::{
-            Lever, 
-            LeverState, 
-            LEVER_LEFT, 
-            LEVER_MIDDLE, 
-            LEVER_RIGHT
-        }, 
-        DilemmaSounds
+        DilemmaSounds, dilemma::{
+            CurrentDilemmaStage, Dilemma, DilemmaTimer
+        }, lever::{
+            LEVER_LEFT, LEVER_MIDDLE, LEVER_RIGHT, Lever, LeverState
+        }
     }, style::common_ui::{
         CenterLever, 
         DilemmaTimerPosition
     }, systems::{
 		audio::{
-			continuous_audio,
-			ContinuousAudio, 
-			ContinuousAudioPallet,
-			TransientAudio, 
-			TransientAudioPallet 
+			ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet, continuous_audio 
 		}, backgrounds::Background, colors::{
-			ColorAnchor, 
-			ColorChangeEvent, 
-			ColorChangeOn, 
-			ColorTranslation, 
-			Fade, 
-			DANGER_COLOR, 
-			OPTION_1_COLOR, 
-			OPTION_2_COLOR, PRIMARY_COLOR
+			ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, Fade, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
 		}, interaction::{
 			ActionPallet, 
 			ClickablePong, 
@@ -115,9 +97,12 @@ impl DecisionScene {
 			mut commands : Commands,
 			asset_server: Res<AssetServer>,
 			dilemma: Res<Dilemma>,
+        	current_dilemma_stage : Res<CurrentDilemmaStage>,
 		) {
 
-		let (start_text, state, color) = match dilemma.stages[0].default_option {
+		let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
+
+		let (start_text, state, color) = match current_stage.default_option {
 			None => (
 				LEVER_MIDDLE, 
 				LeverState::Random, 
@@ -178,7 +163,7 @@ impl DecisionScene {
 					TextTitle,
 					DilemmaTimerPosition,
 					DilemmaTimer::new(
-						dilemma.stages[0].countdown_duration, 
+						current_stage.countdown_duration, 
 						Duration::from_secs_f32(5.0),
 						Duration::from_secs_f32(2.0)
 					
@@ -196,7 +181,7 @@ impl DecisionScene {
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
 						],	
-						dilemma.stages[0].default_option.unwrap_or(0)			
+						current_stage.default_option.unwrap_or(0)			
 					),
 					Pressable::new(vec![
 						KeyMapping{
@@ -251,7 +236,7 @@ impl DecisionScene {
 			]
 		)).with_children(
 			|parent| {
-				for (option, transform) in zip(dilemma.stages[0].options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
+				for (option, transform) in zip(current_stage.options.clone(), Self::OPTION_WINDOW_TRANSLATIONS.iter()) {
 					parent.spawn((
 						TextWindow{
 							title : Some(WindowTitle{
@@ -290,10 +275,11 @@ impl DecisionScene {
 		
 		for entity in background_query.iter() {
 			commands.entity(entity).insert(
-				Fade{
-					duration: Duration::from_secs_f32(0.4),
-					paused: false
-				}
+				ColorTranslation::new(
+                    Color::NONE,
+                    Duration::from_secs_f32(0.4),
+                    false
+                )
 			);
 		}
 		for entity in track_query.iter() {
@@ -322,10 +308,11 @@ impl DecisionScene {
 		mut stats : ResMut<DilemmaStats>,
 		lever : Res<Lever>,
 		dilemma: Res<Dilemma>,
+		current_dilemma_stage : Res<CurrentDilemmaStage>,
 		mut timer : Query<&mut DilemmaTimer>
 	) {
-
-		let consequence = dilemma.stages[0].options[lever.0 as usize].consequences;
+		let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
+		let consequence = current_stage.options[lever.0 as usize].consequences;
 
 		for timer in timer.iter_mut() {
 			stats.finalize(&consequence, &lever.0, &timer.timer);

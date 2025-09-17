@@ -197,10 +197,14 @@ pub struct DilemmaOptionLoader {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DilemmaStageLoader {
-	countdown_duration_seconds : f32,
-    options : Vec<DilemmaOptionLoader>,
-    default_option : Option<usize>,
+    #[serde(default = "default_repeat")]
+    repeat: usize,
+    countdown_duration_seconds: f32,
+    options: Vec<DilemmaOptionLoader>,
+    default_option: Option<usize>,
 }
+
+fn default_repeat() -> usize { 1 }
 
 #[derive(Serialize, Deserialize)]
 pub struct DilemmaLoader {
@@ -286,6 +290,10 @@ impl DilemmaOption {
             None => humans.len(),
         };
 
+        let description = dilemma_option_loader
+            .description
+            .replace("{num_humans}", &num_humans.to_string());
+
         let consequences = DilemmaOptionConsequences {
             total_fatalities: num_humans,
         };
@@ -293,7 +301,7 @@ impl DilemmaOption {
         Self {
             index: dilemma_option_loader.index,
             name: dilemma_option_loader.name,
-            description: dilemma_option_loader.description,
+            description,
             humans,
             consequences,
             num_humans,
@@ -307,6 +315,9 @@ pub struct DilemmaStage {
     pub options : Vec<DilemmaOption>,
     pub default_option : Option<usize>,
 }
+
+#[derive(Resource, Clone)]
+pub struct CurrentDilemmaStage(pub usize);
 
 #[derive(Component)]
 #[require(TextRaw, Text2d, BequeathTextColor, Pulse)]
@@ -419,23 +430,23 @@ impl Dilemma {
         let loaded_dilemma: DilemmaLoader =
             serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
 
-        let stages: Vec<DilemmaStage> = loaded_dilemma
-            .stages
-            .into_iter()
-            .map(|stage_loader| {
+        let mut stages: Vec<DilemmaStage> = Vec::new();
+
+        for stage_loader in loaded_dilemma.stages {
+            for _ in 0..stage_loader.repeat {
                 let options: Vec<DilemmaOption> = stage_loader
                     .options
-                    .into_iter()
-                    .map(DilemmaOption::from_loader)
+                    .iter()
+                    .map(|o| DilemmaOption::from_loader(o.clone())) // rerun random resolution here
                     .collect();
 
-                DilemmaStage {
+                stages.push(DilemmaStage {
                     countdown_duration: Duration::from_secs_f32(stage_loader.countdown_duration_seconds),
                     options,
                     default_option: stage_loader.default_option,
-                }
-            })
-            .collect();
+                });
+            }
+        }
 
         Self {
             index: loaded_dilemma.index,
@@ -666,7 +677,7 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
         .expect("LeverState should not be none");
 
     match (lever_state, stage) {
-        (LeverState::Right, 4) => vec![
+        (LeverState::Left, 4) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),

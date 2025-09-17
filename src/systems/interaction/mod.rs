@@ -1087,4 +1087,22 @@ fn is_point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
     inside
 }
 
+pub fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
+    let he = Vec3::from(local.half_extents);
+    let c = Vec3::from(local.center);
+    let mut min = Vec3::splat(f32::INFINITY);
+    let mut max = Vec3::splat(f32::NEG_INFINITY);
+
+    for &sx in &[-1.0, 1.0] {
+        for &sy in &[-1.0, 1.0] {
+            for &sz in &[-1.0, 1.0] {
+                let p = tf.transform_point(c + he * Vec3::new(sx, sy, sz));
+                min = min.min(p);
+                max = max.max(p);
+            }
+        }
+    }
+    (min, max)
+}
+
 

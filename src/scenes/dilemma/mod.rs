@@ -22,7 +22,7 @@ use crate::{
 		}, train::{
 			Train, TrainPlugin, content::TrainTypes
 		} 
-	}, scenes::dilemma::phases::decision_transition::DilemmaDecisionTransitionPlugin, style::ui::IOPlugin, systems::{
+	}, scenes::dilemma::{dilemma::CurrentDilemmaStage, phases::decision_transition::DilemmaDecisionTransitionPlugin}, style::ui::IOPlugin, systems::{
 		audio::{
 			MusicAudio, continuous_audio
 		}, backgrounds::{
@@ -132,20 +132,31 @@ impl DilemmaScene {
 			_ => panic!("Scene is not dilemma!") 
 		};
 
+		let total_dilemma_time: Duration = dilemma.stages
+			.iter()
+			.map(|s| s.countdown_duration)
+			.sum();
+
 		commands.insert_resource(
-			DilemmaStats::new(dilemma.stages[0].countdown_duration)
+			DilemmaStats::new(total_dilemma_time)
 		);
 
-		let decision_position = -70.0 * dilemma.stages[0].countdown_duration.as_secs_f32();
+		commands.insert_resource(
+			CurrentDilemmaStage(0)
+		);
+
+		let stage = dilemma.stages.first().expect("Dilemma has no stages!");
+
+		let decision_position = -70.0 * stage.countdown_duration.as_secs_f32();
 		let transition_duration = Duration::from_secs_f32(decision_position/Self::TRAIN_SPEED);
 		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
 		let final_position = Vec3::new(
-			150.0 * dilemma.stages[0].countdown_duration.as_secs_f32(),
+			150.0 * stage.countdown_duration.as_secs_f32(),
 			0.0, 
 			0.0
 		);
 		let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
-		let initial_color = match dilemma.stages[0].default_option {
+		let initial_color = match stage.default_option {
 			None => Color::WHITE,
 			Some(ref option) => Self::TRACK_COLORS[*option]
 		};
@@ -214,8 +225,8 @@ impl DilemmaScene {
 					),
 					(
 						Train(TrainTypes::SteamTrain),
-						Transform::from_translation(Self::TRAIN_INITIAL_POSITION), 
 						PointToPointTranslation::new(
+							Self::TRAIN_INITIAL_POSITION,
 							Self::TRAIN_INITIAL_POSITION + train_x_displacement,
 							transition_duration,
 							true
@@ -231,8 +242,8 @@ impl DilemmaScene {
 							transition_duration,
 							true
 						),
-						Transform::from_translation(main_track_translation_start),
 						PointToPointTranslation::new(
+							main_track_translation_start,
 							Self::MAIN_TRACK_TRANSLATION_END,
 							transition_duration,
 							true

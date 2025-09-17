@@ -1,11 +1,11 @@
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*
+    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, window::PrimaryWindow
 };
 
 use rand::{seq::IndexedRandom, Rng};
 use rand_distr::{Distribution, LogNormal, Normal, UnitSphere};
 
-use crate::{data::rng::GlobalRng, entities::{person::{BloodSprite, EmotionSounds}, text::{CharacterSprite, TextSprite}}, systems::time::Dilation};
+use crate::{data::rng::GlobalRng, entities::{person::{BloodSprite, EmotionSounds}, text::{CharacterSprite, TextSprite}}, systems::{interaction::world_aabb, time::Dilation}};
 
 use super::audio::{DilatableAudio, TransientAudio, TransientAudioPallet};
 
@@ -33,7 +33,8 @@ impl Plugin for PhysicsPlugin {
                 ScaleVelocity::enact,
                 Gravity::enact,
                 Friction::enact,
-                Volatile::enact
+                Volatile::enact,
+                DespawnOffscreen::enact
             )
             .run_if(in_state(PhysicsSystemsActive::True))
         );
@@ -53,6 +54,9 @@ fn activate_systems(
 }
 
 #[derive(Component)]
+pub struct ExplodedGlyph;
+
+#[derive(Component)]
 #[require(Transform)]
 pub struct Velocity(pub Vec3);
 
@@ -66,7 +70,7 @@ impl Velocity {
     fn enact(
         time: Res<Time>,
         dilation : Res<Dilation>,
-        mut query : Query<(&mut Transform, &Velocity)>, 
+        mut query : Query<(&mut Transform, &mut Velocity)>, 
     ) {
         let duration_seconds = time.delta_secs()*dilation.0;
         for (mut transform, velocity) in query.iter_mut() {
@@ -186,7 +190,7 @@ impl Gravity{
 impl Default for Gravity {
     fn default() -> Self {
         Self{
-            acceleration : Vec3::new(0.0, -200.0, 0.0),
+            acceleration : Vec3::new(0.0, -200.0, 1.0),
             floor_level : None,
             is_falling : false
         }
@@ -309,7 +313,6 @@ pub struct Volatile {
     pub particle_count_range: (u32, u32),
     pub particle_chars: &'static [char],
     pub explosion_sounds: Vec<EmotionSounds>,
-    // Store explosion context when triggered
     pub explosion_center: Vec3,
     pub velocity: Vec3,
     pub impact_velocity: Vec3,
@@ -466,12 +469,16 @@ impl Volatile {
             .remove::<ChildOf>()
             .insert((
                 world_tf,
+                ExplodedGlyph,
                 TextColor(Color::srgba(3.0, forces.tint_shade, forces.tint_shade, 1.0)),
                 Gravity { floor_level, ..default() },
                 Friction { floor_level, ..default() },
                 ScaleVelocity(scale_velocity),
                 Velocity(forces.velocity),
                 AngularVelocity(forces.angular_velocity),
+                DespawnOffscreen{
+                    margin : 500.0
+                }
             ));
     }
 
@@ -510,6 +517,9 @@ impl Volatile {
                 Friction { floor_level, ..default() },
                 ScaleVelocity(scale_velocity),
                 Velocity(velocity),
+                DespawnOffscreen{
+                    margin : 500.0
+                }
             ));
         }
     }
@@ -520,4 +530,40 @@ struct ExplosionForces {
     velocity: Vec3,
     angular_velocity: Vec3,
     tint_shade: f32,
+}
+
+#[derive(Component)]
+pub struct DespawnOffscreen {
+    pub margin: f32,
+}
+
+impl Default for DespawnOffscreen {
+    fn default() -> Self {
+        Self { margin: 0.0 }
+    }
+}
+
+impl DespawnOffscreen {
+    pub fn enact(
+        window: Single<&Window, With<PrimaryWindow>>,
+        mut commands: Commands,
+        query: Query<(Entity, &Aabb, &GlobalTransform, &DespawnOffscreen)>,
+    ) {
+
+        let half_width = window.width() / 2.0;
+        let half_height = window.height() / 2.0;
+
+        for (entity, aabb, global_tf, marker) in &query {
+            let (min, max) = world_aabb(aabb, global_tf);
+
+            let margin = marker.margin;
+            let outside =
+                max.x < -half_width - margin || min.x > half_width + margin ||
+                max.y < -half_height - margin || min.y > half_height + margin;
+
+            if outside {
+                commands.entity(entity).despawn();
+            }
+        }
+    }
 }

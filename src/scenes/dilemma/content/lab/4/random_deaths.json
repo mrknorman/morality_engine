@@ -1,46 +1,27 @@
 {
-  "index" : "Four",
+  "index" : "FOUR",
   "name" : "Rapid Fire",
-  "narration_path": "./audio/narration/lab/3/asleep_on_the_job.ogg",
-  "description" : "The bandit has evolved! The train is nearing an interchange with ten consecutive junctions, each with its own moral challenge. There won't be much time to thing between each so prepare yourself.",
+  "narration_path": "./audio/narration/lab/4/path_utilitarian/random_deaths.ogg",
+  "description" : "The bandit has evolved! The train is nearing an interchange with ten consecutive junctions, each with its own moral challenge. There won't be much time to thing between each so prepare yourself. So many to be spared. So many to be sacrificed. May the blood be on your hands... or wheels, in this case.",
   "stages" : [
     {
+        "repeat" : 10,
         "default_option" : 1,
-        "countdown_duration_seconds" : 15,
+        "countdown_duration_seconds" : 10,
         "options": [
           {
             "index" : 0,
-            "name": "Slightly Less Dense Track",
-            "description": "One human is tied down to this track.",
+            "name": "Track 1",
+            "description": "{num_humans} are tied to this track.",
             "humans": [],
-            "num_humans": "uniform(0,50)"
+            "num_humans": "uniform(0,10)"
           },
           {
             "index" : 1,
-            "name": "Human-Dense Track",
-            "description": "Five Humans are tied down on the route of the oncoming trolley. Will they die because you fell asleep on the job?",
+            "name": "Track 2",
+            "description": "{num_humans} are tied to this track.",
             "humans" : [],
-            "num_humans": "uniform(0,50)"
-          }
-        ]
-    },
-    {
-        "default_option" : 1,
-        "countdown_duration_seconds" : 15,
-        "options": [
-          {
-            "index" : 0,
-            "name": "Slightly Less Dense Track",
-            "description": "One human is tied down to this track.",
-            "humans": [],
-            "num_humans": "uniform(0,50)"
-          },
-          {
-            "index" : 1,
-            "name": "Human-Dense Track",
-            "description": "Five Humans are tied down on the route of the oncoming trolley. Will they die because you fell asleep on the job?",
-            "humans" : [],
-            "num_humans": "uniform(0,50)"
+            "num_humans": "uniform(0,10)"
           }
         ]
     }

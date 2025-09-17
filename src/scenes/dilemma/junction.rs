@@ -10,19 +10,14 @@ use crate::{
 			BloodSprite, Emoticon, EmotionSounds, PersonSprite
 		}, text::{CharacterSprite, TextSprite}, track::Track
 	}, scenes::dilemma::{
-		lever::{
+		Dilemma, dilemma::CurrentDilemmaStage, lever::{
 	    	Lever, 
        		LeverState
-    	}, 
-		Dilemma
+    	}
 	},
 	systems::{
 		audio::{
-			continuous_audio, 
-			ContinuousAudio, 
-			ContinuousAudioPallet, 
-			TransientAudio, 
-			TransientAudioPallet
+			ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet, continuous_audio
 		}, colors::{
 			ColorAnchor, 
 			ColorChangeEvent, 
@@ -179,9 +174,10 @@ impl Junction {
 			"./audio/effects/crowd_panic.ogg"
 		);
 
+		let current_stage = world.get_resource::<CurrentDilemmaStage>().expect("No current stage found!").clone().0;
 		let mut commands = world.commands();
 		if let Some(junction) = junction {
-			let dilemma = junction.dilemma; 
+			let dilemma: Dilemma = junction.dilemma; 
 
 			let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
 			let branch_y_positions = vec![
@@ -212,7 +208,7 @@ impl Junction {
 						TransformMultiAnchor(branch_y_positions.clone())
 					)).with_children( |turnout| {
 						for (branch_index, ((option, y_position), color)) in zip(
-							zip(dilemma.stages[0].options.clone(), branch_y_positions.clone()), track_colors
+							zip(dilemma.stages[current_stage].options.clone(), branch_y_positions.clone()), track_colors
 						).enumerate() {
 							track_entities.push(turnout.spawn((
 								BranchTrack{index : branch_index},
@@ -264,9 +260,10 @@ impl Junction {
 
 										let mut entity_commands = track.spawn(
 											(
+												transform,
+												GlobalTransform::from_xyz(1000.0, 1000.0, 1000.0), //Here to avoid immediate collision error
 												TextSprite,
 												PersonSprite::default(),
-												transform,
 												Bounce::new(
 													false,
 													40.0, 
@@ -360,19 +357,18 @@ impl Junction {
 		lever: Option<Res<Lever>>,
 		mut track_query: Query<&mut TextColor, With<TrunkTrack>>,
 	) {
-		let Ok(mut main_track) = track_query.single_mut() else {
-			return;
-		};
-
-		if let Some(lever) = lever {
-			let lever = lever.0;
-			let color = match lever {
-				LeverState::Left => OPTION_1_COLOR,
-				LeverState::Right => OPTION_2_COLOR,
-				LeverState::Random => return
-			};
-			main_track.0 = color;
+		for mut track in track_query.iter_mut() {
+			if let Some(lever) = &lever {
+				let lever = lever.0;
+				let color = match lever {
+					LeverState::Left => OPTION_1_COLOR,
+					LeverState::Right => OPTION_2_COLOR,
+					LeverState::Random => return
+				};
+				track.0 = color;
+			}
 		}
+		
 	}
 	
 	pub fn switch_junction(

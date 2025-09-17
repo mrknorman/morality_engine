@@ -5,8 +5,7 @@ use crate::{
         DilemmaPhase, 
         GameState
     }, entities::train::Train, scenes::dilemma::{
-        dilemma::Dilemma, 
-        junction::Junction
+        content::DilemmaScene, dilemma::{CurrentDilemmaStage, Dilemma}, junction::Junction
     }, systems::{
         backgrounds::{
             Background, 
@@ -40,6 +39,7 @@ impl Plugin for DilemmaTransitionPlugin {
 
     fn setup_dilemma_transition(
             dilemma : Res<Dilemma>,
+            current_dilemma_stage : Res<CurrentDilemmaStage>,
             mut commands : Commands,
             systems: Res<BackgroundSystems>,
             mut background_query : Query<(&mut Background, &mut AlphaTranslation)>,
@@ -47,6 +47,8 @@ impl Plugin for DilemmaTransitionPlugin {
             mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
             mut title_query: Query<(Entity, &mut ColorTranslation), Without<Background>>
         ) {
+        let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
+
         for mut train in train_query.iter_mut() {
             train.start();
         }
@@ -61,7 +63,7 @@ impl Plugin for DilemmaTransitionPlugin {
         }
         for (mut background, mut color) in background_query.iter_mut() {
             color.start();
-            background.speed = -dilemma.stages[0].countdown_duration.as_secs_f32() / 5.0;
+            background.speed = -current_stage.countdown_duration.as_secs_f32() / 5.0;
             commands.run_system(systems.0["update_background_speeds"]);
         }
 }
@@ -96,9 +98,8 @@ impl Plugin for DilemmaTransitionPlugin {
         );
 
         for mut translation in train_query.iter_mut() {
-            let initial_position = translation.initial_position;
             translation.initial_position = translation.final_position;
-            translation.final_position = initial_position + Vec3::new(-50.0, 0.0, 0.0);
+            translation.final_position = DilemmaScene::TRAIN_INITIAL_POSITION + Vec3::new(-50.0, 0.0, 0.0);
             translation.timer = Timer::new(
                 dilemma.stages[0].countdown_duration,
                 TimerMode::Once

@@ -75,9 +75,9 @@ pub struct PointToPointTranslation {
 }
 
 impl PointToPointTranslation {
-    pub fn new(final_position: Vec3, duration: Duration, paused : bool) -> PointToPointTranslation {
+    pub fn new(initial_position : Vec3, final_position: Vec3, duration: Duration, paused : bool) -> (Transform, PointToPointTranslation) {
 		let mut translation = PointToPointTranslation {
-			initial_position : Vec3::default(),
+			initial_position,
 			final_position,
 			timer : Timer::new(
 				duration,
@@ -88,7 +88,7 @@ impl PointToPointTranslation {
 		if paused {
 			translation.timer.pause();
 		}
-		translation
+		(Transform::from_translation(initial_position), translation)
 	}
 
 	pub fn enact(

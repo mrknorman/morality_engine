@@ -3,9 +3,9 @@
     {
         "username": "creator",
         "hostname": "pan_box",
-        "dialogue": "Let's see what you've learned so far. Rapid fire - go.",
+        "dialogue": "Okay... well. Let's continue. Next, comes your first real test. Let's see what you've learned so far. Hopefully you've understood at least a little of what's going on here. I don't hold out much hope but... Rapid fire - go.",
         "instruction": "-",
-        "sound_file": "./audio/dialogue/4/path_utilitarian/3/pass_1.ogg"
+        "sound_file": "./audio/dialogue/4/path_utilitarian/4/outro.ogg"
     }
 ],
 "possible_exit_states" : [

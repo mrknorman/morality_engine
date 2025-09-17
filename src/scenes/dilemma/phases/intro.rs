@@ -8,12 +8,14 @@ use enum_map::{
 };
 
 use crate::{
-    systems::{
+    data::states::{
+        DilemmaPhase,
+		GameState, 
+		MainState, 
+		StateVector
+    }, entities::text::TextButton, scenes::dilemma::{DilemmaSounds, dilemma::{CurrentDilemmaStage, Dilemma}, lever::{Lever, LeverState}}, style::common_ui::NextButton, systems::{
 		audio::{
-			one_shot_audio, 
-			NarrationAudio, 
-			TransientAudio, 
-			TransientAudioPallet 
+			NarrationAudio, TransientAudio, TransientAudioPallet, one_shot_audio 
     	}, 
 		interaction::{
 			ActionPallet, 
@@ -24,16 +26,7 @@ use crate::{
 			TimerPallet, 
 			TimerStartCondition
 		}
-	},
-	entities::text::TextButton, 
-	style::common_ui::NextButton, 
-	scenes::dilemma::{dilemma::Dilemma, lever::{Lever, LeverState}, DilemmaSounds}, 
-	data::states::{
-        DilemmaPhase,
-		GameState, 
-		MainState, 
-		StateVector
-    }
+	}
 };
 
 pub struct DilemmaIntroPlugin;
@@ -81,11 +74,14 @@ impl DilemmaIntroScene {
 	fn setup(
 		mut commands : Commands,
 		dilemma: Res<Dilemma>,
+		current_dilemma_stage : Res<CurrentDilemmaStage>,
 	) {
-		let state= match dilemma.stages[0].default_option {
+		let current_stage = dilemma.stages[current_dilemma_stage.0].clone();
+
+		let state= match current_stage.default_option {
 			None => LeverState::Random,
 			Some(ref option) if *option == 0 => LeverState::Left,
-			Some(_) => LeverState::Right,
+			Some(_) => LeverState::Right
 		};
 		commands.insert_resource(Lever(state));
 		
