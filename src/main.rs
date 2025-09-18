@@ -46,6 +46,7 @@ impl Plugin for GamePlugin {
      // Think about stats for multi-stages
      // more music pls, needed soon
      // Fireworks on results screen
+     // Level selector (for debug and ones you've done)
 
     // Weather Shaders
     // Spacial Audio?

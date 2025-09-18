@@ -3,6 +3,7 @@
     "name" : "One Fifth",
     "narration_path": "./audio/narration/lab/4/path_utilitarian/one_fifth.ogg",
     "description" : "The bandit has secretly been a philosopher this whole time! He's experimenting on you - trying to test your limits. Are you truly utilitarian, all the way? Or must we sometimes judge actions themselves independent of their outcomes?",
+    "music_path" : "./audio/music/algorithm_of_fate.ogg",
     "stages" : [
     {  
       "default_option" : 0,

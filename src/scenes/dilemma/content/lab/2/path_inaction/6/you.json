@@ -3,6 +3,7 @@
   "name" : "It's you or the lever",
   "narration_path": "./audio/narration/lab/2/path_inaction/you.ogg",
   "description" : "You find yourself lying on a railway track. Cold steel presses hard against your back and you can feel the vibrations as the train approaches. You can still reach it though, the lever. It mocks you, taunts you. You can still save yourself, but both you, and the lever, know that you won't.",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {
       "default_option" : 0,

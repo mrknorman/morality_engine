@@ -1,6 +1,5 @@
 use std::{
-	time::Duration,
-	str::FromStr
+	path::{Path, PathBuf}, str::FromStr, time::Duration
 };
 use serde::{
 	Deserialize, 
@@ -202,17 +201,21 @@ pub struct DilemmaStageLoader {
     countdown_duration_seconds: f32,
     options: Vec<DilemmaOptionLoader>,
     default_option: Option<usize>,
+	#[serde(default = "default_speed")]
+	speed : f32
 }
 
 fn default_repeat() -> usize { 1 }
+fn default_speed() -> f32 { 70.0 }
 
 #[derive(Serialize, Deserialize)]
 pub struct DilemmaLoader {
 	index : String,
     name : String,
-	narration_path : String,
+	narration_path : PathBuf,
     description : String,
-	stages : Vec<DilemmaStageLoader>
+	stages : Vec<DilemmaStageLoader>,
+	music_path : PathBuf
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -314,6 +317,7 @@ pub struct DilemmaStage {
 	pub countdown_duration : Duration,
     pub options : Vec<DilemmaOption>,
     pub default_option : Option<usize>,
+	pub speed : f32
 }
 
 #[derive(Resource, Clone)]
@@ -420,9 +424,10 @@ impl DilemmaTimer {
 pub struct Dilemma {
 	pub index : String,
     pub name : String,
-	pub narration_path : String,
+	pub narration_path : PathBuf,
     pub description : String,
-	pub stages : Vec<DilemmaStage>
+	pub stages : Vec<DilemmaStage>,
+	pub music_path : PathBuf
 }
 
 impl Dilemma {
@@ -444,6 +449,7 @@ impl Dilemma {
                     countdown_duration: Duration::from_secs_f32(stage_loader.countdown_duration_seconds),
                     options,
                     default_option: stage_loader.default_option,
+					speed: stage_loader.speed
                 });
             }
         }
@@ -454,6 +460,7 @@ impl Dilemma {
             narration_path: loaded_dilemma.narration_path,
             description: loaded_dilemma.description,
             stages,
+			music_path : loaded_dilemma.music_path
         }
     }
 

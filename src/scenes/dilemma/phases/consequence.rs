@@ -90,13 +90,14 @@ pub struct DilemmaConsequenceScene;
 
 impl DilemmaConsequenceScene{
     fn setup(
+        stage : Res<DilemmaStage>,
         mut commands : Commands,
         mut velocity_query : Query<(Entity, &mut Velocity), With<Train>>,
         asset_server: Res<AssetServer>
     ) {
         for (entity, mut velocity) in velocity_query.iter_mut() {
             commands.entity(entity).remove::<PointToPointTranslation>();
-            velocity.0 = Vec3::new(100.0, 0.0, 0.0);
+            velocity.0 = Vec3::new(stage.speed, 0.0, 0.0);
         }
         
         commands.spawn((

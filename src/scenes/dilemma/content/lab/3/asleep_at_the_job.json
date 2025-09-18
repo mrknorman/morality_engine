@@ -3,6 +3,7 @@
   "name" : "One Fifth",
   "narration_path": "./audio/narration/lab/3/asleep_on_the_job.ogg",
   "description" : "You are a trolley junction operator. The lever is your responsibility. However, whilst on the job, you've fallen asleep on the lever and pushed it into a new position it would not have been in were you not there. Will you correct your mistake and move the lever back into its original position? Or is the act itself still immoral?",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {  
       "default_option" : 1,

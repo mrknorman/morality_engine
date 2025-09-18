@@ -3,6 +3,7 @@
   "name" : "Negligible Difference",
   "narration_path": "./audio/narration/lab/4/path_utilitarian/negligible_difference.ogg",
   "description" : "Surely the difference now is negligible? Your hands could be clean. You could entirely remove yourself from the situation and slip away. No-one would know. Well, except the philosopher-bandit, but do you really want to give him what he wants?",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {  
       "default_option" : 0,

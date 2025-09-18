@@ -14,10 +14,7 @@ use crate::{
     }, 
     scenes::dilemma::{
         content::DilemmaScene, 
-        dilemma::{
-            CurrentDilemmaStageIndex,
-            Dilemma, DilemmaStage
-        }, 
+        dilemma::DilemmaStage, 
         junction::Junction, 
         lever::{
             Lever, 
@@ -34,7 +31,9 @@ use crate::{
         }, 
         motion:: PointToPointTranslation, 
         physics::{
-            CameraVelocity, ExplodedGlyph, Velocity
+            CameraVelocity, 
+            ExplodedGlyph, 
+            Velocity
         }
     }
 };
@@ -141,7 +140,7 @@ fn setup(
                 )
             }
         );
-        background.speed = -stage.countdown_duration.as_secs_f32() / 5.0;
+        background.speed = -stage.speed * stage.countdown_duration.as_secs_f32() / 350.0;
         commands.run_system(systems.0["update_background_speeds"]);
     }
 }
@@ -193,7 +192,7 @@ pub fn update_viscera_speeds(
 
     for (mut velocity, transform) in &mut sprites {            
         let distance_from_bottom = (screen_height - transform.translation.y).max(0.0);
-        let x_speed = distance_from_bottom * -stage.countdown_duration.as_secs_f32() / 5.0;
+        let x_speed = distance_from_bottom * -stage.speed * stage.countdown_duration.as_secs_f32() / 350.0;
         velocity.0.x = x_speed;
     }
 }

@@ -3,6 +3,7 @@
   "name" : "Margin of Error",
   "narration_path": "./audio/narration/lab/4/path_utilitarian/margin_of_error.ogg",
   "description" : "The bandit is clearly just philosophically edging you now, it's getting boring... Will you kill 49 in order to save one? How many orders of magnitude will it take for the difference in utility to be a small enough percent for you to give up on your obsession with lever pulling? Is there such a number?",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {  
       "default_option" : 0,

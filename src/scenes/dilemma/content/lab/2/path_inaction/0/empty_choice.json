@@ -3,6 +3,7 @@
     "name" : "An Empty Choice",
     "narration_path": "./audio/narration/lab/2/path_inaction/empty_choice.ogg",
     "description" : "Facing you are two empty tracks, neither one has any obstruction. There are no humans around for miles around. No one is watching. You've always wanted to pull a big train lever? Haven't you? Now's your chance, go on. Show the world you can. It'll be worth it, trust me...",
+    "music_path" : "./audio/music/algorithm_of_fate.ogg",
     "stages" : [
     {
       "default_option" : 1,

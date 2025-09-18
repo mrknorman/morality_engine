@@ -357,15 +357,15 @@ impl PersonSprite {
 
                 let tint_shade: f32 = rng.random_range(0.0..=3.0);
 
-                if color.to_linear().to_vec4()[1] > tint_shade {
-                    commands.entity(entity).insert(
-                        TextColor(Color::srgba(3.0, tint_shade, tint_shade, 1.0))
-                    );
-                    commands.entity(debris_entity).insert(IgnoreTrainCollision);
+                if let Ok(mut e) = commands.get_entity(entity) {
+                    e.insert(TextColor(Color::srgba(3.0, tint_shade, tint_shade, 1.0)));
+                    if tint_shade < 0.1 {
+                        e.insert(Bloodied);
+                    }
                 }
 
-                if tint_shade < 0.1 {
-                    commands.entity(entity).insert(Bloodied);
+                if let Ok(mut d) = commands.get_entity(debris_entity) {
+                    d.insert(IgnoreTrainCollision);
                 }
                 break;
             }

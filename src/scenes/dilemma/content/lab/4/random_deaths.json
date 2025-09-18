@@ -3,25 +3,27 @@
   "name" : "Rapid Fire",
   "narration_path": "./audio/narration/lab/4/path_utilitarian/random_deaths.ogg",
   "description" : "The bandit has evolved! The train is nearing an interchange with ten consecutive junctions, each with its own moral challenge. There won't be much time to thing between each so prepare yourself. So many to be spared. So many to be sacrificed. May the blood be on your hands... or wheels, in this case.",
+  "music_path" : "./audio/music/endless_tracks.ogg",
   "stages" : [
     {
-        "repeat" : 10,
+        "repeat" : 20,
         "default_option" : 1,
-        "countdown_duration_seconds" : 7,
+        "countdown_duration_seconds" : 2.0,
+        "speed" : 200,
         "options": [
           {
             "index" : 0,
             "name": "Track 1",
             "description": "{num_humans} are tied to this track.",
             "humans": [],
-            "num_humans": "uniform(0,10)"
+            "num_humans": "uniform(1,15)"
           },
           {
             "index" : 1,
             "name": "Track 2",
             "description": "{num_humans} are tied to this track.",
             "humans" : [],
-            "num_humans": "uniform(0,10)"
+            "num_humans": "uniform(1,15)"
           }
         ]
     }

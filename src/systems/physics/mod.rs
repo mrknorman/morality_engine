@@ -35,10 +35,12 @@ impl Plugin for PhysicsPlugin {
                 Gravity::enact,
                 Friction::enact,
                 Volatile::enact,
-                DespawnOffscreen::enact
             )
             .run_if(in_state(PhysicsSystemsActive::True))
-        );
+        ).add_systems(
+                PostUpdate,
+                DespawnOffscreen::enact.run_if(in_state(PhysicsSystemsActive::True)
+        ));
     }
 
 }

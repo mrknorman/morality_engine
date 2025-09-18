@@ -3,6 +3,7 @@
   "name" : "A relaxing lever-pulling time",
   "narration_path": "./audio/narration/lab/2/path_inaction/plenty_of_time.ogg",
   "description" : "Let's try this again: facing you are two EMPTY tracks, neither one has any obstructions. There are no humans ANYWHERE. There's barely even time pressure; the train is miles away. I can't even see it yet. Can you? This is just an all-around great time to pull a lever.",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {
       "default_option" : 1,

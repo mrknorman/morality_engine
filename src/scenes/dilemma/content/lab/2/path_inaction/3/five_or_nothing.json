@@ -3,6 +3,7 @@
   "name" : "Five Lives for the Cost Of None",
   "narration_path": "./audio/narration/lab/2/path_inaction/five_or_nothing.ogg",
   "description" : "We've upped the stakes: five lives all for but the single flip of a rusty old lever. Does that sound like a deal? The lever won't mind; in fact, it enjoys it. We've had personal guarantees, from the manufacturer, that this lever feels nothing but extreme pleasure when pulled.",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {
     "default_option" : 0,

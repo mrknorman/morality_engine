@@ -8,7 +8,7 @@ use crate::{
     entities::{
 		person::{
 			BloodSprite, Emoticon, EmotionSounds, PersonSprite
-		}, text::{CharacterSprite, TextSprite}, track::Track
+		}, text::{CharacterSprite, TextSprite}, track::Track, train::Train
 	}, scenes::dilemma::{
 		Dilemma, dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, lever::{
 	    	Lever, 
@@ -23,7 +23,7 @@ use crate::{
 		}, inheritance::BequeathTextColor, motion::{
 			Bounce, 
 			TransformMultiAnchor
-		}, physics::DespawnOffscreen, time::Dilation 
+		}, physics::{DespawnOffscreen, Velocity}, time::Dilation 
 	}  
 };
 
@@ -133,21 +133,21 @@ impl Junction {
 				asset_server.load("./audio/effects/male_scream_1.ogg"),
 				1.0,
 				false,
-				0.5,
+				0.3,
 				true
 			),
 			TransientAudio::new(
 				asset_server.load("./audio/effects/male_scream_2.ogg"),
 				1.0,
 				false,
-				0.5,
+				0.3,
 				true
 			),
 			TransientAudio::new(
 				asset_server.load("./audio/effects/male_scream_3.ogg"),
 				1.0,
 				false,
-				0.5,
+				0.3,
 				true
 			)
 		];
@@ -263,7 +263,7 @@ impl Junction {
 										let mut entity_commands = track.spawn(
 											(
 												transform,
-												GlobalTransform::from_xyz(1000.0, 1000.0, 1000.0), //Here to avoid immediate collision error
+												GlobalTransform::from_xyz(100000.0, 100000.0, 100000.0), //Here to avoid immediate collision error
 												TextSprite,
 												PersonSprite::default(),
 												Bounce::new(
@@ -420,15 +420,18 @@ impl Junction {
 
 	pub fn check_if_person_in_path_of_train(
 		mut lever_query: Query<(&Children, &BranchTrack)>,
-		mut text_query: Query<&mut PersonSprite>,
-		mut crowd_audio: Query<&mut ContinuousAudioPallet<EmotionSounds>>,
+		mut text_query: Query<(&GlobalTransform, &mut PersonSprite)>,
+		train_query : Single<&GlobalTransform, With<Train>>,
 		lever: Option<Res<Lever>>
 	) {
+
 		if let Some(lever) = lever {		
 			for (children, track) in lever_query.iter_mut(){
 				for child in children.iter() {
-					if let Ok(mut person) = text_query.get_mut(child) {
-						person.in_danger = (Some(track.index) == lever.0.to_int()) && !(lever.0 == LeverState::Random);
+					if let Ok((transform, mut person)) = text_query.get_mut(child) {
+						if (train_query.translation().x < transform.translation().x) {
+							person.in_danger = (Some(track.index) == lever.0.to_int()) && !(lever.0 == LeverState::Random);
+						}
 					}
 				}
 			}

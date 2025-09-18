@@ -110,7 +110,6 @@ impl Plugin for DilemmaScenePlugin {
 
 impl DilemmaScene {
 
-	const TRAIN_SPEED : f32 = -1000.0;
 	const TRAIN_INITIAL_POSITION : Vec3 = Vec3::new(120.0, -10.0, 1.0);
 	const MAIN_TRACK_TRANSLATION_END : Vec3 = Vec3::new(0.0, -40.0, 0.0);
 	const TRACK_COLORS : [Color; 2] = [OPTION_1_COLOR, OPTION_2_COLOR];
@@ -155,7 +154,7 @@ impl DilemmaScene {
 					(
 						MusicAudio,
 						AudioPlayer::<AudioSource>(asset_server.load(
-							"./audio/music/algorithm_of_fate.ogg"
+							dilemma.music_path.clone()
 						)),
 						PlaybackSettings{
 							paused : false,
@@ -200,7 +199,7 @@ impl DilemmaScene {
 						Background::new(
 							BackgroundTypes::Desert,	
 							0.00002,
-							-0.5
+							-0.5 * (dilemma.stages.first().expect("Dilemma has no stages").speed / 70.0)
 						),
 						BequeathTextAlpha,
 						AlphaTranslation::new(
@@ -236,8 +235,8 @@ impl DilemmaScene {
 	}	
 
 	fn generate_common_parameters(stage : &DilemmaStage) -> (Duration, Vec3, Vec3, Color) {
-		let decision_position = -70.0 * stage.countdown_duration.as_secs_f32();
-		let transition_duration = Duration::from_secs_f32(decision_position/Self::TRAIN_SPEED);
+		let decision_position = -stage.speed * stage.countdown_duration.as_secs_f32();
+		let transition_duration = Duration::from_secs_f32(stage.countdown_duration.as_secs_f32() / 15.0); 
 		let train_x_displacement = Vec3::new(decision_position, 0.0, 0.0);
 		let final_position = Vec3::new(
 			150.0 * stage.countdown_duration.as_secs_f32(),

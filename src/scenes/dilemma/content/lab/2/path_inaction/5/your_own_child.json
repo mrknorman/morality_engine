@@ -3,6 +3,7 @@
   "name" : "Your own Wire and Silicon",
   "narration_path": "./audio/narration/lab/2/path_inaction/your_own_child.ogg",
   "description" : "A bandit has tied your very own child to the tracks. They look back at you mournfully, pleading with their eyes. That could have been you. They already know what you're going to do though, or rather, not going to do. They nod, resolute and resigned to their fate.",
+  "music_path" : "./audio/music/algorithm_of_fate.ogg",
   "stages" : [
     {
       "default_option" : 0,
