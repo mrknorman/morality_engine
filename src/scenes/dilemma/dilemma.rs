@@ -683,6 +683,12 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
+		(LeverState::Right, 4) => vec![
+            Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
+            Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
+            Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
+        ],
+
         (LeverState::Right, stage) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
             Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),

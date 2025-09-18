@@ -16,12 +16,10 @@ use crate::{
     }, entities::text::TextButton, scenes::dilemma::{DilemmaSounds, dilemma::{Dilemma, DilemmaStage}, lever::{Lever, LeverState}}, style::common_ui::NextButton, systems::{
 		audio::{
 			NarrationAudio, TransientAudio, TransientAudioPallet, one_shot_audio 
-    	}, 
-		interaction::{
+    	}, colors::ColorTranslation, inheritance::BequeathTextColor, interaction::{
 			ActionPallet, 
 			InputAction
-		},
-		scheduling::{
+		}, motion::Bounce, scheduling::{
 			TimerConfig, 
 			TimerPallet, 
 			TimerStartCondition
@@ -43,6 +41,10 @@ impl Plugin for DilemmaIntroPlugin {
 			DilemmaIntroScene::spawn_delayed_children
 			.run_if(in_state(GameState::Dilemma))
 			.run_if(in_state(DilemmaPhase::Intro))
+		)
+		.add_systems(
+			OnExit(DilemmaPhase::Intro),
+			DilemmaIntroScene::on_exit
 		);
     }
 }
@@ -153,7 +155,7 @@ impl DilemmaIntroScene {
 										StateVector::new(
 											Some(MainState::InGame),
 											Some(GameState::Dilemma),
-											Some(DilemmaPhase::IntroDecisionTransition),
+											Some(DilemmaPhase::DilemmaTransition),
 										)
 									),
 									InputAction::Despawn(None)
@@ -177,6 +179,18 @@ impl DilemmaIntroScene {
 					));
 				});
 			}
+		}
+	}
+
+	fn on_exit(
+        mut commands : Commands,
+        mut title_query: Query<(Entity, &mut ColorTranslation)>
+    ) {
+		for (entity, mut color) in title_query.iter_mut() {
+			commands.entity(entity).insert(BequeathTextColor);
+			commands.entity(entity).remove::<Bounce>();
+
+			color.start()
 		}
 	}
 }

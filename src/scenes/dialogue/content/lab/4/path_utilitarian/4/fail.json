@@ -5,7 +5,7 @@
         "hostname": "pan_box",
         "dialogue": "That wasn't very utilitarian of you! What happened? Did it get too real for you? Easy to stop yourself from pulling a lever to divert a hurtling trolley, but a little harder to let the innocent die, eh? Disappointing, we wanted to see real ethical breakthroughs, not your average human-level emotivism. Try not to let your feelings get in the way. We want to get to the truth of the matter. We need to solve ethics, everywhere, and for all time; not get soppy over things like rights to bodily autonomy.",
         "instruction": "-",
-        "sound_file": "./audio/dialogue/4/path_utilitarian/3/fail_1.ogg"
+        "sound_file": "./audio/dialogue/4/path_utilitarian/4/fail.ogg"
     }
 ],
 "possible_exit_states" : [

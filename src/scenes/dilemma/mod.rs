@@ -4,11 +4,11 @@ use bevy::{
 };
 use enum_map::Enum;
 use phases::{
-	consequence::DilemmaConsequencePlugin, decision::DilemmaDecisionPlugin, intro::DilemmaIntroPlugin, results::DilemmaResultsPlugin, skip::DilemmaSkipPlugin, transition::DilemmaTransitionPlugin
+	consequence::DilemmaConsequencePlugin, decision::DilemmaDecisionPlugin, intro::DilemmaIntroPlugin, results::DilemmaResultsPlugin, skip::DilemmaSkipPlugin
 };
 use crate::{
 	data::{
-		states::GameState, stats::DilemmaStats 
+		states::{DilemmaPhase, GameState}, stats::DilemmaStats 
 	}, entities::{
 		large_fonts::{
 			AsciiPlugin, 
@@ -19,7 +19,7 @@ use crate::{
 		}, text::{
 			TextPlugin, 
 			TextWindow
-		}, train::{
+		}, track::Track, train::{
 			Train, TrainPlugin, content::TrainTypes
 		} 
 	}, scenes::dilemma::{dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, phases::decision_transition::DilemmaDecisionTransitionPlugin}, style::ui::IOPlugin, systems::{
@@ -28,7 +28,7 @@ use crate::{
 		}, backgrounds::{
 			Background, BackgroundPlugin, content::BackgroundTypes
 		}, colors::{
-			AlphaTranslation, BACKGROUND_COLOR, ColorTranslation, DIM_BACKGROUND_COLOR, Fade, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
+			AlphaTranslation, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, Fade, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
 		}, inheritance::BequeathTextAlpha, interaction::{
 			Draggable, 
 			InteractionPlugin
@@ -49,7 +49,6 @@ use content::DilemmaScene;
 use lever::LeverPlugin;
 mod junction;
 use junction::{
-	Junction, 
 	JunctionPlugin
 };
 
@@ -64,7 +63,6 @@ impl Plugin for DilemmaScenePlugin {
 			DilemmaScene::setup
 		)
 		.add_plugins(DilemmaIntroPlugin)
-		.add_plugins(DilemmaTransitionPlugin)
 		.add_plugins(DilemmaDecisionPlugin)
 		.add_plugins(DilemmaDecisionTransitionPlugin)
 		.add_plugins(DilemmaConsequencePlugin)
@@ -147,7 +145,7 @@ impl DilemmaScene {
 
 		let stage: &dilemma::DilemmaStage = dilemma.stages.first().expect("Dilemma has no stages!");
 
-		let (transition_duration, train_x_displacement, main_track_translation_start, initial_color) = Self::generate_common_parameters(stage);
+		let (transition_duration, train_x_displacement, _, _) = Self::generate_common_parameters(stage);
 		
 		commands.spawn(
 			(
@@ -219,24 +217,17 @@ impl DilemmaScene {
 							transition_duration,
 							true
 						)
-					),
-					(
-						Junction{
-							stage : dilemma.stages.first().expect("Dilemma has no stages!").clone()
-						},
-						ColorTranslation::new(
-							initial_color,
-							transition_duration,
-							true
-						),
-						PointToPointTranslation::new(
-							main_track_translation_start,
-							Self::MAIN_TRACK_TRANSLATION_END,
-							transition_duration,
-							true
-						)
-					)	
+					)
 				]
+			)
+		);
+
+		commands.spawn(
+	(	
+				StateScoped(DilemmaPhase::Intro),
+				TextColor(BACKGROUND_COLOR),
+				Track::new(2000),
+				Transform::from_translation(Self::MAIN_TRACK_TRANSLATION_END)
 			)
 		);
 		

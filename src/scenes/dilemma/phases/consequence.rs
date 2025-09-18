@@ -18,7 +18,7 @@ use crate::{
     }, entities::{
         text::TextButton, train::Train
     }, scenes::dilemma::{
-        DilemmaSounds, dilemma::{CurrentDilemmaStageIndex,  Dilemma}, junction::Junction, lever::Lever
+        DilemmaSounds, dilemma::{CurrentDilemmaStageIndex,  Dilemma, DilemmaStage}, junction::Junction, lever::Lever
     }, style::common_ui::NextButton, systems::{
         audio::{
             OneShotAudio, 
@@ -77,7 +77,10 @@ impl Plugin for DilemmaConsequencePlugin {
 			DilemmaConsequenceScene::spawn_delayed_children
 			.run_if(in_state(GameState::Dilemma))
 			.run_if(in_state(DilemmaPhase::Consequence)),
-		);
+		).add_systems(
+            OnExit(DilemmaPhase::Consequence),
+            DilemmaConsequenceScene::update_stage
+        );
     }
 }
 
@@ -238,7 +241,7 @@ impl DilemmaConsequenceScene{
                     ));
                 });
             } else {
-                let next_state = StateVector::new(None, None, Some(DilemmaPhase::DecisionDecisionTransition));
+                let next_state = StateVector::new(None, None, Some(DilemmaPhase::DilemmaTransition));
                 
                 next_state.set_state(                        
                     &mut next_main_state,
@@ -247,6 +250,18 @@ impl DilemmaConsequenceScene{
                 );
             }
             
+        }
+    }
+
+    fn update_stage(
+        dilemma: Res<Dilemma>,
+        mut stage_index: ResMut<CurrentDilemmaStageIndex>,
+        mut stage: ResMut<DilemmaStage>,
+    ) {
+        stage_index.0 += 1;
+
+        if let Some(next_stage) = dilemma.stages.get(stage_index.0) {
+            *stage = next_stage.clone();
         }
     }
 }
