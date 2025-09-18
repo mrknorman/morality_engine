@@ -22,7 +22,7 @@ use crate::{
 		}, track::Track, train::{
 			Train, TrainPlugin, content::TrainTypes
 		} 
-	}, scenes::dilemma::{dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, phases::decision_transition::DilemmaDecisionTransitionPlugin}, style::ui::IOPlugin, systems::{
+	}, scenes::dilemma::{dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, phases::transition::DilemmaTransitionPlugin}, style::ui::IOPlugin, systems::{
 		audio::{
 			MusicAudio, continuous_audio
 		}, backgrounds::{
@@ -64,7 +64,7 @@ impl Plugin for DilemmaScenePlugin {
 		)
 		.add_plugins(DilemmaIntroPlugin)
 		.add_plugins(DilemmaDecisionPlugin)
-		.add_plugins(DilemmaDecisionTransitionPlugin)
+		.add_plugins(DilemmaTransitionPlugin)
 		.add_plugins(DilemmaConsequencePlugin)
 		.add_plugins(DilemmaResultsPlugin)
 		.add_plugins(DilemmaSkipPlugin);

@@ -39,8 +39,8 @@ use crate::{
     }
 };
 
-pub struct DilemmaDecisionTransitionPlugin;
-impl Plugin for DilemmaDecisionTransitionPlugin {
+pub struct DilemmaTransitionPlugin;
+impl Plugin for DilemmaTransitionPlugin {
     fn build(&self, app: &mut App) {
         app
 		.add_systems(
