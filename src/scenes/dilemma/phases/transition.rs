@@ -185,14 +185,10 @@ fn trigger_exit(
 
 pub fn update_viscera_speeds(
     stage : Res<DilemmaStage>,
-    window: Single<&Window, With<PrimaryWindow>>,
     mut sprites: Query<(&mut CameraVelocity, &Transform), Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
 ) {
-    let screen_height = window.height();
-
     for (mut velocity, transform) in &mut sprites {            
-        let distance_from_bottom = (screen_height - transform.translation.y).max(0.0);
-        let x_speed = distance_from_bottom * -stage.speed * stage.countdown_duration.as_secs_f32() / 350.0;
+        let x_speed = transform.translation.z.powf(0.3) * -stage.speed * stage.countdown_duration.as_secs_f32() * 3.0;
         velocity.0.x = x_speed;
     }
 }
