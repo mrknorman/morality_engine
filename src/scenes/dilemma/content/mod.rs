@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use super::{Scene};
-
 
 trait DilemmaProvider {
     fn content(&self) -> &'static str;

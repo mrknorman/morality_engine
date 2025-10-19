@@ -164,8 +164,8 @@ impl DilemmaStats {
 
         let rows = vec![Row { height: 20.0 }; left_cells.len()];
     
-        let left_column = Column::new(left_cells, left_column_width, padding, Anchor::CenterRight, false);
-        let right_column = Column::new(right_cells, right_column_width, padding,Anchor::CenterLeft, false);
+        let left_column = Column::new(left_cells, left_column_width, padding, Anchor::CENTER_RIGHT, false);
+        let right_column = Column::new(right_cells, right_column_width, padding,Anchor::CENTER_LEFT, false);
     
         // Return the complete table.
         Table {
@@ -317,8 +317,8 @@ impl GameStats{
         let rows = vec![Row { height: 20.0 }; left_cells.len()];
     
         // Create the two columns.
-        let left_column = Column::new(left_cells, left_column_width, padding, Anchor::CenterRight, false);
-        let right_column = Column::new(right_cells, right_column_width, padding, Anchor::CenterLeft, false);
+        let left_column = Column::new(left_cells, left_column_width, padding, Anchor::CENTER_RIGHT, false);
+        let right_column = Column::new(right_cells, right_column_width, padding, Anchor::CENTER_LEFT, false);
         
         // Build and return the table.
         Table {

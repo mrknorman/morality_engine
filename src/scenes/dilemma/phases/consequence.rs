@@ -102,7 +102,7 @@ impl DilemmaConsequenceScene{
         
         commands.spawn((
             Self,
-            StateScoped(DilemmaPhase::Consequence),
+            DespawnOnExit(DilemmaPhase::Consequence),
             TimerPallet::new(
                 vec![
                     (

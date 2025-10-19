@@ -1,5 +1,5 @@
 use std::{
-	path::{Path, PathBuf}, str::FromStr, time::Duration
+	path::PathBuf, str::FromStr, time::Duration
 };
 use serde::{
 	Deserialize, 
@@ -8,7 +8,7 @@ use serde::{
 };
 use bevy::{
 	ecs::{
-		component::HookContext, 
+		lifecycle::HookContext, 
 		world::DeferredWorld, 
 	},
 	prelude::*
@@ -359,7 +359,7 @@ impl DilemmaTimer {
 
 			timer.timer.tick(time.delta().mul_f32(dilation.0));
 			text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
-			if timer.timer.finished() {
+			if timer.timer.is_finished() {
 				next_game_state.set(
 					DilemmaPhase::Consequence
 				)

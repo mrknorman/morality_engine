@@ -120,7 +120,7 @@ impl MenuScene {
             (
                 queue.current,
                 MenuScene,
-                StateScoped(MainState::Menu),
+                DespawnOnExit(MainState::Menu),
                 children![
                     (
                         BackgroundAudio,

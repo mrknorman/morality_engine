@@ -29,7 +29,7 @@ impl Default for ResizeDebounce {
 }
 
 fn handle_resize(
-    resize_events: EventReader<WindowResized>,
+    resize_events: MessageReader<WindowResized>,
     time: Res<Time>,
     mut debounce: ResMut<ResizeDebounce>,
 ) {

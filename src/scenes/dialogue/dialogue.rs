@@ -127,7 +127,7 @@ fn dialogue_text_bounds() -> TextBounds {
 
 
 fn dialogue_anchor() -> Anchor  {
-    Anchor::CenterLeft
+    Anchor::CENTER_LEFT
 }
 
 fn dialogue_window() -> TextWindow {
@@ -275,7 +275,7 @@ impl Dialogue {
         asset_server: Res<AssetServer>,
 		mut query: Query<(Entity, &mut Dialogue, &mut ContinuousAudioPallet<CharacterKey>), With<Text2d>>,
 		audio_query: Query<&AudioSink>,
-		mut ev_advance_dialogue: EventReader<AdvanceDialogue>,
+		mut ev_advance_dialogue: MessageReader<AdvanceDialogue>,
         dialogue_audio : Option<Single<Entity, With<DialogueAudio>>>
 	) {
 		for (
@@ -397,7 +397,7 @@ impl Dialogue {
         mut dilation : ResMut<Dilation>
     ) {
         for (entity, mut dialogue, audio_pallet) in query.iter_mut() {
-            if !dialogue.playing || (!dialogue.timer.tick(time.delta().mul_f32(dilation.0)).finished() && dialogue.skip_count <= 1) {
+            if !dialogue.playing || (!dialogue.timer.tick(time.delta().mul_f32(dilation.0)).is_finished() && dialogue.skip_count <= 1) {
                 continue;
             }
     

@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use bevy::{
-    audio::Volume, ecs::{component::HookContext, world::DeferredWorld}, prelude::*
+    audio::Volume, ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*
 };
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 			BloodSprite, Emoticon, EmotionSounds, PersonSprite
 		}, text::{CharacterSprite, TextSprite}, track::Track, train::Train
 	}, scenes::dilemma::{
-		Dilemma, dilemma::{CurrentDilemmaStageIndex, DilemmaStage}, lever::{
+		dilemma::DilemmaStage, lever::{
 	    	Lever, 
        		LeverState
     	}
@@ -23,7 +23,7 @@ use crate::{
 		}, inheritance::BequeathTextColor, motion::{
 			Bounce, 
 			TransformMultiAnchor
-		}, physics::{DespawnOffscreen, Velocity}, time::Dilation 
+		}, physics::DespawnOffscreen, time::Dilation 
 	}  
 };
 
@@ -91,9 +91,9 @@ pub struct Junction{
 
 impl Junction {
 	pub const BRANCH_SEPARATION : Vec3 = Vec3::new(0.0, -100.0, 0.0);
-	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-11800.0, 0.0, 0.0);
-	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(2000.0, 0.0, 0.0);
-	const FATALITY_OFFSET : f32 = -1780.0;
+	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-7000.0, 0.0, 0.0);
+	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(1281.5, 0.0, 0.0);
+	const FATALITY_OFFSET : f32 = -1070.0;
 
 	fn track_color() -> TextColor {
 		TextColor(BACKGROUND_COLOR)
@@ -424,12 +424,11 @@ impl Junction {
 		train_query : Single<&GlobalTransform, With<Train>>,
 		lever: Option<Res<Lever>>
 	) {
-
 		if let Some(lever) = lever {		
 			for (children, track) in lever_query.iter_mut(){
 				for child in children.iter() {
 					if let Ok((transform, mut person)) = text_query.get_mut(child) {
-						if (train_query.translation().x < transform.translation().x) {
+						if train_query.translation().x < transform.translation().x {
 							person.in_danger = (Some(track.index) == lever.0.to_int()) && !(lever.0 == LeverState::Random);
 						}
 					}

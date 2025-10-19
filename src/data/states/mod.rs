@@ -11,10 +11,7 @@ impl Plugin for GameStatesPlugin {
         app           
         .init_state::<MainState>()
         .add_sub_state::<GameState>()
-        .add_sub_state::<DilemmaPhase>()
-        .enable_state_scoped_entities::<MainState>()
-        .enable_state_scoped_entities::<GameState>()
-        .enable_state_scoped_entities::<DilemmaPhase>();
+        .add_sub_state::<DilemmaPhase>();
     }
 }
 
@@ -42,7 +39,6 @@ pub enum GameState {
 pub enum DilemmaPhase {
     #[default]
     Intro,
-    IntroDecisionTransition,
     Decision,
     DilemmaTransition,
     Skip,

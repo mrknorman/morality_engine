@@ -131,7 +131,7 @@ impl LoadingScene {
         commands.spawn((
             queue.current,
             LoadingScene,
-            StateScoped(GameState::Loading),
+            DespawnOnExit(GameState::Loading),
             TimerPallet::new(
                 vec![
                     (

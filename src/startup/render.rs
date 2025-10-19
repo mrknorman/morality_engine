@@ -1,14 +1,12 @@
 use bevy::{
-    asset::RenderAssetUsages, color::palettes::css::BLACK, core_pipeline::{
-        bloom::Bloom,
-        tonemapping::Tonemapping,
-    }, image::ImageSampler, prelude::*, render::{
-        camera::RenderTarget, 
+    asset::RenderAssetUsages, camera::{
+        RenderTarget, 
+        visibility::RenderLayers
+    }, color::palettes::css::BLACK, core_pipeline::tonemapping::Tonemapping, image::ImageSampler, post_process::bloom::Bloom, prelude::*, render::{
         render_resource::{
-            AddressMode, AsBindGroup, Extent3d, FilterMode, SamplerDescriptor, ShaderRef, ShaderType, TextureDimension, TextureFormat, TextureUsages
-        }, 
-        view::RenderLayers
-    }, sprite::{Material2d, Material2dPlugin}, window::{
+            AddressMode, AsBindGroup, Extent3d, FilterMode, SamplerDescriptor, ShaderType, TextureDimension, TextureFormat, TextureUsages
+        }, view::Hdr, 
+    }, shader::ShaderRef, sprite_render::{Material2d, Material2dPlugin}, window::{
         PrimaryWindow, 
         WindowResized
     }
@@ -59,8 +57,8 @@ fn setup_cameras(
             Camera2d,
             OffscreenCamera,
             RenderLayers::layer(0),
+            Hdr,
             Camera {
-                hdr: true,
                 target: RenderTarget::Image(render_target.0.clone().into()),
                 ..default()
             }
@@ -71,10 +69,8 @@ fn setup_cameras(
             Camera2d,
             MainCamera,
             RenderLayers::layer(1),
-            Camera {
-                hdr: true,
-                ..default()
-            },
+            Hdr,
+            Camera::default(),
             Tonemapping::TonyMcMapface,
             Bloom::default(),
         ));
@@ -83,10 +79,8 @@ fn setup_cameras(
         commands.spawn((
             Camera2d,
             MainCamera,
-            Camera {
-                hdr: true,
-                ..default()
-            },
+            Hdr,
+            Camera::default(),
             Tonemapping::TonyMcMapface,
             Bloom::default(),
         ));
@@ -146,7 +140,7 @@ impl RenderTargetHandle {
     fn update(
         window: Single<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut images: ResMut<Assets<Image>>,
-        mut resize_reader: EventReader<WindowResized>,
+        mut resize_reader: MessageReader<WindowResized>,
         render_target: ResMut<RenderTargetHandle>,
     ) {
         for _ in resize_reader.read() {

@@ -87,7 +87,7 @@ impl DilemmaResultsScene {
 	
 		commands.spawn((
 			Self,
-			StateScoped(DilemmaPhase::Results),
+			DespawnOnExit(DilemmaPhase::Results),
 			children![
 				(
 					Draggable::default(),

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use bevy::{
-    ecs::{component:: HookContext, world::DeferredWorld}, 
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, 
     prelude::*, 
     sprite::Anchor, 
     text::LineBreak, 
@@ -422,12 +422,12 @@ impl Cascade {
                         rippling : false
                     },
                     Velocity(Vec3::ZERO.with_y(-cascade.speed)),
-                    Anchor::Center,
+                    Anchor::CENTER,
                     Text2d::new(text.to_string()),
                     text_font.clone(),
                     text_color,
                     TextLayout {
-                        justify: JustifyText::Center,
+                        justify: Justify::Center,
                         linebreak: LineBreak::WordBoundary,
                     },
                     Transform { translation: position, ..default() },

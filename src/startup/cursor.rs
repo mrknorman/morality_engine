@@ -1,11 +1,9 @@
 use bevy::{
-    asset::Assets, image::{
+    asset::{Assets, RenderAssetUsages}, camera::visibility::RenderLayers, image::{
         CompressedImageFormats, 
         ImageSampler, 
         ImageType
-    }, prelude::*, render::{
-        render_asset::RenderAssetUsages, view::RenderLayers
-    }, sprite::Anchor, window::PrimaryWindow
+    }, prelude::*, sprite::Anchor, window::{CursorOptions, PrimaryWindow}
 };
 
 use enum_map::{
@@ -60,12 +58,12 @@ impl CustomCursor {
 
     fn setup(
         mut commands: Commands,
-        mut window: Single<&mut Window, With<PrimaryWindow>>,
+        mut cursor_options: Single<&mut CursorOptions, With<PrimaryWindow>>,
         mut images: ResMut<Assets<Image>>,
         mut custom_cursor: ResMut<CustomCursor>,
     ) {
         // Hide the default cursor
-        window.cursor_options.visible = false;
+        cursor_options.visible = false;
         
         // Define cursor size
         let cursor_size = Vec2::new(15.0, 15.0);
@@ -114,10 +112,10 @@ impl CustomCursor {
         // Spawn cursor entity with the default pointer image
         let cursor_entity = commands
             .spawn((
+                Anchor::TOP_LEFT,
                 Sprite {
                     image: icons[CursorMode::Pointer].clone(),
                     custom_size: Some(cursor_size),
-                    anchor: Anchor::TopLeft,
                     ..default()
                 },
                 Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),

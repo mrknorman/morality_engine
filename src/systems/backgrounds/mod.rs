@@ -4,7 +4,7 @@ use rand::Rng;
 
 use bevy::{
     ecs::{
-        component::HookContext,
+        lifecycle::HookContext,
         system::SystemId, world::DeferredWorld
     }, prelude::*, sprite::Anchor, text::LineBreak, window::PrimaryWindow
 };
@@ -230,7 +230,7 @@ impl Background {
                         random_offset,
                     },
                     CameraVelocity(Vec3::new(speed, 0.0, 0.0)),
-                    Anchor::BottomCenter,
+                    Anchor::BOTTOM_CENTER,
                     Text2d::new(lod),
                     Transform {
                         translation,
@@ -242,7 +242,7 @@ impl Background {
                         ..default()
                     },
                     TextLayout {
-                        justify: JustifyText::Left,
+                        justify: Justify::Left,
                         linebreak: LineBreak::WordBoundary,
                     },
                 ));

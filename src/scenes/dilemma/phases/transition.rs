@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*, 
-    window::PrimaryWindow
-};
+use bevy::prelude::*;
 
 use crate::{
     data::states::{
@@ -85,7 +82,7 @@ fn setup(
 
     commands.spawn(
 (
-            StateScoped(GameState::Dilemma),
+            DespawnOnExit(GameState::Dilemma),
             Junction{
                 stage : stage.clone()
             },
@@ -156,10 +153,10 @@ fn trigger_exit(
 ) {
     let mut all_translations_finished = true;
     for translation in train_query.iter_mut() {
-        all_translations_finished &= translation.timer.finished();
+        all_translations_finished &= translation.timer.is_finished();
     }
     for translation in junction_query.iter_mut() {
-        all_translations_finished &= translation.timer.finished();
+        all_translations_finished &= translation.timer.is_finished();
     }
 
     if all_translations_finished {

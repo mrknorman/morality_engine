@@ -162,13 +162,13 @@ where
 	}
 
 	pub fn check_start_conditions(
-		mut ev_narration_finished: EventReader<NarrationAudioFinished>,
+		mut ev_narration_finished: MessageReader<NarrationAudioFinished>,
 		mut timer_query: Query<&mut TimerPallet<K>>,
 	) {
 		if ev_narration_finished.read().next().is_some() {
 			timer_query.iter_mut().for_each(|mut pallet| {
 				pallet.0.iter_mut().for_each(|(_, timer)| {
-					if timer.start_condition == TimerStartCondition::OnNarrationEnd && timer.timer.paused() {
+					if timer.start_condition == TimerStartCondition::OnNarrationEnd && timer.timer.is_paused() {
 						timer.timer.unpause();
 					}
 				});

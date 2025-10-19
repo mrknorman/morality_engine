@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::{HookContext, Mutable}, world::DeferredWorld}, prelude::*, render::primitives::Aabb, time::TimerMode,
+    ecs::{component::Mutable, lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, time::TimerMode,
 };
 use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
@@ -148,7 +148,7 @@ impl AlphaTranslation {
         for (mut motion, mut color) in query.iter_mut() {
             motion.timer.tick(time.delta().mul_f32(dilation.0));
 
-            if !motion.timer.paused() && !motion.timer.finished() {
+            if !motion.timer.is_paused() && !motion.timer.is_finished() {
                 let fraction_complete = motion.timer.fraction();
                 let difference = motion.final_alpha - motion.initial_alpha;
                 let new_alpha = motion.initial_alpha + difference * fraction_complete;
@@ -231,7 +231,7 @@ impl ColorTranslation {
         for (mut motion, mut color) in query.iter_mut() {
             motion.timer.tick(time.delta().mul_f32(dilation.0));
 
-            if !motion.timer.paused() && !motion.timer.finished() {
+            if !motion.timer.is_paused() && !motion.timer.is_finished() {
                 let fraction_complete = motion.timer.fraction();
                 let difference = motion.final_color - motion.initial_color;
                 let new_color = motion.initial_color + difference * fraction_complete;
@@ -295,7 +295,7 @@ impl Fade {
         mut query: Query<(Entity, &ColorTranslation), With<Fade>>
     ) {
         for (entity, transition) in query.iter_mut() {
-            if transition.timer.finished() {
+            if transition.timer.is_finished() {
                 commands.entity(entity).despawn();    
             }
         }   
@@ -407,7 +407,7 @@ impl Flicker {
     pub fn update(&mut self, dt: Duration, rng: &mut Pcg64Mcg) -> bool {
         if !self.enacting {
             self.inter_flicker_timer.tick(dt);
-            if self.inter_flicker_timer.finished() {
+            if self.inter_flicker_timer.is_finished() {
                 // Begin a new flicker burst with a random duration.
                 let flicker_duration = rng.random_range(self.min_flicker_duration..self.max_flicker_duration);
                 self.flicker_timer.set_duration(flicker_duration);
@@ -418,7 +418,7 @@ impl Flicker {
             return false;
         } else {
             self.flicker_timer.tick(dt);
-            if self.flicker_timer.finished() {
+            if self.flicker_timer.is_finished() {
                 // End burst and randomize the next interval.
                 let interval = rng.random_range(self.min_interval..self.max_interval);
                 self.inter_flicker_timer.set_duration(interval);

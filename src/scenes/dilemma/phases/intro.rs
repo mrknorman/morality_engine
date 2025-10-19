@@ -87,7 +87,7 @@ impl DilemmaIntroScene {
 		commands.spawn(
 			(
 				DilemmaIntroScene,
-				StateScoped(DilemmaPhase::Intro),
+				DespawnOnExit(DilemmaPhase::Intro),
 				TimerPallet::new(
 					vec![
 						(

@@ -1,4 +1,4 @@
-use bevy::{ecs::{component::HookContext, world::DeferredWorld}, prelude::*};
+use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
 use crate::systems::colors::PRIMARY_COLOR;
 
 pub struct CompoundPlugin;

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*
 };
 
@@ -76,11 +76,11 @@ impl DilationTranslation {
 	) {
 		for (entity, mut motion) in query.iter_mut() {
 			motion.timer.tick(time.delta());
-			if !motion.timer.paused() && !motion.timer.finished() {
+			if !motion.timer.is_paused() && !motion.timer.is_finished() {
 				let fraction_complete = motion.timer.fraction();
 				let difference = motion.final_dilation - motion.initial_dilation;
 				dilation.0 = motion.initial_dilation + difference*fraction_complete;
-			} else if motion.timer.finished() {
+			} else if motion.timer.is_finished() {
 				dilation.0 = motion.final_dilation;
                 commands.entity(entity).despawn();    
 			}

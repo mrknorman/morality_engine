@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, sprite::Anchor, text::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, sprite::Anchor, text::{
         TextBounds, TextLayoutInfo
     }
 };
@@ -66,14 +66,14 @@ fn default_font_color() -> TextColor {
 
 fn default_text_layout() -> TextLayout {
     TextLayout{
-        justify: JustifyText::Center,
+        justify: Justify::Center,
         ..default()
     }
 }
 
 fn default_nowrap_layout() -> TextLayout {
     TextLayout{
-        justify: JustifyText::Center,
+        justify: Justify::Center,
         linebreak : LineBreak::NoWrap,
         ..default()
     }
@@ -192,7 +192,7 @@ impl GlyphString {
                         CharacterSprite { row, col, cols: max_cols, lines: lines_count },
                         TextSprite,
                         Text2d::new(ch.to_string()),
-                        Anchor::BottomCenter,
+                        Anchor::BOTTOM_CENTER,
                         Transform::from_translation(
                             CharacterSprite { row, col, cols: max_cols, lines: lines_count }.offset()
                         )
@@ -308,7 +308,7 @@ impl TextButton {
         (
             TextButton,
             TextLayout{
-                justify: JustifyText::Center,
+                justify: Justify::Center,
                 ..default()
             },   
             Clickable::new(actions.clone()),
@@ -334,16 +334,16 @@ fn get_anchor_offset(anchor : &Anchor, dimensions : Vec2) -> Vec2 {
     let height = dimensions.y;
 
     match anchor {
-        Anchor::TopLeft => Vec2::new(-width / 2.0, height / 2.0,),
-        Anchor::TopCenter => Vec2::new(0.0, height / 2.0),
-        Anchor::TopRight => Vec2::new(width / 2.0, height / 2.0),
-        Anchor::CenterLeft => Vec2::new(-width / 2.0, 0.0),
-        Anchor::Center => Vec2::new(0.0, 0.0),
-        Anchor::CenterRight => Vec2::new(width / 2.0, 0.0),
-        Anchor::BottomLeft => Vec2::new(-width / 2.0, -height / 2.0),
-        Anchor::BottomCenter => Vec2::new(0.0, -height / 2.0),
-        Anchor::BottomRight => Vec2::new(width / 2.0, -height / 2.0),
-        Anchor::Custom(offset) => *offset
+        &Anchor::TOP_LEFT => Vec2::new(-width / 2.0, height / 2.0,),
+        &Anchor::TOP_CENTER=> Vec2::new(0.0, height / 2.0),
+        &Anchor::TOP_RIGHT => Vec2::new(width / 2.0, height / 2.0),
+        &Anchor::CENTER_LEFT => Vec2::new(-width / 2.0, 0.0),
+        &Anchor::CENTER => Vec2::new(0.0, 0.0),
+        &Anchor::CENTER_RIGHT => Vec2::new(width / 2.0, 0.0),
+        &Anchor::BOTTOM_LEFT => Vec2::new(-width / 2.0, -height / 2.0),
+        &Anchor::BOTTOM_CENTER => Vec2::new(0.0, -height / 2.0),
+        &Anchor::BOTTOM_RIGHT => Vec2::new(width / 2.0, -height / 2.0),
+        &Anchor(offset) => offset
     }
 }
 
@@ -385,7 +385,7 @@ impl TextWindow {
 
             let dimensions = Vec2::new(width, height);
 
-            let anchor = anchor.unwrap_or(&Anchor::Center);
+            let anchor = anchor.unwrap_or(&Anchor::CENTER);
             let anchor_offset = get_anchor_offset(anchor, dimensions).extend(0.1);
 
             if let Some(mut draggable) = draggable {
@@ -472,7 +472,7 @@ impl Default for TextContent {
             color : Color::WHITE,
             size : 10.0,
             padding : Vec2::ZERO,
-            anchor : Anchor::Center,
+            anchor : Anchor::CENTER,
             bounds : Vec2::ONE
         }
     }
@@ -485,7 +485,7 @@ impl TextContent {
             color,
             size,
             padding : Vec2::ZERO,
-            anchor : Anchor::Center,
+            anchor : Anchor::CENTER,
             bounds : Vec2::ONE
         }
     }
@@ -533,10 +533,10 @@ impl Cell {
         let offset:Vec2 = get_anchor_offset(&text.anchor, text.bounds); 
 
         let justify = match text.anchor {
-            Anchor::TopLeft | Anchor::CenterLeft | Anchor::BottomLeft => JustifyText::Left,
-            Anchor::TopCenter | Anchor::Center | Anchor::BottomCenter => JustifyText::Center,
-            Anchor::TopRight | Anchor::CenterRight | Anchor::BottomRight => JustifyText::Right,
-            _ => JustifyText::Center
+            Anchor::TOP_LEFT | Anchor::CENTER_LEFT | Anchor::BOTTOM_LEFT=> Justify::Left,
+            Anchor::TOP_CENTER| Anchor::CENTER | Anchor::BOTTOM_CENTER => Justify::Center,
+            Anchor::TOP_RIGHT | Anchor::CENTER_RIGHT | Anchor::BOTTOM_RIGHT => Justify::Right,
+            _ => Justify::Center
         };
 
         world.commands().entity(entity).with_children(|parent| {

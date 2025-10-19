@@ -1,6 +1,6 @@
 //! style/common_ui/mod.rs
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 use crate::style::ui::BottomAnchor;

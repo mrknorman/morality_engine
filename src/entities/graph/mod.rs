@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::mesh::Mesh2d
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, mesh::Mesh2d
 };
 
 use crate::{

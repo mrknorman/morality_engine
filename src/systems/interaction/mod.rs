@@ -5,7 +5,7 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb,
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb,
 };
 use crate::{
     data::{
@@ -144,7 +144,7 @@ impl Plugin for InteractionPlugin {
         if !app.is_plugin_added::<AudioPlugin>() {
             app.add_plugins(AudioPlugin);
         }
-        app.add_event::<AdvanceDialogue>()
+        app.add_message::<AdvanceDialogue>()
             .init_resource::<InteractionAggregate >()
             .add_systems(Startup, activate_prerequisite_states)
             .add_systems(Update, reset_clickable_aggregate.before(InteractionSystem::Clickable));
@@ -171,7 +171,7 @@ fn activate_prerequisite_states(
     audio_state.set(AudioSystemsActive::True);
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct AdvanceDialogue;
 #[derive(Copy, Clone, Component)]
 pub struct ClickableCursorIcons {
@@ -688,7 +688,7 @@ pub fn trigger_advance_dialogue<K, S>(
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
     )>,
-    mut event_writer: EventWriter<AdvanceDialogue>,
+    mut event_writer: MessageWriter<AdvanceDialogue>,
 )
 where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
@@ -696,7 +696,7 @@ where
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
     <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
 {
-    fn send_dialogue_event(event_writer: &mut EventWriter<AdvanceDialogue>) {
+    fn send_dialogue_event(event_writer: &mut MessageWriter<AdvanceDialogue>) {
         event_writer.write(AdvanceDialogue);
     }
 
@@ -983,7 +983,7 @@ impl Draggable {
 
 pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
     // Get the transformation matrix
-    let matrix = transform.compute_matrix();
+    let matrix = transform.to_matrix();
    
     // Transform AABB corners to world space accounting for rotation
     let half_x = aabb.half_extents.x;
@@ -1024,7 +1024,7 @@ pub fn is_cursor_within_region(
     let region_local_transform = Transform::from_translation(Vec3::new(region_offset.x, region_offset.y, 0.0));
    
     // Create a matrix that transforms from local space to world space
-    let model_matrix = global_transform.compute_matrix();
+    let model_matrix = global_transform.to_matrix();
    
     // Calculate half size
     let half_width = region_size.x / 2.0;

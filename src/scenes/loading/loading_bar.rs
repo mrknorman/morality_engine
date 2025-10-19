@@ -3,7 +3,7 @@ use std::time::Duration;
 use rand::Rng;
 use serde::Deserialize;
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, sprite::Anchor
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, sprite::Anchor
 };
 
 use crate::{
@@ -191,10 +191,10 @@ impl LoadingBar {
                     },
                     Transform::from_xyz(-250.0, 20.0, 0.0),
                     TextLayout{
-                        justify: JustifyText::Center,
+                        justify: Justify::Center,
                         ..default()
                     },
-                    Anchor::CenterLeft,
+                    Anchor::CENTER_LEFT,
                 )).with_children( |parent| {
                     parent.spawn((
                             TextSpan::new(messages[0].clone()),
@@ -217,10 +217,10 @@ impl LoadingBar {
 
                 parent.spawn((
                     ProgressIndicator,
+                    Anchor::CENTER_LEFT,
                     Sprite {
                         color: HIGHLIGHT_COLOR,
                         custom_size: Some(Vec2::new(0.0, 14.0)),
-                        anchor: Anchor::CenterLeft,
                         ..default()
                     },
                     Transform::from_translation(

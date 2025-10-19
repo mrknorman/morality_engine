@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, window::PrimaryWindow
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, window::PrimaryWindow
 };
 
 use rand::{seq::IndexedRandom, Rng};
@@ -486,7 +486,7 @@ impl Volatile {
         forces: ExplosionForces,
         commands: &mut Commands
     ) {
-        let world_tf = Transform::from_matrix(glyph_tf.compute_matrix());
+        let world_tf = Transform::from_matrix(glyph_tf.to_matrix());
         let vz = forces.velocity.z / 500.0;
         let scale_velocity = Vec3::splat(vz);
         let floor_level = Some(-local_tf.translation.y - vz * 1000.0);

@@ -1,7 +1,8 @@
 use bevy::{
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef},
-    sprite::Material2d
+    shader::ShaderRef,
+    render::render_resource::AsBindGroup,
+    sprite_render::Material2d
 };
 
 // This is the struct that will be passed to your shader

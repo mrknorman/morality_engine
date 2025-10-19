@@ -149,7 +149,7 @@ impl DilemmaScene {
 		commands.spawn(
 			(
 				scene,
-				StateScoped(GameState::Dilemma),
+				DespawnOnExit(GameState::Dilemma),
 				children![
 					(
 						MusicAudio,
@@ -191,7 +191,7 @@ impl DilemmaScene {
 							font_size : 12.0,
 							..default()
 						},
-						Anchor::TopLeft,
+						Anchor::TOP_LEFT,
 						Transform::from_xyz(-600.0,200.0, 2.0)
 					),
 					(
@@ -223,7 +223,7 @@ impl DilemmaScene {
 
 		commands.spawn(
 	(	
-				StateScoped(DilemmaPhase::Intro),
+				DespawnOnExit(DilemmaPhase::Intro),
 				TextColor(BACKGROUND_COLOR),
 				Track::new(2000),
 				Transform::from_translation(Self::MAIN_TRACK_TRANSLATION_END)

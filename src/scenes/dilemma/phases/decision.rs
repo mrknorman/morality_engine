@@ -32,7 +32,7 @@ use crate::{
 		audio::{
 			ContinuousAudio, ContinuousAudioPallet, TransientAudio, TransientAudioPallet, continuous_audio 
 		}, backgrounds::Background, colors::{
-			ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, Fade, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
+			ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR
 		}, interaction::{
 			ActionPallet, 
 			ClickablePong, 
@@ -110,7 +110,7 @@ impl DecisionScene {
 		};
 		
 		commands.spawn((
-			StateScoped(DilemmaPhase::Decision),
+			DespawnOnExit(DilemmaPhase::Decision),
 			DecisionScene,
 			children![
 				ContinuousAudioPallet::new(
@@ -212,7 +212,7 @@ impl DecisionScene {
 					},
 					TextColor(color),
 					TextLayout{
-						justify : JustifyText::Center, 
+						justify : Justify::Center, 
 						..default()
 					},
 					TransientAudioPallet::new(
@@ -257,7 +257,7 @@ impl DecisionScene {
 							font_size : 12.0,
 							..default()
 						},
-						Anchor::TopLeft,
+						Anchor::TOP_LEFT,
 						Transform::from_translation(*transform)
 					));	
 				}

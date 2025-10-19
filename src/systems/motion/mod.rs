@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
-	ecs::{component::HookContext, world::DeferredWorld}, prelude::*
+	ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*
 };
 use rand::Rng;
 use crate::{
@@ -100,7 +100,7 @@ impl PointToPointTranslation {
 
 			motion.timer.tick(time.delta().mul_f32(dilation.0));
 
-			if !motion.timer.paused() && !motion.timer.finished() {
+			if !motion.timer.is_paused() && !motion.timer.is_finished() {
 
 				let fraction_complete = motion.timer.fraction();
 				let difference = motion.final_position - motion.initial_position;
@@ -216,7 +216,7 @@ impl Wobble {
 		mut wobble_query: Query<(&mut Transform, &mut Wobble, &TransformAnchor)>
 	) {
 		for (mut transform, mut wobble, translation_anchor) in wobble_query.iter_mut() {
-			if wobble.timer.tick(time.delta().mul_f32(dilation.0)).finished() {
+			if wobble.timer.tick(time.delta().mul_f32(dilation.0)).is_finished() {
 				let dx = rng.uniform.random_range(-1.0..=1.0);
 				let dy = rng.uniform.random_range(-1.0..=1.0);  
 
@@ -299,7 +299,7 @@ impl Bounce {
 				);
 			}
 
-			bounce.enacting = bounce.timer.finished() && gravity.is_falling;
+			bounce.enacting = bounce.timer.is_finished() && gravity.is_falling;
 		}
 	}
 }

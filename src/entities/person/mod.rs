@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb, sprite::Anchor
+    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, sprite::Anchor
 };
 use enum_map::Enum;
 use rand::Rng;
@@ -87,7 +87,7 @@ const EXCLAMATION: &str = "!";
 const NEUTRAL: &str = "    ";
 
 fn default_person_anchor() -> Anchor {
-    Anchor::BottomCenter
+    Anchor::BOTTOM_CENTER
 }
 
 #[derive(Component)]
@@ -334,12 +334,12 @@ impl PersonSprite {
             (With<BloodSprite>, Without<IgnoreTrainCollision>),
         >,
         mut rng: ResMut<GlobalRng>,
-        sprite_q: Query<(Entity, &Aabb, &GlobalTransform, &TextColor), (With<CharacterSprite>, Without<Bloodied>, Without<Gravity>, Without<BloodSprite>)>
+        sprite_q: Query<(Entity, &Aabb, &GlobalTransform), (With<CharacterSprite>, Without<Bloodied>, Without<Gravity>, Without<BloodSprite>)>
     ) {
-        let mut part_data: Vec<(Vec3, Vec3, Vec3, Entity, &TextColor)> = Vec::new();
-        for (entity, box_local, tf, color) in sprite_q.iter() {
+        let mut part_data: Vec<(Vec3, Vec3, Vec3, Entity)> = Vec::new();
+        for (entity, box_local, tf) in sprite_q.iter() {
             let (min, max) = world_aabb(box_local, tf);
-            part_data.push((min, max, tf.translation(), entity, color));
+            part_data.push((min, max, tf.translation(), entity));
         }
 
         if part_data.is_empty() {
@@ -349,7 +349,7 @@ impl PersonSprite {
         for (debris_entity, d_box, d_tf) in debris_q.iter_mut() {
             let (d_min, d_max) = world_aabb(d_box, d_tf);
 
-            for &(t_min, t_max, _, entity, color) in &part_data {
+            for &(t_min, t_max, _, entity) in &part_data {
                 if d_min.x > t_max.x || d_max.x < t_min.x ||
                    d_min.y > t_max.y || d_max.y < t_min.y {
                     continue;

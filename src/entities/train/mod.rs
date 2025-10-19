@@ -1,7 +1,7 @@
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
-	audio::Volume, ecs::{component::HookContext, world::DeferredWorld}, prelude::*, render::primitives::Aabb
+	audio::Volume, ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb
 };
 use enum_map::{
     Enum, 

@@ -2,7 +2,7 @@
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
     sprite::Anchor,
 };
@@ -325,7 +325,7 @@ impl WindowHeader {
                         font_size: 12.0,
                         ..default()
                     },
-                    Anchor::CenterLeft,
+                    Anchor::CENTER_LEFT,
                     Transform::from_xyz(
                         (-boundary.dimensions.x + t.padding) / 2.0,
                         0.0,

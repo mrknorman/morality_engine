@@ -112,7 +112,7 @@ impl DialogueScene {
         commands.spawn(
             (
                 scene,
-                StateScoped(GameState::Dialogue),
+                DespawnOnExit(GameState::Dialogue),
                 ContinuousAudioPallet::new(
                     vec![
                         ContinuousAudio{

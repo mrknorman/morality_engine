@@ -11,7 +11,7 @@ use bevy::{
         PlaybackMode, 
         Volume
     },
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*
 };
 
@@ -29,7 +29,7 @@ impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
         app
         .init_state::<AudioSystemsActive>()
-        .add_event::<NarrationAudioFinished>()
+        .add_message::<NarrationAudioFinished>()
         .insert_resource(
             MusicAudioConfig::new(1.0)
         )
@@ -257,7 +257,7 @@ T: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone,
         dilatable: bool,
         dilation: f32,
     ) {
-        if !transient_audio.cooldown_timer.finished() {
+        if !transient_audio.cooldown_timer.is_finished() {
             return;
         }
 
@@ -518,7 +518,7 @@ impl AudioLayer for MusicAudioConfig {
     }
 }
 
-#[derive(Event)]
+#[derive(Message)]
 pub struct NarrationAudioFinished;
 
 #[derive(Component)]
@@ -527,7 +527,7 @@ pub struct NarrationAudio;
 impl NarrationAudio {
     fn check_if_finished(  
         mut narration_query : Query<&AudioSink, With<NarrationAudio>>,
-        mut ev_narration_finished: EventWriter<NarrationAudioFinished>,
+        mut ev_narration_finished: MessageWriter<NarrationAudioFinished>,
     ) {
 
         for audio in narration_query.iter_mut() {

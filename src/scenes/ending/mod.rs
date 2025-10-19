@@ -144,7 +144,7 @@ impl EndingScene{
         commands.spawn(
             (
                 queue.current,
-                StateScoped(GameState::Ending),
+                DespawnOnExit(GameState::Ending),
                 TimerPallet::new(
 					vec![
 						(
@@ -234,7 +234,7 @@ impl EndingScene{
 						font_size : 12.0,
 						..default()
 					},
-					Anchor::TopLeft,
+					Anchor::TOP_LEFT,
 					Transform::from_xyz(-600.0,200.0, 2.0)
 				));	
 

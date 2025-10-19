@@ -3,7 +3,7 @@ mod merlin;
 use std::time::Duration;
 
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*
 };
 use enum_map::{Enum, enum_map};

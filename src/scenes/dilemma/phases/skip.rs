@@ -49,7 +49,7 @@ impl DilemmaSkipScene{
     ) {      
         commands.spawn((
             Self,
-            StateScoped(DilemmaPhase::Skip),
+            DespawnOnExit(DilemmaPhase::Skip),
             children![
                 OneShotAudioPallet::new(
                     vec![
@@ -74,7 +74,7 @@ impl DilemmaSkipScene{
         mut next_game_state: ResMut<NextState<GameState>>,
         mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
-        if translation_query.timer.finished() {
+        if translation_query.timer.is_finished() {
             dilation.0 = 1.0;
             let next_state = StateVector::new(None, None, Some(DilemmaPhase::Consequence));
             next_state.set_state(                        

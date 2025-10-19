@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*, 
-    sprite::Material2dPlugin
+    sprite_render::Material2dPlugin
 };
 
 //#[cfg(debug_assertions)]
