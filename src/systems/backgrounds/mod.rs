@@ -5,7 +5,8 @@ use rand::Rng;
 use bevy::{
     ecs::{
         lifecycle::HookContext,
-        system::SystemId, world::DeferredWorld
+        system::SystemId, 
+        world::DeferredWorld
     }, prelude::*, sprite::Anchor, text::LineBreak, window::PrimaryWindow
 };
 
@@ -157,10 +158,10 @@ impl Background {
         let entity_ref = world.entity(entity);
         let Some(background) = entity_ref.get::<Background>().cloned() else { return };
         let color = entity_ref.get::<TextColor>().cloned();
-        
+
         // Find a window in the world
         let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
-            warn!("No window found! Cannot spawn background.");
+            warn!("No window found! Cannot spawn.");
             return;
         };
 
