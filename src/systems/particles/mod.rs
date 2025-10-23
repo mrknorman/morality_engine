@@ -26,7 +26,7 @@ use bevy_hanabi::prelude::*;
 use crate::startup::textures::DigitSheet;
 
 
-const FIREWORK_SIZE : f32 = 2.0;
+const FIREWORK_SIZE : f32 = 1.0;
 
 /// Create the effect for the rocket itself, which spawns infrequently and
 /// rapidly raises until it explodes (dies).
@@ -43,7 +43,7 @@ fn create_rocket_effect() -> EffectAsset {
 
     // Give a bit of variation by randomizing the initial speed and direction
     let zero = writer.lit(0.);
-    let y = writer.lit(1400. * FIREWORK_SIZE).uniform(writer.lit(1600. * FIREWORK_SIZE));
+    let y = writer.lit(2400.).uniform(writer.lit(2600.));
     let v = zero.clone().vec3(y, zero);
     let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, v.expr());
 
@@ -69,25 +69,20 @@ fn create_rocket_effect() -> EffectAsset {
     let drag = writer.lit(4.).expr();
     let update_drag = LinearDragModifier::new(drag);
 
-    // As the rocket particle rises in the air, it leaves behind a trail of
-    // sparkles. To achieve this, the particle emits spawn events for its child
-    // effect.
-    let update_spawn_trail = EmitSpawnEventModifier {
-        condition: EventEmitCondition::Always,
-        count: writer.lit(5u32).expr(),
-        // We use channel #0 for those sparkle trail events; see EffectParent
-        child_index: 0,
-    };
-
-    // When the rocket particle dies, it "explodes" and spawns the actual firework
-    // particles. To achieve this, when a rocket particle dies, it emits spawn
-    // events for its child(ren) effects.
+    // explosion should be index 0
     let update_spawn_on_die = EmitSpawnEventModifier {
         condition: EventEmitCondition::OnDie,
         count: writer.lit(1000u32).expr(),
-        // We use channel #1 for the explosion itself; see EffectParent
+        child_index: 0,
+    };
+
+    // trail should be index 1
+    let update_spawn_trail = EmitSpawnEventModifier {
+        condition: EventEmitCondition::Always,
+        count: writer.lit(5u32).expr(),
         child_index: 1,
     };
+
 
     let spawner = SpawnerSettings::rate((1., 3.).into());
 
@@ -171,116 +166,76 @@ fn create_sparkle_trail_effect() -> EffectAsset {
         })
 }
 
-/// Create the effect for the trails coming out of the rocket explosion. They
-/// spawn in burst each time a rocket particle dies (= "explodes").
-fn create_trails_effect(digits: &Handle<Image>) -> EffectAsset {
-    let writer = ExprWriter::new();
 
-    // Inherit the start position from the parent effect (the rocket particle)
+fn create_trails_effect() -> EffectAsset {
+    let mut w = ExprWriter::new();
+
+    // We'll bind our spritesheet to slot 0 on the entity. Make the "0" Expr now.
+    let slot0_expr = w.lit(0).expr();
+
+    // --- your usual expressions ---
     let init_pos = InheritAttributeModifier::new(Attribute::POSITION);
 
-    // Pull the color from the parent's Attribute::U32_0.
-    let init_color = SetAttributeModifier::new(
-        Attribute::COLOR,
-        writer.parent_attr(Attribute::U32_0).expr(),
-    );
-
-    // The velocity is random in any direction
-    let speed = writer.lit(340. * FIREWORK_SIZE).uniform(writer.lit(440. * FIREWORK_SIZE));
-    let dir = writer
-        .rand(VectorType::VEC3F)
-        .mul(writer.lit(2.0))
-        .sub(writer.lit(1.0))
-        .normalized();
+    let speed   = w.lit(340. * FIREWORK_SIZE).uniform(w.lit(440. * FIREWORK_SIZE));
+    let dir     = w.rand(VectorType::VEC3F).mul(w.lit(2.0)).sub(w.lit(1.0)).normalized();
     let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, (dir * speed).expr());
 
-    let age = writer.lit(0.).expr();
-    let init_age = SetAttributeModifier::new(Attribute::AGE, age);
+    let init_age      = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
+    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, w.lit(1.2).expr());
+    let update_accel  = AccelModifier::new(w.lit(Vec3::Y * -16.).expr());
+    let update_drag   = LinearDragModifier::new(w.lit(2.).expr());
 
-    // Give a bit of variation by randomizing the lifetime per particle
-    let lifetime = writer.lit(0.8).uniform(writer.lit(1.2)).expr();
-    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
+    // Flipbook frame 0..9 as floored float (0.17 accepts float for SPRITE_INDEX)
+    let rand_f  = w.rand(ScalarType::Float);           // [0,1)
+    let idx_f   = (rand_f * w.lit(2.0)).floor();   
 
-    // Add constant downward acceleration to simulate gravity
-    let accel = writer.lit(Vec3::Y * -16.).expr();
-    let update_accel = AccelModifier::new(accel);
+    // Face camera so digits read well
+    let orient = OrientModifier::new(OrientMode::ParallelCameraDepthPlane);
 
-    // Add drag to make particles slow down as they ascend
-    let drag = writer.lit(4.).expr();
-    let update_drag = LinearDragModifier::new(drag);
+    // --- finish writer, then declare the texture slot on the Module ---
+    let mut module = w.finish();
+    // This line is the key: declare at least 1 texture slot in the module.
+    // Use either of these depending on what your 0.17 patch exposes:
+    module.add_texture_slot("digits"); // preferred on 0.17
+    // (If your exact patch lacks the named overload, use: module.add_texture_slot();)
 
-    // 🔢 Flipbook index: 0..9 as a *floored float* (no cast needed in your version)
-    let digit_idx = (writer.rand(ScalarType::Float) * writer.lit(10.)).floor().expr();
-    let init_sprite = SetAttributeModifier::new(Attribute::SPRITE_INDEX, digit_idx);
+    
+    // CAST float -> int here (SPRITE_INDEX requires i32)
+    let idx_f_h = idx_f.expr();                            // <-- turn into ExprHandle
+    let idx_i = module.cast(idx_f_h, ScalarType::Int);
 
-    // Face the camera so glyphs aren’t skewed by velocity
-    let orient = OrientModifier::new(OrientMode::FaceCameraPosition);
-    let slot0 = writer.lit(0).expr();
-    let spawner = SpawnerSettings::default();
+    // Now we can build the init for SPRITE_INDEX using the i32 handle
+    let init_sprite = SetAttributeModifier::new(Attribute::SPRITE_INDEX, idx_i);
 
-    let force_white = ColorOverLifetimeModifier {
-        gradient: bevy_hanabi::Gradient::constant(Vec4::new(1.0, 1.0, 1.0, 1.0)),
-        blend: ColorBlendMode::Overwrite,   // overwrite base color
-        mask: ColorBlendMask::RGBA,
-    };
-
-    EffectAsset::new(10000, spawner, writer.finish())
-        .with_name("trail")
+    EffectAsset::new(10000, SpawnerSettings::default(), module)
+        .with_name("trail_digits")
         .init(init_pos)
         .init(init_vel)
         .init(init_age)
         .init(init_lifetime)
-        .init(init_color)
         .init(init_sprite)
         .update(update_drag)
         .update(update_accel)
-                .render(force_white)
-        // Bind the spritesheet and declare the grid
-        .render(ParticleTextureModifier {
-            texture_slot: slot0,
-            sample_mapping: ImageSampleMapping::ModulateOpacityFromR, // use PNG alpha as cutout
-        })
-        .render(FlipbookModifier { sprite_grid_size: UVec2::new(5, 2) }) // 0..9
-        // Size (square billboards work best for digits)
-        .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(2.0 * FIREWORK_SIZE)),
-            screen_space_size: false, // set true to keep constant on-screen size
-        })
-        .render(orient)
-    
-    /* 
-    // Orient particle toward its velocity to create a cheap 1-particle trail
-    let orient = OrientModifier::new(OrientMode::AlongVelocity);
-
-    // The (CPU) spawner is unused
-    let spawner = SpawnerSettings::default();
-
-    let mut color_gradient = bevy_hanabi::Gradient::new();
-    color_gradient.add_key(0.0, Vec4::new(4.0, 4.0, 4.0, 1.0));
-    color_gradient.add_key(0.6, Vec4::new(4.0, 4.0, 4.0, 1.0));
-    color_gradient.add_key(1.0, Vec4::new(4.0, 4.0, 4.0, 0.0));
-
-    EffectAsset::new(10000, spawner, writer.finish())
-        .with_name("trail")
-        .init(init_pos)
-        .init(init_vel)
-        .init(init_age)
-        .init(init_lifetime)
-        .init(init_color)
-        .update(update_drag)
-        .update(update_accel)
+        // Keep color simple in RENDER stage (avoid packing u32 in INIT)
         .render(ColorOverLifetimeModifier {
-            gradient: color_gradient,
-            blend: ColorBlendMode::Modulate,
+            gradient: bevy_hanabi::Gradient::constant(Vec4::ONE),
+            blend: ColorBlendMode::Overwrite,
             mask: ColorBlendMask::RGBA,
         })
+        // Tell Hanabi to sample from slot 0; we'll bind the image at runtime
+        .render(ParticleTextureModifier {
+            texture_slot: slot0_expr,
+            sample_mapping: ImageSampleMapping::Modulate,
+        })
+        // 5x2 grid (0..9)
+        .render(FlipbookModifier { sprite_grid_size: UVec2::new(5, 2) })
+        // Make digits obvious first; tweak later
         .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::new(2.0 * FIREWORK_SIZE, 0.5 * FIREWORK_SIZE, 0.5 * FIREWORK_SIZE)),
-            screen_space_size: false,
+            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(10.0)),
+            screen_space_size: true,
         })
         .render(orient)
-    */
-
+        .with_alpha_mode(bevy_hanabi::AlphaMode::Blend)
 }
 
 pub fn add_fireworks(
@@ -314,7 +269,7 @@ fn create_effect(
     ));
 
     // Trails
-    let trails_effect = effects.add(create_trails_effect(digits));
+    let trails_effect = effects.add(create_trails_effect());
     commands.spawn((
         Name::new("trails"),
         ParticleEffect::new(trails_effect),
