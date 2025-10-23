@@ -1,4 +1,3 @@
-//! src/window.rs   – drop-in replacement
 use std::f32::consts::FRAC_PI_4;
 
 use bevy::{

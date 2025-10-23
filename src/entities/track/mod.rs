@@ -7,10 +7,13 @@ use crate::entities::text::TextSprite;
 pub struct Track;
 
 impl Track{
+	const TRACK_STRING : &str = "~";
+	pub const LENGTH: usize = Self::TRACK_STRING.len();
+
 	pub fn generate_track(
 		length: usize
 	) -> String {
-		"~".repeat(length)
+		Self::TRACK_STRING.to_string().repeat(length)
 	}
 	
 	pub fn new(length: usize) -> (Track, Text2d) {

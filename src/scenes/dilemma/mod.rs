@@ -244,7 +244,7 @@ impl DilemmaScene {
 			0.0
 		);
 		let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
-		let initial_color = match stage.default_option {
+		let initial_color: Color = match stage.default_option {
 			None => Color::WHITE,
 			Some(ref option) => Self::TRACK_COLORS[*option]
 		};

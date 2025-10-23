@@ -91,7 +91,7 @@ pub struct Junction{
 
 impl Junction {
 	pub const BRANCH_SEPARATION : Vec3 = Vec3::new(0.0, -100.0, 0.0);
-	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-7000.0, 0.0, 0.0);
+	const TRUNK_TRANSLATION : Vec3 = Vec3::new(-7000.0 / Track::LENGTH as f32, 0.0, 0.0);
 	const TURNOUT_TRANSLATION : Vec3 = Vec3::new(1281.5, 0.0, 0.0);
 	const FATALITY_OFFSET : f32 = -1070.0;
 

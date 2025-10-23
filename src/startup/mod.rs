@@ -9,6 +9,7 @@ use bevy::diagnostic::{
     FrameTimeDiagnosticsPlugin
 };
 
+use crate::startup::textures::DigitSheet;
 use crate::systems::audio::{OneShotAudio, OneShotAudioPallet};
 use crate::systems::resize::ResizePlugin;
 use crate::{
@@ -31,6 +32,7 @@ use crate::{
 pub mod shortcuts;
 pub mod render;
 pub mod cursor;
+pub mod textures;
 
 use render::RenderPlugin;
 use cursor::CursorPlugin;
@@ -38,6 +40,7 @@ pub struct StartupPlugin;
 impl Plugin for StartupPlugin {
     fn build(&self, app: &mut App) {
         app
+            .init_resource::<DigitSheet>()
             .insert_resource(
                 Lever::default()
             )

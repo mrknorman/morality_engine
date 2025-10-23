@@ -8,34 +8,8 @@ use enum_map::{enum_map, Enum};
 
 use crate::{
 	data::{
-		stats:: GameStats, 
-		states::DilemmaPhase
-	},
-	systems::{
-		audio::{
-        	continuous_audio, 
-			MusicAudio, 
-			TransientAudio, 
-			TransientAudioPallet
-    	}, 
-		colors::{
-			ColorTranslation, 
-			DIM_BACKGROUND_COLOR, 
-			PRIMARY_COLOR
-		},
-		interaction::{
-			ActionPallet, 
-			Draggable, 
-			InputAction
-		},
-		physics::Velocity,
-		backgrounds::{
-			Background,
-			content::BackgroundTypes
-		},
-		inheritance::BequeathTextColor
-	},	
-	entities::{
+		states::DilemmaPhase, stats:: GameStats
+	}, entities::{
 		large_fonts::{AsciiString, TextEmotion},
 		sprites::window::WindowTitle,
 		text::{
@@ -43,9 +17,22 @@ use crate::{
 			WindowedTable
 		}, 
 		train::Train
-	},
-	style::common_ui::NextButton, 
-	scenes::dilemma::DilemmaSounds, 
+	}, scenes::dilemma::DilemmaSounds, style::common_ui::NextButton, systems::{
+		audio::{
+        	MusicAudio, TransientAudio, TransientAudioPallet, continuous_audio
+    	}, backgrounds::{
+			Background,
+			content::BackgroundTypes
+		}, colors::{
+			ColorTranslation, 
+			DIM_BACKGROUND_COLOR, 
+			PRIMARY_COLOR
+		}, inheritance::BequeathTextColor, interaction::{
+			ActionPallet, 
+			Draggable, 
+			InputAction
+		}, particles::add_fireworks, physics::Velocity
+	} 
 };
 
 pub struct DilemmaResultsPlugin;
@@ -54,7 +41,7 @@ impl Plugin for DilemmaResultsPlugin {
         app
 		.add_systems(
             OnEnter(DilemmaPhase::Results), 
-            DilemmaResultsScene::setup,
+            (DilemmaResultsScene::setup, add_fireworks)
         );
     }
 }

@@ -11,7 +11,7 @@ use crate::{
     }, 
     scenes::dilemma::{
         content::DilemmaScene, 
-        dilemma::DilemmaStage, 
+        dilemma::{DilemmaStage, CurrentDilemmaStageIndex},
         junction::Junction, 
         lever::{
             Lever, 
@@ -58,27 +58,38 @@ impl Plugin for DilemmaTransitionPlugin {
 
 fn update_lever(
         stage : Res<DilemmaStage>,
+        index : Res<CurrentDilemmaStageIndex>,
         mut lever : ResMut<Lever>
     ) {
-        
-    lever.0 = match stage.default_option {
-        None => LeverState::Random,
-        Some(ref option) if *option == 0 => LeverState::Left,
-        Some(_) => LeverState::Right
-    };
+    if index.0 == 0 {                
+        lever.0 = match stage.default_option {
+            None => LeverState::Random,
+            Some(ref option) if *option == 0 => LeverState::Left,
+            Some(_) => LeverState::Right
+        };
+    }
 }
 
 fn setup(
     stage : Res<DilemmaStage>,
+    index : Res<CurrentDilemmaStageIndex>,
+    lever :  Res<Lever>,
     systems: Res<BackgroundSystems>,
     mut commands : Commands,
     mut background_query : Query<(Entity, &mut Background)>,
     mut train_query : Query<(Entity, &mut Velocity, &Transform), (With<Train>, Without<Junction>)>,
     mut junction_query: Query<(Entity, &Transform), (With<Junction>, Without<Train>)>,
 ) {         
-    
+    let (transition_duration, train_x_displacement, main_track_translation_start, _) = DilemmaScene::generate_common_parameters(&stage);
 
-    let (transition_duration, train_x_displacement, main_track_translation_start, initial_color) = DilemmaScene::generate_common_parameters(&stage);
+    let option_value = if index.0 == 0 {
+        stage.default_option.clone()
+    } else {
+        lever.0.to_int()
+    };
+
+    let initial_color = option_value
+        .map_or(Color::WHITE, |i| DilemmaScene::TRACK_COLORS[i]);
 
     commands.spawn(
 (

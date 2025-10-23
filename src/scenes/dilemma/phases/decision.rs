@@ -21,7 +21,7 @@ use crate::{
 		track::Track
 	}, scenes::dilemma::{
         DilemmaSounds, dilemma::{
-        	DilemmaStage, DilemmaTimer
+        	CurrentDilemmaStageIndex, DilemmaStage, DilemmaTimer
         }, lever::{
             LEVER_LEFT, LEVER_MIDDLE, LEVER_RIGHT, Lever, LeverState
         }
@@ -97,9 +97,17 @@ impl DecisionScene {
 			mut commands : Commands,
 			asset_server: Res<AssetServer>,
         	stage : Res<DilemmaStage>,
+			index : Res<CurrentDilemmaStageIndex>,
+			lever : Res<Lever>
 		) {
-		
-		let (start_text, state, color) = match stage.default_option {
+			
+		let lever_state = if index.0 == 0 {
+			stage.default_option
+		} else {
+			lever.0.to_int()
+		};
+			
+		let (start_text, state, color) = match lever_state {
 			None => (
 				LEVER_MIDDLE, 
 				LeverState::Random, 
@@ -178,7 +186,7 @@ impl DecisionScene {
 							vec![LeverActions::RightPull],
 							vec![LeverActions::LeftPull]
 						],	
-						stage.default_option.unwrap_or(0)			
+						lever_state.unwrap_or(0)			
 					),
 					Pressable::new(vec![
 						KeyMapping{

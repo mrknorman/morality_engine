@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     window::{PresentMode, WindowResolution}
 };
+use bevy_hanabi::HanabiPlugin;
 #[forbid(unsafe_code)]
 
 mod scenes;
@@ -34,7 +35,8 @@ impl Plugin for GamePlugin {
             .add_plugins(
                 (
                     startup::StartupPlugin,
-                    scenes::ScenePlugin
+                    scenes::ScenePlugin,
+                    HanabiPlugin
                 )
             );
     }

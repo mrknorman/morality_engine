@@ -54,12 +54,11 @@ macro_rules! unique_element {
             /// Shared hook: place the new element, despawn the old, update the
             /// config. 100 % identical for every element – only the types differ.
             fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-                // Where should it live?
                 let transform = world
-                    .iter_entities()
-                    .find_map(|e| e.get::<Window>().cloned())
-                    .map(|w| Self::transform(&w));
-
+                    .try_query::<&Window>()                      // get a query for all Window components
+                    .and_then(|mut q| q.iter(&world).next())     // iterate and take the first one
+                    .map(|w| Self::transform(w));           
+                
                 // Is there a previous one?
                 let previous = world
                     .get_resource::<$Config>()

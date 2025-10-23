@@ -331,8 +331,12 @@ impl Cascade {
         let entity_ref = world.entity(entity);
         let Some(cascade) = entity_ref.get::<Cascade>().cloned() else { return };
         
-        let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
-            warn!("No window found! Cannot spawn cascade.");
+        let Some(window) = world
+        .try_query::<&Window>()                      // get a query for all Window components
+            .and_then(|mut q| q.iter(&world).next())     // iterate and take the first one
+            .cloned()                                    // clone the Window so we can use it after borrow ends
+        else {
+            warn!("No window found! Cannot spawn.");
             return;
         };
 

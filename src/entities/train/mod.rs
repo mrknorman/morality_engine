@@ -168,10 +168,10 @@ impl Train {
             ) {
                 let train_type = TrainType::load_from_json(train.0);
                
-                let carriages = train_type.carriages.clone();
+                let carriages: Vec<String> = train_type.carriages.clone();
                 let smoke_frames: Vec<String> = train_type.clone().smoke.unwrap_or(vec![]);
                 let burning_frames: Vec<String> = train_type.clone().rising_smoke.unwrap_or(vec![]);
-                let asset_server = world.get_resource::<AssetServer>().unwrap();
+                let asset_server: &AssetServer = world.get_resource::<AssetServer>().unwrap();
                 let horn_audio: Option<TransientAudio> = train_type.clone().horn_audio_path.map(
                     |path| {
                         TransientAudio::new(

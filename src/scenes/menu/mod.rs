@@ -5,16 +5,24 @@ use enum_map::{
 };
 
 use crate::{
-    data::states::MainState,
-    systems::{
+    data::states::MainState, entities::{
+        large_fonts::{
+            AsciiPlugin, 
+            AsciiString, TextEmotion
+        }, text::{
+            TextButton, 
+            TextRaw
+        }, track::Track, train::{
+            Train, 
+            TrainPlugin, 
+            content::TrainTypes
+        } 
+    }, style::{
+        common_ui::NextButton, 
+        ui::IOPlugin
+    }, systems::{
         audio::{
-            continuous_audio, 
-            BackgroundAudio, 
-            ContinuousAudio, 
-            ContinuousAudioPallet, 
-            MusicAudio, 
-            TransientAudio, 
-            TransientAudioPallet
+            BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, MusicAudio, TransientAudio, TransientAudioPallet, continuous_audio
         }, 
         backgrounds::{
             Background, 
@@ -29,27 +37,7 @@ use crate::{
             ActionPallet, 
             InputAction, 
             InteractionPlugin
-        }
-    }, 
-    entities::{
-        large_fonts::{
-            AsciiPlugin, 
-            AsciiString, TextEmotion
-        }, 
-        text::{
-            TextButton, 
-            TextRaw
-        }, 
-        train::{
-            Train, 
-            TrainPlugin, 
-            content::TrainTypes
-        },
-        track::Track, 
-    },
-    style::{
-        common_ui::NextButton, 
-        ui::IOPlugin
+        }, particles::add_fireworks
     }
 };
 
@@ -60,7 +48,7 @@ impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(MainState::Menu), 
-            MenuScene::setup
+            (MenuScene::setup, add_fireworks)
         );
         if !app.is_plugin_added::<TrainPlugin>() {
             app.add_plugins(TrainPlugin);

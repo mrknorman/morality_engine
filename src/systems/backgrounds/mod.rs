@@ -159,11 +159,14 @@ impl Background {
         let Some(background) = entity_ref.get::<Background>().cloned() else { return };
         let color = entity_ref.get::<TextColor>().cloned();
 
-        // Find a window in the world
-        let Some(window) = world.iter_entities().find_map(|e| e.get::<Window>()).cloned() else {
-            warn!("No window found! Cannot spawn.");
-            return;
-        };
+        let Some(window) = world
+            .try_query::<&Window>()                      // get a query for all Window components
+                .and_then(|mut q| q.iter(&world).next())     // iterate and take the first one
+                .cloned()                                    // clone the Window so we can use it after borrow ends
+            else {
+                warn!("No window found! Cannot spawn.");
+                return;
+            };
 
         let screen_width = window.width() / 2.0 + 100.0;
         let screen_height = window.height();
