@@ -32,7 +32,6 @@ impl Plugin for ParticlePlugin {
     }
 }
 
-
 const FIREWORK_SIZE : f32 = 1.0;
 
 /// Create the effect for the rocket itself, which spawns infrequently and
@@ -172,46 +171,53 @@ fn create_sparkle_trail_effect() -> EffectAsset {
         })
 }
 
-
 fn create_trails_effect() -> EffectAsset {
+    const OPTION_GLOW: f32 = 6.0;
+
     let mut w = ExprWriter::new();
 
-    // We'll bind our spritesheet to slot 0 on the entity. Make the "0" Expr now.
+    // Texture slot 0
     let slot0_expr = w.lit(0).expr();
 
-    // --- your usual expressions ---
+    // Position / motion
     let init_pos = InheritAttributeModifier::new(Attribute::POSITION);
-
-    let speed   = w.lit(340. * FIREWORK_SIZE).uniform(w.lit(440. * FIREWORK_SIZE));
-    let dir     = w.rand(VectorType::VEC3F).mul(w.lit(2.0)).sub(w.lit(1.0)).normalized();
+    let speed    = w.lit(340. * FIREWORK_SIZE).uniform(w.lit(440. * FIREWORK_SIZE));
+    let dir      = w.rand(VectorType::VEC3F).mul(w.lit(2.0)).sub(w.lit(1.0)).normalized();
     let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, (dir * speed).expr());
-
-    let init_age      = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
+    let init_age = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
     let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, w.lit(1.2).expr());
     let update_accel  = AccelModifier::new(w.lit(Vec3::Y * -16.).expr());
     let update_drag   = LinearDragModifier::new(w.lit(2.).expr());
 
-    // Flipbook frame 0..9 as floored float (0.17 accepts float for SPRITE_INDEX)
-    let rand_f  = w.rand(ScalarType::Float);           // [0,1)
-    let idx_f   = (rand_f * w.lit(2.0)).floor();   
+    // Random 0/1 index for digit AND color
+    let rand_f = w.rand(ScalarType::Float);
+    let idx_f  = (rand_f * w.lit(2.0)).floor();
 
-    // Face camera so digits read well
+    // Choose color by 0/1, write to HDR_COLOR
+    let c0   = w.lit(Vec3::new(0.1015 * OPTION_GLOW, 0.5195 * OPTION_GLOW, 0.9961 * OPTION_GLOW));
+    let c1   = w.lit(Vec3::new(0.8314 * OPTION_GLOW, 0.0664 * OPTION_GLOW, 0.3477 * OPTION_GLOW));
+    let diff = c1.clone() - c0.clone();
+    let rgb  = c0 + diff * idx_f.clone();
+    let rgba = rgb.vec4_xyz_w(w.lit(1.0)).expr();
+    let init_hdr_color = SetAttributeModifier::new(Attribute::HDR_COLOR, rgba);
+
+    // Start fully opaque
+    let init_alpha = SetAttributeModifier::new(Attribute::ALPHA, w.lit(1.0).expr());
+
     let orient = OrientModifier::new(OrientMode::ParallelCameraDepthPlane);
 
-    // --- finish writer, then declare the texture slot on the Module ---
+    // Finish writer and build module
     let mut module = w.finish();
-    // This line is the key: declare at least 1 texture slot in the module.
-    // Use either of these depending on what your 0.17 patch exposes:
-    module.add_texture_slot("digits"); // preferred on 0.17
-    // (If your exact patch lacks the named overload, use: module.add_texture_slot();)
+    module.add_texture_slot("digits");
 
-    
-    // CAST float -> int here (SPRITE_INDEX requires i32)
-    let idx_f_h = idx_f.expr();                            // <-- turn into ExprHandle
-    let idx_i = module.cast(idx_f_h, ScalarType::Int);
-
-    // Now we can build the init for SPRITE_INDEX using the i32 handle
+    // Flipbook needs SPRITE_INDEX (i32)
+    let idx_i = module.cast(idx_f.expr(), ScalarType::Int);
     let init_sprite = SetAttributeModifier::new(Attribute::SPRITE_INDEX, idx_i);
+
+    // Alpha fade: multiply alpha by this over lifetime (RGB are 1, so color unchanged)
+    let mut fade = bevy_hanabi::Gradient::new();
+    fade.add_key(0.0,  Vec4::new(1.0, 1.0, 1.0, 1.0));
+    fade.add_key(1.0,  Vec4::new(1.0, 1.0, 1.0, 0.0));
 
     EffectAsset::new(10000, SpawnerSettings::default(), module)
         .with_name("trail_digits")
@@ -220,22 +226,22 @@ fn create_trails_effect() -> EffectAsset {
         .init(init_age)
         .init(init_lifetime)
         .init(init_sprite)
+        .init(init_hdr_color)     // HDR tint
+        .init(init_alpha)         // start alpha = 1
         .update(update_drag)
         .update(update_accel)
-        // Keep color simple in RENDER stage (avoid packing u32 in INIT)
-        .render(ColorOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec4::ONE),
-            blend: ColorBlendMode::Overwrite,
-            mask: ColorBlendMask::RGBA,
-        })
-        // Tell Hanabi to sample from slot 0; we'll bind the image at runtime
+        // 1) Apply sprite (multiplies RGB and A by texture)
         .render(ParticleTextureModifier {
             texture_slot: slot0_expr,
             sample_mapping: ImageSampleMapping::Modulate,
         })
-        // 5x2 grid (0..9)
+        // 2) Then fade alpha multiplicatively (RGB=1, so only A changes)
+        .render(ColorOverLifetimeModifier {
+            gradient: fade,
+            blend: ColorBlendMode::Modulate,
+            mask: ColorBlendMask::RGBA, // use RGBA for 0.17; RGB are 1 so only alpha effectively changes
+        })
         .render(FlipbookModifier { sprite_grid_size: UVec2::new(5, 2) })
-        // Make digits obvious first; tweak later
         .render(SizeOverLifetimeModifier {
             gradient: bevy_hanabi::Gradient::constant(Vec3::splat(10.0)),
             screen_space_size: true,
