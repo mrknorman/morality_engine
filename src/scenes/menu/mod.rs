@@ -37,7 +37,8 @@ use crate::{
             ActionPallet, 
             InputAction, 
             InteractionPlugin
-        }, particles::add_fireworks
+        }, 
+        particles::FireworkLauncher
     }
 };
 
@@ -48,7 +49,10 @@ impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(MainState::Menu), 
-            (MenuScene::setup, add_fireworks)
+            (MenuScene::setup)
+        ).add_systems(
+            OnExit(MainState::Menu), 
+            FireworkLauncher::remove_fireworks
         );
         if !app.is_plugin_added::<TrainPlugin>() {
             app.add_plugins(TrainPlugin);
@@ -103,7 +107,10 @@ impl MenuScene {
         mut commands: Commands, 
         queue : Res<SceneQueue>,
         asset_server: Res<AssetServer>
-    ) {
+    ) { 
+
+        commands.spawn((FireworkLauncher, Transform::from_xyz(-500., -300., -10.)));
+        commands.spawn((FireworkLauncher, Transform::from_xyz( 500., -300., -10.)));
         commands.spawn(
             (
                 queue.current,

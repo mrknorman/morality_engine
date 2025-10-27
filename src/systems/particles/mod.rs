@@ -17,13 +17,20 @@
 //! The particles also have a trail. The trail particles are stitched together
 //! to form an arc using [`EffectAsset::with_ribbons`].
 
-use bevy::{
-    core_pipeline::tonemapping::Tonemapping, post_process::bloom::Bloom, prelude::*,
-    render::view::Hdr,
-};
+use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
 use bevy_hanabi::prelude::*;
 
 use crate::startup::textures::DigitSheet;
+
+pub struct ParticlePlugin;
+impl Plugin for ParticlePlugin {
+    fn build(&self, app: &mut App) {	
+		app
+        .init_resource::<FireworkFx>()
+        .add_systems(Update, FireworkLauncher::finish_despawn);
+        ;
+    }
+}
 
 
 const FIREWORK_SIZE : f32 = 1.0;
@@ -37,7 +44,7 @@ fn create_rocket_effect() -> EffectAsset {
     let init_pos = SetPositionCircleModifier {
         center: writer.lit(Vec3::ZERO).expr(),
         axis: writer.lit(Vec3::Y).expr(),
-        radius: writer.lit(400.).expr(),
+        radius: writer.lit(100.).expr(),
         dimension: ShapeDimension::Volume,
     };
 
@@ -82,7 +89,6 @@ fn create_rocket_effect() -> EffectAsset {
         count: writer.lit(5u32).expr(),
         child_index: 1,
     };
-
 
     let spawner = SpawnerSettings::rate((1., 3.).into());
 
@@ -238,48 +244,110 @@ fn create_trails_effect() -> EffectAsset {
         .with_alpha_mode(bevy_hanabi::AlphaMode::Blend)
 }
 
-pub fn add_fireworks(
-    mut commands: Commands, 
-    effects: ResMut<Assets<EffectAsset>>,
-    digits: Res<DigitSheet>
-    ) {
-        
-    create_effect(commands, effects, &digits.0);
+#[derive(Resource)]
+pub struct FireworkFx {
+    pub rocket: Handle<EffectAsset>,
+    pub sparkle: Handle<EffectAsset>,
+    pub trails: Handle<EffectAsset>,
 }
 
-fn create_effect(
-    mut commands: Commands, 
-    mut effects: ResMut<Assets<EffectAsset>>,
-    digits: &Handle<Image>,
-) {
-    // Rocket
-    let rocket_effect = effects.add(create_rocket_effect());
-    let rocket_entity = commands
-        .spawn((Name::new("rocket"), ParticleEffect::new(rocket_effect), Transform::from_xyz(-0.0, -400.0, 100.0)))
-        .id();
+impl FromWorld for FireworkFx {
+    fn from_world(world: &mut World) -> Self {
+        let mut effects = world.resource_mut::<Assets<EffectAsset>>();
 
-    // Sparkle trail
-    let sparkle_trail_effect = effects.add(create_sparkle_trail_effect());
-    commands.spawn((
-        Name::new("sparkle_trail"),
-        ParticleEffect::new(sparkle_trail_effect),
-        // Set the rocket effect as parent. This gives access to the rocket effect's particles,
-        // which in turns allows inheriting their position (and other attributes if needed).
-        EffectParent::new(rocket_entity),
-    ));
-
-    // Trails
-    let trails_effect = effects.add(create_trails_effect());
-    commands.spawn((
-        Name::new("trails"),
-        ParticleEffect::new(trails_effect),
-        // Set the rocket effect as parent. This gives access to the rocket effect's particles,
-        // which in turns allows inheriting their position (and other attributes if needed).
-        EffectParent::new(rocket_entity),
-
-        EffectMaterial {
-            images: vec![digits.clone()],    
-            ..Default::default()
+        Self {
+            rocket: effects.add(create_rocket_effect()),
+            sparkle: effects.add(create_sparkle_trail_effect()),
+            trails:  effects.add(create_trails_effect()),
         }
-    ));
+    }
+}
+
+#[derive(Component)]
+#[require(Transform, Visibility)]
+#[component(on_insert = FireworkLauncher::on_insert)]
+pub struct FireworkLauncher;
+
+/// Countdown to actually delete the subtree.
+#[derive(Component, Deref, DerefMut)]
+struct DespawnAfterFrames(u8);
+
+use bevy::ecs::entity_disabling::Disabled;
+
+impl FireworkLauncher {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        // --- IMMUTABLE READS ONLY (produce owned copies) ---
+        let (rocket, sparkle, trails) = {
+            let fx = world
+                .get_resource::<FireworkFx>()
+                .expect("FireworkFx should be initialized"); 
+            (fx.rocket.clone(), fx.sparkle.clone(), fx.trails.clone())
+        };
+
+        let digits_handle = {
+            world
+                .get_resource::<DigitSheet>()
+                .expect("DigitSheet not loaded")
+                .0
+                .clone()
+        };
+        
+         world.commands().entity(entity).with_children( |parent| {
+            let rocket_entity = parent.spawn((
+                    Name::new("rocket_emitter"),
+                    ParticleEffect::new(rocket.clone())
+                ))
+            .id();
+
+            parent.commands().spawn((
+                Name::new("sparkle_trail"),
+                ParticleEffect::new(sparkle.clone()),
+                EffectParent::new(rocket_entity),
+            ));
+
+            parent.commands().spawn((
+                Name::new("digit_trails"),
+                ParticleEffect::new(trails.clone()),
+                EffectParent::new(rocket_entity),
+                EffectMaterial {
+                    images: vec![digits_handle.clone()],
+                    ..Default::default()
+                },
+            ));
+        });
+    }
+
+    /// PHASE 2 (run every frame in Update; it only acts the frame after FX were removed):
+    /// - When we detect some ParticleEffect was removed, despawn the tagged roots.
+    fn finish_despawn(
+        mut commands: Commands,
+        mut q: Query<(Entity, &mut DespawnAfterFrames), With<FireworkLauncher>>,
+    ) {
+        for (root, mut frames) in &mut q {
+            if **frames > 0 { **frames -= 1; continue; }
+            // built-in recursive despawn (0.17): deletes children automatically
+            commands.entity(root).despawn();
+        }
+    }
+
+    pub fn remove_fireworks(
+        mut commands: Commands,
+        roots: Query<Entity, With<FireworkLauncher>>,
+        children_q: Query<&Children>,
+    ) {
+        for root in &roots {
+            // Disable root + descendants so Hanabi won't extract/batch them this frame.
+            let mut stack = vec![root];
+            while let Some(e) = stack.pop() {
+                commands.entity(e).insert(Disabled);
+                if let Ok(children) = children_q.get(e) {
+                    for c in children.iter() {
+                        stack.push(c);
+                    }
+                }
+            }
+            // Give the renderer a little breathing room (2 frames is plenty).
+            commands.entity(root).insert(DespawnAfterFrames(2));
+        }
+    }
 }

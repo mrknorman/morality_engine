@@ -230,45 +230,6 @@ pub struct Human {
     occupation : Option<Job>
 }
 
-impl Human {
-
-    pub fn display(&self) {
-
-        print!("|");
-
-        match &self.name {
-            Some(_) => {print!(" Name : {:?} |", self.name.as_ref().unwrap())},
-            None => {}
-        }
-        match &self.culpability {
-            Some(_) => {print!(" Culpability : {:?} |", self.culpability.as_ref().unwrap())},
-            None => {}
-        }
-        match &self.gender {
-            Some(_) => {print!(" Gender : {:?} |", self.gender.as_ref().unwrap())},
-            None => {}
-        }
-        match &self.age {
-            Some(_) => {print!(" Age : {:?} |", self.age.as_ref().unwrap())},
-            None => {}
-        }
-        match &self.occupation {
-            Some(_) => {print!(" Occupation : {:?} |", self.occupation.as_ref().unwrap())},
-            None => {}
-        }
-        match &self.highest_education {
-            Some(_) => {print!(" Highest Education Level : {:?} |", self.highest_education.as_ref().unwrap())},
-            None => {}
-        }
-        match &self.iq {
-            Some(_) => {println!("IQ : {:?} |", self.iq.as_ref().unwrap())},
-            None => {}
-        }
-        println!(" Fatality Probability: {}% |", self.fatality_probability*100.0);
-    }
-
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct DilemmaOptionConsequences {
     pub total_fatalities : usize

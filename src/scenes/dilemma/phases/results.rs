@@ -31,7 +31,8 @@ use crate::{
 			ActionPallet, 
 			Draggable, 
 			InputAction
-		}, particles::add_fireworks, physics::Velocity
+		}, 
+		physics::Velocity
 	} 
 };
 
@@ -41,7 +42,7 @@ impl Plugin for DilemmaResultsPlugin {
         app
 		.add_systems(
             OnEnter(DilemmaPhase::Results), 
-            (DilemmaResultsScene::setup, add_fireworks)
+            DilemmaResultsScene::setup
         );
     }
 }

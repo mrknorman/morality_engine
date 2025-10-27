@@ -110,11 +110,7 @@ impl PointToPointTranslation {
 			}
 		}
 	}
-
-	pub fn start(&mut self) {
-		self.timer.unpause();
-	}
-
+	
 	fn on_insert(
         mut world : DeferredWorld,
         HookContext{entity, ..} : HookContext
