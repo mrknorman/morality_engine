@@ -43,6 +43,8 @@ impl Plugin for GamePlugin {
 /*
     Todo:
 
+     // Mouse fireworks!
+     // Particles for cascade and background
      // Think about stats for multi-stages
      // more music pls, needed soon
      // Fireworks on results screen

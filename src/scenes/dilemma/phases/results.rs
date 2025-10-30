@@ -31,8 +31,7 @@ use crate::{
 			ActionPallet, 
 			Draggable, 
 			InputAction
-		}, 
-		physics::Velocity
+		}, particles::FireworkLauncher, physics::Velocity
 	} 
 };
 
@@ -77,11 +76,13 @@ impl DilemmaResultsScene {
 			Self,
 			DespawnOnExit(DilemmaPhase::Results),
 			children![
+				(FireworkLauncher::new(100.0, 0.2, 5.0), Transform::from_xyz(-500., -500., -10.)),
+                (FireworkLauncher::new(100.0, 0.2, 5.0), Transform::from_xyz( 500., -500., -10.)),
 				(
 					Draggable::default(),
 					WindowedTable{
 						title : Some(WindowTitle{
-							text : String::from("Overall Results"),
+							text : String::from("Results"),
 							..default()
 						}),
 						..default()

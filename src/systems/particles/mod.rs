@@ -17,8 +17,9 @@
 //! The particles also have a trail. The trail particles are stitched together
 //! to form an arc using [`EffectAsset::with_ribbons`].
 
-use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
+use bevy::{audio::Volume, ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
 use bevy_hanabi::prelude::*;
+use std::time::Duration;
 
 use crate::startup::textures::DigitSheet;
 
@@ -27,9 +28,15 @@ impl Plugin for ParticlePlugin {
     fn build(&self, app: &mut App) {	
 		app
         .init_resource::<FireworkFx>()
-        .add_systems(Update, FireworkLauncher::finish_despawn);
-        ;
+        .add_systems(Update, (
+            //FireworkLauncher::setup_rig_on_add, // NEW
+            FireworkLauncher::enact,            // reuses the rig now
+            FireworkLauncher::start_rig_shutdown,
+            FireworkLauncher::finish_despawn,
+            FireworkLauncher::boom_sound
+        ));
     }
+
 }
 
 const FIREWORK_SIZE : f32 = 1.0;
@@ -63,10 +70,6 @@ fn create_rocket_effect() -> EffectAsset {
     let color = rgb.vec4_xyz_w(writer.lit(1.)).pack4x8unorm();
     let init_trails_color = SetAttributeModifier::new(Attribute::U32_0, color.expr());
 
-    // Give a bit of variation by randomizing the lifetime per particle
-    let lifetime = writer.lit(0.8).uniform(writer.lit(1.2)).expr();
-    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
-
     // Add constant downward acceleration to simulate gravity
     let accel = writer.lit(Vec3::Y * -16.).expr();
     let update_accel = AccelModifier::new(accel);
@@ -89,9 +92,14 @@ fn create_rocket_effect() -> EffectAsset {
         child_index: 1,
     };
 
-    let spawner = SpawnerSettings::rate((1., 3.).into());
+    let spawner = SpawnerSettings::once(1.0.into());
 
-    EffectAsset::new(32, spawner, writer.finish())
+    let mut module = writer.finish();
+    // Give a bit of variation by randomizing the lifetime per particle
+    let rocket_lt = module.add_property("rocket_lt", 1.0.into());
+    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.prop(rocket_lt));
+
+    EffectAsset::new(32, spawner, module)
         .with_name("rocket")
         .init(init_pos)
         .init(init_vel)
@@ -152,7 +160,7 @@ fn create_sparkle_trail_effect() -> EffectAsset {
     color_gradient.add_key(0.8, Vec4::new(4.0, 4.0, 4.0, 1.0));
     color_gradient.add_key(1.0, Vec4::new(4.0, 4.0, 4.0, 0.0));
 
-    EffectAsset::new(1000, spawner, writer.finish())
+    EffectAsset::new(5000, spawner, writer.finish())
         .with_name("sparkle_trail")
         .init(init_pos)
         .init(init_vel)
@@ -219,7 +227,7 @@ fn create_trails_effect() -> EffectAsset {
     fade.add_key(0.0,  Vec4::new(1.0, 1.0, 1.0, 1.0));
     fade.add_key(1.0,  Vec4::new(1.0, 1.0, 1.0, 0.0));
 
-    EffectAsset::new(10000, SpawnerSettings::default(), module)
+    EffectAsset::new(5000, SpawnerSettings::default(), module)
         .with_name("trail_digits")
         .init(init_pos)
         .init(init_vel)
@@ -264,96 +272,278 @@ impl FromWorld for FireworkFx {
         Self {
             rocket: effects.add(create_rocket_effect()),
             sparkle: effects.add(create_sparkle_trail_effect()),
-            trails:  effects.add(create_trails_effect()),
+            trails: effects.add(create_trails_effect()),
         }
     }
 }
 
 #[derive(Component)]
-#[require(Transform, Visibility)]
-#[component(on_insert = FireworkLauncher::on_insert)]
-pub struct FireworkLauncher;
-
+struct BoomTimer(Timer);
 /// Countdown to actually delete the subtree.
 #[derive(Component, Deref, DerefMut)]
-struct DespawnAfterFrames(u8);
+struct DespawnAfterFrames(u32);
 
 use bevy::ecs::entity_disabling::Disabled;
+#[derive(Component, Clone)]
+#[component(on_remove = FireworkLauncher::on_remove)]
+#[component(on_insert = FireworkLauncher::on_insert)]
+pub struct FireworkLauncher {
+    /// Launch circle radius (XZ plane) around the entity's Transform.
+    pub radius: f32,
+    /// Minimum time between launches (seconds).
+    pub min_delay: f32,
+    /// Maximum time between launches (seconds).
+    pub max_delay: f32,
+    /// Internal timer for next launch.
+    timer: Timer
+}
+
+#[derive(Component)]
+struct RigShutdown;
+
+
+#[derive(Component, Copy, Clone)]
+struct RigRoot(pub Entity);
+
+#[derive(Component)]
+struct RocketEnt(pub Entity);
 
 impl FireworkLauncher {
-    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        // --- IMMUTABLE READS ONLY (produce owned copies) ---
-        let (rocket, sparkle, trails) = {
-            let fx = world
-                .get_resource::<FireworkFx>()
-                .expect("FireworkFx should be initialized"); 
-            (fx.rocket.clone(), fx.sparkle.clone(), fx.trails.clone())
+    
+    pub fn on_remove(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        // End the immutable borrow before calling `commands()`
+        let root = {
+            world.entity(entity).get::<RigRoot>().map(|rr| rr.0)
         };
 
-        let digits_handle = {
-            world
-                .get_resource::<DigitSheet>()
-                .expect("DigitSheet not loaded")
-                .0
-                .clone()
-        };
-        
-         world.commands().entity(entity).with_children( |parent| {
-            let rocket_entity = parent.spawn((
-                    Name::new("rocket_emitter"),
-                    ParticleEffect::new(rocket.clone())
-                ))
-            .id();
-
-            parent.commands().spawn((
-                Name::new("sparkle_trail"),
-                ParticleEffect::new(sparkle.clone()),
-                EffectParent::new(rocket_entity),
-            ));
-
-            parent.commands().spawn((
-                Name::new("digit_trails"),
-                ParticleEffect::new(trails.clone()),
-                EffectParent::new(rocket_entity),
-                EffectMaterial {
-                    images: vec![digits_handle.clone()],
-                    ..Default::default()
-                },
-            ));
-        });
-    }
-
-    /// PHASE 2 (run every frame in Update; it only acts the frame after FX were removed):
-    /// - When we detect some ParticleEffect was removed, despawn the tagged roots.
-    fn finish_despawn(
-        mut commands: Commands,
-        mut q: Query<(Entity, &mut DespawnAfterFrames), With<FireworkLauncher>>,
-    ) {
-        for (root, mut frames) in &mut q {
-            if **frames > 0 { **frames -= 1; continue; }
-            // built-in recursive despawn (0.17): deletes children automatically
-            commands.entity(root).despawn();
+        if let Some(root) = root {
+            world.commands().entity(root).insert(RigShutdown);
         }
     }
 
-    pub fn remove_fireworks(
+    fn start_rig_shutdown(
         mut commands: Commands,
-        roots: Query<Entity, With<FireworkLauncher>>,
-        children_q: Query<&Children>,
+        q_added: Query<Entity, Added<RigShutdown>>,
+        q_children: Query<&Children>,
+        mut q_spawner: Query<&mut bevy_hanabi::EffectSpawner>,
     ) {
-        for root in &roots {
-            // Disable root + descendants so Hanabi won't extract/batch them this frame.
+        for root in &q_added {
+            // DFS the rig subtree
             let mut stack = vec![root];
             while let Some(e) = stack.pop() {
+                if let Ok(mut spawner) = q_spawner.get_mut(e) {
+                    spawner.active = false; // stop emission immediately
+                }
                 commands.entity(e).insert(Disabled);
-                if let Ok(children) = children_q.get(e) {
+
+                if let Ok(children) = q_children.get(e) {
+                    // <-- Use a simple loop; no copied()/cloned() needed.
                     for c in children.iter() {
                         stack.push(c);
                     }
                 }
             }
-            // Give the renderer a little breathing room (2 frames is plenty).
+            // Give the renderer a couple of frames to stop referencing buffers
             commands.entity(root).insert(DespawnAfterFrames(2));
         }
     }
+
+    fn finish_despawn(
+        mut commands: Commands,
+        mut q: Query<(Entity, &mut DespawnAfterFrames), With<Disabled>>,
+    ) {
+        for (root, mut frames) in &mut q {
+            if **frames > 0 { **frames -= 1; continue; }
+            // Despawn the whole rig subtree after a short delay
+            commands.entity(root).despawn();
+        }
+    }
+
+    pub fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        // --- 1) Prefetch owned data in a short scope (ends all &World borrows) ---
+        let (rocket_h, sparkle_h, trails_h, digits_img, xform) = {
+            let fx = world
+                .get_resource::<FireworkFx>()
+                .expect("FireworkFx not initialized");
+            let digits_sheet = world
+                .get_resource::<DigitSheet>()
+                .expect("DigitSheet not loaded");
+
+            let rocket_h  = fx.rocket.clone();
+            let sparkle_h = fx.sparkle.clone();
+            let trails_h  = fx.trails.clone();
+            let digits_img = digits_sheet.0.clone();
+            let xform = world
+                .entity(entity)
+                .get::<Transform>()
+                .cloned()
+                .unwrap_or_default();
+
+            (rocket_h, sparkle_h, trails_h, digits_img, xform)
+        }; // <-- immutable borrows dropped here
+
+        // --- 2) Now it’s safe to use world.commands() (mutable) ---
+        let rig_root = world
+            .commands()
+            .spawn((Name::new("firework_rig_root"), xform))
+            .id();
+
+        let rocket_e = world
+            .commands()
+            .spawn((
+                Name::new("rocket_emitter"),
+                ParticleEffect::new(rocket_h),
+                EffectProperties::default(),
+                EffectSpawner::new(
+                    &SpawnerSettings::once(1.0.into()).with_emit_on_start(false),
+                ),
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
+
+        // child_index 0 → explosion digits (spawn-on-die)
+        let digits_e = world
+            .commands()
+            .spawn((
+                Name::new("digit_trails"),
+                ParticleEffect::new(trails_h),
+                EffectParent::new(rocket_e),
+                EffectMaterial {
+                    images: vec![digits_img],
+                    ..Default::default()
+                },
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
+
+        // child_index 1 → sparkle trail (always)
+        let sparkle_e = world
+            .commands()
+            .spawn((
+                Name::new("sparkle_trail"),
+                ParticleEffect::new(sparkle_h),
+                EffectParent::new(rocket_e),
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
+
+        // lock sibling order on the ROCKET (0 then 1)
+        world
+            .commands()
+            .entity(rocket_e)
+            .add_children(&[digits_e, sparkle_e]);
+
+        // rocket under rig root
+        world.commands().entity(rig_root).add_child(rocket_e);
+
+        // store IDs on the launcher entity via small helper components
+        world
+            .commands()
+            .entity(entity)
+            .insert((RigRoot(rig_root), RocketEnt(rocket_e)));
+    }
+
+    /// Create a launcher that spawns fireworks every random N seconds in [min_delay, max_delay],
+    /// positioned uniformly inside a circle of given radius.
+    pub fn new(radius: f32, min_delay: f32, max_delay: f32) -> Self {
+        let (min_d, max_d) = if min_delay <= max_delay {
+            (min_delay, max_delay)
+        } else {
+            (max_delay, min_delay)
+        };
+        let initial = rand_delay(min_d, max_d);
+        Self {
+            radius,
+            min_delay: min_d,
+            max_delay: max_d,
+            timer: Timer::from_seconds(initial, TimerMode::Once)
+        }
+    }
+
+    fn enact(
+        time: Res<Time>,
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+        mut q: Query<(&GlobalTransform, &mut FireworkLauncher, Option<&RigRoot>, Option<&RocketEnt>)>,
+        mut q_root_xform: Query<&mut Transform>,
+        mut q_props: Query<&mut EffectProperties>,
+        mut q_spawner: Query<&mut bevy_hanabi::EffectSpawner>,
+    ) {
+        for (gt, mut launcher, rig_opt, rocket_opt) in &mut q {
+            launcher.timer.tick(time.delta());
+            if !launcher.timer.is_finished() { continue; }
+
+            // Random point in disc
+            let theta = 2.0 * std::f32::consts::PI * rand::random::<f32>();
+            let r = launcher.radius * rand::random::<f32>().sqrt();
+            let offset = Vec3::new(r * theta.cos(), 0.0, r * theta.sin());
+            let spawn_pos = gt.translation() + offset;
+
+            // Move rig root in WORLD space (rig is detached)
+            if let Some(RigRoot(root)) = rig_opt {
+                if let Ok(mut t) = q_root_xform.get_mut(*root) {
+                    t.translation = spawn_pos;
+                }
+            }
+
+            // Randomize per-launch lifetime and fire one rocket
+            let lt: f32 = 0.8 + 0.4 * rand::random::<f32>();
+            if let Some(RocketEnt(rocket)) = rocket_opt {
+                if let Ok(mut props) = q_props.get_mut(*rocket) {
+                    *props = EffectProperties::default()
+                        .with_properties([("rocket_lt".to_string(), lt.into())]);
+                }
+
+
+                commands.spawn((
+                    AudioPlayer::new(asset_server.load("audio/effects/firework_whistle.ogg")),
+                    PlaybackSettings {
+                        volume: Volume::Linear(0.02),
+                        ..PlaybackSettings::DESPAWN
+                    },
+                ));
+
+                // separate delayed boom timer
+                commands.spawn(BoomTimer(Timer::from_seconds(lt + 0.35, TimerMode::Once)));
+                if let Ok(mut spawner) = q_spawner.get_mut(*rocket) {
+                    spawner.active = true;
+                    spawner.reset();
+                }
+            }
+
+            // next shot
+            let next = rand_delay(launcher.min_delay, launcher.max_delay);
+            launcher.timer.set_duration(Duration::from_secs_f32(next));
+            launcher.timer.reset();
+        }
+    }
+
+    fn boom_sound(
+        time: Res<Time>,
+        asset_server: Res<AssetServer>,
+        mut commands: Commands,
+        mut q: Query<(Entity, &mut BoomTimer)>,
+    ) {
+        for (e, mut boom) in &mut q {
+            boom.0.tick(time.delta());
+            if !boom.0.just_finished() {
+                continue;
+            }
+            commands.spawn((
+                AudioPlayer::new(asset_server.load("audio/effects/firework.ogg")),
+                PlaybackSettings {
+                    volume: Volume::Linear(0.1),
+                    ..PlaybackSettings::DESPAWN
+                },
+            ));
+            commands.entity(e).despawn(); // one-shot timer
+        }
+    }
+}
+
+fn rand_delay(min_d: f32, max_d: f32) -> f32 {
+    min_d + (max_d - min_d) * rand::random::<f32>()
 }
