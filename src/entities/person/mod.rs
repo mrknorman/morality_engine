@@ -91,7 +91,9 @@ fn default_person_anchor() -> Anchor {
 }
 
 #[derive(Component)]
-pub struct BloodSprite;
+pub struct BloodSprite(pub u8);
+
+
 
 #[derive(Component)]
 #[require(Anchor = default_person_anchor(), Gravity, TextSprite, Bounce, Visibility, Volatile)]
@@ -330,8 +332,8 @@ impl PersonSprite {
     pub fn blood_soak_train(
         mut commands: Commands,
         mut debris_q: Query<
-            (Entity, &Aabb, &GlobalTransform),
-            (With<BloodSprite>, Without<IgnoreTrainCollision>),
+            (Entity, &Aabb, &GlobalTransform, &mut BloodSprite),
+            (Without<IgnoreTrainCollision>),
         >,
         mut rng: ResMut<GlobalRng>,
         sprite_q: Query<(Entity, &Aabb, &GlobalTransform), (With<CharacterSprite>, Without<Bloodied>, Without<Gravity>, Without<BloodSprite>)>
@@ -346,7 +348,7 @@ impl PersonSprite {
             return;
         }
 
-        for (debris_entity, d_box, d_tf) in debris_q.iter_mut() {
+        for (debris_entity, d_box, d_tf, mut blood) in debris_q.iter_mut() {
             let (d_min, d_max) = world_aabb(d_box, d_tf);
 
             for &(t_min, t_max, _, entity) in &part_data {
@@ -355,7 +357,7 @@ impl PersonSprite {
                     continue;
                 }
 
-                let tint_shade: f32 = rng.random_range(0.0..=3.0);
+                let tint_shade: f32 = rng.random_range(0.0..= blood.0 as f32);
 
                 if let Ok(mut e) = commands.get_entity(entity) {
                     e.insert(TextColor(Color::srgba(3.0, tint_shade, tint_shade, 1.0)));
@@ -365,7 +367,11 @@ impl PersonSprite {
                 }
 
                 if let Ok(mut d) = commands.get_entity(debris_entity) {
-                    d.insert(IgnoreTrainCollision);
+                    if blood.0 < 1 {
+                        d.insert(IgnoreTrainCollision);
+                    } else {
+                        blood.0 -= 1;
+                    }
                 }
                 break;
             }

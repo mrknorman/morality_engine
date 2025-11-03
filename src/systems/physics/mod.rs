@@ -534,7 +534,7 @@ impl Volatile {
             let floor_level = Some(explosion_center.y - vz * 400.0);
 
             commands.spawn((
-                BloodSprite,
+                BloodSprite(rng.random_range(1..=3)),
                 TextSprite,
                 TextColor(Color::srgba(2.0, 0.0, 0.0, 1.0)),
                 Text2d::new(ch.to_string()),

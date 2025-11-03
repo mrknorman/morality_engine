@@ -423,7 +423,7 @@ impl FireworkLauncher {
     ) {
         for (gt, mut launcher, rig_opt, expl_opt, trail_opt) in &mut q {
             launcher.timer.tick(time.delta());
-            if !launcher.timer.is_finished() { continue; }
+            if !launcher.timer.just_finished() { continue; }
 
             let theta = 2.0 * std::f32::consts::PI * rand::random::<f32>();
             let r = launcher.radius * rand::random::<f32>().sqrt();
