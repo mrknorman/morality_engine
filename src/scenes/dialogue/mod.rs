@@ -19,10 +19,8 @@ use crate::{
         SceneQueue
     }, style::ui::IOPlugin, systems::{
         audio:: {
-            continuous_audio, 
-            ContinuousAudio,
-            ContinuousAudioPallet
-        }, cascade::Cascade, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::InteractionPlugin 
+            ContinuousAudio, ContinuousAudioPallet, continuous_audio
+        }, cascade::Cascade, cascade_gpu::CascadeGPU, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::InteractionPlugin 
     }
 };
 
@@ -171,11 +169,12 @@ impl DialogueScene {
                         Transform::from_xyz(300.0, 0.0, 0.5)
                     ),
                     (
-                        Cascade{
-                            speed : 50.0,
-                            visibility_speed : 0.1,
-                            ..default()
-                        },
+                        CascadeGPU::default(),
+                        //Cascade{
+                        //    speed : 50.0,
+                        //    visibility_speed : 0.1,
+                        //    ..default()
+                        //},
                         BequeathTextAlpha,
                         AlphaTranslation::new(
                             DIM_BACKGROUND_COLOR.alpha(),

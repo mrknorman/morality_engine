@@ -333,7 +333,7 @@ impl PersonSprite {
         mut commands: Commands,
         mut debris_q: Query<
             (Entity, &Aabb, &GlobalTransform, &mut BloodSprite),
-            (Without<IgnoreTrainCollision>),
+            Without<IgnoreTrainCollision>,
         >,
         mut rng: ResMut<GlobalRng>,
         sprite_q: Query<(Entity, &Aabb, &GlobalTransform), (With<CharacterSprite>, Without<Bloodied>, Without<Gravity>, Without<BloodSprite>)>
