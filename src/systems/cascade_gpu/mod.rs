@@ -7,6 +7,7 @@ use bevy::{
 use bevy_hanabi::prelude::*;
 use std::{cell::RefCell, rc::Rc};
 
+use crate::startup::cursor::CustomCursor;
 use crate::startup::textures::DigitSheet;
 use crate::systems::colors::{OPTION_1_COLOR, OPTION_2_COLOR};
 
@@ -18,7 +19,9 @@ fn lin_rgb(c: Color) -> (f32, f32, f32) {
 
 pub struct CascadeGpuPlugin;
 impl Plugin for CascadeGpuPlugin {
-    fn build(&self, _app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, update_cursor_hover_props);
+    }
 }
 
 #[derive(Component, Clone)]
@@ -104,10 +107,8 @@ fn grid_from(cfg: &CascadeGPU, win_size: Vec2) -> Grid {
 }
 
 /// Build the Hanabi effect and return its handle.
-fn build_effect(
-    effects: &mut Assets<EffectAsset>,
-    grid: &Grid,
-) -> Handle<EffectAsset> {
+fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<EffectAsset> {
+    // -------- Init module (writer #1) ----------
     let w = ExprWriter::new();
     let slot0_expr = w.lit(0).expr();
 
@@ -133,69 +134,162 @@ fn build_effect(
     let module = w.finish();
     let module_rc = Rc::new(RefCell::new(module));
 
-    // Properties (defaults) + texture slot
-    let col_seed         = { let mut m = module_rc.borrow_mut(); m.add_property("col_seed", 0.0.into()) };
-    let col_id           = { let mut m = module_rc.borrow_mut(); m.add_property("col_id", 0.0.into()) };
+    {
+        let mut m = module_rc.borrow_mut();
+        m.add_texture_slot("digits");
+    }
 
-    let evolution_rate   = { let mut m = module_rc.borrow_mut(); m.add_property("evolution_rate", 0.05_f32.into()) };
-    let noise_scale_x    = { let mut m = module_rc.borrow_mut(); m.add_property("noise_scale_x", 0.005_f32.into()) };
-    let noise_scale_y    = { let mut m = module_rc.borrow_mut(); m.add_property("noise_scale_y", 0.005_f32.into()) };
-    let x_jitter_scale   = { let mut m = module_rc.borrow_mut(); m.add_property("x_jitter_scale", 0.30_f32.into()) };
-    let y_jitter_scale   = { let mut m = module_rc.borrow_mut(); m.add_property("y_jitter_scale", 0.30_f32.into()) };
-    let cross_mix        = { let mut m = module_rc.borrow_mut(); m.add_property("cross_mix", 0.12_f32.into()) };
-    let rotate_deg       = { let mut m = module_rc.borrow_mut(); m.add_property("rotate_deg", 15.0_f32.into()) };
-    let flow_x           = { let mut m = module_rc.borrow_mut(); m.add_property("flow_x", 0.85_f32.into()) };
-    let flow_y           = { let mut m = module_rc.borrow_mut(); m.add_property("flow_y", (-0.65_f32).into()) };
-    let on_threshold     = { let mut m = module_rc.borrow_mut(); m.add_property("on_threshold", 0.50_f32.into()) };
-    let threshold_jitter = { let mut m = module_rc.borrow_mut(); m.add_property("threshold_jitter", 0.04_f32.into()) };
+    // -------- Properties ----------
+    let col_seed = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("col_seed", 0.0.into())
+    };
+    let col_id = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("col_id", 0.0.into())
+    };
 
-    let base_r           = { let mut m = module_rc.borrow_mut(); m.add_property("base_r", 1.0_f32.into()) };
-    let base_g           = { let mut m = module_rc.borrow_mut(); m.add_property("base_g", 1.0_f32.into()) };
-    let base_b           = { let mut m = module_rc.borrow_mut(); m.add_property("base_b", 1.0_f32.into()) };
-    let opt1_r           = { let mut m = module_rc.borrow_mut(); m.add_property("opt1_r", 0.20_f32.into()) };
-    let opt1_g           = { let mut m = module_rc.borrow_mut(); m.add_property("opt1_g", 1.00_f32.into()) };
-    let opt1_b           = { let mut m = module_rc.borrow_mut(); m.add_property("opt1_b", 0.60_f32.into()) };
-    let opt2_r           = { let mut m = module_rc.borrow_mut(); m.add_property("opt2_r", 1.00_f32.into()) };
-    let opt2_g           = { let mut m = module_rc.borrow_mut(); m.add_property("opt2_g", 0.20_f32.into()) };
-    let opt2_b           = { let mut m = module_rc.borrow_mut(); m.add_property("opt2_b", 0.60_f32.into()) };
-    let color_flip_chance= { let mut m = module_rc.borrow_mut(); m.add_property("color_flip_chance", 0.10_f32.into()) };
+    // Visibility / noise props
+    let evolution_rate = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("evolution_rate", 0.05_f32.into())
+    };
+    let noise_scale_x = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("noise_scale_x", 0.005_f32.into())
+    };
+    let noise_scale_y = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("noise_scale_y", 0.005_f32.into())
+    };
+    let x_jitter_scale = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("x_jitter_scale", 0.30_f32.into())
+    };
+    let y_jitter_scale = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("y_jitter_scale", 0.30_f32.into())
+    };
+    let cross_mix = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("cross_mix", 0.12_f32.into())
+    };
+    let rotate_deg = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("rotate_deg", 15.0_f32.into())
+    };
+    let flow_x = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("flow_x", 0.85_f32.into())
+    };
+    let flow_y = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("flow_y", (-0.65_f32).into())
+    };
+    let on_threshold = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("on_threshold", 0.50_f32.into())
+    };
+    let threshold_jitter = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("threshold_jitter", 0.04_f32.into())
+    };
 
-    { let mut m = module_rc.borrow_mut(); m.add_texture_slot("digits"); }
+    // Palette (linear) + flip chance
+    let base_r = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("base_r", 1.0_f32.into())
+    };
+    let base_g = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("base_g", 1.0_f32.into())
+    };
+    let base_b = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("base_b", 1.0_f32.into())
+    };
+    let opt1_r = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("opt1_r", 0.20_f32.into())
+    };
+    let opt1_g = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("opt1_g", 1.00_f32.into())
+    };
+    let opt1_b = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("opt1_b", 0.60_f32.into())
+    };
+    let opt2_r = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("opt2_r", 1.00_f32.into())
+    };
+    let opt2_g = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("opt2_g", 0.20_f32.into())
+    };
+    let opt2_b = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("opt2_b", 0.60_f32.into())
+    };
+    let color_flip_chance = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("color_flip_chance", 0.10_f32.into())
+    };
 
-    // Writer #2: sprite flip, visibility mask, color selection
+    // Cursor-hover properties
+    let cur_dx = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("cur_dx", 1.0e9_f32.into())
+    };
+    let cur_dy = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("cur_dy", 1.0e9_f32.into())
+    };
+    let hover_radius = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("hover_radius", 150.0_f32.into())
+    };
+    let hover_min_dist = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("hover_min_dist", 10.0_f32.into())
+    };
+    let hover_max_scale = {
+        let mut m = module_rc.borrow_mut();
+        m.add_property("hover_max_scale", 2.0_f32.into())
+    };
+
+    // -------- Writer #2 (update shader) ----------
     let mut w2 = ExprWriter::from_module(module_rc.clone());
 
     // 0/1 digit flip desynced per particle (phase/period from spatial hash)
-    let age     = w2.attr(Attribute::AGE);
-    let col     = w2.prop(col_id);
+    let age = w2.attr(Attribute::AGE);
+    let col = w2.prop(col_id);
     let row_idx = w2.attr(Attribute::F32_1);
-    let seed    = w2.prop(col_seed);
-
+    let seed = w2.prop(col_seed);
     let hash = |x: WriterExpr| {
         let s = x.clone().sin() * w2.lit(43758.5453123);
         s.clone() - s.floor()
     };
-    let phase_src = col.clone() * w2.lit(12.9898)
-                  + row_idx.clone() * w2.lit(78.233)
-                  + seed.clone() * w2.lit(37.719);
+    let phase_src =
+        col.clone() * w2.lit(12.9898) + row_idx.clone() * w2.lit(78.233) + seed.clone() * w2.lit(37.719);
     let phase = hash(phase_src);
-
-    let per_src = col.clone() * w2.lit(4.898)
-                + row_idx.clone() * w2.lit(7.23)
-                + seed.clone() * w2.lit(1.23);
-    let per_h  = hash(per_src);
+    let per_src = col.clone() * w2.lit(4.898) + row_idx.clone() * w2.lit(7.23) + seed.clone() * w2.lit(1.23);
+    let per_h = hash(per_src);
     let period = w2.lit(0.5) + per_h * w2.lit(9.5);
-
     let cycles = age.clone() / period.clone() + phase.clone();
-    let frac   = cycles.clone() - cycles.floor();
-    let idx_f  = (frac * w2.lit(2.0)).floor();
-    let idx_i  = { let mut m = module_rc.borrow_mut(); m.cast(idx_f.clone().expr(), ScalarType::Int) };
+    let frac = cycles.clone() - cycles.floor();
+    let idx_f = (frac * w2.lit(2.0)).floor();
+    let idx_i = {
+        let mut m = module_rc.borrow_mut();
+        m.cast(idx_f.clone().expr(), ScalarType::Int)
+    };
     let init_sprite = SetAttributeModifier::new(Attribute::SPRITE_INDEX, idx_i);
 
-    // Visibility mask from 2D gradient noise (anchored + advected)
+    // Visibility mask (same as before)
     let col_jit = (w2.prop(col_seed) - w2.lit(0.5)) * w2.prop(x_jitter_scale);
     let phi = w2.lit(1.61803398875);
-    let s   = w2.attr(Attribute::F32_0) * phi.clone();
+    let s = w2.attr(Attribute::F32_0) * phi.clone();
     let row_jit_src = s.clone() - s.floor();
     let row_jit = (row_jit_src - w2.lit(0.5)) * w2.prop(y_jitter_scale);
 
@@ -204,12 +298,12 @@ fn build_effect(
     let gx0 = col_f.clone() * w2.prop(noise_scale_x) + row_f.clone() * w2.prop(cross_mix);
     let gy0 = row_f.clone() * w2.prop(noise_scale_y) + col_f.clone() * w2.prop(cross_mix);
 
-    let pi  = w2.lit(3.14159265358979323846);
+    let pi = w2.lit(3.14159265358979323846);
     let ang = w2.prop(rotate_deg) * pi / w2.lit(180.0);
-    let ca  = ang.clone().cos();
-    let sa  = ang.clone().sin();
-    let gx  = ca.clone() * gx0.clone() - sa.clone() * gy0.clone();
-    let gy  = sa * gx0 + ca * gy0;
+    let ca = ang.clone().cos();
+    let sa = ang.clone().sin();
+    let gx = ca.clone() * gx0.clone() - sa.clone() * gy0.clone();
+    let gy = sa * gx0 + ca * gy0;
 
     let phase_adv = w2.time() * w2.prop(evolution_rate);
     let x = gx.clone() + phase_adv.clone() * w2.prop(flow_x);
@@ -233,7 +327,9 @@ fn build_effect(
     let hash2 = |ix_e: WriterExpr, iy_e: WriterExpr| {
         let s = (ix_e.clone() * w2.lit(127.1)
             + iy_e.clone() * w2.lit(311.7)
-            + w2.prop(col_seed) * w2.lit(17.3)).sin() * w2.lit(43758.5453123);
+            + w2.prop(col_seed) * w2.lit(17.3))
+            .sin()
+            * w2.lit(43758.5453123);
         s.clone() - s.floor()
     };
 
@@ -251,15 +347,23 @@ fn build_effect(
     let a10 = h10.clone() * tau.clone();
     let a01 = h01.clone() * tau.clone();
     let a11 = h11.clone() * tau.clone();
-    let g00x = a00.clone().cos(); let g00y = a00.clone().sin();
-    let g10x = a10.clone().cos(); let g10y = a10.clone().sin();
-    let g01x = a01.clone().cos(); let g01y = a01.clone().sin();
-    let g11x = a11.clone().cos(); let g11y = a11.clone().sin();
+    let g00x = a00.clone().cos();
+    let g00y = a00.clone().sin();
+    let g10x = a10.clone().cos();
+    let g10y = a10.clone().sin();
+    let g01x = a01.clone().cos();
+    let g01y = a01.clone().sin();
+    let g11x = a11.clone().cos();
+    let g11y = a11.clone().sin();
 
-    let dx00 = fx.clone() - w2.lit(0.0); let dy00 = fy.clone() - w2.lit(0.0);
-    let dx10 = fx.clone() - w2.lit(1.0); let dy10 = fy.clone() - w2.lit(0.0);
-    let dx01 = fx.clone() - w2.lit(0.0); let dy01 = fy.clone() - w2.lit(1.0);
-    let dx11 = fx.clone() - w2.lit(1.0); let dy11 = fy.clone() - w2.lit(1.0);
+    let dx00 = fx.clone() - w2.lit(0.0);
+    let dy00 = fy.clone() - w2.lit(0.0);
+    let dx10 = fx.clone() - w2.lit(1.0);
+    let dy10 = fy.clone() - w2.lit(0.0);
+    let dx01 = fx.clone() - w2.lit(0.0);
+    let dy01 = fy.clone() - w2.lit(1.0);
+    let dx11 = fx.clone() - w2.lit(1.0);
+    let dy11 = fy.clone() - w2.lit(1.0);
 
     let n00 = g00x.clone() * dx00.clone() + g00y.clone() * dy00.clone();
     let n10 = g10x.clone() * dx10.clone() + g10y.clone() * dy10.clone();
@@ -280,44 +384,77 @@ fn build_effect(
     let mask = step_src.max(w2.lit(0.0)).min(w2.lit(1.0)).ceil();
 
     // Occasional color flips on digit flip cycles
-    let cyc   = (age.clone() / period.clone() + phase.clone()).floor();
+    let cyc = (age.clone() / period.clone() + phase.clone()).floor();
     let chance_src = cyc.clone() * w2.lit(19.19)
-                    + col.clone() * w2.lit(7.37)
-                    + row_idx.clone() * w2.lit(5.11)
-                    + seed.clone() * w2.lit(13.13);
+        + col.clone() * w2.lit(7.37)
+        + row_idx.clone() * w2.lit(5.11)
+        + seed.clone() * w2.lit(13.13);
     let chance = {
         let s = chance_src.clone().sin() * w2.lit(43758.5453123);
         s.clone() - s.floor()
     };
     let thresh = w2.lit(1.0) - w2.prop(color_flip_chance);
-    let rare = ((chance - thresh) * w2.lit(1000.0)).max(w2.lit(0.0)).min(w2.lit(1.0)).ceil();
+    let rare = ((chance - thresh) * w2.lit(1000.0))
+        .max(w2.lit(0.0))
+        .min(w2.lit(1.0))
+        .ceil();
 
     let one = w2.lit(1.0);
-    let inv_idx = one.clone() - idx_f.clone();
-    let opt_r = w2.prop(opt2_r) * inv_idx.clone() + w2.prop(opt1_r) * idx_f.clone();
-    let opt_g = w2.prop(opt2_g) * inv_idx.clone() + w2.prop(opt1_g) * idx_f.clone();
-    let opt_b = w2.prop(opt2_b) * inv_idx.clone() + w2.prop(opt1_b) * idx_f.clone();
+    let idx_inv = one.clone() - idx_f.clone();
+    let opt_r = w2.prop(opt2_r) * idx_inv.clone() + w2.prop(opt1_r) * idx_f.clone();
+    let opt_g = w2.prop(opt2_g) * idx_inv.clone() + w2.prop(opt1_g) * idx_f.clone();
+    let opt_b = w2.prop(opt2_b) * idx_inv.clone() + w2.prop(opt1_b) * idx_f.clone();
 
     let inv_rare = one.clone() - rare.clone();
     let chosen_r = w2.prop(base_r) * inv_rare.clone() + opt_r * rare.clone();
     let chosen_g = w2.prop(base_g) * inv_rare.clone() + opt_g * rare.clone();
     let chosen_b = w2.prop(base_b) * inv_rare.clone() + opt_b * rare.clone();
 
-    let rgb  = chosen_r.clone().vec3(chosen_g.clone(), chosen_b.clone()) * mask.clone();
+    let rgb = chosen_r.clone().vec3(chosen_g.clone(), chosen_b.clone()) * mask.clone();
     let rgba = rgb.vec4_xyz_w(mask.clone());
     let set_hdr = SetAttributeModifier::new(Attribute::HDR_COLOR, rgba.expr());
     let set_alpha = SetAttributeModifier::new(Attribute::ALPHA, mask.clone().expr());
 
-    // Per-frame sprite update (int)
-    let set_sprite  = SetAttributeModifier::new(Attribute::SPRITE_INDEX, {
-        let frac_dyn = ((w2.attr(Attribute::AGE) / period.clone()) + phase.clone()).clone()
-                     - ((w2.attr(Attribute::AGE) / period) + phase).floor();
-        let idx_f2 = (frac_dyn * w2.lit(2.0)).floor();
-        let idx_i2 = { let mut m = module_rc.borrow_mut(); m.cast(idx_f2.expr(), ScalarType::Int) };
-        idx_i2
-    });
+    // Per-frame sprite update (int flip)
+    let set_sprite = SetAttributeModifier::new(
+        Attribute::SPRITE_INDEX,
+        {
+            let frac_dyn =
+                ((w2.attr(Attribute::AGE) / period.clone()) + phase.clone()).clone()
+                    - ((w2.attr(Attribute::AGE) / period) + phase).floor();
+            let idx_f2 = (frac_dyn * w2.lit(2.0)).floor();
+            let idx_i2 = {
+                let mut m = module_rc.borrow_mut();
+                m.cast(idx_f2.expr(), ScalarType::Int)
+            };
+            idx_i2
+        },
+    );
 
-    // Build effect
+    // >>> Cursor-proximity enlarge (multiply existing size; no vecN construction) <<<
+    let p = w2.attr(Attribute::POSITION);
+    let dx = w2.prop(cur_dx) - p.clone().x();
+    let dy = w2.prop(cur_dy) - p.y();
+    let dist = dx.clone().vec2(dy.clone()).length();
+
+    let rad = w2.prop(hover_radius);
+    let min_d = w2.prop(hover_min_dist);
+    let max_s = w2.prop(hover_max_scale);
+
+    // t = clamp((rad - dist) / (rad - min_d), 0, 1)
+    let t_raw = (rad.clone() - dist.clone()) / (rad.clone() - min_d.clone());
+    let t = t_raw.max(w2.lit(0.0)).min(w2.lit(1.0));
+    let scale = w2.lit(1.0) + (max_s - w2.lit(1.0)) * t;
+
+    // base_px ~ your glyph pixel size (use the same value you intended before)
+    let base_px = w2.lit(grid.glyph_px * 0.96);
+    let final_px = base_px * scale;
+
+    // Write final pixel size directly; keep it vec3 to match the render pipeline.
+    let size_vec3 = final_px.clone().vec3(final_px.clone(), final_px.clone());
+    let set_size = SetAttributeModifier::new(Attribute::SIZE, size_vec3.expr());
+    
+    // -------- Build effect ----------
     let spawner = SpawnerSettings::rate(CpuValue::Single(grid.rows_per_sec));
     let module = w2.finish();
     let effect = EffectAsset::new(grid.capacity, spawner, module)
@@ -331,13 +468,17 @@ fn build_effect(
         .update(set_sprite)
         .update(set_alpha)
         .update(set_hdr)
-        .render(FlipbookModifier { sprite_grid_size: UVec2::new(5, 2) })
-        .render(ParticleTextureModifier {
-            texture_slot: slot0_expr,
-            sample_mapping: ImageSampleMapping::Modulate,
+        .update(set_size)
+        .render(FlipbookModifier {
+            sprite_grid_size: UVec2::new(5, 2),
         })
+        .render(ParticleTextureModifier {
+            texture_slot: slot0_expr,                 // <- uses slot 0
+            sample_mapping: ImageSampleMapping::Modulate, // tint with HDR_COLOR, keep alpha
+        })
+        // Base size in pixels; we then multiply it in the update by `scale`.
         .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(grid.glyph_px * 0.96)),
+            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(1.0)),
             screen_space_size: true,
         })
         .render(OrientModifier::new(OrientMode::ParallelCameraDepthPlane))
@@ -384,26 +525,21 @@ fn spawn_columns(
                 EffectProperties::default().with_properties([
                     ("col_seed".to_string(), seed_value.into()),
                     ("col_id".to_string(), (c as f32).into()),
-
                     // Evolution / spatial scales
                     ("evolution_rate".to_string(), 0.05_f32.into()),
                     ("noise_scale_x".to_string(), 0.005_f32.into()),
                     ("noise_scale_y".to_string(), 0.005_f32.into()),
-
                     // Jitter / coupling / rotation
                     ("x_jitter_scale".to_string(), 0.30_f32.into()),
                     ("y_jitter_scale".to_string(), 0.30_f32.into()),
                     ("cross_mix".to_string(), 0.12_f32.into()),
                     ("rotate_deg".to_string(), 15.0_f32.into()),
-
                     // Drift
                     ("flow_x".to_string(), 0.85_f32.into()),
                     ("flow_y".to_string(), (-0.65_f32).into()),
-
                     // Visibility threshold
                     ("on_threshold".to_string(), 0.50_f32.into()),
                     ("threshold_jitter".to_string(), 0.04_f32.into()),
-
                     // Palette (linear) + flip chance
                     ("base_r".to_string(), 1.0_f32.into()),
                     ("base_g".to_string(), 1.0_f32.into()),
@@ -415,6 +551,12 @@ fn spawn_columns(
                     ("opt2_g".to_string(), o2g.into()),
                     ("opt2_b".to_string(), o2b.into()),
                     ("color_flip_chance".to_string(), 0.10_f32.into()),
+                    // Hover scale defaults
+                    ("cur_dx".to_string(), (1.0e9_f32).into()),
+                    ("cur_dy".to_string(), (1.0e9_f32).into()),
+                    ("hover_radius".to_string(), 150.0_f32.into()),
+                    ("hover_min_dist".to_string(), 10.0_f32.into()),
+                    ("hover_max_scale".to_string(), 2.0_f32.into()),
                 ]),
                 Transform::from_translation(Vec3::new(x, grid.emit_y, 0.0)),
                 GlobalTransform::default(),
@@ -468,5 +610,21 @@ impl CascadeGPU {
 
         // Attach to the CascadeGPU entity
         cmd.entity(entity).add_child(parent);
+    }
+}
+
+/// Per-frame: push cursor delta (cursor_world - column_world) into each column’s EffectProperties.
+fn update_cursor_hover_props(
+    cursor: Res<CustomCursor>,
+    mut q: Query<(&GlobalTransform, &mut EffectProperties), With<CascadeColumn>>,
+) {
+    let Some(cursor_pos) = cursor.position else { return };
+
+    for (gt, mut props) in &mut q {
+        let col_world = gt.translation();
+        let dx = cursor_pos.x - col_world.x;
+        let dy = cursor_pos.y - col_world.y;
+        props.set("cur_dx", dx.into());
+        props.set("cur_dy", dy.into());
     }
 }

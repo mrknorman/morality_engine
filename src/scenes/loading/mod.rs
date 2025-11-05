@@ -31,7 +31,7 @@ use crate::{
             OneShotAudioPallet, 
             TransientAudio, 
             TransientAudioPallet
-        }, cascade::{Cascade, CascadePlugin}, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::{
+        }, cascade::{Cascade, CascadePlugin}, cascade_gpu::CascadeGpuPlugin, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::{
             ActionPallet, 
             InputAction, 
             InteractionPlugin
@@ -73,6 +73,7 @@ impl Plugin for LoadingScenePlugin {
 
         if !app.is_plugin_added::<CascadePlugin>() {
             app.add_plugins(CascadePlugin);
+            app.add_plugins(CascadeGpuPlugin);
         }
         if !app.is_plugin_added::<LoadingBarPlugin>() {
             app.add_plugins(LoadingBarPlugin);

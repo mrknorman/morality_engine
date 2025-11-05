@@ -37,7 +37,7 @@ use crate::{
             ActionPallet, 
             InputAction, 
             InteractionPlugin
-        }, particles::FireworkLauncher
+        }
     }
 };
 
@@ -48,7 +48,7 @@ impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(MainState::Menu), 
-            (MenuScene::setup)
+            MenuScene::setup
         );
         if !app.is_plugin_added::<TrainPlugin>() {
             app.add_plugins(TrainPlugin);
@@ -111,7 +111,6 @@ impl MenuScene {
                 MenuScene,
                 DespawnOnExit(MainState::Menu),
                 children![
-                    (FireworkLauncher::new(100.0, 0.2, 5.0), Transform::from_xyz(-500., -500., -10.)),
                     (
                         BackgroundAudio,
                         ContinuousAudioPallet::new(
