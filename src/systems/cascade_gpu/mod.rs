@@ -432,28 +432,28 @@ fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<Effect
     );
 
     // >>> Cursor-proximity enlarge (multiply existing size; no vecN construction) <<<
-    let p = w2.attr(Attribute::POSITION);
-    let dx = w2.prop(cur_dx) - p.clone().x();
-    let dy = w2.prop(cur_dy) - p.y();
+    // Distance to cursor (already in the column's local space via cur_dx/cur_dy)
+    let p   = w2.attr(Attribute::POSITION);
+    let dx  = w2.prop(cur_dx) - p.clone().x();
+    let dy  = w2.prop(cur_dy) - p.y();
     let dist = dx.clone().vec2(dy.clone()).length();
 
-    let rad = w2.prop(hover_radius);
+    let rad   = w2.prop(hover_radius);
     let min_d = w2.prop(hover_min_dist);
     let max_s = w2.prop(hover_max_scale);
 
     // t = clamp((rad - dist) / (rad - min_d), 0, 1)
     let t_raw = (rad.clone() - dist.clone()) / (rad.clone() - min_d.clone());
-    let t = t_raw.max(w2.lit(0.0)).min(w2.lit(1.0));
+    let t     = t_raw.max(w2.lit(0.0)).min(w2.lit(1.0));
+
+    // scale = 1 + (max_s - 1) * t
     let scale = w2.lit(1.0) + (max_s - w2.lit(1.0)) * t;
 
-    // base_px ~ your glyph pixel size (use the same value you intended before)
-    let base_px = w2.lit(grid.glyph_px * 0.96);
-    let final_px = base_px * scale;
+    // <<< critical part: multiply, do NOT build a vecN >>>
+    let cur_size   = w2.attr(Attribute::SIZE);
+    let scaled     = cur_size * scale;
+    let set_size   = SetAttributeModifier::new(Attribute::SIZE, scaled.expr());
 
-    // Write final pixel size directly; keep it vec3 to match the render pipeline.
-    let size_vec3 = final_px.clone().vec3(final_px.clone(), final_px.clone());
-    let set_size = SetAttributeModifier::new(Attribute::SIZE, size_vec3.expr());
-    
     // -------- Build effect ----------
     let spawner = SpawnerSettings::rate(CpuValue::Single(grid.rows_per_sec));
     let module = w2.finish();
@@ -478,7 +478,7 @@ fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<Effect
         })
         // Base size in pixels; we then multiply it in the update by `scale`.
         .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(1.0)),
+            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(grid.glyph_px * 0.96)),
             screen_space_size: true,
         })
         .render(OrientModifier::new(OrientMode::ParallelCameraDepthPlane))
@@ -556,7 +556,7 @@ fn spawn_columns(
                     ("cur_dy".to_string(), (1.0e9_f32).into()),
                     ("hover_radius".to_string(), 150.0_f32.into()),
                     ("hover_min_dist".to_string(), 10.0_f32.into()),
-                    ("hover_max_scale".to_string(), 2.0_f32.into()),
+                    ("hover_max_scale".to_string(), 10.0_f32.into()),
                 ]),
                 Transform::from_translation(Vec3::new(x, grid.emit_y, 0.0)),
                 GlobalTransform::default(),
