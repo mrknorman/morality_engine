@@ -89,7 +89,7 @@ fn setup_cameras(
 
 
 #[derive(Component)]
-struct OffscreenCamera;
+pub struct OffscreenCamera;
 
 #[derive(Resource)]
 struct RenderTargetHandle(pub Handle<Image>);

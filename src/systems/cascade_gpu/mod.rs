@@ -3,6 +3,7 @@
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
+    window::PrimaryWindow,
 };
 use bevy_hanabi::prelude::*;
 use std::{cell::RefCell, rc::Rc};
@@ -20,7 +21,13 @@ fn lin_rgb(c: Color) -> (f32, f32, f32) {
 pub struct CascadeGpuPlugin;
 impl Plugin for CascadeGpuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, update_cursor_hover_props);
+        app.init_resource::<ActiveRipples>()
+            .add_systems(Update, (
+                update_cursor_hover_props,
+                spawn_ripple,
+                update_ripples,
+                sync_ripples_to_gpu
+            ));
     }
 }
 
@@ -259,8 +266,34 @@ fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<Effect
         m.add_property("hover_max_scale", 2.0_f32.into())
     };
 
+    // Ripple properties (4 slots)
+    let mut ripple_props = Vec::new();
+    for i in 0..4 {
+        let pos = {
+            let mut m = module_rc.borrow_mut();
+            m.add_property(format!("ripple_{}_pos", i), Vec2::ZERO.into())
+        };
+        let params = {
+            let mut m = module_rc.borrow_mut();
+            m.add_property(format!("ripple_{}_params", i), Vec2::ZERO.into()) // x=time, y=active
+        };
+        let color = {
+            let mut m = module_rc.borrow_mut();
+            m.add_property(format!("ripple_{}_color", i), Vec3::ZERO.into())
+        };
+        ripple_props.push((pos, params, color));
+    }
+
     // -------- Writer #2 (update shader) ----------
-    let mut w2 = ExprWriter::from_module(module_rc.clone());
+    let w2 = ExprWriter::from_module(module_rc.clone());
+
+    // constants for ripple math
+    let ripple_speed = w2.lit(100.0);
+    let ripple_width = w2.lit(40.0);
+    let ripple_duration = w2.lit(1.0);
+    let ripple_max_scale = w2.lit(3.0);
+
+    // ... (existing code for sprite index, visibility mask, color selection) ...
 
     // 0/1 digit flip desynced per particle (phase/period from spatial hash)
     let age = w2.attr(Attribute::AGE);
@@ -410,7 +443,46 @@ fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<Effect
     let chosen_g = w2.prop(base_g) * inv_rare.clone() + opt_g * rare.clone();
     let chosen_b = w2.prop(base_b) * inv_rare.clone() + opt_b * rare.clone();
 
-    let rgb = chosen_r.clone().vec3(chosen_g.clone(), chosen_b.clone()) * mask.clone();
+    // --- RIPPLE LOGIC ---
+    let p = w2.attr(Attribute::POSITION);
+    let mut total_effect = w2.lit(0.0);
+    let mut blend_r = w2.lit(0.0);
+    let mut blend_g = w2.lit(0.0);
+    let mut blend_b = w2.lit(0.0);
+
+    for (r_pos, r_params, r_col) in &ripple_props {
+        let r_pos_expr = w2.prop(*r_pos);
+        let r_origin = r_pos_expr.clone().x().vec3(r_pos_expr.y(), w2.lit(0.0));
+        let r_p = w2.prop(*r_params);
+        let r_c = w2.prop(*r_col);
+        
+        let t = r_p.clone().x();
+        let active = r_p.y();
+
+        // delta = (dist - speed * t).abs() / width
+        let dist = (p.clone() - r_origin).length();
+        let wavefront = ripple_speed.clone() * t.clone();
+        let delta = (dist - wavefront).abs() / ripple_width.clone();
+
+        // e = (1 - t/dur) * 0.5 * (1 + cos(delta * pi)) * exp(-delta)
+        // Only if active > 0.5
+        let time_factor = (w2.lit(1.0) - t.clone() / ripple_duration.clone()).max(w2.lit(0.0));
+        let cos_part = (delta.clone() * w2.lit(std::f32::consts::PI)).cos();
+        let exp_part = (w2.lit(0.0) - delta.clone()).exp();
+        
+        let e = time_factor * w2.lit(0.5) * (w2.lit(1.0) + cos_part) * exp_part * active;
+        
+        total_effect = total_effect + e.clone();
+        blend_r = blend_r + (r_c.clone().x() - chosen_r.clone()) * e.clone();
+        blend_g = blend_g + (r_c.clone().y() - chosen_g.clone()) * e.clone();
+        blend_b = blend_b + (r_c.clone().z() - chosen_b.clone()) * e.clone();
+    }
+
+    let final_r = chosen_r + blend_r;
+    let final_g = chosen_g + blend_g;
+    let final_b = chosen_b + blend_b;
+
+    let rgb = final_r.vec3(final_g, final_b) * mask.clone();
     let rgba = rgb.vec4_xyz_w(mask.clone());
     let set_hdr = SetAttributeModifier::new(Attribute::HDR_COLOR, rgba.expr());
     let set_alpha = SetAttributeModifier::new(Attribute::ALPHA, mask.clone().expr());
@@ -433,7 +505,6 @@ fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<Effect
 
     // >>> Cursor-proximity enlarge (multiply existing size; no vecN construction) <<<
     // Distance to cursor (already in the column's local space via cur_dx/cur_dy)
-    let p   = w2.attr(Attribute::POSITION);
     let dx  = w2.prop(cur_dx) - p.clone().x();
     let dy  = w2.prop(cur_dy) - p.y();
     let dist = dx.clone().vec2(dy.clone()).length();
@@ -447,11 +518,16 @@ fn build_effect(effects: &mut Assets<EffectAsset>, grid: &Grid) -> Handle<Effect
     let t     = t_raw.max(w2.lit(0.0)).min(w2.lit(1.0));
 
     // scale = 1 + (max_s - 1) * t
-    let scale = w2.lit(1.0) + (max_s - w2.lit(1.0)) * t;
+    let hover_scale = w2.lit(1.0) + (max_s - w2.lit(1.0)) * t;
+    
+    // ripple scale = 1 + (max - 1) * effect
+    let ripple_scale = w2.lit(1.0) + (ripple_max_scale - w2.lit(1.0)) * total_effect;
+    
+    let total_scale = hover_scale * ripple_scale;
 
     // <<< critical part: multiply, do NOT build a vecN >>>
     let cur_size   = w2.attr(Attribute::SIZE);
-    let scaled     = cur_size * scale;
+    let scaled     = cur_size * total_scale;
     let set_size   = SetAttributeModifier::new(Attribute::SIZE, scaled.expr());
 
     // -------- Build effect ----------
@@ -557,6 +633,19 @@ fn spawn_columns(
                     ("hover_radius".to_string(), 150.0_f32.into()),
                     ("hover_min_dist".to_string(), 10.0_f32.into()),
                     ("hover_max_scale".to_string(), 10.0_f32.into()),
+                    // Ripple defaults (inactive)
+                    ("ripple_0_pos".to_string(), Vec2::ZERO.into()),
+                    ("ripple_0_params".to_string(), Vec2::ZERO.into()),
+                    ("ripple_0_color".to_string(), Vec3::ZERO.into()),
+                    ("ripple_1_pos".to_string(), Vec2::ZERO.into()),
+                    ("ripple_1_params".to_string(), Vec2::ZERO.into()),
+                    ("ripple_1_color".to_string(), Vec3::ZERO.into()),
+                    ("ripple_2_pos".to_string(), Vec2::ZERO.into()),
+                    ("ripple_2_params".to_string(), Vec2::ZERO.into()),
+                    ("ripple_2_color".to_string(), Vec3::ZERO.into()),
+                    ("ripple_3_pos".to_string(), Vec2::ZERO.into()),
+                    ("ripple_3_params".to_string(), Vec2::ZERO.into()),
+                    ("ripple_3_color".to_string(), Vec3::ZERO.into()),
                 ]),
                 Transform::from_translation(Vec3::new(x, grid.emit_y, 0.0)),
                 GlobalTransform::default(),
@@ -626,5 +715,134 @@ fn update_cursor_hover_props(
         let dy = cursor_pos.y - col_world.y;
         props.set("cur_dx", dx.into());
         props.set("cur_dy", dy.into());
+    }
+}
+
+// ------------------------------------------------------------------
+//  Ripple Implementation
+// ------------------------------------------------------------------
+
+#[derive(Clone)]
+struct RippleGPU {
+    origin: Vec2,
+    color: Color,
+    elapsed: f32,
+}
+
+#[derive(Resource, Default)]
+struct ActiveRipples {
+    items: Vec<RippleGPU>,
+}
+
+impl ActiveRipples {
+    const MAX_RIPPLES: usize = 4;
+    const RIPPLE_DURATION: f32 = 1.0;
+}
+
+fn spawn_ripple(
+    mut ripples: ResMut<ActiveRipples>,
+    input: Res<ButtonInput<MouseButton>>,
+    cursor: Res<CustomCursor>,
+) {
+    let Some(cursor_pos) = cursor.position else { return };
+
+    let color = if input.just_pressed(MouseButton::Left) {
+        info!("LEFT CLICK at world pos: {:?}", cursor_pos);
+        OPTION_1_COLOR
+    } else if input.just_pressed(MouseButton::Right) {
+        info!("RIGHT CLICK at world pos: {:?}", cursor_pos);
+        OPTION_2_COLOR
+    } else {
+        return;
+    };
+
+    let new_ripple = RippleGPU {
+        origin: cursor_pos,
+        color,
+        elapsed: 0.0,
+    };
+
+    if ripples.items.len() >= ActiveRipples::MAX_RIPPLES {
+        ripples.items.remove(0);
+    }
+    ripples.items.push(new_ripple);
+}
+
+fn update_ripples(
+    mut ripples: ResMut<ActiveRipples>,
+    time: Res<Time>,
+) {
+    let dt = time.delta_secs();
+
+    // Update existing ripples - don't move them!
+    // Ripples stay at fixed world position while particles fall past them
+    ripples.items.retain_mut(|r| {
+        r.elapsed += dt;
+        r.elapsed < ActiveRipples::RIPPLE_DURATION
+    });
+}
+
+fn sync_ripples_to_gpu(
+    ripples: Res<ActiveRipples>,
+    mut q: Query<(&GlobalTransform, &mut EffectProperties), With<CascadeColumn>>,
+    q_cascade: Query<&CascadeGPU>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut logged: Local<bool>,
+) {
+    // Get grid to access emit_y
+    let Some(cascade) = q_cascade.iter().next() else { return };
+    let Ok(window) = windows.single() else { return };
+    let win_size = Vec2::new(window.width(), window.height());
+    let grid = grid_from(cascade, win_size);
+    
+    // Iterate over all columns
+    for (gt, mut props) in &mut q {
+        let col_world_x = gt.translation().x;
+
+        for i in 0..ActiveRipples::MAX_RIPPLES {
+            let (pos, params, color) = if i < ripples.items.len() {
+                let r = &ripples.items[i];
+                
+                // Transform world cursor pos to local space
+                // X: relative to column position
+                // Y: relative to emit_y (where particles spawn at local Y=0)
+                let local_pos = Vec2::new(
+                    r.origin.x - col_world_x,
+                    r.origin.y - grid.emit_y,
+                );
+                
+                // Debug log for EVERY column on first ripple
+                if !*logged && i == 0 {
+                    info!("[Col X={:.1}] Ripple {} - World: {:?}, emit_y: {:.1}, Local: {:?}", 
+                        col_world_x, i, r.origin, grid.emit_y, local_pos);
+                    if col_world_x.abs() < 50.0 {
+                        *logged = true;
+                    }
+                }
+                
+                let (lin_r, lin_g, lin_b) = lin_rgb(r.color);
+
+                (
+                    local_pos,
+                    Vec2::new(r.elapsed, 1.0), // time, active=1.0
+                    Vec3::new(lin_r, lin_g, lin_b),
+                )
+            } else {
+                (Vec2::ZERO, Vec2::new(0.0, 0.0), Vec3::ZERO) // Inactive
+            };
+
+            let key_pos = format!("ripple_{}_pos", i);
+            let key_params = format!("ripple_{}_params", i);
+            let key_color = format!("ripple_{}_color", i);
+
+            props.set(&key_pos, pos.into());
+            props.set(&key_params, params.into());
+            props.set(&key_color, color.into());
+        }
+    }
+    
+    // Reset logged flag when no ripples
+    if ripples.items.is_empty() {
+        *logged = false;
     }
 }
