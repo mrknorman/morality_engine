@@ -20,7 +20,7 @@ use crate::{
     }, style::ui::IOPlugin, systems::{
         audio:: {
             ContinuousAudio, ContinuousAudioPallet, continuous_audio
-        }, cascade::Cascade, cascade_gpu::CascadeGPU, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::InteractionPlugin 
+        }, cascade::Cascade, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::InteractionPlugin 
     }
 };
 
@@ -169,12 +169,11 @@ impl DialogueScene {
                         Transform::from_xyz(300.0, 0.0, 0.5)
                     ),
                     (
-                        CascadeGPU::default(),
-                        //Cascade{
-                        //    speed : 50.0,
-                        //    visibility_speed : 0.1,
-                        //    ..default()
-                        //},
+                        Cascade{
+                            speed : 50.0,
+                            visibility_speed : 0.1,
+                            ..default()
+                        },
                         BequeathTextAlpha,
                         AlphaTranslation::new(
                             DIM_BACKGROUND_COLOR.alpha(),
