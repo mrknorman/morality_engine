@@ -31,7 +31,8 @@ impl Plugin for WindowPlugin {
                 Update,
                 (
                     WindowSystem::Input,
-                    WindowSystem::Layout.after(WindowSystem::Input),
+                    WindowSystem::Resolve.after(WindowSystem::Input),
+                    WindowSystem::Layout.after(WindowSystem::Resolve),
                 ),
             )
             .add_systems(
@@ -46,6 +47,10 @@ impl Plugin for WindowPlugin {
             )
             .add_systems(
                 Update,
+                Window::resolve_constraints.in_set(WindowSystem::Resolve),
+            )
+            .add_systems(
+                Update,
                 Window::update
                     .in_set(WindowSystem::Layout)
                     .before(CompoundSystem::Propagate),
@@ -54,8 +59,9 @@ impl Plugin for WindowPlugin {
 }
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-enum WindowSystem {
+pub enum WindowSystem {
     Input,
+    Resolve,
     Layout,
 }
 
@@ -121,6 +127,62 @@ pub struct Window {
     pub header_height: f32,
     pub has_close_button: bool,
     pub root_entity: Option<Entity>,
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct WindowContentHost {
+    pub window_entity: Entity,
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct WindowContentMetrics {
+    pub min_inner: Vec2,
+    pub preferred_inner: Vec2,
+    pub max_inner: Option<Vec2>,
+}
+
+impl WindowContentMetrics {
+    pub fn from_min_inner(min_inner: Vec2) -> Self {
+        let min_inner = min_inner.max(Vec2::ZERO);
+        Self {
+            min_inner,
+            preferred_inner: min_inner,
+            max_inner: None,
+        }
+    }
+}
+
+impl Default for WindowContentMetrics {
+    fn default() -> Self {
+        Self {
+            min_inner: Vec2::ZERO,
+            preferred_inner: Vec2::ZERO,
+            max_inner: None,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum WindowOverflowPolicy {
+    #[default]
+    ConstrainToContent,
+    AllowOverflow,
+    // Reserved for future clipping support; currently treated like ConstrainToContent.
+    ClipReserved,
+    // Reserved for future scrolling support; currently treated like ConstrainToContent.
+    ScrollReserved,
+}
+
+impl WindowOverflowPolicy {
+    fn enforce_content_constraints(self) -> bool {
+        !matches!(self, Self::AllowOverflow)
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub struct WindowContentRect {
+    pub inner_size: Vec2,
 }
 
 #[derive(Component, Default)]
@@ -347,7 +409,14 @@ impl Window {
                 &GlobalTransform,
                 Option<&ChildOf>,
             )>,
-            Query<(Entity, &mut Window, &mut Transform, Option<&ChildOf>)>,
+            Query<(
+                Entity,
+                &mut Window,
+                &mut Transform,
+                Option<&ChildOf>,
+                Option<&WindowContentMetrics>,
+                Option<&WindowOverflowPolicy>,
+            )>,
         )>,
     ) {
         let Some(cursor_position) = cursor.position else {
@@ -452,7 +521,7 @@ impl Window {
         }
 
         let mut writable_windows = windows.p1();
-        let Ok((_, mut window, mut window_transform, parent)) =
+        let Ok((_, mut window, mut window_transform, parent, metrics, overflow_policy)) =
             writable_windows.get_mut(state.window_entity)
         else {
             active_interaction.state = None;
@@ -462,15 +531,21 @@ impl Window {
         let cursor_local_parent =
             Self::cursor_to_parent_local(cursor_position, parent, &parent_globals);
 
-        let min_width = WINDOW_MIN_WIDTH.max(window.header_height + 10.0);
-        let min_height = WINDOW_MIN_HEIGHT;
+        let min_inner = Self::min_inner_constraints(&window, metrics, overflow_policy);
+        let max_inner = Self::max_inner_constraints(metrics, overflow_policy);
 
-        let new_width = match state.corner {
-            ResizeCorner::BottomLeft => (state.fixed_x - cursor_local_parent.x).max(min_width),
-            ResizeCorner::BottomRight => (cursor_local_parent.x - state.fixed_x).max(min_width),
+        let unclamped_width = match state.corner {
+            ResizeCorner::BottomLeft => state.fixed_x - cursor_local_parent.x,
+            ResizeCorner::BottomRight => cursor_local_parent.x - state.fixed_x,
         };
-        let new_height =
-            (state.fixed_top_y - window.header_height - cursor_local_parent.y).max(min_height);
+        let unclamped_height = state.fixed_top_y - window.header_height - cursor_local_parent.y;
+        let clamped_inner = Self::clamp_inner_size(
+            Vec2::new(unclamped_width, unclamped_height),
+            min_inner,
+            max_inner,
+        );
+        let new_width = clamped_inner.x;
+        let new_height = clamped_inner.y;
 
         window.boundary.dimensions = Vec2::new(new_width, new_height);
 
@@ -496,6 +571,102 @@ impl Window {
                 });
             }
         }
+    }
+
+    fn resolve_constraints(
+        mut commands: Commands,
+        mut windows: ParamSet<(
+            Query<(
+                Entity,
+                &Window,
+                Option<&WindowContentMetrics>,
+                Option<&WindowOverflowPolicy>,
+                Option<&WindowContentRect>,
+            )>,
+            Query<&mut Window>,
+            Query<&mut WindowContentRect>,
+        )>,
+    ) {
+        let mut window_updates: Vec<(Entity, Vec2)> = Vec::new();
+        let mut rect_updates: Vec<(Entity, Vec2)> = Vec::new();
+        let mut rect_inserts: Vec<(Entity, Vec2)> = Vec::new();
+
+        {
+            for (entity, window, metrics, overflow_policy, content_rect) in windows.p0().iter() {
+                let min_inner = Self::min_inner_constraints(window, metrics, overflow_policy);
+                let max_inner = Self::max_inner_constraints(metrics, overflow_policy);
+                let clamped_inner =
+                    Self::clamp_inner_size(window.boundary.dimensions, min_inner, max_inner);
+
+                if (clamped_inner - window.boundary.dimensions).length_squared() > 0.0001 {
+                    window_updates.push((entity, clamped_inner));
+                }
+
+                if let Some(content_rect) = content_rect {
+                    if (content_rect.inner_size - clamped_inner).length_squared() > 0.0001 {
+                        rect_updates.push((entity, clamped_inner));
+                    }
+                } else {
+                    rect_inserts.push((entity, clamped_inner));
+                }
+            }
+        }
+
+        for (entity, clamped_inner) in window_updates {
+            if let Ok(mut writable_window) = windows.p1().get_mut(entity) {
+                writable_window.boundary.dimensions = clamped_inner;
+            }
+        }
+
+        for (entity, clamped_inner) in rect_updates {
+            if let Ok(mut writable_rect) = windows.p2().get_mut(entity) {
+                writable_rect.inner_size = clamped_inner;
+            }
+        }
+
+        for (entity, clamped_inner) in rect_inserts {
+            commands.entity(entity).insert(WindowContentRect {
+                inner_size: clamped_inner,
+            });
+        }
+    }
+
+    fn clamp_inner_size(size: Vec2, min_inner: Vec2, max_inner: Option<Vec2>) -> Vec2 {
+        let mut clamped = size.max(min_inner.max(Vec2::ZERO));
+        if let Some(max_inner) = max_inner {
+            let max_inner = max_inner.max(min_inner);
+            clamped = clamped.min(max_inner);
+        }
+        clamped
+    }
+
+    fn min_inner_constraints(
+        window: &Window,
+        metrics: Option<&WindowContentMetrics>,
+        overflow_policy: Option<&WindowOverflowPolicy>,
+    ) -> Vec2 {
+        let mut min_inner = Vec2::new(
+            WINDOW_MIN_WIDTH.max(window.header_height + 10.0),
+            WINDOW_MIN_HEIGHT,
+        );
+        let overflow_policy = overflow_policy.copied().unwrap_or_default();
+        if overflow_policy.enforce_content_constraints() {
+            if let Some(metrics) = metrics {
+                min_inner = min_inner.max(metrics.min_inner.max(Vec2::ZERO));
+            }
+        }
+        min_inner
+    }
+
+    fn max_inner_constraints(
+        metrics: Option<&WindowContentMetrics>,
+        overflow_policy: Option<&WindowOverflowPolicy>,
+    ) -> Option<Vec2> {
+        let overflow_policy = overflow_policy.copied().unwrap_or_default();
+        if !overflow_policy.enforce_content_constraints() {
+            return None;
+        }
+        metrics.and_then(|metrics| metrics.max_inner)
     }
 
     fn cursor_to_parent_local(

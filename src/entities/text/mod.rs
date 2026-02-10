@@ -31,6 +31,10 @@ use crate::{
             RectangleSides
         }, 
         window::{
+            WindowContentHost,
+            WindowContentMetrics,
+            WindowOverflowPolicy,
+            WindowSystem,
             Window, 
             WindowTitle
         },
@@ -39,13 +43,54 @@ use crate::{
 };
 
 pub struct TextPlugin;
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+enum TextSystem {
+    Contracts,
+    ContentLayout,
+    TableLayout,
+}
+
 impl Plugin for TextPlugin {
     fn build(&self, app: &mut App) {
         app
-		.add_systems(
-			Update,
-                TextWindow::propagate_changes
-            );
+        .configure_sets(
+            Update,
+            (
+                TextSystem::Contracts,
+                TextSystem::ContentLayout.after(TextSystem::Contracts),
+                TextSystem::TableLayout.after(TextSystem::ContentLayout),
+            ),
+        )
+        .add_systems(
+            Update,
+                (
+                    TextWindow::refresh_layout_state,
+                    TextWindow::sync_window_contract
+                )
+                    .chain()
+                    .in_set(TextSystem::Contracts)
+                    .after(WindowSystem::Layout)
+            )
+        .add_systems(
+            Update,
+            (
+                TextWindow::apply_window_to_text,
+                WindowedTable::apply_window_to_table
+            )
+                .in_set(TextSystem::ContentLayout)
+                .after(WindowSystem::Layout)
+        )
+        .add_systems(
+            Update,
+            (
+                Table::propagate_changes,
+                Column::propagate_changes,
+                Cell::propagate_changes
+            )
+                .chain()
+                .in_set(TextSystem::TableLayout)
+        );
 
         if !app.is_plugin_added::<SpritePlugin>() {
 			app.add_plugins(SpritePlugin);
@@ -347,6 +392,15 @@ fn get_anchor_offset(anchor : &Anchor, dimensions : Vec2) -> Vec2 {
     }
 }
 
+fn justify_for_anchor(anchor: &Anchor) -> Justify {
+    match anchor {
+        &Anchor::TOP_LEFT | &Anchor::CENTER_LEFT | &Anchor::BOTTOM_LEFT => Justify::Left,
+        &Anchor::TOP_CENTER | &Anchor::CENTER | &Anchor::BOTTOM_CENTER => Justify::Center,
+        &Anchor::TOP_RIGHT | &Anchor::CENTER_RIGHT | &Anchor::BOTTOM_RIGHT => Justify::Right,
+        _ => Justify::Center
+    }
+}
+
 #[derive(Clone, Component)]
 #[require(Transform, Visibility)]
 #[component(on_insert = TextWindow::on_insert)]
@@ -370,40 +424,147 @@ impl Default for TextWindow{
     }
 }
 
+#[derive(Component, Clone, Copy)]
+struct TextWindowLayoutState {
+    base_content_size: Vec2,
+    min_content_size: Vec2,
+}
+
+#[derive(Component, Clone, Copy)]
+struct TextWindowBoundsPolicy {
+    constrain_width: bool,
+    constrain_height: bool,
+}
+
 impl TextWindow {
-    fn propagate_changes(
-        mut box_query: Query<(
-            Entity, &TextWindow, &TextLayoutInfo, &TextBounds, Option<&Anchor>, Option<&mut Draggable>, &TextWindow
-        ), Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>>,
-        mut background_query: Query<(&mut Transform, &mut Window)>,
-        children_query: Query<&Children>,
+    fn measured_text_size(text_layout: &TextLayoutInfo, text_bounds: &TextBounds) -> Vec2 {
+        let width = text_bounds.width.unwrap_or(text_layout.size.x);
+        let height = text_bounds.height.unwrap_or(text_layout.size.y);
+        Vec2::new(width, height)
+    }
+
+    fn refresh_layout_state(
+        mut text_windows: Query<
+            (
+                &TextLayoutInfo,
+                &TextBounds,
+                &TextWindowBoundsPolicy,
+                &mut TextWindowLayoutState,
+            ),
+            (
+                With<TextWindow>,
+                Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>,
+            ),
+        >,
     ) {
-        for (entity, text_window, text_layout, text_bounds, anchor, draggable, window) in box_query.iter_mut() {
+        for (text_layout, text_bounds, bounds_policy, mut layout_state) in text_windows.iter_mut()
+        {
+            let measured_size =
+                Self::measured_text_size(text_layout, text_bounds).max(Vec2::splat(1.0));
+            let target_min_size = Vec2::new(
+                if bounds_policy.constrain_width {
+                    layout_state.base_content_size.x
+                } else {
+                    measured_size.x.max(layout_state.base_content_size.x)
+                },
+                if bounds_policy.constrain_height {
+                    layout_state.base_content_size.y
+                } else {
+                    measured_size.y.max(layout_state.base_content_size.y)
+                },
+            );
 
-            let width = text_bounds.width.unwrap_or(text_layout.size.x);
-            let height = text_bounds.height.unwrap_or(text_layout.size.y);
+            if (layout_state.min_content_size - target_min_size).length_squared() > 0.0001 {
+                layout_state.min_content_size = target_min_size;
+            }
+        }
+    }
 
-            let dimensions = Vec2::new(width, height);
+    fn sync_window_contract(
+        text_windows: Query<
+            (&TextWindow, &TextWindowLayoutState, &WindowContentHost),
+            Or<(
+                Added<TextWindowLayoutState>,
+                Changed<TextWindowLayoutState>,
+                Changed<TextWindow>,
+            )>,
+        >,
+        mut window_contracts: Query<&mut WindowContentMetrics>,
+    ) {
+        for (text_window, layout_state, window_host) in text_windows.iter() {
+            let min_inner =
+                (layout_state.min_content_size + text_window.padding).max(Vec2::splat(1.0));
+            if let Ok(mut metrics) = window_contracts.get_mut(window_host.window_entity) {
+                if (metrics.min_inner - min_inner).length_squared() > 0.0001 {
+                    metrics.min_inner = min_inner;
+                }
+                if (metrics.preferred_inner - min_inner).length_squared() > 0.0001 {
+                    metrics.preferred_inner = min_inner;
+                }
+            }
+        }
+    }
 
-            let anchor = anchor.unwrap_or(&Anchor::CENTER);
-            let anchor_offset = get_anchor_offset(anchor, dimensions).extend(0.1);
+    fn apply_window_to_text(
+        mut text_windows: Query<(
+            &TextWindow,
+            &TextWindowBoundsPolicy,
+            Option<&Anchor>,
+            Option<&mut Draggable>,
+            &WindowContentHost,
+            &mut TextBounds,
+        )>,
+        windows: Query<&Window>,
+        changed_windows: Query<(), Changed<Window>>,
+        mut window_transforms: Query<&mut Transform, With<Window>>,
+    ) {
+        for (text_window, bounds_policy, anchor, draggable, window_host, mut text_bounds) in
+            text_windows.iter_mut()
+        {
+            if changed_windows.get(window_host.window_entity).is_err() {
+                continue;
+            }
+            let Ok(window) = windows.get(window_host.window_entity) else {
+                continue;
+            };
+
+            let inner_size = window.boundary.dimensions.max(Vec2::splat(1.0));
+            let content_size = (inner_size - text_window.padding).max(Vec2::splat(1.0));
+
+            if bounds_policy.constrain_width {
+                let width_changed = text_bounds
+                    .width
+                    .is_none_or(|width| (width - content_size.x).abs() > 0.01);
+                if width_changed {
+                    text_bounds.width = Some(content_size.x);
+                }
+            }
+            if bounds_policy.constrain_height {
+                let height_changed = text_bounds
+                    .height
+                    .is_none_or(|height| (height - content_size.y).abs() > 0.01);
+                if height_changed {
+                    text_bounds.height = Some(content_size.y);
+                }
+            }
+
+            let anchor = anchor.copied().unwrap_or(Anchor::CENTER);
+            let anchor_offset = get_anchor_offset(&anchor, content_size).extend(0.1);
+
+            if let Ok(mut window_transform) = window_transforms.get_mut(window_host.window_entity) {
+                window_transform.translation.x = -anchor_offset.x;
+                window_transform.translation.y = -anchor_offset.y;
+            }
 
             if let Some(mut draggable) = draggable {
                 let edge_padding = 10.0;
                 draggable.region = Some(DraggableRegion{
-                    region : Vec2::new(width + text_window.padding.x + edge_padding, window.header_height + edge_padding),
-                    offset : Vec2::new(-anchor_offset.x, (height + text_window.padding.y + window.header_height) / 2.0 - anchor_offset.y)
+                    region : Vec2::new(inner_size.x + edge_padding, window.header_height + edge_padding),
+                    offset : Vec2::new(
+                        -anchor_offset.x,
+                        (inner_size.y + window.header_height) * 0.5 - anchor_offset.y
+                    )
                 });
-            }   
-
-            if let Ok(children) = children_query.get(entity) {
-                for child in children.iter() {
-
-                    if let Ok((mut transform, mut rectangle)) = background_query.get_mut(child) {
-                        transform.translation = -anchor_offset;
-                        rectangle.boundary.dimensions = Vec2::new(width, height) + text_window.padding;
-                    }
-                }
             }
         }
     }
@@ -412,46 +573,95 @@ impl TextWindow {
         mut world : DeferredWorld,
         HookContext{entity, ..} : HookContext
     ) {
-        let (title, header_height, color, has_close_button) = {
+        let (title, header_height, color, has_close_button, padding) = {
             if let Some(window) = world.entity(entity).get::<TextWindow>() {
-                (window.title.clone(), window.header_height, window.border_color, window.has_close_button)
+                (
+                    window.title.clone(),
+                    window.header_height,
+                    window.border_color,
+                    window.has_close_button,
+                    window.padding
+                )
             } else {
                 return;
             }
         };  
 
-        let (text_layout, text_bounds) = {
+        let anchor = world
+            .entity(entity)
+            .get::<Anchor>()
+            .copied()
+            .unwrap_or(Anchor::CENTER);
+
+        let (text_layout, text_bounds, bounds_policy) = {
             if let Some(text_layout) = world.entity(entity).get::<TextLayoutInfo>() {
-                (text_layout.clone(), world.entity(entity).get::<TextBounds>())
+                let text_bounds = world.entity(entity).get::<TextBounds>().copied();
+                let bounds_policy = text_bounds.map_or(
+                    TextWindowBoundsPolicy {
+                        constrain_width: false,
+                        constrain_height: false,
+                    },
+                    |bounds| TextWindowBoundsPolicy {
+                        constrain_width: bounds.width.is_some(),
+                        constrain_height: bounds.height.is_some(),
+                    },
+                );
+                (text_layout.clone(), text_bounds, bounds_policy)
             } else {
                 return;
             }
         };
 
-        let dimensions = if let Some(text_bounds) = text_bounds {
-            Vec2::new(
-                text_bounds.width.unwrap_or(text_layout.size.x),
-                text_bounds.height.unwrap_or(text_layout.size.y)
-            )
+        let content_size = if let Some(text_bounds) = text_bounds {
+            Self::measured_text_size(&text_layout, &text_bounds)
         } else {
             text_layout.size
-        };
+        }
+        .max(Vec2::splat(1.0));
+        let min_inner = (content_size + padding).max(Vec2::splat(1.0));
+        let anchor_offset = get_anchor_offset(&anchor, content_size).extend(0.1);
 
+        if let Some(mut draggable) = world.entity_mut(entity).get_mut::<Draggable>() {
+            let edge_padding = 10.0;
+            draggable.region = Some(DraggableRegion{
+                region : Vec2::new(min_inner.x + edge_padding, header_height + edge_padding),
+                offset : Vec2::new(
+                    -anchor_offset.x,
+                    (min_inner.y + header_height) * 0.5 - anchor_offset.y
+                )
+            });
+        }
+
+        let mut window_entity: Option<Entity> = None;
         world.commands().entity(entity).with_children(|parent| {
-            parent.spawn(
+            window_entity = Some(parent.spawn((
                 Window::new(
                     title,
                     HollowRectangle{
                         color,
-                        dimensions,
+                        dimensions : min_inner,
                         ..default()
                     },
                     header_height,
                     has_close_button,
                     Some(entity)
-                )
-            );
+                ),
+                WindowContentMetrics::from_min_inner(min_inner),
+                WindowOverflowPolicy::ConstrainToContent,
+                Transform::from_translation(-anchor_offset)
+            )).id());
         });
+
+        if let Some(window_entity) = window_entity {
+            world.commands().entity(entity).insert((
+                WindowContentHost { window_entity },
+                bounds_policy,
+                TextWindowLayoutState {
+                    base_content_size: content_size,
+                    min_content_size: content_size,
+                }
+            ));
+        }
     }
 }
 
@@ -532,12 +742,7 @@ impl Cell {
 
         let offset:Vec2 = get_anchor_offset(&text.anchor, text.bounds); 
 
-        let justify = match text.anchor {
-            Anchor::TOP_LEFT | Anchor::CENTER_LEFT | Anchor::BOTTOM_LEFT=> Justify::Left,
-            Anchor::TOP_CENTER| Anchor::CENTER | Anchor::BOTTOM_CENTER => Justify::Center,
-            Anchor::TOP_RIGHT | Anchor::CENTER_RIGHT | Anchor::BOTTOM_RIGHT => Justify::Right,
-            _ => Justify::Center
-        };
+        let justify = justify_for_anchor(&text.anchor);
 
         world.commands().entity(entity).with_children(|parent| {
             parent.spawn((
@@ -562,6 +767,34 @@ impl Cell {
             
             parent.spawn(border);
         });
+    }
+
+    fn propagate_changes(
+        changed_cells: Query<(Entity, &Cell), Changed<Cell>>,
+        children_query: Query<&Children>,
+        mut text_query: Query<(&mut TextBounds, &mut Transform, &mut Anchor, &mut TextLayout), With<Text2d>>,
+        mut border_query: Query<&mut BorderedRectangle>,
+    ) {
+        for (cell_entity, cell) in changed_cells.iter() {
+            if let Ok(children) = children_query.get(cell_entity) {
+                for child in children.iter() {
+                    if let Ok((mut bounds, mut transform, mut anchor, mut layout)) =
+                        text_query.get_mut(child)
+                    {
+                        let text_size = cell.text.bounds.max(Vec2::splat(1.0));
+                        bounds.width = Some(text_size.x);
+                        bounds.height = Some(text_size.y);
+                        *anchor = cell.text.anchor;
+                        layout.justify = justify_for_anchor(&cell.text.anchor);
+                        transform.translation = get_anchor_offset(&cell.text.anchor, text_size).extend(0.0);
+                    }
+
+                    if let Ok(mut border) = border_query.get_mut(child) {
+                        *border = cell.border;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -625,7 +858,7 @@ impl Column {
                     right : false
                 };
 
-                cell.text.bounds = Vec2::new(width, height) - padding;
+                cell.text.bounds = (Vec2::new(width, height) - padding).max(Vec2::splat(1.0));
                 cell.text.padding = padding;
                 cell.text.anchor = anchor;
 
@@ -637,6 +870,54 @@ impl Column {
                 prev_height = height;
             }
         });
+    }
+
+    fn propagate_changes(
+        changed_columns: Query<(Entity, &Column), Changed<Column>>,
+        children_query: Query<&Children>,
+        mut cell_query: Query<(&mut Cell, &mut Transform)>,
+    ) {
+        for (column_entity, column) in changed_columns.iter() {
+            let Ok(children) = children_query.get(column_entity) else {
+                continue;
+            };
+
+            let mut current_center_y = 0.0;
+            let mut prev_height = 0.0;
+            let mut row_index = 0usize;
+
+            for child in children.iter() {
+                let Ok((mut cell, mut cell_transform)) = cell_query.get_mut(child) else {
+                    continue;
+                };
+
+                let row_height = column.rows.get(row_index).map_or(10.0, |row| row.height.max(1.0));
+                if row_index == 0 {
+                    current_center_y = -row_height * 0.5;
+                } else {
+                    current_center_y -= (prev_height + row_height) * 0.5;
+                }
+
+                cell.border.boundary.dimensions = Vec2::new(column.width, row_height);
+                cell.border.boundary.sides = RectangleSides{
+                    top : false,
+                    bottom : false,
+                    left : column.has_boundary,
+                    right : false
+                };
+                cell.text.bounds = (Vec2::new(column.width, row_height) - column.padding)
+                    .max(Vec2::splat(1.0));
+                cell.text.padding = column.padding;
+                cell.text.anchor = column.anchor;
+
+                if (cell_transform.translation.y - current_center_y).abs() > 0.001 {
+                    cell_transform.translation.y = current_center_y;
+                }
+
+                prev_height = row_height;
+                row_index += 1;
+            }
+        }
     }
 }
 
@@ -701,6 +982,51 @@ impl Table {
             }
         });
     }
+
+    fn propagate_changes(
+        changed_tables: Query<(Entity, &Table), Changed<Table>>,
+        children_query: Query<&Children>,
+        mut columns_query: Query<(&mut Column, &mut Transform)>,
+    ) {
+        for (table_entity, table) in changed_tables.iter() {
+            let Ok(children) = children_query.get(table_entity) else {
+                continue;
+            };
+
+            let mut current_center_x = 0.0;
+            let mut prev_width = 0.0;
+            let mut column_index = 0usize;
+
+            for child in children.iter() {
+                let Ok((mut column, mut column_transform)) = columns_query.get_mut(child) else {
+                    continue;
+                };
+                let Some(source_column) = table.columns.get(column_index) else {
+                    break;
+                };
+                let width = source_column.width.max(1.0);
+
+                if column_index == 0 {
+                    current_center_x = width * 0.5;
+                } else {
+                    current_center_x += (prev_width + width) * 0.5;
+                }
+
+                column.width = width;
+                column.rows = table.rows.clone();
+                column.anchor = source_column.anchor;
+                column.padding = source_column.padding;
+                column.has_boundary = source_column.has_boundary;
+
+                if (column_transform.translation.x - current_center_x).abs() > 0.001 {
+                    column_transform.translation.x = current_center_x;
+                }
+
+                prev_width = width;
+                column_index += 1;
+            }
+        }
+    }
 }
 #[derive(Clone, Component)]
 #[require(Transform, Visibility)]
@@ -710,6 +1036,26 @@ pub struct WindowedTable{
     pub border_color : Color,
     pub header_height : f32,
     pub has_close_button : bool
+}
+
+#[derive(Component, Clone)]
+struct WindowedTableLayoutState {
+    min_column_widths: Vec<f32>,
+    min_row_heights: Vec<f32>,
+}
+
+impl WindowedTableLayoutState {
+    fn min_inner(&self) -> Vec2 {
+        let width = self
+            .min_column_widths
+            .iter()
+            .fold(0.0, |acc, width| acc + width.max(1.0));
+        let height = self
+            .min_row_heights
+            .iter()
+            .fold(0.0, |acc, height| acc + height.max(1.0));
+        Vec2::new(width, height)
+    }
 }
 
 impl Default for WindowedTable{
@@ -724,6 +1070,84 @@ impl Default for WindowedTable{
 }
 
 impl WindowedTable {
+    fn distribute_sizes(min_sizes: &[f32], target_total: f32) -> Vec<f32> {
+        if min_sizes.is_empty() {
+            return vec![];
+        }
+
+        let min_total = min_sizes.iter().fold(0.0, |acc, value| acc + value.max(1.0));
+        let target_total = target_total.max(min_total);
+        let extra = target_total - min_total;
+        if extra <= 0.0 {
+            return min_sizes.iter().map(|value| value.max(1.0)).collect();
+        }
+
+        min_sizes
+            .iter()
+            .map(|value| {
+                let base = value.max(1.0);
+                let weight = if min_total > 0.0 {
+                    base / min_total
+                } else {
+                    1.0 / min_sizes.len() as f32
+                };
+                base + extra * weight
+            })
+            .collect()
+    }
+
+    fn apply_window_to_table(
+        mut tables: Query<(
+            &WindowedTable,
+            &WindowedTableLayoutState,
+            &WindowContentHost,
+            Option<&mut Draggable>,
+            &mut Table,
+        )>,
+        windows: Query<&Window>,
+        changed_windows: Query<(), Changed<Window>>,
+        mut window_transforms: Query<&mut Transform, With<Window>>,
+    ) {
+        for (windowed_table, layout_state, window_host, draggable, mut table) in tables.iter_mut() {
+            if changed_windows.get(window_host.window_entity).is_err() {
+                continue;
+            }
+            let Ok(window) = windows.get(window_host.window_entity) else {
+                continue;
+            };
+
+            let inner_size = window.boundary.dimensions.max(Vec2::splat(1.0));
+            let column_widths =
+                Self::distribute_sizes(&layout_state.min_column_widths, inner_size.x);
+            let row_heights =
+                Self::distribute_sizes(&layout_state.min_row_heights, inner_size.y);
+
+            for (column_index, column) in table.columns.iter_mut().enumerate() {
+                if let Some(width) = column_widths.get(column_index) {
+                    column.width = *width;
+                }
+            }
+            for (row_index, row) in table.rows.iter_mut().enumerate() {
+                if let Some(height) = row_heights.get(row_index) {
+                    row.height = *height;
+                }
+            }
+
+            if let Ok(mut window_transform) = window_transforms.get_mut(window_host.window_entity) {
+                window_transform.translation.x = inner_size.x * 0.5;
+                window_transform.translation.y = -inner_size.y * 0.5;
+            }
+
+            if let Some(mut draggable) = draggable {
+                let edge_padding = 10.0;
+                draggable.region = Some(DraggableRegion{
+                    region : Vec2::new(inner_size.x + edge_padding, windowed_table.header_height + edge_padding),
+                    offset : Vec2::new(inner_size.x * 0.5, windowed_table.header_height * 0.5)
+                });
+            }
+        }
+    }
+
     fn on_insert(
         mut world : DeferredWorld,
         HookContext{entity, ..} : HookContext
@@ -736,8 +1160,13 @@ impl WindowedTable {
             }
         };  
 
-        let width = columns.iter().fold(0.0, |acc, column| acc + column.width);
-        let height = rows.iter().fold(0.0, |acc, row| acc + row.height);
+        let min_column_widths: Vec<f32> = columns.iter().map(|column| column.width.max(1.0)).collect();
+        let min_row_heights: Vec<f32> = rows.iter().map(|row| row.height.max(1.0)).collect();
+        let layout_state = WindowedTableLayoutState {
+            min_column_widths,
+            min_row_heights,
+        };
+        let min_inner = layout_state.min_inner();
 
         let (title, header_height, color, has_close_button) = {
             if let Some(window) = world.entity(entity).get::<WindowedTable>() {
@@ -750,26 +1179,36 @@ impl WindowedTable {
         if let Some(mut draggable) = world.entity_mut(entity).get_mut::<Draggable>() {
             let edge_padding = 10.0;
             draggable.region = Some(DraggableRegion{
-                region : Vec2::new(width, header_height + edge_padding),
-                offset : Vec2::new(width/2.0, -height/2.0 + (height + header_height)/2.0)
+                region : Vec2::new(min_inner.x + edge_padding, header_height + edge_padding),
+                offset : Vec2::new(min_inner.x * 0.5, header_height * 0.5)
             });
         }   
 
+        let mut window_entity: Option<Entity> = None;
         world.commands().entity(entity).with_children(|parent| {
-            parent.spawn((
+            window_entity = Some(parent.spawn((
                 Window::new(
                     title,
                     HollowRectangle{
                         color,
-                        dimensions : Vec2::new(width, height),
+                        dimensions : min_inner,
                         ..default()
                     },
                     header_height,
                     has_close_button,
                     Some(entity)
                 ),
-                Transform::from_xyz(width/2.0, -height/2.0, -0.1)
-            ));
+                WindowContentMetrics::from_min_inner(min_inner),
+                WindowOverflowPolicy::ConstrainToContent,
+                Transform::from_xyz(min_inner.x * 0.5, -min_inner.y * 0.5, -0.1)
+            )).id());
         });
+
+        if let Some(window_entity) = window_entity {
+            world.commands().entity(entity).insert((
+                WindowContentHost { window_entity },
+                layout_state,
+            ));
+        }
     }
 }
