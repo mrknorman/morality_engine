@@ -27,13 +27,30 @@ impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<WindowZStack>()
-            .init_resource::<ActiveWindowResize>()
-            .add_systems(Update, (
-                Window::assign_stack_order,
-                Window::enact_resize,
-                Window::update.before(CompoundSystem::Propagate),
-            ).chain());
+            .init_resource::<ActiveWindowInteraction>()
+            .configure_sets(
+                Update,
+                (WindowSystem::Input, WindowSystem::Layout.after(WindowSystem::Input)),
+            )
+            .add_systems(
+                Update,
+                (Window::assign_stack_order, Window::cache_parts, Window::enact_resize)
+                    .chain()
+                    .in_set(WindowSystem::Input),
+            )
+            .add_systems(
+                Update,
+                Window::update
+                    .in_set(WindowSystem::Layout)
+                    .before(CompoundSystem::Propagate),
+            );
     }
+}
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+enum WindowSystem {
+    Input,
+    Layout,
 }
 
 #[derive(Resource, Default)]
@@ -63,9 +80,14 @@ struct ActiveWindowResizeState {
     fixed_top_y: f32,
 }
 
+#[derive(Clone, Copy)]
+enum WindowInteraction {
+    Resizing(ActiveWindowResizeState),
+}
+
 #[derive(Resource, Default)]
-struct ActiveWindowResize {
-    state: Option<ActiveWindowResizeState>,
+struct ActiveWindowInteraction {
+    state: Option<WindowInteraction>,
 }
 
 /* ─────────────────────────  DATA  ───────────────────────── */
@@ -93,6 +115,18 @@ pub struct Window {
     pub header_height: f32,
     pub has_close_button: bool,
     pub root_entity: Option<Entity>,
+}
+
+#[derive(Component, Default)]
+struct WindowParts {
+    body: Option<Entity>,
+    body_border: Option<Entity>,
+    header: Option<Entity>,
+    header_border: Option<Entity>,
+    title: Option<Entity>,
+    close_button: Option<Entity>,
+    close_button_border: Option<Entity>,
+    close_button_icon: Option<Entity>,
 }
 impl Default for Window {
     fn default() -> Self {
@@ -152,10 +186,147 @@ impl Window {
         }
     }
 
+    fn cache_parts(
+        mut windows: Query<(Entity, &mut WindowParts), With<Window>>,
+        children_q: Query<&Children>,
+        q_body: Query<(), With<WindowBody>>,
+        q_header: Query<(), With<WindowHeader>>,
+        q_close_button: Query<(), With<WindowCloseButton>>,
+        q_bordered: Query<(), With<BorderedRectangle>>,
+        q_title: Query<(), With<WindowTitle>>,
+        q_close_border: Query<(), With<WindowCloseButtonBorder>>,
+        q_close_icon: Query<(), With<WindowCloseButtonIcon>>,
+    ) {
+        fn first_child_with(
+            parent: Entity,
+            children_q: &Query<&Children>,
+            predicate: &impl Fn(Entity) -> bool,
+        ) -> Option<Entity> {
+            let children = children_q.get(parent).ok()?;
+            children.iter().find(|&child| predicate(child))
+        }
+
+        fn refresh_slot(
+            slot: &mut Option<Entity>,
+            parent: Entity,
+            children_q: &Query<&Children>,
+            predicate: &impl Fn(Entity) -> bool,
+        ) {
+            if slot.as_ref().is_some_and(|&entity| predicate(entity)) {
+                return;
+            }
+            *slot = first_child_with(parent, children_q, predicate);
+        }
+
+        for (window_entity, mut parts) in &mut windows {
+            refresh_slot(&mut parts.body, window_entity, &children_q, &|entity| {
+                q_body.get(entity).is_ok()
+            });
+            refresh_slot(&mut parts.header, window_entity, &children_q, &|entity| {
+                q_header.get(entity).is_ok()
+            });
+            refresh_slot(
+                &mut parts.close_button,
+                window_entity,
+                &children_q,
+                &|entity| q_close_button.get(entity).is_ok(),
+            );
+
+            if let Some(body) = parts.body {
+                refresh_slot(&mut parts.body_border, body, &children_q, &|entity| {
+                    q_bordered.get(entity).is_ok()
+                });
+            } else {
+                parts.body_border = None;
+            }
+            if let Some(header) = parts.header {
+                refresh_slot(&mut parts.header_border, header, &children_q, &|entity| {
+                    q_bordered.get(entity).is_ok()
+                });
+                refresh_slot(&mut parts.title, header, &children_q, &|entity| {
+                    q_title.get(entity).is_ok()
+                });
+            } else {
+                parts.header_border = None;
+                parts.title = None;
+            }
+            if let Some(close_button) = parts.close_button {
+                refresh_slot(
+                    &mut parts.close_button_border,
+                    close_button,
+                    &children_q,
+                    &|entity| q_close_border.get(entity).is_ok(),
+                );
+                refresh_slot(
+                    &mut parts.close_button_icon,
+                    close_button,
+                    &children_q,
+                    &|entity| q_close_icon.get(entity).is_ok(),
+                );
+            } else {
+                parts.close_button_border = None;
+                parts.close_button_icon = None;
+            }
+
+            if parts.body.as_ref().is_some_and(|&entity| q_body.get(entity).is_err()) {
+                parts.body = None;
+            }
+            if parts
+                .header
+                .as_ref()
+                .is_some_and(|&entity| q_header.get(entity).is_err())
+            {
+                parts.header = None;
+            }
+            if parts
+                .close_button
+                .as_ref()
+                .is_some_and(|&entity| q_close_button.get(entity).is_err())
+            {
+                parts.close_button = None;
+            }
+            if parts
+                .body_border
+                .as_ref()
+                .is_some_and(|&entity| q_bordered.get(entity).is_err())
+            {
+                parts.body_border = None;
+            }
+            if parts
+                .header_border
+                .as_ref()
+                .is_some_and(|&entity| q_bordered.get(entity).is_err())
+            {
+                parts.header_border = None;
+            }
+            if parts
+                .title
+                .as_ref()
+                .is_some_and(|&entity| q_title.get(entity).is_err())
+            {
+                parts.title = None;
+            }
+            if parts
+                .close_button_border
+                .as_ref()
+                .is_some_and(|&entity| q_close_border.get(entity).is_err())
+            {
+                parts.close_button_border = None;
+            }
+            if parts
+                .close_button_icon
+                .as_ref()
+                .is_some_and(|&entity| q_close_icon.get(entity).is_err())
+            {
+                parts.close_button_icon = None;
+            }
+        }
+    }
+
     fn enact_resize(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        mut active_resize: ResMut<ActiveWindowResize>,
+        mut active_interaction: ResMut<ActiveWindowInteraction>,
         parent_globals: Query<&GlobalTransform>,
         mut draggables: Query<&mut Draggable>,
         mut windows: ParamSet<(
@@ -172,12 +343,12 @@ impl Window {
         )>,
     ) {
         let Some(cursor_position) = cursor.position else {
-            active_resize.state = None;
+            active_interaction.state = None;
             return;
         };
 
         if !mouse_input.pressed(MouseButton::Left) {
-            active_resize.state = None;
+            active_interaction.state = None;
         }
 
         if mouse_input.just_pressed(MouseButton::Left) {
@@ -197,7 +368,7 @@ impl Window {
 
             let mut candidate: Option<(Entity, ResizeCorner, f32, f32, f32)> = None;
             {
-                for (entity, window, transform, global_transform, parent) in windows.p0().iter() {
+                for (entity, window, transform, global_transform, _) in windows.p0().iter() {
                     let z = global_transform.translation().z;
                     if let Some(blocking_z) = top_window_z {
                         if z + 0.001 < blocking_z {
@@ -245,23 +416,23 @@ impl Window {
                         let fixed_top_y =
                             transform.translation.y + half_h + window.header_height;
 
-                        let _ = parent; // parent transform is only needed during drag updates
                         candidate = Some((entity, corner, fixed_x, fixed_top_y, z));
                     }
                 }
             }
 
             if let Some((entity, corner, fixed_x, fixed_top_y, _)) = candidate {
-                active_resize.state = Some(ActiveWindowResizeState {
-                    window_entity: entity,
-                    corner,
-                    fixed_x,
-                    fixed_top_y,
-                });
+                active_interaction.state =
+                    Some(WindowInteraction::Resizing(ActiveWindowResizeState {
+                        window_entity: entity,
+                        corner,
+                        fixed_x,
+                        fixed_top_y,
+                    }));
             }
         }
 
-        let Some(state) = active_resize.state else {
+        let Some(WindowInteraction::Resizing(state)) = active_interaction.state else {
             return;
         };
 
@@ -273,7 +444,7 @@ impl Window {
         let Ok((_, mut window, mut window_transform, parent)) =
             writable_windows.get_mut(state.window_entity)
         else {
-            active_resize.state = None;
+            active_interaction.state = None;
             return;
         };
 
@@ -371,124 +542,189 @@ impl Window {
         delta.x.abs() <= half_extents.x && delta.y.abs() <= half_extents.y
     }
 
+    fn spawn_title_child(
+        commands: &mut Commands,
+        header_entity: Entity,
+        title: &WindowTitle,
+        header_width: f32,
+    ) -> Option<Entity> {
+        let mut title_entity = None;
+        commands.entity(header_entity).with_children(|parent| {
+            title_entity = Some(
+                parent
+                    .spawn((
+                        title.clone(),
+                        Text2d(title.text.clone()),
+                        TextColor(PRIMARY_COLOR),
+                        TextFont {
+                            font_size: 12.0,
+                            ..default()
+                        },
+                        Anchor::CENTER_LEFT,
+                        Transform::from_xyz((-header_width + title.padding) / 2.0, 0.0, 0.0),
+                    ))
+                    .id(),
+            );
+        });
+        title_entity
+    }
+
+    fn spawn_close_button_child(
+        commands: &mut Commands,
+        window_entity: Entity,
+        window: &Window,
+    ) -> Option<Entity> {
+        let mut close_entity = None;
+        commands.entity(window_entity).with_children(|parent| {
+            close_entity = Some(
+                parent
+                    .spawn((
+                        WindowCloseButton {
+                            boundary: HollowRectangle {
+                                dimensions: Vec2::splat(window.header_height),
+                                thickness: window.boundary.thickness,
+                                color: window.boundary.color,
+                                ..default()
+                            },
+                            root_entity: window.root_entity,
+                        },
+                        Transform::from_xyz(
+                            (window.boundary.dimensions.x - window.header_height) / 2.0,
+                            (window.boundary.dimensions.y + window.header_height) / 2.0,
+                            0.0,
+                        ),
+                    ))
+                    .id(),
+            );
+        });
+        close_entity
+    }
+
     /// Propagate any change on the Window to **all** its descendants.
     fn update(
         mut commands: Commands,
-        mut windows:   Query<(Entity, &Window), Changed<Window>>,
+        mut windows:   Query<(Entity, &Window, &mut WindowParts), Changed<Window>>,
         mut bodies:    Query<&mut WindowBody>,
         mut borders:   Query<&mut BorderedRectangle>,
         mut plus_sets: Query<(&mut Plus, &mut ColorChangeOn, &mut Clickable<WindowActions>)>,
         mut header_titles: Query<
-            (Entity, &mut WindowTitle, &mut Text2d, &mut Transform),
+            (&mut WindowTitle, &mut Text2d, &mut Transform),
             (Without<WindowHeader>, Without<WindowCloseButton>)
         >,
-        children_q:    Query<&Children>,
-        // ─────────── ParamSet holds the two conflicting queries ───────
         mut hb: ParamSet<(
             Query<(&mut WindowHeader, &mut Transform)>,
             Query<(&mut WindowCloseButton, &mut Transform)>,
         )>,
     ) {
-        for (win_ent, win) in &mut windows {
-            if let Ok(children) = children_q.get(win_ent) {
-                for &child in children {
-                    /* ---------- BODY ---------- */
-                    if let Ok(mut body) = bodies.get_mut(child) {
-                        body.boundary = win.boundary;
-                        if let Ok(gkids) = children_q.get(child) {
-                            for &g in gkids {
-                                if let Ok(mut border) = borders.get_mut(g) {
-                                    border.boundary = win.boundary;
-                                }
-                            }
+        for (window_entity, win, mut parts) in &mut windows {
+            if let Some(body_entity) = parts.body {
+                if let Ok(mut body) = bodies.get_mut(body_entity) {
+                    body.boundary = win.boundary;
+                }
+            }
+            if let Some(body_border_entity) = parts.body_border {
+                if let Ok(mut border) = borders.get_mut(body_border_entity) {
+                    border.boundary = win.boundary;
+                }
+            }
+
+            if let Some(header_entity) = parts.header {
+                let mut header_boundary: Option<HollowRectangle> = None;
+                if let Ok((mut header, mut tf)) = hb.p0().get_mut(header_entity) {
+                    header.boundary.dimensions = Vec2::new(win.boundary.dimensions.x, win.header_height);
+                    header.boundary.thickness = win.boundary.thickness;
+                    header.title = win.title.clone();
+                    tf.translation = Vec3::new(
+                        0.0,
+                        (win.boundary.dimensions.y + win.header_height) / 2.0,
+                        0.0,
+                    );
+                    header_boundary = Some(header.boundary);
+                }
+
+                if let Some(header_boundary) = header_boundary {
+                    if let Some(header_border_entity) = parts.header_border {
+                        if let Ok(mut border) = borders.get_mut(header_border_entity) {
+                            border.boundary = header_boundary;
                         }
                     }
-    
-                    /* ---------- HEADER ---------- */
-                        if let Ok((mut header, mut tf)) = hb.p0().get_mut(child) {
-                            header.boundary.dimensions =
-                                Vec2::new(win.boundary.dimensions.x, win.header_height);
-                            header.boundary.thickness = win.boundary.thickness;
-                            header.title = win.title.clone();
-                            tf.translation =
-                                Vec3::new(0.0, (win.boundary.dimensions.y + win.header_height) / 2.0, 0.0);
-    
-                            let mut title_entity: Option<Entity> = None;
-                            if let Ok(gkids) = children_q.get(child) {
-                                for &g in gkids {
-                                    if let Ok(mut border) = borders.get_mut(g) {
-                                        border.boundary = header.boundary;
-                                    }
-                                    if let Ok((entity, mut title, mut text, mut title_tf)) =
-                                        header_titles.get_mut(g)
-                                    {
-                                        title_entity = Some(entity);
-                                        if let Some(new_title) = &win.title {
-                                            *title = new_title.clone();
-                                            text.0 = new_title.text.clone();
-                                            title_tf.translation = Vec3::new(
-                                                (-header.boundary.dimensions.x + new_title.padding) / 2.0,
-                                                0.0,
-                                                0.0,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
 
-                            match (&win.title, title_entity) {
-                                (Some(new_title), None) => {
-                                    commands.entity(child).with_children(|parent| {
-                                        parent.spawn((
-                                            new_title.clone(),
-                                            Text2d(new_title.text.clone()),
-                                            TextColor(PRIMARY_COLOR),
-                                            TextFont {
-                                                font_size: 12.0,
-                                                ..default()
-                                            },
-                                            Anchor::CENTER_LEFT,
-                                            Transform::from_xyz(
-                                                (-header.boundary.dimensions.x + new_title.padding) / 2.0,
-                                                0.0,
-                                                0.0,
-                                            ),
-                                        ));
-                                    });
-                                }
-                                (None, Some(entity)) => {
-                                    commands.entity(entity).despawn();
-                                }
-                                _ => {}
+                    match (&win.title, parts.title) {
+                        (Some(new_title), Some(title_entity)) => {
+                            if let Ok((mut title, mut text, mut title_tf)) =
+                                header_titles.get_mut(title_entity)
+                            {
+                                *title = new_title.clone();
+                                text.0 = new_title.text.clone();
+                                title_tf.translation = Vec3::new(
+                                    (-header_boundary.dimensions.x + new_title.padding) / 2.0,
+                                    0.0,
+                                    0.0,
+                                );
+                            } else {
+                                parts.title = None;
                             }
                         }
-    
-                    /* ---------- CLOSE BUTTON ---------- */
-                    if let Ok((mut btn, mut tf)) = hb.p1().get_mut(child) {
-                        btn.boundary.dimensions = Vec2::splat(win.header_height);
-                        btn.boundary.thickness = win.boundary.thickness;
-                        tf.translation = Vec3::new(
-                            (win.boundary.dimensions.x - win.header_height) / 2.0,
-                            (win.boundary.dimensions.y + win.header_height) / 2.0,
-                            0.0,
-                        );
-    
-                        if let Ok(gkids) = children_q.get(child) {
-                            for &g in gkids {
-                                if let Ok(mut border) = borders.get_mut(g) {
-                                    border.boundary = btn.boundary;
-                                }
-                                if let Ok((mut plus, mut cc, mut click)) = plus_sets.get_mut(g) {
-                                    plus.dimensions = btn.boundary.dimensions - 10.0;
-                                    let region = Some(btn.boundary.dimensions + 10.0);
-                                    click.region = region;
-                                    for ev in &mut cc.events {
-                                        if let ColorChangeEvent::Hover(_, r)
-                                        | ColorChangeEvent::Click(_, r) = ev
-                                        {
-                                            *r = region;
-                                        }
-                                    }
+                        (Some(new_title), None) => {
+                            parts.title = Self::spawn_title_child(
+                                &mut commands,
+                                header_entity,
+                                new_title,
+                                header_boundary.dimensions.x,
+                            );
+                        }
+                        (None, Some(title_entity)) => {
+                            commands.entity(title_entity).despawn();
+                            parts.title = None;
+                        }
+                        (None, None) => {}
+                    }
+                }
+            }
+
+            if win.has_close_button {
+                if parts.close_button.is_none() {
+                    parts.close_button =
+                        Self::spawn_close_button_child(&mut commands, window_entity, win);
+                    parts.close_button_border = None;
+                    parts.close_button_icon = None;
+                }
+            } else if let Some(close_button_entity) = parts.close_button.take() {
+                commands.entity(close_button_entity).despawn();
+                parts.close_button_border = None;
+                parts.close_button_icon = None;
+            }
+
+            if let Some(close_button_entity) = parts.close_button {
+                let mut close_boundary: Option<HollowRectangle> = None;
+                if let Ok((mut btn, mut tf)) = hb.p1().get_mut(close_button_entity) {
+                    btn.boundary.dimensions = Vec2::splat(win.header_height);
+                    btn.boundary.thickness = win.boundary.thickness;
+                    tf.translation = Vec3::new(
+                        (win.boundary.dimensions.x - win.header_height) / 2.0,
+                        (win.boundary.dimensions.y + win.header_height) / 2.0,
+                        0.0,
+                    );
+                    close_boundary = Some(btn.boundary);
+                }
+
+                if let Some(close_boundary) = close_boundary {
+                    if let Some(close_border_entity) = parts.close_button_border {
+                        if let Ok(mut border) = borders.get_mut(close_border_entity) {
+                            border.boundary = close_boundary;
+                        }
+                    }
+                    if let Some(close_icon_entity) = parts.close_button_icon {
+                        if let Ok((mut plus, mut cc, mut click)) = plus_sets.get_mut(close_icon_entity)
+                        {
+                            plus.dimensions = close_boundary.dimensions - 10.0;
+                            let region = Some(close_boundary.dimensions + 10.0);
+                            click.region = region;
+                            for ev in &mut cc.events {
+                                if let ColorChangeEvent::Hover(_, r)
+                                | ColorChangeEvent::Click(_, r) = ev
+                                {
+                                    *r = region;
                                 }
                             }
                         }
@@ -519,17 +755,21 @@ impl Window {
             )
         };
 
+        let mut body_entity: Option<Entity> = None;
+        let mut header_entity: Option<Entity> = None;
+        let mut close_button_entity: Option<Entity> = None;
+
         /*  Spawn children *directly* under Window  */
         world.commands().entity(entity).with_children(|parent| {
             // Body -------------
-            parent.spawn(WindowBody { boundary });
+            body_entity = Some(parent.spawn(WindowBody { boundary }).id());
 
             // Header -----------
             let header_boundary = HollowRectangle {
                 dimensions: Vec2::new(boundary.dimensions.x, header_h),
                 ..boundary
             };
-            parent.spawn((
+            header_entity = Some(parent.spawn((
                 WindowHeader {
                     title,
                     boundary: header_boundary,
@@ -541,11 +781,11 @@ impl Window {
                     (boundary.dimensions.y + header_h) / 2.0,
                     0.0,
                 ),
-            ));
+            )).id());
 
             // Close button -----
             if close_btn {
-                parent.spawn((
+                close_button_entity = Some(parent.spawn((
                     WindowCloseButton {
                         boundary: HollowRectangle {
                             dimensions: Vec2::splat(header_h),
@@ -560,8 +800,15 @@ impl Window {
                         (boundary.dimensions.y + header_h) / 2.0,
                         0.0,
                     ),
-                ));
+                )).id());
             }
+        });
+
+        world.commands().entity(entity).insert(WindowParts {
+            body: body_entity,
+            header: header_entity,
+            close_button: close_button_entity,
+            ..default()
         });
     }
 }
