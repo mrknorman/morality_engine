@@ -3,7 +3,10 @@ use std::time::Duration;
 use rand::Rng;
 use serde::Deserialize;
 use bevy::{
-    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, sprite::Anchor
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    sprite::Anchor,
+    text::TextBounds,
 };
 
 use crate::{
@@ -29,7 +32,9 @@ impl Plugin for LoadingBarPlugin {
             Update,
             (
                 LoadingBar::fill,
+                LoadingBar::layout_info_text,
             )
+            .chain()
             .run_if(in_state(LoadingSystemsActive::True)),
         );
     }
@@ -71,6 +76,11 @@ pub struct LoadingBar {
 }
 
 impl LoadingBar {
+    const BAR_WIDTH: f32 = 500.0;
+    const BAR_HEIGHT: f32 = 20.0;
+    const INFO_TEXT_SIDE_PADDING: f32 = 8.0;
+    const INFO_TEXT_BAR_GAP: f32 = 6.0;
+
     fn new(
         prefix: String, 
         final_message: String, 
@@ -83,6 +93,10 @@ impl LoadingBar {
             index: 0,
             finished: false
         }
+    }
+
+    fn info_text_width() -> f32 {
+        (Self::BAR_WIDTH - 2.0 * Self::INFO_TEXT_SIDE_PADDING).max(1.0)
     }
 
     pub fn load(loading_bar_messages : LoadingBarMessages) -> (LoadingBar, TextFrames) {
@@ -150,6 +164,34 @@ impl LoadingBar {
         }
     }
 
+    fn layout_info_text(
+        mut loading_text_query: Query<
+            (&mut TextBounds, &mut Transform, &mut TextLayout, &mut Anchor),
+            With<LoadingText>,
+        >,
+    ) {
+        let target_width = Self::info_text_width();
+        let target_x = -Self::BAR_WIDTH * 0.5 + Self::INFO_TEXT_SIDE_PADDING;
+        let target_y = Self::BAR_HEIGHT * 0.5 + Self::INFO_TEXT_BAR_GAP;
+
+        for (mut bounds, mut transform, mut layout, mut anchor) in loading_text_query.iter_mut() {
+            if bounds
+                .width
+                .is_none_or(|width| (width - target_width).abs() > 0.01)
+            {
+                bounds.width = Some(target_width);
+            }
+            bounds.height = None;
+
+            layout.justify = Justify::Left;
+            layout.linebreak = LineBreak::WordBoundary;
+            *anchor = Anchor::BOTTOM_LEFT;
+
+            transform.translation.x = target_x;
+            transform.translation.y = target_y;
+        }
+    }
+
     fn on_insert(
         mut world : DeferredWorld,
         HookContext{entity, ..} : HookContext
@@ -189,12 +231,21 @@ impl LoadingBar {
                         font_size : 12.0,
                         ..default()
                     },
-                    Transform::from_xyz(-250.0, 20.0, 0.0),
-                    TextLayout{
-                        justify: Justify::Center,
+                    TextBounds{
+                        width: Some(Self::info_text_width()),
                         ..default()
                     },
-                    Anchor::CENTER_LEFT,
+                    Transform::from_xyz(
+                        -Self::BAR_WIDTH * 0.5 + Self::INFO_TEXT_SIDE_PADDING,
+                        Self::BAR_HEIGHT * 0.5 + Self::INFO_TEXT_BAR_GAP,
+                        0.0
+                    ),
+                    TextLayout{
+                        justify: Justify::Left,
+                        linebreak : LineBreak::WordBoundary,
+                        ..default()
+                    },
+                    Anchor::BOTTOM_LEFT,
                 )).with_children( |parent| {
                     parent.spawn((
                             TextSpan::new(messages[0].clone()),
@@ -209,7 +260,7 @@ impl LoadingBar {
                 
                 parent.spawn(
                     HollowRectangle{
-                        dimensions : Vec2::new(500.0, 20.0),
+                        dimensions : Vec2::new(Self::BAR_WIDTH, Self::BAR_HEIGHT),
                         color : PRIMARY_COLOR,
                         ..default()
                     }
