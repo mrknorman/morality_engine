@@ -17,10 +17,11 @@ impl Plugin for GameStatesPlugin {
 
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum MainState {   
+pub enum MainState {
     #[default]
     Menu,
-    InGame
+    InGame,
+    Debug,
 }
 
 #[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash, Serialize, 

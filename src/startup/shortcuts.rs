@@ -1,5 +1,7 @@
-use bevy::prelude::*;
-use bevy::window::{ClosingWindow, PrimaryWindow, WindowCloseRequested};
+use bevy::{
+    prelude::*,
+    window::{ClosingWindow, PrimaryWindow, WindowCloseRequested},
+};
 
 pub fn close_on_esc(
     keyboard_input: Res<ButtonInput<KeyCode>>,

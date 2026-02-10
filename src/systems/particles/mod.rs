@@ -6,7 +6,7 @@ use bevy::{
 };
 use std::time::Duration;
 
-use crate::startup::textures::DigitSheet;
+use crate::{startup::textures::DigitSheet, systems::time::Dilation};
 
 const ROCKET_MIN_SPEED: f32 = 2400.0;
 const ROCKET_MAX_SPEED: f32 = 2600.0;
@@ -131,10 +131,21 @@ pub struct FireworkLauncher {
     pub radius: f32,
     pub min_delay: f32,
     pub max_delay: f32,
+    one_shot: bool,
     timer: Timer,
 }
 
 impl FireworkLauncher {
+    pub fn one_shot(delay: f32) -> Self {
+        Self {
+            radius: 0.0,
+            min_delay: delay,
+            max_delay: delay,
+            one_shot: true,
+            timer: Timer::from_seconds(delay.max(f32::MIN_POSITIVE), TimerMode::Once),
+        }
+    }
+
     pub fn new(radius: f32, min_delay: f32, max_delay: f32) -> Self {
         let (min_d, max_d) = if min_delay <= max_delay {
             (min_delay, max_delay)
@@ -146,18 +157,21 @@ impl FireworkLauncher {
             radius,
             min_delay: min_d,
             max_delay: max_d,
+            one_shot: false,
             timer: Timer::from_seconds(initial, TimerMode::Once),
         }
     }
 
     fn enact(
-        time: Res<Time>,
+        time: Res<Time<Real>>,
+        dilation: Res<Dilation>,
         mut commands: Commands,
         asset_server: Res<AssetServer>,
         mut q: Query<(Entity, &GlobalTransform, &mut FireworkLauncher)>,
     ) {
+        let delta = time.delta().mul_f32(dilation.0);
         for (launcher_entity, gt, mut launcher) in &mut q {
-            launcher.timer.tick(time.delta());
+            launcher.timer.tick(delta);
             if !launcher.timer.just_finished() {
                 continue;
             }
@@ -196,19 +210,24 @@ impl FireworkLauncher {
                 },
             ));
 
-            let next = rand_delay(launcher.min_delay, launcher.max_delay);
-            launcher.timer.set_duration(Duration::from_secs_f32(next));
-            launcher.timer.reset();
+            if launcher.one_shot {
+                commands.entity(launcher_entity).remove::<FireworkLauncher>();
+            } else {
+                let next = rand_delay(launcher.min_delay, launcher.max_delay);
+                launcher.timer.set_duration(Duration::from_secs_f32(next));
+                launcher.timer.reset();
+            }
         }
     }
 
     fn simulate_rockets(
-        time: Res<Time>,
+        time: Res<Time<Real>>,
+        dilation: Res<Dilation>,
         mut commands: Commands,
         fx: Res<FireworkFx>,
         mut q: Query<(Entity, &OwnedBy, &mut FireworkRocket, &mut Transform)>,
     ) {
-        let dt = time.delta_secs();
+        let dt = time.delta_secs() * dilation.0;
         for (rocket_entity, owner, mut rocket, mut transform) in &mut q {
             rocket.age += dt;
             rocket.velocity.y += ROCKET_GRAVITY * dt;
@@ -336,11 +355,12 @@ impl FireworkLauncher {
     }
 
     fn simulate_particles(
-        time: Res<Time>,
+        time: Res<Time<Real>>,
+        dilation: Res<Dilation>,
         mut commands: Commands,
         mut q: Query<(Entity, &mut FireworkParticle, &mut Transform, &mut Sprite)>,
     ) {
-        let dt = time.delta_secs();
+        let dt = time.delta_secs() * dilation.0;
         for (entity, mut particle, mut transform, mut sprite) in &mut q {
             particle.age += dt;
             if particle.age >= particle.lifetime {
@@ -363,19 +383,20 @@ impl FireworkLauncher {
     }
 
     fn boom_sound(
-        time: Res<Time>,
+        time: Res<Time<Real>>,
+        dilation: Res<Dilation>,
         asset_server: Res<AssetServer>,
         mut commands: Commands,
-        q_launchers: Query<(), With<FireworkLauncher>>,
         mut q: Query<(Entity, &OwnedBy, &mut BoomTimer)>,
     ) {
+        let delta = time.delta().mul_f32(dilation.0);
         for (entity, owner, mut boom) in &mut q {
-            if q_launchers.get(owner.0).is_err() {
+            if commands.get_entity(owner.0).is_err() {
                 commands.entity(entity).despawn();
                 continue;
             }
 
-            boom.0.tick(time.delta());
+            boom.0.tick(delta);
             if !boom.0.just_finished() {
                 continue;
             }
@@ -392,14 +413,13 @@ impl FireworkLauncher {
 
     fn cleanup_orphans(
         mut commands: Commands,
-        q_launchers: Query<(), With<FireworkLauncher>>,
         q_owned: Query<
             (Entity, &OwnedBy),
             Or<(With<FireworkRocket>, With<FireworkParticle>, With<BoomTimer>)>,
         >,
     ) {
         for (entity, owner) in &q_owned {
-            if q_launchers.get(owner.0).is_err() {
+            if commands.get_entity(owner.0).is_err() {
                 commands.entity(entity).despawn();
             }
         }
