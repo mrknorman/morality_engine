@@ -1,11 +1,16 @@
 use bevy::prelude::*;
-use bevy::app::AppExit;
+use bevy::window::{ClosingWindow, PrimaryWindow, WindowCloseRequested};
 
 pub fn close_on_esc(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut app_exit_events: MessageWriter<AppExit>,
+    primary_window: Query<Entity, (With<Window>, With<PrimaryWindow>, Without<ClosingWindow>)>,
+    mut close_requests: MessageWriter<WindowCloseRequested>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
-        app_exit_events.write(AppExit::Success);
+    if !keyboard_input.just_pressed(KeyCode::Escape) {
+        return;
+    }
+
+    if let Ok(window) = primary_window.single() {
+        close_requests.write(WindowCloseRequested { window });
     }
 }
