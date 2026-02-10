@@ -58,10 +58,7 @@ fn setup_cameras(
             OffscreenCamera,
             RenderLayers::layer(0),
             Hdr,
-            Camera {
-                target: RenderTarget::Image(render_target.0.clone().into()),
-                ..default()
-            }
+            RenderTarget::Image(render_target.0.clone().into())
         ));
 
         // Main (window) camera: renders only the fullscreen quad (post‑processing) to the window.
