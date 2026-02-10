@@ -94,6 +94,7 @@ pub enum InteractionSystem {
     Audio,
     AdvanceDialogue,
     LeverChange,
+    #[cfg(any(debug_assertions, feature = "debug_tools"))]
     Debug,
     Bounce,
     Pong,
@@ -122,8 +123,12 @@ macro_rules! register_interaction_systems {
                 system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Pressable),
                 system_entry!(trigger_advance_dialogue::<$enum_type, $audio_type>, InteractionSystem::AdvanceDialogue, after: InteractionSystem::Audio),
                 system_entry!(trigger_lever_state_change::<$enum_type, $audio_type>, InteractionSystem::LeverChange, after: InteractionSystem::AdvanceDialogue),
+                #[cfg(any(debug_assertions, feature = "debug_tools"))]
                 system_entry!(trigger_debug_print::<$enum_type, $audio_type>, InteractionSystem::Debug, after: InteractionSystem::LeverChange),
+                #[cfg(any(debug_assertions, feature = "debug_tools"))]
                 system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::Debug),
+                #[cfg(not(any(debug_assertions, feature = "debug_tools")))]
+                system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::LeverChange),
                 system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Bounce),
                 system_entry!(trigger_reset_game::<$enum_type, $audio_type>, InteractionSystem::ResetGame, after: InteractionSystem::Bounce),
                 system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
@@ -871,6 +876,7 @@ where
         }
     }
 }
+#[cfg(any(debug_assertions, feature = "debug_tools"))]
 pub fn trigger_debug_print<K, S>(
     mut query: Query<(
         Entity,
