@@ -15,8 +15,9 @@ use crate::{
             ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON,
             PRIMARY_COLOR,
         },
-        interaction::{ActionPallet, Clickable, InputAction},
+        interaction::{ActionPallet, Clickable, Draggable, DraggableRegion, InputAction},
     },
+    startup::cursor::CustomCursor,
 };
 
 /* ─────────────────────────  PLUGIN  ───────────────────────── */
@@ -26,10 +27,12 @@ impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<WindowZStack>()
+            .init_resource::<ActiveWindowResize>()
             .add_systems(Update, (
                 Window::assign_stack_order,
-                Window::update,
-            ));
+                Window::enact_resize,
+                Window::update.before(CompoundSystem::Propagate),
+            ).chain());
     }
 }
 
@@ -42,6 +45,28 @@ struct WindowZStack {
 struct WindowBaseZ(f32);
 
 const WINDOW_Z_STEP: f32 = 10.0;
+const WINDOW_RESIZE_HANDLE_SIZE: f32 = 20.0;
+const WINDOW_MIN_WIDTH: f32 = 60.0;
+const WINDOW_MIN_HEIGHT: f32 = 40.0;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ResizeCorner {
+    BottomLeft,
+    BottomRight,
+}
+
+#[derive(Clone, Copy)]
+struct ActiveWindowResizeState {
+    window_entity: Entity,
+    corner: ResizeCorner,
+    fixed_x: f32,
+    fixed_top_y: f32,
+}
+
+#[derive(Resource, Default)]
+struct ActiveWindowResize {
+    state: Option<ActiveWindowResizeState>,
+}
 
 /* ─────────────────────────  DATA  ───────────────────────── */
 
@@ -125,6 +150,225 @@ impl Window {
             root_transform.translation.z = base_z + z_stack.next_order as f32 * WINDOW_Z_STEP;
             z_stack.next_order += 1;
         }
+    }
+
+    fn enact_resize(
+        mouse_input: Res<ButtonInput<MouseButton>>,
+        cursor: Res<CustomCursor>,
+        mut active_resize: ResMut<ActiveWindowResize>,
+        parent_globals: Query<&GlobalTransform>,
+        mut draggables: Query<&mut Draggable>,
+        mut windows: ParamSet<(
+            Query<
+                (
+                    Entity,
+                    &Window,
+                    &Transform,
+                    &GlobalTransform,
+                    Option<&ChildOf>,
+                )
+            >,
+            Query<(Entity, &mut Window, &mut Transform, Option<&ChildOf>)>,
+        )>,
+    ) {
+        let Some(cursor_position) = cursor.position else {
+            active_resize.state = None;
+            return;
+        };
+
+        if !mouse_input.pressed(MouseButton::Left) {
+            active_resize.state = None;
+        }
+
+        if mouse_input.just_pressed(MouseButton::Left) {
+            let mut top_window_z: Option<f32> = None;
+            {
+                for (_, window, _, global_transform, _) in windows.p0().iter() {
+                    if !Self::is_cursor_over_window_surface(cursor_position, window, global_transform)
+                    {
+                        continue;
+                    }
+                    let z = global_transform.translation().z;
+                    if top_window_z.is_none_or(|current| z > current) {
+                        top_window_z = Some(z);
+                    }
+                }
+            }
+
+            let mut candidate: Option<(Entity, ResizeCorner, f32, f32, f32)> = None;
+            {
+                for (entity, window, transform, global_transform, parent) in windows.p0().iter() {
+                    let z = global_transform.translation().z;
+                    if let Some(blocking_z) = top_window_z {
+                        if z + 0.001 < blocking_z {
+                            continue;
+                        }
+                    }
+
+                    let half_w = window.boundary.dimensions.x * 0.5;
+                    let half_h = window.boundary.dimensions.y * 0.5;
+                    let mut corner_hit: Option<ResizeCorner> = None;
+
+                    if Self::is_cursor_over_corner(
+                        cursor_position,
+                        window,
+                        global_transform,
+                        ResizeCorner::BottomLeft,
+                    ) {
+                        corner_hit = Some(ResizeCorner::BottomLeft);
+                    }
+                    if Self::is_cursor_over_corner(
+                        cursor_position,
+                        window,
+                        global_transform,
+                        ResizeCorner::BottomRight,
+                    ) {
+                        corner_hit = Some(ResizeCorner::BottomRight);
+                    }
+
+                    let Some(corner) = corner_hit else {
+                        continue;
+                    };
+
+                    let replace = match candidate {
+                        None => true,
+                        Some((current_entity, _, _, _, current_z)) => {
+                            z > current_z || (z == current_z && entity.index() > current_entity.index())
+                        }
+                    };
+
+                    if replace {
+                        let fixed_x = match corner {
+                            ResizeCorner::BottomLeft => transform.translation.x + half_w,
+                            ResizeCorner::BottomRight => transform.translation.x - half_w,
+                        };
+                        let fixed_top_y =
+                            transform.translation.y + half_h + window.header_height;
+
+                        let _ = parent; // parent transform is only needed during drag updates
+                        candidate = Some((entity, corner, fixed_x, fixed_top_y, z));
+                    }
+                }
+            }
+
+            if let Some((entity, corner, fixed_x, fixed_top_y, _)) = candidate {
+                active_resize.state = Some(ActiveWindowResizeState {
+                    window_entity: entity,
+                    corner,
+                    fixed_x,
+                    fixed_top_y,
+                });
+            }
+        }
+
+        let Some(state) = active_resize.state else {
+            return;
+        };
+
+        if !mouse_input.pressed(MouseButton::Left) {
+            return;
+        }
+
+        let mut writable_windows = windows.p1();
+        let Ok((_, mut window, mut window_transform, parent)) =
+            writable_windows.get_mut(state.window_entity)
+        else {
+            active_resize.state = None;
+            return;
+        };
+
+        let cursor_local_parent =
+            Self::cursor_to_parent_local(cursor_position, parent, &parent_globals);
+
+        let min_width = WINDOW_MIN_WIDTH.max(window.header_height + 10.0);
+        let min_height = WINDOW_MIN_HEIGHT;
+
+        let new_width = match state.corner {
+            ResizeCorner::BottomLeft => (state.fixed_x - cursor_local_parent.x).max(min_width),
+            ResizeCorner::BottomRight => (cursor_local_parent.x - state.fixed_x).max(min_width),
+        };
+        let new_height =
+            (state.fixed_top_y - window.header_height - cursor_local_parent.y).max(min_height);
+
+        window.boundary.dimensions = Vec2::new(new_width, new_height);
+
+        window_transform.translation.x = match state.corner {
+            ResizeCorner::BottomLeft => state.fixed_x - new_width * 0.5,
+            ResizeCorner::BottomRight => state.fixed_x + new_width * 0.5,
+        };
+        window_transform.translation.y =
+            state.fixed_top_y - window.header_height - new_height * 0.5;
+
+        if let Some(root_entity) = window.root_entity {
+            if let Ok(mut draggable) = draggables.get_mut(root_entity) {
+                let edge_padding = 10.0;
+                draggable.region = Some(DraggableRegion {
+                    region: Vec2::new(new_width + edge_padding, window.header_height + edge_padding),
+                    offset: Vec2::new(
+                        window_transform.translation.x,
+                        window_transform.translation.y + (new_height + window.header_height) * 0.5,
+                    ),
+                });
+            }
+        }
+    }
+
+    fn cursor_to_parent_local(
+        cursor_world: Vec2,
+        parent: Option<&ChildOf>,
+        parent_globals: &Query<&GlobalTransform>,
+    ) -> Vec2 {
+        if let Some(parent) = parent {
+            if let Ok(parent_global) = parent_globals.get(parent.parent()) {
+                let cursor_local = parent_global
+                    .to_matrix()
+                    .inverse()
+                    .transform_point3(cursor_world.extend(0.0));
+                return cursor_local.truncate();
+            }
+        }
+        cursor_world
+    }
+
+    fn is_cursor_over_corner(
+        cursor_world: Vec2,
+        window: &Window,
+        window_global: &GlobalTransform,
+        corner: ResizeCorner,
+    ) -> bool {
+        let cursor_local = window_global
+            .to_matrix()
+            .inverse()
+            .transform_point3(cursor_world.extend(0.0))
+            .truncate();
+        let half_w = window.boundary.dimensions.x * 0.5;
+        let half_h = window.boundary.dimensions.y * 0.5;
+        let corner_local = match corner {
+            ResizeCorner::BottomLeft => Vec2::new(-half_w, -half_h),
+            ResizeCorner::BottomRight => Vec2::new(half_w, -half_h),
+        };
+        let delta = cursor_local - corner_local;
+        delta.x.abs() <= WINDOW_RESIZE_HANDLE_SIZE * 0.5
+            && delta.y.abs() <= WINDOW_RESIZE_HANDLE_SIZE * 0.5
+    }
+
+    fn is_cursor_over_window_surface(
+        cursor_world: Vec2,
+        window: &Window,
+        window_global: &GlobalTransform,
+    ) -> bool {
+        let cursor_local = window_global
+            .to_matrix()
+            .inverse()
+            .transform_point3(cursor_world.extend(0.0))
+            .truncate();
+        let region_center = Vec2::new(0.0, window.header_height * 0.5);
+        let half_extents = Vec2::new(
+            window.boundary.dimensions.x * 0.5,
+            (window.boundary.dimensions.y + window.header_height) * 0.5,
+        );
+        let delta = cursor_local - region_center;
+        delta.x.abs() <= half_extents.x && delta.y.abs() <= half_extents.y
     }
 
     /// Propagate any change on the Window to **all** its descendants.

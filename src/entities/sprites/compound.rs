@@ -1,6 +1,11 @@
 use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
 use crate::systems::colors::PRIMARY_COLOR;
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum CompoundSystem {
+    Propagate,
+}
+
 pub struct CompoundPlugin;
 impl Plugin for CompoundPlugin {
     fn build(&self, app: &mut App) {
@@ -11,7 +16,7 @@ impl Plugin for CompoundPlugin {
                     propagate_changes::<HollowRectangle>,
                     propagate_changes::<Plus>,
                     BorderedRectangle::propagate_changes,
-                )
+                ).in_set(CompoundSystem::Propagate)
             );
     }
 }
