@@ -73,15 +73,15 @@ impl StateVector {
         next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
     ) {
         if let Some(state) = &self.main {
-            next_main_state.set(state.clone());
+            **next_main_state = NextState::PendingIfNeq(state.clone());
         }
     
         if let Some(state) = &self.game {
-            next_game_state.set(state.clone());
+            **next_game_state = NextState::PendingIfNeq(state.clone());
         }
     
         if let Some(state) = &self.sub {
-            next_sub_state.set(state.clone());
+            **next_sub_state = NextState::PendingIfNeq(state.clone());
         }
     }
 }

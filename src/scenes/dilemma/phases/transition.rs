@@ -176,7 +176,7 @@ fn trigger_exit(
             commands.run_system(systems.0["update_background_speeds"]);
         }
         
-        next_sub_state.set(
+        *next_sub_state = NextState::PendingIfNeq(
             DilemmaPhase::Decision
         );
 

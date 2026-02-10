@@ -39,46 +39,25 @@ use crate::{
 
 use super::{content::*, lever::LeverState};
 
-#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum DilemmaSystemsActive {
-    #[default]
-	False,
-    True
-}
+fn has_dilemma_timers(q: Query<&DilemmaTimer>) -> bool { !q.is_empty() }
 
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
-    fn build(&self, app: &mut App) {	
+    fn build(&self, app: &mut App) {
 		app
-		.init_state::<DilemmaSystemsActive>()
 		.add_systems(
-			Update,
-			activate_systems
-		).add_systems(
             Update,
             (
 				DilemmaTimer::update,
 				DilemmaTimer::start_pulse
 			)
-            .run_if(in_state(DilemmaSystemsActive::True))
+            .run_if(has_dilemma_timers)
         )
 		.add_systems(
-			OnExit(DilemmaPhase::Consequence), 
+			OnExit(DilemmaPhase::Consequence),
 			Dilemma::update_queue
 		);
     }
-}
-
-fn activate_systems(
-        mut state: ResMut<NextState<DilemmaSystemsActive>>,
-        query: Query<&DilemmaTimer>
-    ) {
-        
-	if !query.is_empty() {
-		state.set(DilemmaSystemsActive::True)
-	} else {
-		state.set(DilemmaSystemsActive::False)
-	}
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -321,9 +300,9 @@ impl DilemmaTimer {
 			timer.timer.tick(time.delta().mul_f32(dilation.0));
 			text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
 			if timer.timer.is_finished() {
-				next_game_state.set(
+				*next_game_state = NextState::PendingIfNeq(
 					DilemmaPhase::Consequence
-				)
+				);
 			}
 		}
 	}
