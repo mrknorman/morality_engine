@@ -24,9 +24,24 @@ use crate::{
 pub struct WindowPlugin;
 impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, Window::update);
+        app
+            .init_resource::<WindowZStack>()
+            .add_systems(Update, (
+                Window::assign_stack_order,
+                Window::update,
+            ));
     }
 }
+
+#[derive(Resource, Default)]
+struct WindowZStack {
+    next_order: u32,
+}
+
+#[derive(Component)]
+struct WindowBaseZ(f32);
+
+const WINDOW_Z_STEP: f32 = 10.0;
 
 /* ─────────────────────────  DATA  ───────────────────────── */
 
@@ -85,12 +100,44 @@ impl Window {
         }
     }
 
+    fn assign_stack_order(
+        mut commands: Commands,
+        mut z_stack: ResMut<WindowZStack>,
+        q_added_windows: Query<(Entity, &Window), Added<Window>>,
+        q_window_base: Query<&WindowBaseZ>,
+        mut q_transforms: Query<&mut Transform>,
+    ) {
+        for (window_entity, window) in &q_added_windows {
+            let root_entity = window.root_entity.unwrap_or(window_entity);
+
+            let Ok(mut root_transform) = q_transforms.get_mut(root_entity) else {
+                continue;
+            };
+
+            let base_z = if let Ok(base) = q_window_base.get(root_entity) {
+                base.0
+            } else {
+                let z = root_transform.translation.z;
+                commands.entity(root_entity).insert(WindowBaseZ(z));
+                z
+            };
+
+            root_transform.translation.z = base_z + z_stack.next_order as f32 * WINDOW_Z_STEP;
+            z_stack.next_order += 1;
+        }
+    }
+
     /// Propagate any change on the Window to **all** its descendants.
     fn update(
+        mut commands: Commands,
         mut windows:   Query<(Entity, &Window), Changed<Window>>,
         mut bodies:    Query<&mut WindowBody>,
         mut borders:   Query<&mut BorderedRectangle>,
         mut plus_sets: Query<(&mut Plus, &mut ColorChangeOn, &mut Clickable<WindowActions>)>,
+        mut header_titles: Query<
+            (Entity, &mut WindowTitle, &mut Text2d, &mut Transform),
+            (Without<WindowHeader>, Without<WindowCloseButton>)
+        >,
         children_q:    Query<&Children>,
         // ─────────── ParamSet holds the two conflicting queries ───────
         mut hb: ParamSet<(
@@ -114,22 +161,63 @@ impl Window {
                     }
     
                     /* ---------- HEADER ---------- */
-                    if let Ok((mut header, mut tf)) = hb.p0().get_mut(child) {
-                        header.boundary.dimensions =
-                            Vec2::new(win.boundary.dimensions.x, win.header_height);
-                        header.boundary.thickness = win.boundary.thickness;
-                        header.title = win.title.clone();
-                        tf.translation =
-                            Vec3::new(0.0, (win.boundary.dimensions.y + win.header_height) / 2.0, 0.0);
+                        if let Ok((mut header, mut tf)) = hb.p0().get_mut(child) {
+                            header.boundary.dimensions =
+                                Vec2::new(win.boundary.dimensions.x, win.header_height);
+                            header.boundary.thickness = win.boundary.thickness;
+                            header.title = win.title.clone();
+                            tf.translation =
+                                Vec3::new(0.0, (win.boundary.dimensions.y + win.header_height) / 2.0, 0.0);
     
-                        if let Ok(gkids) = children_q.get(child) {
-                            for &g in gkids {
-                                if let Ok(mut border) = borders.get_mut(g) {
-                                    border.boundary = header.boundary;
+                            let mut title_entity: Option<Entity> = None;
+                            if let Ok(gkids) = children_q.get(child) {
+                                for &g in gkids {
+                                    if let Ok(mut border) = borders.get_mut(g) {
+                                        border.boundary = header.boundary;
+                                    }
+                                    if let Ok((entity, mut title, mut text, mut title_tf)) =
+                                        header_titles.get_mut(g)
+                                    {
+                                        title_entity = Some(entity);
+                                        if let Some(new_title) = &win.title {
+                                            *title = new_title.clone();
+                                            text.0 = new_title.text.clone();
+                                            title_tf.translation = Vec3::new(
+                                                (-header.boundary.dimensions.x + new_title.padding) / 2.0,
+                                                0.0,
+                                                0.0,
+                                            );
+                                        }
+                                    }
                                 }
                             }
+
+                            match (&win.title, title_entity) {
+                                (Some(new_title), None) => {
+                                    commands.entity(child).with_children(|parent| {
+                                        parent.spawn((
+                                            new_title.clone(),
+                                            Text2d(new_title.text.clone()),
+                                            TextColor(PRIMARY_COLOR),
+                                            TextFont {
+                                                font_size: 12.0,
+                                                ..default()
+                                            },
+                                            Anchor::CENTER_LEFT,
+                                            Transform::from_xyz(
+                                                (-header.boundary.dimensions.x + new_title.padding) / 2.0,
+                                                0.0,
+                                                0.0,
+                                            ),
+                                        ));
+                                    });
+                                }
+                                (None, Some(entity)) => {
+                                    commands.entity(entity).despawn();
+                                }
+                                _ => {}
+                            }
                         }
-                    }
     
                     /* ---------- CLOSE BUTTON ---------- */
                     if let Ok((mut btn, mut tf)) = hb.p1().get_mut(child) {

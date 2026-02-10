@@ -34,6 +34,7 @@ use crate::{
             AsciiSounds
         },
         sprites::window::{
+            Window,
             WindowActions,
              WindowSounds
             },
@@ -485,28 +486,93 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         mouse_input: Res<ButtonInput<MouseButton>>,
         mut aggregate : ResMut<InteractionAggregate>,
         cursor : Res<CustomCursor>,
+        window_query: Query<(&Window, &Transform, &GlobalTransform), Without<TextSpan>>,
         mut clickable_query: Query<
-            (Option<&Aabb>, &Transform, &GlobalTransform, &ClickableCursorIcons, &mut Clickable<T>), Without<TextSpan>>,
+            (
+                Entity,
+                Option<&Aabb>,
+                &Transform,
+                &GlobalTransform,
+                &ClickableCursorIcons,
+                &mut Clickable<T>
+            ),
+            Without<TextSpan>
+        >,
         ) {
+
+    // Reset click latches every frame so stale clicks cannot retrigger actions.
+    for (_, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
+        clickable.triggered = false;
+    }
 
     let Some(cursor_position) = cursor.position else { return };
 
-    for (bound, transform, global_transform, icons, mut clickable) in clickable_query.iter_mut() {
-        if let Some(region) = clickable.region {
-            if is_cursor_within_region(
+    // Any clickable under a higher window surface is blocked, even if that
+    // top window surface itself is not clickable.
+    let mut top_window_z: Option<f32> = None;
+    for (window, transform, global_transform) in window_query.iter() {
+        let window_region = Vec2::new(
+            window.boundary.dimensions.x,
+            window.boundary.dimensions.y + window.header_height,
+        );
+        let window_offset = Vec2::new(0.0, window.header_height * 0.5);
+        if is_cursor_within_region(
+            cursor_position,
+            transform,
+            global_transform,
+            window_region,
+            window_offset,
+        ) {
+            let z = global_transform.translation().z;
+            if top_window_z.is_none_or(|current| z > current) {
+                top_window_z = Some(z);
+            }
+        }
+    }
+
+    let mut hovered_top: Option<(Entity, f32, CursorMode)> = None;
+
+    for (entity, bound, transform, global_transform, icons, clickable) in clickable_query.iter_mut() {
+        let is_hovered = if let Some(region) = clickable.region {
+            is_cursor_within_region(
                 cursor_position,
                 &transform,
                 global_transform,
                 region,
-                Vec2::ZERO
-            ) {
-                clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
-                aggregate.option_to_click = Some(icons.on_hover);
-            }
+                Vec2::ZERO,
+            )
         } else if let Some(bound) = bound {
-            if is_cursor_within_bounds(cursor_position, global_transform, bound) {
-                clickable.triggered = mouse_input.just_pressed(MouseButton::Left);
-                aggregate.option_to_click = Some(icons.on_hover);
+            is_cursor_within_bounds(cursor_position, global_transform, bound)
+        } else {
+            false
+        };
+
+        if is_hovered {
+            let z = global_transform.translation().z;
+            if let Some(blocking_z) = top_window_z {
+                // Keep clickability for controls in the top window itself, while
+                // preventing interaction with lower windows.
+                if z + 0.001 < blocking_z {
+                    continue;
+                }
+            }
+            let replace = match hovered_top {
+                None => true,
+                Some((current_entity, current_z, _)) => {
+                    z > current_z || (z == current_z && entity.index() > current_entity.index())
+                }
+            };
+            if replace {
+                hovered_top = Some((entity, z, icons.on_hover));
+            }
+        }
+    }
+
+    if let Some((entity, _, on_hover_mode)) = hovered_top {
+        aggregate.option_to_click = Some(on_hover_mode);
+        if mouse_input.just_pressed(MouseButton::Left) {
+            if let Ok((_, _, _, _, _, mut clickable)) = clickable_query.get_mut(entity) {
+                clickable.triggered = true;
             }
         }
     }
@@ -905,79 +971,118 @@ impl Draggable {
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         mut aggregate: ResMut<InteractionAggregate>,
-        mut draggable_q: Query<(&GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>), Without<TextSpan>>,
+        mut draggable_q: Query<
+            (Entity, &GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>),
+            Without<TextSpan>
+        >,
     ) {
-        let Some(cursor_position) = cursor.position else { return };
-        
         // Reset the option_to_drag flag at the beginning of the frame
         aggregate.option_to_drag = false;
-        
-        // First check if any entity is being actively dragged
-        let any_dragging = draggable_q.iter().any(|(_, draggable, _, _)| 
-            draggable.dragging && mouse_input.pressed(MouseButton::Left)
-        );
-        
-        // Set is_dragging based on if any entity is actively being dragged
-        aggregate.is_dragging = any_dragging;
-        
-        for (global_transform, mut draggable, mut transform, aabb) in draggable_q.iter_mut() {
-            // If the user is already dragging this entity, continue the drag regardless of position
-            if draggable.dragging && mouse_input.pressed(MouseButton::Left) {
-                // Calculate the new position
-                let new_position = cursor_position + draggable.offset;
-                
-                // Update the transform
-                transform.translation.x = new_position.x;
-                transform.translation.y = new_position.y;
-                continue;
+
+        let Some(cursor_position) = cursor.position else {
+            if !mouse_input.pressed(MouseButton::Left) {
+                for (_, _, mut draggable, _, _) in draggable_q.iter_mut() {
+                    draggable.dragging = false;
+                }
             }
-            
-            // Check if cursor is within bounds - handle custom region or fallback to Aabb
+            aggregate.is_dragging = false;
+            return;
+        };
+
+        let mut active_drag_target: Option<(Entity, f32)> = None;
+        let mut hover_target: Option<(Entity, f32)> = None;
+
+        for (entity, global_transform, draggable, transform, aabb) in draggable_q.iter_mut() {
             let is_within_bounds = if let Some(region) = &draggable.region {
                 is_cursor_within_region(
-                    cursor_position, 
-                    &transform, 
-                    global_transform, 
+                    cursor_position,
+                    &transform,
+                    global_transform,
                     region.region,
-                    region.offset
+                    region.offset,
                 )
             } else if let Some(bound) = aabb {
                 is_cursor_within_bounds(cursor_position, global_transform, bound)
             } else {
-                // If no region or Aabb is defined, use a default small region around the transform
+                // If no region or Aabb is defined, use a default small region around the transform.
                 let default_size = Vec2::new(10.0, 10.0);
                 is_cursor_within_region(
                     cursor_position,
                     &transform,
                     global_transform,
                     default_size,
-                    Vec2::ZERO
+                    Vec2::ZERO,
                 )
             };
-            
+
+            let z = global_transform.translation().z;
+
             if is_within_bounds {
-                // Flag that there's something draggable under the cursor
                 aggregate.option_to_drag = true;
-                
-                // Stop dragging if mouse button is released
-                if !mouse_input.pressed(MouseButton::Left) {
-                    draggable.dragging = false;
-                    continue;
+                let replace_hover = match hover_target {
+                    None => true,
+                    Some((current_entity, current_z)) => {
+                        z > current_z || (z == current_z && entity.index() > current_entity.index())
+                    }
+                };
+                if replace_hover {
+                    hover_target = Some((entity, z));
                 }
-                
-                // Start dragging on mouse press
-                if mouse_input.just_pressed(MouseButton::Left) {
-                    draggable.dragging = true;
-                    draggable.offset = global_transform.translation().truncate() - cursor_position;
-                    
-                    // Immediately update aggregate and cursor state
-                    aggregate.is_dragging = true;
+            }
+
+            if draggable.dragging {
+                let replace_drag_target = match active_drag_target {
+                    None => true,
+                    Some((current_entity, current_z)) => {
+                        z > current_z || (z == current_z && entity.index() > current_entity.index())
+                    }
+                };
+                if replace_drag_target {
+                    active_drag_target = Some((entity, z));
                 }
-            } else if draggable.dragging && !mouse_input.pressed(MouseButton::Left) {
-                // If cursor is outside and mouse released, stop dragging
-                draggable.dragging = false;
             }
         }
+
+        if !mouse_input.pressed(MouseButton::Left) {
+            for (_, _, mut draggable, _, _) in draggable_q.iter_mut() {
+                draggable.dragging = false;
+            }
+            aggregate.is_dragging = false;
+            return;
+        }
+
+        if let Some((active_entity, _)) = active_drag_target {
+            for (entity, _, mut draggable, mut transform, _) in draggable_q.iter_mut() {
+                if entity == active_entity {
+                    let new_position = cursor_position + draggable.offset;
+                    transform.translation.x = new_position.x;
+                    transform.translation.y = new_position.y;
+                    draggable.dragging = true;
+                } else {
+                    draggable.dragging = false;
+                }
+            }
+            aggregate.is_dragging = true;
+            return;
+        }
+
+        if mouse_input.just_pressed(MouseButton::Left) {
+            if let Some((target_entity, _)) = hover_target {
+                for (entity, global_transform, mut draggable, _, _) in draggable_q.iter_mut() {
+                    if entity == target_entity {
+                        draggable.dragging = true;
+                        draggable.offset =
+                            global_transform.translation().truncate() - cursor_position;
+                    } else {
+                        draggable.dragging = false;
+                    }
+                }
+                aggregate.is_dragging = true;
+                return;
+            }
+        }
+
+        aggregate.is_dragging = false;
     }
 }
 
@@ -1104,5 +1209,3 @@ pub fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
     }
     (min, max)
 }
-
-
