@@ -9,7 +9,6 @@ use bevy::diagnostic::{
     FrameTimeDiagnosticsPlugin
 };
 
-use bevy_hanabi::HanabiPlugin;
 use crate::startup::textures::DigitSheet;
 use crate::systems::audio::{OneShotAudio, OneShotAudioPallet};
 use crate::systems::resize::ResizePlugin;
@@ -46,7 +45,6 @@ impl Plugin for StartupPlugin {
             .insert_resource(
                 Lever::default()
             )
-            .add_plugins(HanabiPlugin)
             .add_plugins(
                 Material2dPlugin::<PulsingMaterial>::default(),
             )

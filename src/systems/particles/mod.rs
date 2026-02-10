@@ -1,275 +1,132 @@
 //! Firework
-use bevy::{audio::Volume, ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
-use bevy_hanabi::prelude::*;
+use bevy::{
+    audio::Volume,
+    image::{TextureAtlas, TextureAtlasLayout},
+    prelude::*,
+};
 use std::time::Duration;
 
 use crate::startup::textures::DigitSheet;
 
+const ROCKET_MIN_SPEED: f32 = 2400.0;
+const ROCKET_MAX_SPEED: f32 = 2600.0;
+const ROCKET_DRAG: f32 = 4.0;
+const ROCKET_GRAVITY: f32 = -16.0;
+const ROCKET_SIZE: f32 = 6.0;
+const ROCKET_MIN_LIFETIME: f32 = 0.8;
+const ROCKET_MAX_LIFETIME: f32 = 1.2;
+
+const SPARKLE_SPAWN_INTERVAL: f32 = 1.0 / 90.0;
+const SPARKLE_SPAWNS_PER_TICK: usize = 2;
+const SPARKLE_SPEED: f32 = 120.0;
+const SPARKLE_LIFETIME: f32 = 0.2;
+const SPARKLE_DRAG: f32 = 4.0;
+const SPARKLE_GRAVITY: f32 = -16.0;
+const SPARKLE_SIZE_START: f32 = 6.0;
+const SPARKLE_SIZE_END: f32 = 0.5;
+
+const EXPLOSION_PARTICLE_COUNT: usize = 320;
+const EXPLOSION_SPEED_MAX: f32 = 460.0;
+const EXPLOSION_LIFETIME: f32 = 1.2;
+const EXPLOSION_DRAG: f32 = 2.0;
+const EXPLOSION_GRAVITY: f32 = -16.0;
+const EXPLOSION_SIZE_START: f32 = 10.0;
+const EXPLOSION_SIZE_END: f32 = 10.0;
+const EXPLOSION_SLOW_SIZE_BONUS_START: f32 = 1.2;
+const EXPLOSION_SLOW_SIZE_BONUS_END: f32 = 2.2;
+
+const DIGITS_COLUMNS: u32 = 5;
+const DIGITS_ROWS: u32 = 2;
+
 pub struct ParticlePlugin;
 impl Plugin for ParticlePlugin {
-    fn build(&self, app: &mut App) {	
-        app
-            .init_resource::<FireworkFx>()
-            .add_systems(Update, (
+    fn build(&self, app: &mut App) {
+        app.init_resource::<FireworkFx>().add_systems(
+            Update,
+            (
                 FireworkLauncher::enact,
-                FireworkLauncher::start_rig_shutdown,
-                FireworkLauncher::finish_despawn,
+                FireworkLauncher::simulate_rockets,
+                FireworkLauncher::simulate_particles,
                 FireworkLauncher::boom_sound,
-            ));
+                FireworkLauncher::cleanup_orphans,
+            )
+                .chain(),
+        );
     }
-}
-
-const FIREWORK_SIZE : f32 = 1.0;
-
-/// Rocket (OnDie) -> child_index 0 used for digits/explosion
-fn create_rocket_expl_effect() -> EffectAsset {
-    let w = ExprWriter::new();
-
-    let init_pos = SetPositionCircleModifier {
-        center: w.lit(Vec3::ZERO).expr(),
-        axis: w.lit(Vec3::Y).expr(),
-        radius: w.lit(100.).expr(),
-        dimension: ShapeDimension::Volume,
-    };
-
-    let zero = w.lit(0.);
-    let y = w.lit(2400.).uniform(w.lit(2600.));
-    let v = zero.clone().vec3(y, zero);
-    let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, v.expr());
-
-    let init_age = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
-
-    // random color stored for children if needed later
-    let rgb = w.rand(VectorType::VEC3F) * w.lit(3.0);
-    let color = rgb.vec4_xyz_w(w.lit(1.)).pack4x8unorm();
-    let init_trails_color = SetAttributeModifier::new(Attribute::U32_0, color.expr());
-
-    let update_accel = AccelModifier::new((w.lit(Vec3::Y) * w.lit(-16.)).expr());
-    let update_drag  = LinearDragModifier::new(w.lit(4.).expr());
-
-    // Only OnDie spawn; child_index = 0 (sole child)
-    let spawn_on_die = EmitSpawnEventModifier {
-        condition: EventEmitCondition::OnDie,
-        count: w.lit(1000u32).expr(),
-        child_index: 0,
-    };
-
-    let spawner = SpawnerSettings::once(1.0.into());
-
-    let mut module = w.finish();
-    let rocket_lt = module.add_property("rocket_lt", 1.0.into());
-    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.prop(rocket_lt));
-
-    EffectAsset::new(32, spawner, module)
-        .with_name("rocket_expl")
-        .init(init_pos)
-        .init(init_vel)
-        .init(init_age)
-        .init(init_lifetime)
-        .init(init_trails_color)
-        .update(update_drag)
-        .update(update_accel)
-        .update(spawn_on_die)
-        .render(ColorOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec4::ONE),
-            blend: ColorBlendMode::Overwrite,
-            mask: ColorBlendMask::RGBA,
-        })
-        .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::ONE * FIREWORK_SIZE),
-            screen_space_size: false,
-        })
-}
-
-/// Rocket (Always) -> child_index 0 used for sparkle trail
-fn create_rocket_trail_effect() -> EffectAsset {
-    let w = ExprWriter::new();
-
-    let init_pos = SetPositionCircleModifier {
-        center: w.lit(Vec3::ZERO).expr(),
-        axis: w.lit(Vec3::Y).expr(),
-        radius: w.lit(100.).expr(),
-        dimension: ShapeDimension::Volume,
-    };
-
-    let zero = w.lit(0.);
-    let y = w.lit(2400.).uniform(w.lit(2600.));
-    let v = zero.clone().vec3(y, zero);
-    let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, v.expr());
-    let init_age = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
-
-    let update_accel = AccelModifier::new((w.lit(Vec3::Y) * w.lit(-16.)).expr());
-    let update_drag  = LinearDragModifier::new(w.lit(4.).expr());
-
-    // Only Always spawn; child_index = 0 (sole child)
-    let spawn_trail = EmitSpawnEventModifier {
-        condition: EventEmitCondition::Always,
-        count: w.lit(5u32).expr(),
-        child_index: 0,
-    };
-
-    let spawner = SpawnerSettings::once(1.0.into());
-
-    let mut module = w.finish();
-    let rocket_lt = module.add_property("rocket_lt", 1.0.into());
-    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.prop(rocket_lt));
-
-    EffectAsset::new(32, spawner, module)
-        .with_name("rocket_trail")
-        .init(init_pos)
-        .init(init_vel)
-        .init(init_age)
-        .init(init_lifetime)
-        .update(update_drag)
-        .update(update_accel)
-        .update(spawn_trail)
-        .render(ColorOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec4::ONE),
-            blend: ColorBlendMode::Overwrite,
-            mask: ColorBlendMask::RGBA,
-        })
-        .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::ONE * FIREWORK_SIZE),
-            screen_space_size: false,
-        })
-}
-
-/// Sparkle trail child
-fn create_sparkle_trail_effect() -> EffectAsset {
-    let w = ExprWriter::new();
-
-    let init_pos = InheritAttributeModifier::new(Attribute::POSITION);
-
-    let vel = w.rand(VectorType::VEC3F);
-    let vel = (vel * w.lit(2.) - w.lit(1.)).normalized();
-    let vel = (vel * w.lit(1.)).expr();
-    let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, vel);
-
-    let init_age = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
-    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, w.lit(0.2).expr());
-    let update_accel = AccelModifier::new((w.lit(Vec3::Y) * w.lit(-16.)).expr());
-    let update_drag  = LinearDragModifier::new(w.lit(4.).expr());
-
-    let spawner = SpawnerSettings::default();
-
-    let mut color_gradient = bevy_hanabi::Gradient::new();
-    color_gradient.add_key(0.0, Vec4::new(4.0, 4.0, 4.0, 1.0));
-    color_gradient.add_key(0.8, Vec4::new(4.0, 4.0, 4.0, 1.0));
-    color_gradient.add_key(1.0, Vec4::new(4.0, 4.0, 4.0, 0.0));
-
-    EffectAsset::new(5000, spawner, w.finish())
-        .with_name("sparkle_trail")
-        .init(init_pos)
-        .init(init_vel)
-        .init(init_age)
-        .init(init_lifetime)
-        .update(update_drag)
-        .update(update_accel)
-        .render(ColorOverLifetimeModifier {
-            gradient: color_gradient,
-            blend: ColorBlendMode::Modulate,
-            mask: ColorBlendMask::RGBA,
-        })
-        .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::ONE * FIREWORK_SIZE),
-            screen_space_size: false,
-        })
-}
-
-/// Digits (explosion) child
-fn create_trails_effect() -> EffectAsset {
-    const OPTION_GLOW: f32 = 6.0;
-    let mut w = ExprWriter::new();
-
-    let slot0_expr = w.lit(0).expr();
-
-    let init_pos = InheritAttributeModifier::new(Attribute::POSITION);
-    let speed    = w.lit(340. * FIREWORK_SIZE).uniform(w.lit(440. * FIREWORK_SIZE));
-    let dir      = w.rand(VectorType::VEC3F).mul(w.lit(2.0)).sub(w.lit(1.0)).normalized();
-    let init_vel = SetAttributeModifier::new(Attribute::VELOCITY, (dir * speed).expr());
-    let init_age = SetAttributeModifier::new(Attribute::AGE, w.lit(0.).expr());
-    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, w.lit(1.2).expr());
-    let update_accel  = AccelModifier::new((w.lit(Vec3::Y) * w.lit(-16.)).expr());
-    let update_drag   = LinearDragModifier::new(w.lit(2.).expr());
-
-    let idx_f  = (w.rand(ScalarType::Float) * w.lit(2.0)).floor();
-    let c0   = w.lit(Vec3::new(0.1015 * OPTION_GLOW, 0.5195 * OPTION_GLOW, 0.9961 * OPTION_GLOW));
-    let c1   = w.lit(Vec3::new(0.8314 * OPTION_GLOW, 0.0664 * OPTION_GLOW, 0.3477 * OPTION_GLOW));
-    let rgb  = c0.clone() + (c1 - c0) * idx_f.clone();
-    let rgba = rgb.vec4_xyz_w(w.lit(1.0)).expr();
-    let init_hdr_color = SetAttributeModifier::new(Attribute::HDR_COLOR, rgba);
-
-    let init_alpha = SetAttributeModifier::new(Attribute::ALPHA, w.lit(1.0).expr());
-    let orient = OrientModifier::new(OrientMode::ParallelCameraDepthPlane);
-
-    let mut module = w.finish();
-    module.add_texture_slot("digits");
-    let idx_i = module.cast(idx_f.expr(), ScalarType::Int);
-    let init_sprite = SetAttributeModifier::new(Attribute::SPRITE_INDEX, idx_i);
-
-    let mut fade = bevy_hanabi::Gradient::new();
-    fade.add_key(0.0,  Vec4::new(1.0, 1.0, 1.0, 1.0));
-    fade.add_key(1.0,  Vec4::new(1.0, 1.0, 1.0, 0.0));
-
-    EffectAsset::new(5000, SpawnerSettings::default(), module)
-        .with_name("trail_digits")
-        .init(init_pos)
-        .init(init_vel)
-        .init(init_age)
-        .init(init_lifetime)
-        .init(init_sprite)
-        .init(init_hdr_color)
-        .init(init_alpha)
-        .update(update_drag)
-        .update(update_accel)
-        .render(ParticleTextureModifier {
-            texture_slot: slot0_expr,
-            sample_mapping: ImageSampleMapping::Modulate,
-        })
-        .render(ColorOverLifetimeModifier {
-            gradient: fade,
-            blend: ColorBlendMode::Modulate,
-            mask: ColorBlendMask::RGBA,
-        })
-        .render(FlipbookModifier { sprite_grid_size: UVec2::new(5, 2) })
-        .render(SizeOverLifetimeModifier {
-            gradient: bevy_hanabi::Gradient::constant(Vec3::splat(10.0)),
-            screen_space_size: true,
-        })
-        .render(orient)
-        .with_alpha_mode(bevy_hanabi::AlphaMode::Blend)
 }
 
 #[derive(Resource)]
-pub struct FireworkFx {
-    pub rocket_expl: Handle<EffectAsset>,
-    pub rocket_trail: Handle<EffectAsset>,
-    pub sparkle: Handle<EffectAsset>,
-    pub trails: Handle<EffectAsset>,
+struct FireworkFx {
+    digits_image: Handle<Image>,
+    digits_atlas_layout: Handle<TextureAtlasLayout>,
 }
+
 impl FromWorld for FireworkFx {
     fn from_world(world: &mut World) -> Self {
-        let mut effects = world.resource_mut::<Assets<EffectAsset>>();
+        let digits_image = world
+            .get_resource::<DigitSheet>()
+            .expect("DigitSheet not loaded")
+            .0
+            .clone();
+
+        let tile_size = {
+            let images = world.resource::<Assets<Image>>();
+            let image = images
+                .get(&digits_image)
+                .expect("DigitSheet image missing from Assets<Image>");
+            UVec2::new(
+                (image.width() / DIGITS_COLUMNS).max(1),
+                (image.height() / DIGITS_ROWS).max(1),
+            )
+        };
+
+        let digits_atlas_layout = {
+            let mut layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
+            layouts.add(TextureAtlasLayout::from_grid(
+                tile_size,
+                DIGITS_COLUMNS,
+                DIGITS_ROWS,
+                None,
+                None,
+            ))
+        };
+
         Self {
-            rocket_expl: effects.add(create_rocket_expl_effect()),
-            rocket_trail: effects.add(create_rocket_trail_effect()),
-            sparkle: effects.add(create_sparkle_trail_effect()),
-            trails: effects.add(create_trails_effect()),
+            digits_image,
+            digits_atlas_layout,
         }
     }
+}
+
+#[derive(Component, Copy, Clone)]
+struct OwnedBy(Entity);
+
+#[derive(Component)]
+struct FireworkRocket {
+    velocity: Vec3,
+    age: f32,
+    lifetime: f32,
+    trail_timer: f32,
+}
+
+#[derive(Component)]
+struct FireworkParticle {
+    velocity: Vec3,
+    age: f32,
+    lifetime: f32,
+    drag: f32,
+    gravity: f32,
+    start_size: f32,
+    end_size: f32,
+    start_color: Vec4,
+    end_color: Vec4,
 }
 
 #[derive(Component)]
 struct BoomTimer(Timer);
 
-#[derive(Component, Deref, DerefMut)]
-struct DespawnAfterFrames(u32);
-
-use bevy::ecs::entity_disabling::Disabled;
-
 #[derive(Component, Clone)]
-#[component(on_remove = FireworkLauncher::on_remove)]
-#[component(on_insert = FireworkLauncher::on_insert)]
+#[require(Transform, GlobalTransform)]
 pub struct FireworkLauncher {
     pub radius: f32,
     pub min_delay: f32,
@@ -277,21 +134,13 @@ pub struct FireworkLauncher {
     timer: Timer,
 }
 
-#[derive(Component)]
-struct RigShutdown;
-
-#[derive(Component, Copy, Clone)]
-struct RigRoot(pub Entity);
-
-#[derive(Component)]
-struct RocketExplEnt(pub Entity);
-
-#[derive(Component)]
-struct RocketTrailEnt(pub Entity);
-
 impl FireworkLauncher {
     pub fn new(radius: f32, min_delay: f32, max_delay: f32) -> Self {
-        let (min_d, max_d) = if min_delay <= max_delay { (min_delay, max_delay) } else { (max_delay, min_delay) };
+        let (min_d, max_d) = if min_delay <= max_delay {
+            (min_delay, max_delay)
+        } else {
+            (max_delay, min_delay)
+        };
         let initial = rand_delay(min_d, max_d);
         Self {
             radius,
@@ -301,169 +150,51 @@ impl FireworkLauncher {
         }
     }
 
-    pub fn on_remove(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let root = world.entity(entity).get::<RigRoot>().map(|rr| rr.0);
-        if let Some(root) = root {
-            world.commands().entity(root).insert(RigShutdown);
-        }
-    }
-
-    fn start_rig_shutdown(
-        mut commands: Commands,
-        q_added: Query<Entity, Added<RigShutdown>>,
-        q_children: Query<&Children>,
-        mut q_spawner: Query<&mut bevy_hanabi::EffectSpawner>,
-    ) {
-        for root in &q_added {
-            let mut stack = vec![root];
-            while let Some(e) = stack.pop() {
-                if let Ok(mut spawner) = q_spawner.get_mut(e) {
-                    spawner.active = false;
-                }
-                commands.entity(e).insert(Disabled);
-                if let Ok(children) = q_children.get(e) {
-                    for c in children.iter() {
-                        stack.push(c);
-                    }
-                }
-            }
-            commands.entity(root).insert(DespawnAfterFrames(2));
-        }
-    }
-
-    fn finish_despawn(
-        mut commands: Commands,
-        mut q: Query<(Entity, &mut DespawnAfterFrames), With<Disabled>>,
-    ) {
-        for (root, mut frames) in &mut q {
-            if **frames > 0 { **frames -= 1; continue; }
-            commands.entity(root).despawn();
-        }
-    }
-
-    pub fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        // Prefetch
-        let (rocket_expl_h, rocket_trail_h, sparkle_h, trails_h, digits_img, xform) = {
-            let fx = world.get_resource::<FireworkFx>().expect("FireworkFx not initialized");
-            let digits_sheet = world.get_resource::<DigitSheet>().expect("DigitSheet not loaded");
-            let xform = world.entity(entity).get::<Transform>().cloned().unwrap_or_default();
-            (
-                fx.rocket_expl.clone(),
-                fx.rocket_trail.clone(),
-                fx.sparkle.clone(),
-                fx.trails.clone(),
-                digits_sheet.0.clone(),
-                xform,
-            )
-        };
-
-        // Build rig
-        let rig_root = world.commands().spawn((Name::new("firework_rig_root"), xform)).id();
-
-        // Rocket A: explosion-only (OnDie), child_index 0 -> digits
-        let rocket_expl_e = world.commands().spawn((
-            Name::new("rocket_expl_emitter"),
-            ParticleEffect::new(rocket_expl_h),
-            EffectProperties::default(),
-            EffectSpawner::new(&SpawnerSettings::once(1.0.into()).with_emit_on_start(false)),
-            Transform::default(),
-            GlobalTransform::default(),
-        )).id();
-
-        let digits_e = world.commands().spawn((
-            Name::new("digit_trails"),
-            ParticleEffect::new(trails_h),
-            EffectParent::new(rocket_expl_e), // maps to child_index 0
-            EffectMaterial { images: vec![digits_img], ..Default::default() },
-            Transform::default(),
-            GlobalTransform::default(),
-        )).id();
-
-        world.commands().entity(rocket_expl_e).add_child(digits_e);
-
-        // Rocket B: trail-only (Always), child_index 0 -> sparkle
-        let rocket_trail_e = world.commands().spawn((
-            Name::new("rocket_trail_emitter"),
-            ParticleEffect::new(rocket_trail_h),
-            EffectProperties::default(),
-            EffectSpawner::new(&SpawnerSettings::once(1.0.into()).with_emit_on_start(false)),
-            Transform::default(),
-            GlobalTransform::default(),
-        )).id();
-
-        let sparkle_e = world.commands().spawn((
-            Name::new("sparkle_trail"),
-            ParticleEffect::new(sparkle_h),
-            EffectParent::new(rocket_trail_e), // maps to child_index 0
-            Transform::default(),
-            GlobalTransform::default(),
-        )).id();
-
-        world.commands().entity(rocket_trail_e).add_child(sparkle_e);
-
-        // Parent both rockets under the rig root
-        world.commands().entity(rig_root).add_children(&[rocket_expl_e, rocket_trail_e]);
-
-        // Store refs on the launcher
-        world.commands().entity(entity).insert((
-            RigRoot(rig_root),
-            RocketExplEnt(rocket_expl_e),
-            RocketTrailEnt(rocket_trail_e),
-        ));
-    }
-
     fn enact(
         time: Res<Time>,
         mut commands: Commands,
         asset_server: Res<AssetServer>,
-        mut q: Query<(&GlobalTransform, &mut FireworkLauncher, Option<&RigRoot>, Option<&RocketExplEnt>, Option<&RocketTrailEnt>)>,
-        mut q_root_xform: Query<&mut Transform>,
-        mut q_props: Query<&mut EffectProperties>,
-        mut q_spawner: Query<&mut bevy_hanabi::EffectSpawner>,
+        mut q: Query<(Entity, &GlobalTransform, &mut FireworkLauncher)>,
     ) {
-        for (gt, mut launcher, rig_opt, expl_opt, trail_opt) in &mut q {
+        for (launcher_entity, gt, mut launcher) in &mut q {
             launcher.timer.tick(time.delta());
-            if !launcher.timer.just_finished() { continue; }
+            if !launcher.timer.just_finished() {
+                continue;
+            }
 
-            let theta = 2.0 * std::f32::consts::PI * rand::random::<f32>();
+            let theta = std::f32::consts::TAU * rand::random::<f32>();
             let r = launcher.radius * rand::random::<f32>().sqrt();
             let offset = Vec3::new(r * theta.cos(), 0.0, r * theta.sin());
             let spawn_pos = gt.translation() + offset;
 
-            if let Some(RigRoot(root)) = rig_opt {
-                if let Ok(mut t) = q_root_xform.get_mut(*root) {
-                    t.translation = spawn_pos;
-                }
-            }
+            let lifetime = rand_delay(ROCKET_MIN_LIFETIME, ROCKET_MAX_LIFETIME);
+            let velocity = Vec3::new(0.0, rand_delay(ROCKET_MIN_SPEED, ROCKET_MAX_SPEED), 0.0);
 
-            let lt: f32 = 0.8 + 0.4 * rand::random::<f32>();
+            commands.spawn((
+                Name::new("firework_rocket"),
+                OwnedBy(launcher_entity),
+                FireworkRocket {
+                    velocity,
+                    age: 0.0,
+                    lifetime,
+                    trail_timer: 0.0,
+                },
+                Sprite::from_color(Color::linear_rgb(2.0, 2.0, 2.0), Vec2::splat(ROCKET_SIZE)),
+                Transform::from_translation(spawn_pos),
+            ));
 
-            // Arm both rockets identically
-            if let Some(RocketExplEnt(e)) = expl_opt {
-                if let Ok(mut props) = q_props.get_mut(*e) {
-                    *props = EffectProperties::default().with_properties([("rocket_lt".to_string(), lt.into())]);
-                }
-                if let Ok(mut spawner) = q_spawner.get_mut(*e) {
-                    spawner.active = true;
-                    spawner.reset();
-                }
-            }
-            if let Some(RocketTrailEnt(e)) = trail_opt {
-                if let Ok(mut props) = q_props.get_mut(*e) {
-                    *props = EffectProperties::default().with_properties([("rocket_lt".to_string(), lt.into())]);
-                }
-                if let Ok(mut spawner) = q_spawner.get_mut(*e) {
-                    spawner.active = true;
-                    spawner.reset();
-                }
-            }
+            commands.spawn((
+                OwnedBy(launcher_entity),
+                BoomTimer(Timer::from_seconds(lifetime + 0.35, TimerMode::Once)),
+            ));
 
-            // whistle + delayed boom
             commands.spawn((
                 AudioPlayer::new(asset_server.load("audio/effects/firework_whistle.ogg")),
-                PlaybackSettings { volume: Volume::Linear(0.02), ..PlaybackSettings::DESPAWN },
+                PlaybackSettings {
+                    volume: Volume::Linear(0.02),
+                    ..PlaybackSettings::DESPAWN
+                },
             ));
-            commands.spawn(BoomTimer(Timer::from_seconds(lt + 0.35, TimerMode::Once)));
 
             let next = rand_delay(launcher.min_delay, launcher.max_delay);
             launcher.timer.set_duration(Duration::from_secs_f32(next));
@@ -471,20 +202,206 @@ impl FireworkLauncher {
         }
     }
 
+    fn simulate_rockets(
+        time: Res<Time>,
+        mut commands: Commands,
+        fx: Res<FireworkFx>,
+        mut q: Query<(Entity, &OwnedBy, &mut FireworkRocket, &mut Transform)>,
+    ) {
+        let dt = time.delta_secs();
+        for (rocket_entity, owner, mut rocket, mut transform) in &mut q {
+            rocket.age += dt;
+            rocket.velocity.y += ROCKET_GRAVITY * dt;
+            let rocket_drag = rocket.velocity * ROCKET_DRAG * dt;
+            rocket.velocity -= rocket_drag;
+            transform.translation += rocket.velocity * dt;
+
+            rocket.trail_timer += dt;
+            while rocket.trail_timer >= SPARKLE_SPAWN_INTERVAL {
+                rocket.trail_timer -= SPARKLE_SPAWN_INTERVAL;
+                for _ in 0..SPARKLE_SPAWNS_PER_TICK {
+                    Self::spawn_sparkle_particle(
+                        &mut commands,
+                        owner.0,
+                        transform.translation,
+                        transform.translation.z + 0.1,
+                    );
+                }
+            }
+
+            if rocket.age < rocket.lifetime {
+                continue;
+            }
+
+            Self::spawn_explosion_digits(&mut commands, &fx, owner.0, transform.translation);
+            commands.entity(rocket_entity).despawn();
+        }
+    }
+
+    fn spawn_explosion_digits(
+        commands: &mut Commands,
+        fx: &FireworkFx,
+        owner: Entity,
+        origin: Vec3,
+    ) {
+        let color_a = Vec4::new(0.609, 3.117, 5.977, 1.0);
+        let color_b = Vec4::new(4.988, 0.398, 2.086, 1.0);
+
+        for _ in 0..EXPLOSION_PARTICLE_COUNT {
+            let theta = std::f32::consts::TAU * rand::random::<f32>();
+            let dir = Vec2::new(theta.cos(), theta.sin());
+            // Wide 0..max spread to fill the burst disk instead of a ring.
+            let speed_t = rand::random::<f32>();
+            let speed = EXPLOSION_SPEED_MAX * speed_t;
+            let velocity = Vec3::new(dir.x * speed, dir.y * speed, 0.0);
+            let slow_factor = 1.0 - speed_t;
+            let start_size = EXPLOSION_SIZE_START + EXPLOSION_SLOW_SIZE_BONUS_START * slow_factor;
+            let end_size = EXPLOSION_SIZE_END + EXPLOSION_SLOW_SIZE_BONUS_END * slow_factor;
+
+            let start_color = if rand::random::<f32>() < 0.5 {
+                color_a
+            } else {
+                color_b
+            };
+
+            let atlas_index = if rand::random::<f32>() < 0.5 { 0 } else { 1 };
+            let mut sprite = Sprite::from_atlas_image(
+                fx.digits_image.clone(),
+                TextureAtlas {
+                    layout: fx.digits_atlas_layout.clone(),
+                    index: atlas_index,
+                },
+            );
+            sprite.custom_size = Some(Vec2::splat(start_size));
+            sprite.color = Color::linear_rgba(
+                start_color.x,
+                start_color.y,
+                start_color.z,
+                start_color.w,
+            );
+
+            commands.spawn((
+                Name::new("firework_digit_particle"),
+                OwnedBy(owner),
+                FireworkParticle {
+                    velocity,
+                    age: 0.0,
+                    lifetime: EXPLOSION_LIFETIME,
+                    drag: EXPLOSION_DRAG,
+                    gravity: EXPLOSION_GRAVITY,
+                    start_size,
+                    end_size,
+                    start_color,
+                    end_color: Vec4::new(start_color.x, start_color.y, start_color.z, 0.0),
+                },
+                sprite,
+                Transform::from_translation(origin),
+            ));
+        }
+    }
+
+    fn spawn_sparkle_particle(commands: &mut Commands, owner: Entity, origin: Vec3, z: f32) {
+        let theta = std::f32::consts::TAU * rand::random::<f32>();
+        let speed = SPARKLE_SPEED * rand::random::<f32>();
+        let velocity = Vec3::new(theta.cos() * speed, theta.sin() * speed, 0.0);
+
+        let start_color = Vec4::new(4.0, 4.0, 4.0, 1.0);
+        let end_color = Vec4::new(4.0, 4.0, 4.0, 0.0);
+
+        commands.spawn((
+            Name::new("firework_sparkle_particle"),
+            OwnedBy(owner),
+            FireworkParticle {
+                velocity,
+                age: 0.0,
+                lifetime: SPARKLE_LIFETIME,
+                drag: SPARKLE_DRAG,
+                gravity: SPARKLE_GRAVITY,
+                start_size: SPARKLE_SIZE_START,
+                end_size: SPARKLE_SIZE_END,
+                start_color,
+                end_color,
+            },
+            Sprite::from_color(
+                Color::linear_rgba(
+                    start_color.x,
+                    start_color.y,
+                    start_color.z,
+                    start_color.w,
+                ),
+                Vec2::splat(SPARKLE_SIZE_START),
+            ),
+            Transform::from_translation(Vec3::new(origin.x, origin.y, z)),
+        ));
+    }
+
+    fn simulate_particles(
+        time: Res<Time>,
+        mut commands: Commands,
+        mut q: Query<(Entity, &mut FireworkParticle, &mut Transform, &mut Sprite)>,
+    ) {
+        let dt = time.delta_secs();
+        for (entity, mut particle, mut transform, mut sprite) in &mut q {
+            particle.age += dt;
+            if particle.age >= particle.lifetime {
+                commands.entity(entity).despawn();
+                continue;
+            }
+
+            particle.velocity.y += particle.gravity * dt;
+            let particle_drag = particle.velocity * particle.drag * dt;
+            particle.velocity -= particle_drag;
+            transform.translation += particle.velocity * dt;
+
+            let t = (particle.age / particle.lifetime).clamp(0.0, 1.0);
+            let size = particle.start_size + (particle.end_size - particle.start_size) * t;
+            sprite.custom_size = Some(Vec2::splat(size));
+
+            let color = particle.start_color + (particle.end_color - particle.start_color) * t;
+            sprite.color = Color::linear_rgba(color.x, color.y, color.z, color.w);
+        }
+    }
+
     fn boom_sound(
         time: Res<Time>,
         asset_server: Res<AssetServer>,
         mut commands: Commands,
-        mut q: Query<(Entity, &mut BoomTimer)>,
+        q_launchers: Query<(), With<FireworkLauncher>>,
+        mut q: Query<(Entity, &OwnedBy, &mut BoomTimer)>,
     ) {
-        for (e, mut boom) in &mut q {
+        for (entity, owner, mut boom) in &mut q {
+            if q_launchers.get(owner.0).is_err() {
+                commands.entity(entity).despawn();
+                continue;
+            }
+
             boom.0.tick(time.delta());
-            if !boom.0.just_finished() { continue; }
+            if !boom.0.just_finished() {
+                continue;
+            }
             commands.spawn((
                 AudioPlayer::new(asset_server.load("audio/effects/firework.ogg")),
-                PlaybackSettings { volume: Volume::Linear(0.1), ..PlaybackSettings::DESPAWN },
+                PlaybackSettings {
+                    volume: Volume::Linear(0.1),
+                    ..PlaybackSettings::DESPAWN
+                },
             ));
-            commands.entity(e).despawn();
+            commands.entity(entity).despawn();
+        }
+    }
+
+    fn cleanup_orphans(
+        mut commands: Commands,
+        q_launchers: Query<(), With<FireworkLauncher>>,
+        q_owned: Query<
+            (Entity, &OwnedBy),
+            Or<(With<FireworkRocket>, With<FireworkParticle>, With<BoomTimer>)>,
+        >,
+    ) {
+        for (entity, owner) in &q_owned {
+            if q_launchers.get(owner.0).is_err() {
+                commands.entity(entity).despawn();
+            }
         }
     }
 }
