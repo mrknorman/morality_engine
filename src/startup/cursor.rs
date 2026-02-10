@@ -3,7 +3,7 @@ use bevy::{
         CompressedImageFormats, 
         ImageSampler, 
         ImageType
-    }, prelude::*, sprite::Anchor, window::{CursorOptions, PrimaryWindow}
+    }, input::mouse::MouseMotion, prelude::*, sprite::Anchor, window::{CursorOptions, PrimaryWindow}
 };
 
 use enum_map::{
@@ -34,6 +34,8 @@ impl Plugin for CursorPlugin {
     }
 }
 
+const CURSOR_Z: f32 = 999.0;
+
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CursorMode {
     #[default]
@@ -51,7 +53,18 @@ pub struct CustomCursor {
     entity: Option<Entity>,
     icons: EnumMap<CursorMode, Handle<Image>>,
     pub current_mode: CursorMode,
-    pub position: Option<Vec2>
+    pub position: Option<Vec2>,
+    virtual_screen_position: Option<Vec2>,
+    logical_screen_position: Option<Vec2>,
+    offscreen_edge: Option<OffscreenEdge>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OffscreenEdge {
+    Left,
+    Right,
+    Top,
+    Bottom,
 }
 
 impl CustomCursor {
@@ -118,7 +131,8 @@ impl CustomCursor {
                     custom_size: Some(cursor_size),
                     ..default()
                 },
-                Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
+                Transform::from_translation(Vec3::new(0.0, 0.0, CURSOR_Z)),
+                // Keep cursor on the world layer so CRT/scanline post-processing still affects it.
                 RenderLayers::layer(0),
             ))
             .id();
@@ -130,24 +144,122 @@ impl CustomCursor {
             icons,
             current_mode: CursorMode::Pointer,
             position : None,
+            virtual_screen_position: None,
+            logical_screen_position: None,
+            offscreen_edge: None,
         };
     }
 
     fn update_position(
         window: Single<&Window, With<PrimaryWindow>>,
+        mut mouse_motion_events: MessageReader<MouseMotion>,
         mut custom_cursor: ResMut<CustomCursor>,
         mut cursor_query: Query<&mut Transform>,
         camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
     ) {
         let (camera, camera_transform) = *camera_query;
-    
-        custom_cursor.position = window
-            .cursor_position()
-            .and_then(|cursor_screen_pos| {
-                camera
-                    .viewport_to_world_2d(camera_transform, cursor_screen_pos)
-                    .ok()
+
+        let motion_delta = mouse_motion_events
+            .read()
+            .fold(Vec2::ZERO, |acc, event| acc + event.delta);
+
+        let max_screen_x = (window.resolution.width() - 1.0).max(0.0);
+        let max_screen_y = (window.resolution.height() - 1.0).max(0.0);
+        let clamp_to_window = |position: Vec2| -> Vec2 {
+            Vec2::new(
+                position.x.clamp(0.0, max_screen_x),
+                position.y.clamp(0.0, max_screen_y),
+            )
+        };
+
+        let nearest_edge = |position: Vec2| -> OffscreenEdge {
+            let left = position.x;
+            let right = max_screen_x - position.x;
+            let top = position.y;
+            let bottom = max_screen_y - position.y;
+            let min_distance = left.min(right).min(top).min(bottom);
+
+            if min_distance == left {
+                OffscreenEdge::Left
+            } else if min_distance == right {
+                OffscreenEdge::Right
+            } else if min_distance == top {
+                OffscreenEdge::Top
+            } else {
+                OffscreenEdge::Bottom
+            }
+        };
+
+        let project_to_edge = |position: Vec2, edge: OffscreenEdge| -> Vec2 {
+            match edge {
+                OffscreenEdge::Left => Vec2::new(0.0, position.y.clamp(0.0, max_screen_y)),
+                OffscreenEdge::Right => Vec2::new(max_screen_x, position.y.clamp(0.0, max_screen_y)),
+                OffscreenEdge::Top => Vec2::new(position.x.clamp(0.0, max_screen_x), 0.0),
+                OffscreenEdge::Bottom => Vec2::new(position.x.clamp(0.0, max_screen_x), max_screen_y),
+            }
+        };
+
+        let detect_offscreen_edge = |position: Vec2, previous: Option<OffscreenEdge>| -> OffscreenEdge {
+            let left_overflow = (-position.x).max(0.0);
+            let right_overflow = (position.x - max_screen_x).max(0.0);
+            let top_overflow = (-position.y).max(0.0);
+            let bottom_overflow = (position.y - max_screen_y).max(0.0);
+
+            let mut edge = previous.unwrap_or(OffscreenEdge::Right);
+            let mut max_overflow = -1.0_f32;
+
+            let candidates = [
+                (OffscreenEdge::Left, left_overflow),
+                (OffscreenEdge::Right, right_overflow),
+                (OffscreenEdge::Top, top_overflow),
+                (OffscreenEdge::Bottom, bottom_overflow),
+            ];
+
+            for (candidate_edge, overflow) in candidates {
+                if overflow > max_overflow {
+                    max_overflow = overflow;
+                    edge = candidate_edge;
+                }
+            }
+
+            if max_overflow > 0.0 {
+                edge
+            } else {
+                previous.unwrap_or_else(|| nearest_edge(position))
+            }
+        };
+
+        let next_screen_position = if let Some(real_cursor_screen_pos) = window.cursor_position() {
+            let clamped = clamp_to_window(real_cursor_screen_pos);
+            custom_cursor.virtual_screen_position = Some(clamped);
+            custom_cursor.logical_screen_position = Some(clamped);
+            custom_cursor.offscreen_edge = None;
+            Some(clamped)
+        } else {
+            let next_virtual = custom_cursor
+                .virtual_screen_position
+                .or(custom_cursor.logical_screen_position)
+                .map(|position| position + motion_delta);
+
+            custom_cursor.virtual_screen_position = next_virtual;
+
+            let projected = next_virtual.map(|position| {
+                let edge = detect_offscreen_edge(position, custom_cursor.offscreen_edge);
+                custom_cursor.offscreen_edge = Some(edge);
+                project_to_edge(position, edge)
             });
+
+            custom_cursor.logical_screen_position = projected;
+            projected
+        };
+
+        let previous_world_position = custom_cursor.position;
+        custom_cursor.position = next_screen_position.and_then(|screen_position| {
+            camera
+                .viewport_to_world_2d(camera_transform, screen_position)
+                .ok()
+                .or(previous_world_position)
+        });
     
         if let Some(world_pos) = custom_cursor.position {
             if let Some(cursor_entity) = custom_cursor.entity {

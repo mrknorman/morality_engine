@@ -948,6 +948,28 @@ pub struct DraggableRegion {
     pub offset: Vec2
 }
 
+#[derive(Component, Clone, Copy, Debug)]
+pub struct DraggableViewportBounds {
+    pub min: Vec2,
+    pub max: Vec2,
+}
+
+impl DraggableViewportBounds {
+    pub fn clamp(self, position: Vec2) -> Vec2 {
+        let x = if self.min.x <= self.max.x {
+            position.x.clamp(self.min.x, self.max.x)
+        } else {
+            (self.min.x + self.max.x) * 0.5
+        };
+        let y = if self.min.y <= self.max.y {
+            position.y.clamp(self.min.y, self.max.y)
+        } else {
+            (self.min.y + self.max.y) * 0.5
+        };
+        Vec2::new(x, y)
+    }
+}
+
 #[derive(Component)]
 #[require(Transform)]
 pub struct Draggable {
@@ -972,7 +994,14 @@ impl Draggable {
         cursor: Res<CustomCursor>,
         mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<
-            (Entity, &GlobalTransform, &mut Draggable, &mut Transform, Option<&Aabb>),
+            (
+                Entity,
+                &GlobalTransform,
+                &mut Draggable,
+                &mut Transform,
+                Option<&Aabb>,
+                Option<&DraggableViewportBounds>,
+            ),
             Without<TextSpan>
         >,
     ) {
@@ -981,7 +1010,7 @@ impl Draggable {
 
         let Some(cursor_position) = cursor.position else {
             if !mouse_input.pressed(MouseButton::Left) {
-                for (_, _, mut draggable, _, _) in draggable_q.iter_mut() {
+                for (_, _, mut draggable, _, _, _) in draggable_q.iter_mut() {
                     draggable.dragging = false;
                 }
             }
@@ -992,7 +1021,7 @@ impl Draggable {
         let mut active_drag_target: Option<(Entity, f32)> = None;
         let mut hover_target: Option<(Entity, f32)> = None;
 
-        for (entity, global_transform, draggable, transform, aabb) in draggable_q.iter_mut() {
+        for (entity, global_transform, draggable, transform, aabb, _) in draggable_q.iter_mut() {
             let is_within_bounds = if let Some(region) = &draggable.region {
                 is_cursor_within_region(
                     cursor_position,
@@ -1044,7 +1073,7 @@ impl Draggable {
         }
 
         if !mouse_input.pressed(MouseButton::Left) {
-            for (_, _, mut draggable, _, _) in draggable_q.iter_mut() {
+            for (_, _, mut draggable, _, _, _) in draggable_q.iter_mut() {
                 draggable.dragging = false;
             }
             aggregate.is_dragging = false;
@@ -1052,11 +1081,14 @@ impl Draggable {
         }
 
         if let Some((active_entity, _)) = active_drag_target {
-            for (entity, _, mut draggable, mut transform, _) in draggable_q.iter_mut() {
+            for (entity, _, mut draggable, mut transform, _, bounds) in draggable_q.iter_mut() {
                 if entity == active_entity {
                     let new_position = cursor_position + draggable.offset;
-                    transform.translation.x = new_position.x;
-                    transform.translation.y = new_position.y;
+                    let clamped_position = bounds
+                        .map(|bounds| bounds.clamp(new_position))
+                        .unwrap_or(new_position);
+                    transform.translation.x = clamped_position.x;
+                    transform.translation.y = clamped_position.y;
                     draggable.dragging = true;
                 } else {
                     draggable.dragging = false;
@@ -1068,7 +1100,7 @@ impl Draggable {
 
         if mouse_input.just_pressed(MouseButton::Left) {
             if let Some((target_entity, _)) = hover_target {
-                for (entity, global_transform, mut draggable, _, _) in draggable_q.iter_mut() {
+                for (entity, global_transform, mut draggable, _, _, _) in draggable_q.iter_mut() {
                     if entity == target_entity {
                         draggable.dragging = true;
                         draggable.offset =

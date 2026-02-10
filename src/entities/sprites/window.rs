@@ -1,22 +1,26 @@
-use std::f32::consts::FRAC_PI_4;
+use std::{collections::HashMap, f32::consts::FRAC_PI_4};
 
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
     sprite::Anchor,
+    window::PrimaryWindow,
 };
 use enum_map::{enum_map, Enum};
 
 use crate::{
     entities::sprites::compound::*,
-    startup::cursor::CustomCursor,
+    startup::{cursor::CustomCursor, render::MainCamera},
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
         colors::{
             ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON,
             PRIMARY_COLOR,
         },
-        interaction::{ActionPallet, Clickable, Draggable, DraggableRegion, InputAction},
+        interaction::{
+            ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
+            InputAction,
+        },
     },
 };
 
@@ -47,7 +51,13 @@ impl Plugin for WindowPlugin {
             )
             .add_systems(
                 Update,
-                Window::resolve_constraints.in_set(WindowSystem::Resolve),
+                (
+                    Window::resolve_constraints,
+                    Window::sync_root_drag_bounds,
+                    Window::clamp_to_viewport,
+                )
+                    .chain()
+                    .in_set(WindowSystem::Resolve),
             )
             .add_systems(
                 Update,
@@ -629,6 +639,200 @@ impl Window {
                 inner_size: clamped_inner,
             });
         }
+    }
+
+    fn sync_root_drag_bounds(
+        mut commands: Commands,
+        window: Single<&bevy::window::Window, With<PrimaryWindow>>,
+        camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
+        windows: Query<(Entity, &Window, &GlobalTransform)>,
+        root_globals: Query<&GlobalTransform>,
+        existing_bounds: Query<Entity, With<DraggableViewportBounds>>,
+    ) {
+        let (camera, camera_transform) = *camera_query;
+        let Some((viewport_min, viewport_max)) =
+            Self::viewport_world_bounds(*window, camera, camera_transform)
+        else {
+            return;
+        };
+
+        let mut bounds_by_root: HashMap<Entity, DraggableViewportBounds> = HashMap::new();
+        for (window_entity, window, window_global) in windows.iter() {
+            let root_entity = window.root_entity.unwrap_or(window_entity);
+            let Ok(root_global) = root_globals.get(root_entity) else {
+                continue;
+            };
+
+            let window_center = window_global.translation().truncate();
+            let root_center = root_global.translation().truncate();
+            let window_offset_from_root = window_center - root_center;
+
+            let half_w = window.boundary.dimensions.x * 0.5;
+            let half_h = window.boundary.dimensions.y * 0.5;
+
+            let min_window_center = Vec2::new(
+                viewport_min.x + half_w,
+                viewport_min.y + half_h,
+            );
+            let max_window_center = Vec2::new(
+                viewport_max.x - half_w,
+                viewport_max.y - (half_h + window.header_height),
+            );
+            let bounds = DraggableViewportBounds {
+                min: min_window_center - window_offset_from_root,
+                max: max_window_center - window_offset_from_root,
+            };
+
+            bounds_by_root
+                .entry(root_entity)
+                .and_modify(|aggregate| {
+                    aggregate.min = aggregate.min.max(bounds.min);
+                    aggregate.max = aggregate.max.min(bounds.max);
+                })
+                .or_insert(bounds);
+        }
+
+        for (root_entity, bounds) in bounds_by_root.iter() {
+            commands.entity(*root_entity).insert(*bounds);
+        }
+
+        for entity in existing_bounds.iter() {
+            if !bounds_by_root.contains_key(&entity) {
+                commands.entity(entity).remove::<DraggableViewportBounds>();
+            }
+        }
+    }
+
+    fn clamp_to_viewport(
+        window: Single<&bevy::window::Window, With<PrimaryWindow>>,
+        camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
+        windows: Query<(Entity, &Window, &GlobalTransform)>,
+        mut root_transforms: Query<(&mut Transform, Option<&ChildOf>)>,
+        parent_globals: Query<&GlobalTransform>,
+    ) {
+        let (camera, camera_transform) = *camera_query;
+        let Some((viewport_min, viewport_max)) =
+            Self::viewport_world_bounds(*window, camera, camera_transform)
+        else {
+            return;
+        };
+
+        let mut root_corrections: HashMap<Entity, Vec2> = HashMap::new();
+        for (window_entity, window, window_global) in windows.iter() {
+            let window_center = window_global.translation().truncate();
+            let clamped_center = Self::clamp_window_center_to_bounds(
+                window_center,
+                window,
+                viewport_min,
+                viewport_max,
+            );
+            let correction_world = clamped_center - window_center;
+            if correction_world.length_squared() <= 0.000001 {
+                continue;
+            }
+
+            let root_entity = window.root_entity.unwrap_or(window_entity);
+            root_corrections
+                .entry(root_entity)
+                .and_modify(|aggregate| {
+                    if correction_world.x.abs() > aggregate.x.abs() {
+                        aggregate.x = correction_world.x;
+                    }
+                    if correction_world.y.abs() > aggregate.y.abs() {
+                        aggregate.y = correction_world.y;
+                    }
+                })
+                .or_insert(correction_world);
+        }
+
+        for (root_entity, correction_world) in root_corrections {
+            let Ok((mut root_transform, parent)) = root_transforms.get_mut(root_entity) else {
+                continue;
+            };
+            let correction_local =
+                Self::world_delta_to_parent_local(correction_world, parent, &parent_globals);
+            root_transform.translation.x += correction_local.x;
+            root_transform.translation.y += correction_local.y;
+        }
+    }
+
+    fn viewport_world_bounds(
+        window: &bevy::window::Window,
+        camera: &Camera,
+        camera_transform: &GlobalTransform,
+    ) -> Option<(Vec2, Vec2)> {
+        let size = Vec2::new(window.resolution.width(), window.resolution.height());
+        let corners = [
+            Vec2::new(0.0, 0.0),
+            Vec2::new(size.x, 0.0),
+            Vec2::new(0.0, size.y),
+            Vec2::new(size.x, size.y),
+        ];
+
+        let mut world_points = Vec::with_capacity(corners.len());
+        for corner in corners {
+            let world = camera
+                .viewport_to_world_2d(camera_transform, corner)
+                .ok()?;
+            world_points.push(world);
+        }
+
+        let mut min = world_points[0];
+        let mut max = world_points[0];
+        for point in world_points.into_iter().skip(1) {
+            min.x = min.x.min(point.x);
+            min.y = min.y.min(point.y);
+            max.x = max.x.max(point.x);
+            max.y = max.y.max(point.y);
+        }
+        Some((min, max))
+    }
+
+    fn clamp_window_center_to_bounds(
+        window_center: Vec2,
+        window: &Window,
+        viewport_min: Vec2,
+        viewport_max: Vec2,
+    ) -> Vec2 {
+        let half_w = window.boundary.dimensions.x * 0.5;
+        let half_h = window.boundary.dimensions.y * 0.5;
+
+        let min_center_x = viewport_min.x + half_w;
+        let max_center_x = viewport_max.x - half_w;
+
+        let min_center_y = viewport_min.y + half_h;
+        let max_center_y = viewport_max.y - (half_h + window.header_height);
+
+        let clamped_x = if min_center_x <= max_center_x {
+            window_center.x.clamp(min_center_x, max_center_x)
+        } else {
+            (min_center_x + max_center_x) * 0.5
+        };
+        let clamped_y = if min_center_y <= max_center_y {
+            window_center.y.clamp(min_center_y, max_center_y)
+        } else {
+            (min_center_y + max_center_y) * 0.5
+        };
+
+        Vec2::new(clamped_x, clamped_y)
+    }
+
+    fn world_delta_to_parent_local(
+        world_delta: Vec2,
+        parent: Option<&ChildOf>,
+        parent_globals: &Query<&GlobalTransform>,
+    ) -> Vec2 {
+        if let Some(parent) = parent {
+            if let Ok(parent_global) = parent_globals.get(parent.parent()) {
+                let local_delta = parent_global
+                    .to_matrix()
+                    .inverse()
+                    .transform_vector3(world_delta.extend(0.0))
+                    .truncate();
+                return local_delta;
+            }
+        }
+        world_delta
     }
 
     fn clamp_inner_size(size: Vec2, min_inner: Vec2, max_inner: Option<Vec2>) -> Vec2 {
