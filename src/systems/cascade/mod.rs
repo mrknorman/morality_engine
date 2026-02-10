@@ -14,7 +14,6 @@ use smallvec::SmallVec;
 use crate::{
     data::rng::GlobalRng, 
     startup::cursor::CustomCursor,
-    systems::physics::Velocity
 };
 
 use super::{
@@ -42,7 +41,8 @@ impl Plugin for CascadePlugin {
                 Ripple::update_effect,
                 Ripple::update,
             ))
-            .insert_resource(ResizeDebounce::default());
+            // Avoid resetting the debounce timer if ResizePlugin already initialized it.
+            .init_resource::<ResizeDebounce>();
     }
 }
 
@@ -51,6 +51,13 @@ pub struct Ripple {
     pub origin: Vec2,
     pub color : Color,
     pub stopwatch : Stopwatch
+}
+
+#[derive(Clone, Copy)]
+struct RippleSample {
+    origin: Vec2,
+    color: Vec4,
+    elapsed: f32,
 }
 
 impl Ripple {
@@ -119,31 +126,37 @@ impl Ripple {
         ripples: Query<(&ChildOf, &Ripple), Changed<Ripple>>,
         mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform,
                         &mut TextColor, &ColorAnchor, &mut CascadeNumber)>,
+        mut by_parent: Local<HashMap<Entity, SmallVec<[RippleSample; 4]>>>,
     ) {
-        // -------- ① pre-group ripple refs ----------
-        let mut by_parent: HashMap<Entity, SmallVec<[&Ripple; 4]>> = HashMap::default();
+        // -------- ① pre-group ripple snapshots ----------
+        by_parent.clear();
         for (parent, ripple) in ripples.iter() {
             by_parent.entry(parent.parent())
                     .or_default()
-                    .push(ripple);
+                    .push(RippleSample {
+                        origin: ripple.origin,
+                        color: ripple.color.to_vec4(),
+                        elapsed: ripple.stopwatch.elapsed_secs(),
+                    });
         }
 
         // -------- ② use tiny per-parent slice ------
         for (num_parent, gtr, mut tr, mut col, anchor, mut num) in numbers.iter_mut() {
             if let Some(ripples) = by_parent.get(&num_parent.parent()) {
                 let mut effect = 0.0;
-                let mut blended = anchor.0.to_vec4();
+                let anchor_color = anchor.0.to_vec4();
+                let mut blended = anchor_color;
                 let pos = gtr.translation().truncate();
 
                 for r in ripples {
-                    let t = r.stopwatch.elapsed_secs();
+                    let t = r.elapsed;
                     let delta = (pos.distance(r.origin) - Ripple::RIPPLE_SPEED * t).abs()
                                 / Ripple::RIPPLE_WIDTH;
                     let e = (1.0 - t / Ripple::RIPPLE_DURATION)
                             * 0.5 * (1.0 + (delta * 0.5 * std::f32::consts::TAU).cos())
                             * (-delta).exp();
                     effect += e;
-                    blended += (r.color.to_vec4() - anchor.0.to_vec4()) * e;
+                    blended += (r.color - anchor_color) * e;
                 }
 
                 if effect > 0.01 {
@@ -194,6 +207,7 @@ pub struct CascadeNumber {
     state : bool,
     screen_height: f32,
     timer: Timer,
+    visibility_bias: f64,
     noise_pos: [f64; 3],
     rippling : bool
 }
@@ -202,39 +216,59 @@ impl Cascade {
     fn update_visibility(
         time: Res<Time>,
         dilation : Res<Dilation>,
-        mut cascade_params: Query<&mut Cascade>,
-        mut numbers: Query<(&CascadeNumber, &mut Visibility)>,
+        mut cascade_params: Query<(Entity, &mut Cascade)>,
+        mut numbers: Query<(&ChildOf, &CascadeNumber, &mut Visibility)>,
         global_rng: Res<GlobalRng>,
-    ) {     
+        mut phase_by_parent: Local<HashMap<Entity, f64>>,
+    ) {
+        let dt = Duration::from_secs_f32(time.delta_secs() * dilation.0);
+        let perlin = global_rng.perlin;
 
-        for mut cascade in cascade_params.iter_mut() {
-            // Update the global timer
-            cascade.stopwatch.tick(Duration::from_secs_f32(time.delta_secs() * dilation.0));
-            
-            let perlin = global_rng.perlin;
-            
-            numbers.par_iter_mut().for_each(|(number, mut visibility)| {
-                 // Create a time-varying noise coordinate
-                 let time_noise_pos = [
-                    number.noise_pos[0],
-                    number.noise_pos[1],
-                    (cascade.stopwatch.elapsed_secs_f64() * 0.1 * cascade.visibility_speed) as f64,
-                ];
-                
-                let noise_value = perlin.get(time_noise_pos) + (number.timer.duration().as_secs_f64() / 10.0); 
-                let should_be_visible = noise_value > 0.5;
-    
-                if should_be_visible {
-                    *visibility = Visibility::Visible;
-                } else {
-                    *visibility = Visibility::Hidden;
-                }
-            });
+        phase_by_parent.clear();
+        phase_by_parent.reserve(cascade_params.iter().len());
+        for (entity, mut cascade) in &mut cascade_params {
+            cascade.stopwatch.tick(dt);
+            phase_by_parent.insert(
+                entity,
+                cascade.stopwatch.elapsed_secs_f64() * 0.1 * cascade.visibility_speed,
+            );
         }
+
+        numbers.par_iter_mut().for_each(|(parent, number, mut visibility)| {
+            let Some(phase) = phase_by_parent.get(&parent.parent()) else {
+                return;
+            };
+
+            let noise_value = perlin.get([number.noise_pos[0], number.noise_pos[1], *phase])
+                + number.visibility_bias;
+            *visibility = if noise_value > 0.5 {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+        });
     }
 
-    fn wrap(mut numbers: Query<(&CascadeNumber, &mut Transform)>) {
-        numbers.par_iter_mut().for_each(|(number, mut transform)| {
+    fn wrap(
+        time: Res<Time>,
+        dilation: Res<Dilation>,
+        cascades: Query<(Entity, &Cascade)>,
+        mut numbers: Query<(&ChildOf, &CascadeNumber, &mut Transform)>,
+        mut speed_by_parent: Local<HashMap<Entity, f32>>,
+    ) {
+        let dt = time.delta_secs() * dilation.0;
+        speed_by_parent.clear();
+        speed_by_parent.reserve(cascades.iter().len());
+        for (entity, cascade) in &cascades {
+            speed_by_parent.insert(entity, cascade.speed);
+        }
+
+        numbers.par_iter_mut().for_each(|(parent, number, mut transform)| {
+            let Some(speed) = speed_by_parent.get(&parent.parent()) else {
+                return;
+            };
+
+            transform.translation.y -= *speed * dt;
             if transform.translation.y < -number.screen_height {
                 transform.translation.y = number.screen_height;
             }
@@ -266,9 +300,12 @@ impl Cascade {
         numbers.iter_mut().for_each(|(mut number, mut text, mut color, anchor)| {
             number.timer.tick(dt);        
             if number.timer.just_finished() {
-                number.timer.set_duration(Duration::from_secs_f32(rng.uniform.random_range(0.0..10.0)));
+                let next_secs = rng.uniform.random_range(0.0..10.0);
+                number.timer.set_duration(Duration::from_secs_f32(next_secs));
+                number.visibility_bias = next_secs as f64 / 10.0;
                 number.state = !number.state;                
-                text.0 = if number.state {"1".to_string()} else { "0".to_string()};
+                text.0.clear();
+                text.0.push(if number.state { '1' } else { '0' });
 
                 if !number.rippling{
                     if rng.uniform.random_range(0.0..1.0) > 0.9 {
@@ -295,6 +332,8 @@ impl Cascade {
         let max_scale_factor = 2.0; // Maximum size multiplier (2x)
         let influence_radius = 150.0; // Distance in world units where scaling begins
         let min_distance = 10.0; // Distance below which maximum scaling is applied
+        let influence_radius_sq = influence_radius * influence_radius;
+        let min_distance_sq = min_distance * min_distance;
         
         numbers.par_iter_mut().for_each(|(global_transform,  mut transform, number)| {
             if !number.rippling {
@@ -302,13 +341,14 @@ impl Cascade {
                 let number_position = global_transform.translation().truncate();
                 
                 // Calculate distance between cursor and number
-                let distance = number_position.distance(cursor_position);
+                let distance_sq = number_position.distance_squared(cursor_position);
                 
                 // Only apply scaling if within influence radius
-                if distance < influence_radius {
-                    let scale_factor = if distance <= min_distance {
+                if distance_sq < influence_radius_sq {
+                    let scale_factor = if distance_sq <= min_distance_sq {
                         max_scale_factor
                     } else {
+                        let distance = distance_sq.sqrt();
                         let t = (influence_radius - distance) / (influence_radius - min_distance);
                         1.0 + (max_scale_factor - 1.0) * t
                     };
@@ -422,10 +462,10 @@ impl Cascade {
                         state : digit,
                         screen_height,
                         timer: Timer::from_seconds(random_height, TimerMode::Repeating),
+                        visibility_bias: random_height as f64 / 10.0,
                         noise_pos,
                         rippling : false
                     },
-                    Velocity(Vec3::ZERO.with_y(-cascade.speed)),
                     Anchor::CENTER,
                     Text2d::new(text.to_string()),
                     text_font.clone(),
