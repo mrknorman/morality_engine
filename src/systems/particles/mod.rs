@@ -373,13 +373,11 @@ impl FireworkLauncher {
         let digits_e = world.commands().spawn((
             Name::new("digit_trails"),
             ParticleEffect::new(trails_h),
-            EffectParent::new(rocket_expl_e), // maps to child_index 0
+            EffectParent::new(rocket_expl_e), // particle attribute inheritance from rocket A
             EffectMaterial { images: vec![digits_img], ..Default::default() },
             Transform::default(),
             GlobalTransform::default(),
         )).id();
-
-        world.commands().entity(rocket_expl_e).add_child(digits_e);
 
         // Rocket B: trail-only (Always), child_index 0 -> sparkle
         let rocket_trail_e = world.commands().spawn((
@@ -394,15 +392,15 @@ impl FireworkLauncher {
         let sparkle_e = world.commands().spawn((
             Name::new("sparkle_trail"),
             ParticleEffect::new(sparkle_h),
-            EffectParent::new(rocket_trail_e), // maps to child_index 0
+            EffectParent::new(rocket_trail_e), // particle attribute inheritance from rocket B
             Transform::default(),
             GlobalTransform::default(),
         )).id();
 
-        world.commands().entity(rocket_trail_e).add_child(sparkle_e);
-
-        // Parent both rockets under the rig root
-        world.commands().entity(rig_root).add_children(&[rocket_expl_e, rocket_trail_e]);
+        // Parent everything under the rig root so all children inherit its
+        // world-space position. Child effects use EffectParent for particle
+        // attribute inheritance but get their GlobalTransform from rig_root.
+        world.commands().entity(rig_root).add_children(&[rocket_expl_e, rocket_trail_e, digits_e, sparkle_e]);
 
         // Store refs on the launcher
         world.commands().entity(entity).insert((
