@@ -98,9 +98,12 @@ enum ResizeCorner {
 struct ActiveWindowResizeState {
     window_entity: Entity,
     corner: ResizeCorner,
-    fixed_x: f32,
-    fixed_top_y: f32,
+    fixed_x_world: f32,
+    fixed_top_y_world: f32,
 }
+
+#[derive(Component)]
+pub struct WindowResizeInProgress;
 
 #[derive(Clone, Copy)]
 enum WindowInteraction {
@@ -406,6 +409,7 @@ impl Window {
     }
 
     fn enact_resize(
+        mut commands: Commands,
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         mut active_interaction: ResMut<ActiveWindowInteraction>,
@@ -415,7 +419,6 @@ impl Window {
             Query<(
                 Entity,
                 &Window,
-                &Transform,
                 &GlobalTransform,
                 Option<&ChildOf>,
             )>,
@@ -423,25 +426,35 @@ impl Window {
                 Entity,
                 &mut Window,
                 &mut Transform,
+                &GlobalTransform,
                 Option<&ChildOf>,
                 Option<&WindowContentMetrics>,
                 Option<&WindowOverflowPolicy>,
             )>,
+            Query<(&mut Transform, Option<&ChildOf>)>,
         )>,
     ) {
         let Some(cursor_position) = cursor.position else {
-            active_interaction.state = None;
+            if let Some(WindowInteraction::Resizing(state)) = active_interaction.state.take() {
+                commands
+                    .entity(state.window_entity)
+                    .remove::<WindowResizeInProgress>();
+            }
             return;
         };
 
         if !mouse_input.pressed(MouseButton::Left) {
-            active_interaction.state = None;
+            if let Some(WindowInteraction::Resizing(state)) = active_interaction.state.take() {
+                commands
+                    .entity(state.window_entity)
+                    .remove::<WindowResizeInProgress>();
+            }
         }
 
         if mouse_input.just_pressed(MouseButton::Left) {
             let mut top_window_z: Option<f32> = None;
             {
-                for (_, window, _, global_transform, _) in windows.p0().iter() {
+                for (_, window, global_transform, _) in windows.p0().iter() {
                     if !Self::is_cursor_over_window_surface(
                         cursor_position,
                         window,
@@ -458,7 +471,7 @@ impl Window {
 
             let mut candidate: Option<(Entity, ResizeCorner, f32, f32, f32)> = None;
             {
-                for (entity, window, transform, global_transform, _) in windows.p0().iter() {
+                for (entity, window, global_transform, _) in windows.p0().iter() {
                     let z = global_transform.translation().z;
                     if let Some(blocking_z) = top_window_z {
                         if z + 0.001 < blocking_z {
@@ -500,11 +513,12 @@ impl Window {
                     };
 
                     if replace {
+                        let center_world = global_transform.translation().truncate();
                         let fixed_x = match corner {
-                            ResizeCorner::BottomLeft => transform.translation.x + half_w,
-                            ResizeCorner::BottomRight => transform.translation.x - half_w,
+                            ResizeCorner::BottomLeft => center_world.x + half_w,
+                            ResizeCorner::BottomRight => center_world.x - half_w,
                         };
-                        let fixed_top_y = transform.translation.y + half_h + window.header_height;
+                        let fixed_top_y = center_world.y + half_h + window.header_height;
 
                         candidate = Some((entity, corner, fixed_x, fixed_top_y, z));
                     }
@@ -512,12 +526,13 @@ impl Window {
             }
 
             if let Some((entity, corner, fixed_x, fixed_top_y, _)) = candidate {
+                commands.entity(entity).insert(WindowResizeInProgress);
                 active_interaction.state =
                     Some(WindowInteraction::Resizing(ActiveWindowResizeState {
                         window_entity: entity,
                         corner,
-                        fixed_x,
-                        fixed_top_y,
+                        fixed_x_world: fixed_x,
+                        fixed_top_y_world: fixed_top_y,
                     }));
             }
         }
@@ -530,54 +545,90 @@ impl Window {
             return;
         }
 
-        let mut writable_windows = windows.p1();
-        let Ok((_, mut window, mut window_transform, parent, metrics, overflow_policy)) =
-            writable_windows.get_mut(state.window_entity)
-        else {
-            active_interaction.state = None;
-            return;
-        };
+        let mut root_correction: Option<(Entity, Vec2)> = None;
+        let mut drag_region_update: Option<(Entity, Vec2, f32, f32)> = None;
 
-        let cursor_local_parent =
-            Self::cursor_to_parent_local(cursor_position, parent, &parent_globals);
+        {
+            let mut writable_windows = windows.p1();
+            let Ok((_, mut window, mut window_transform, window_global, parent, metrics, overflow_policy)) =
+                writable_windows.get_mut(state.window_entity)
+            else {
+                commands
+                    .entity(state.window_entity)
+                    .remove::<WindowResizeInProgress>();
+                active_interaction.state = None;
+                return;
+            };
 
-        let min_inner = Self::min_inner_constraints(&window, metrics, overflow_policy);
-        let max_inner = Self::max_inner_constraints(metrics, overflow_policy);
+            let min_inner = Self::min_inner_constraints(&window, metrics, overflow_policy);
+            let max_inner = Self::max_inner_constraints(metrics, overflow_policy);
 
-        let unclamped_width = match state.corner {
-            ResizeCorner::BottomLeft => state.fixed_x - cursor_local_parent.x,
-            ResizeCorner::BottomRight => cursor_local_parent.x - state.fixed_x,
-        };
-        let unclamped_height = state.fixed_top_y - window.header_height - cursor_local_parent.y;
-        let clamped_inner = Self::clamp_inner_size(
-            Vec2::new(unclamped_width, unclamped_height),
-            min_inner,
-            max_inner,
-        );
-        let new_width = clamped_inner.x;
-        let new_height = clamped_inner.y;
+            let unclamped_width = match state.corner {
+                ResizeCorner::BottomLeft => state.fixed_x_world - cursor_position.x,
+                ResizeCorner::BottomRight => cursor_position.x - state.fixed_x_world,
+            };
+            let unclamped_height = state.fixed_top_y_world - window.header_height - cursor_position.y;
+            let clamped_inner = Self::clamp_inner_size(
+                Vec2::new(unclamped_width, unclamped_height),
+                min_inner,
+                max_inner,
+            );
+            let new_width = clamped_inner.x;
+            let new_height = clamped_inner.y;
 
-        window.boundary.dimensions = Vec2::new(new_width, new_height);
+            window.boundary.dimensions = Vec2::new(new_width, new_height);
 
-        window_transform.translation.x = match state.corner {
-            ResizeCorner::BottomLeft => state.fixed_x - new_width * 0.5,
-            ResizeCorner::BottomRight => state.fixed_x + new_width * 0.5,
-        };
-        window_transform.translation.y =
-            state.fixed_top_y - window.header_height - new_height * 0.5;
+            let desired_center_world = Vec2::new(
+                match state.corner {
+                    ResizeCorner::BottomLeft => state.fixed_x_world - new_width * 0.5,
+                    ResizeCorner::BottomRight => state.fixed_x_world + new_width * 0.5,
+                },
+                state.fixed_top_y_world - window.header_height - new_height * 0.5,
+            );
 
-        if let Some(root_entity) = window.root_entity {
+            let desired_center_local =
+                Self::cursor_to_parent_local(desired_center_world, parent, &parent_globals);
+
+            let root_entity = window.root_entity.unwrap_or(state.window_entity);
+            if root_entity == state.window_entity {
+                window_transform.translation.x = desired_center_local.x;
+                window_transform.translation.y = desired_center_local.y;
+            } else {
+                let correction_world = desired_center_world - window_global.translation().truncate();
+                if correction_world.length_squared() > 0.000001 {
+                    root_correction = Some((root_entity, correction_world));
+                }
+            }
+
+            if let Some(root_entity) = window.root_entity {
+                let edge_center_local = Vec2::new(
+                    window_transform.translation.x,
+                    window_transform.translation.y + (new_height + window.header_height) * 0.5,
+                );
+                drag_region_update = Some((
+                    root_entity,
+                    edge_center_local,
+                    new_width,
+                    window.header_height,
+                ));
+            }
+        }
+
+        if let Some((root_entity, correction_world)) = root_correction {
+            if let Ok((mut root_transform, root_parent)) = windows.p2().get_mut(root_entity) {
+                let correction_local =
+                    Self::world_delta_to_parent_local(correction_world, root_parent, &parent_globals);
+                root_transform.translation.x += correction_local.x;
+                root_transform.translation.y += correction_local.y;
+            }
+        }
+
+        if let Some((root_entity, edge_center_local, new_width, header_height)) = drag_region_update {
             if let Ok(mut draggable) = draggables.get_mut(root_entity) {
                 let edge_padding = 10.0;
                 draggable.region = Some(DraggableRegion {
-                    region: Vec2::new(
-                        new_width + edge_padding,
-                        window.header_height + edge_padding,
-                    ),
-                    offset: Vec2::new(
-                        window_transform.translation.x,
-                        window_transform.translation.y + (new_height + window.header_height) * 0.5,
-                    ),
+                    region: Vec2::new(new_width + edge_padding, header_height + edge_padding),
+                    offset: edge_center_local,
                 });
             }
         }

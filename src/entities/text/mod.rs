@@ -34,6 +34,7 @@ use crate::{
             WindowContentHost,
             WindowContentMetrics,
             WindowOverflowPolicy,
+            WindowResizeInProgress,
             WindowSystem,
             Window, 
             WindowTitle
@@ -514,7 +515,7 @@ impl TextWindow {
             &WindowContentHost,
             &mut TextBounds,
         )>,
-        windows: Query<&Window>,
+        windows: Query<(&Window, Option<&WindowResizeInProgress>)>,
         changed_windows: Query<(), Changed<Window>>,
         mut window_transforms: Query<&mut Transform, With<Window>>,
     ) {
@@ -524,7 +525,7 @@ impl TextWindow {
             if changed_windows.get(window_host.window_entity).is_err() {
                 continue;
             }
-            let Ok(window) = windows.get(window_host.window_entity) else {
+            let Ok((window, resize_in_progress)) = windows.get(window_host.window_entity) else {
                 continue;
             };
 
@@ -552,19 +553,27 @@ impl TextWindow {
             let anchor_offset = get_anchor_offset(&anchor, content_size).extend(0.1);
 
             if let Ok(mut window_transform) = window_transforms.get_mut(window_host.window_entity) {
-                window_transform.translation.x = -anchor_offset.x;
-                window_transform.translation.y = -anchor_offset.y;
+                if resize_in_progress.is_none() {
+                    window_transform.translation.x = -anchor_offset.x;
+                    window_transform.translation.y = -anchor_offset.y;
+                } else {
+                    // Keep horizontal anchoring stable for text while preserving
+                    // manual vertical placement from active corner-resize.
+                    window_transform.translation.x = -anchor_offset.x;
+                }
             }
 
             if let Some(mut draggable) = draggable {
-                let edge_padding = 10.0;
-                draggable.region = Some(DraggableRegion{
-                    region : Vec2::new(inner_size.x + edge_padding, window.header_height + edge_padding),
-                    offset : Vec2::new(
-                        -anchor_offset.x,
-                        (inner_size.y + window.header_height) * 0.5 - anchor_offset.y
-                    )
-                });
+                if resize_in_progress.is_none() {
+                    let edge_padding = 10.0;
+                    draggable.region = Some(DraggableRegion{
+                        region : Vec2::new(inner_size.x + edge_padding, window.header_height + edge_padding),
+                        offset : Vec2::new(
+                            -anchor_offset.x,
+                            (inner_size.y + window.header_height) * 0.5 - anchor_offset.y
+                        )
+                    });
+                }
             }
         }
     }
