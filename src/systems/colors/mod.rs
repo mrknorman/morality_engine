@@ -21,6 +21,7 @@ use crate::{
 
 pub const PRIMARY_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
 pub const MENU_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0));
+pub const SYSTEM_MENU_COLOR: Color = Color::Srgba(Srgba::new(0.10, 2.60, 0.25, 1.0));
 pub const _COOL_GREEN : Color = Color::Srgba(Srgba::new(2.0, 5.0, 2.0, 1.0));
 pub const HIGHLIGHT_COLOR : Color = Color::Srgba(Srgba::new(3.0, 3.0, 3.0, 1.0)); 
 pub const HOVERED_BUTTON: Color = Color::srgb(0.0, 6.0, 6.0);

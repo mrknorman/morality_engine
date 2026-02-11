@@ -25,7 +25,7 @@ use crate::{
             TransientAudio,
             TransientAudioPallet,
         },
-        colors::ColorAnchor,
+        colors::{CLICKED_BUTTON, ColorAnchor, HOVERED_BUTTON},
         motion::Bounce,
         time::Dilation
     }, 
@@ -362,6 +362,56 @@ impl SelectableColors {
     pub fn new(idle_color: Color, selected_color: Color) -> Self {
         Self {
             idle_color,
+            selected_color,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub struct InteractionVisualState {
+    pub hovered: bool,
+    pub pressed: bool,
+    pub selected: bool,
+    pub keyboard_locked: bool,
+}
+
+impl InteractionVisualState {
+    pub fn clear_frame_state(&mut self) {
+        self.hovered = false;
+        self.pressed = false;
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct InteractionVisualPalette {
+    pub idle_color: Color,
+    pub hovered_color: Color,
+    pub pressed_color: Color,
+    pub selected_color: Color,
+}
+
+impl Default for InteractionVisualPalette {
+    fn default() -> Self {
+        Self {
+            idle_color: Color::WHITE,
+            hovered_color: HOVERED_BUTTON,
+            pressed_color: CLICKED_BUTTON,
+            selected_color: HOVERED_BUTTON,
+        }
+    }
+}
+
+impl InteractionVisualPalette {
+    pub fn new(
+        idle_color: Color,
+        hovered_color: Color,
+        pressed_color: Color,
+        selected_color: Color,
+    ) -> Self {
+        Self {
+            idle_color,
+            hovered_color,
+            pressed_color,
             selected_color,
         }
     }
@@ -704,8 +754,10 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
 
 pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
     mut menus: Query<&mut SelectableMenu>,
+    mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
         Query<
             (
@@ -722,6 +774,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             &Selectable,
             Option<&SelectableColors>,
             Option<&mut ColorAnchor>,
+            Option<&mut TextColor>,
             &mut Clickable<K>,
         )>,
     )>,
@@ -738,6 +791,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     struct SelectionState {
         selected_index: usize,
         activate_pressed: bool,
+        force_selected_click: bool,
     }
 
     fn move_selection(indices: &[usize], current_index: usize, forward: bool, wrap: bool) -> usize {
@@ -816,32 +870,47 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             menu.selected_index = indices[0];
         }
 
-        if let Some(top_hovered) = candidates
-            .iter()
-            .filter(|candidate| candidate.hovered)
-            .max_by(|a, b| {
-                a.z.partial_cmp(&b.z)
-                    .unwrap_or(Ordering::Equal)
-                    .then_with(|| a.entity.index().cmp(&b.entity.index()))
-            })
-        {
-            menu.selected_index = top_hovered.index;
-        } else {
-            let up_pressed = menu
-                .up_keys
-                .iter()
-                .any(|&key| keyboard_input.just_pressed(key));
-            let down_pressed = menu
-                .down_keys
-                .iter()
-                .any(|&key| keyboard_input.just_pressed(key));
+        let pointer_state = menu_pointer_state
+            .entry(*menu_entity)
+            .or_insert((false, None));
+        let mouse_moved = match (pointer_state.1, cursor.position) {
+            (Some(prev), Some(current)) => prev.distance_squared(current) > f32::EPSILON,
+            (None, Some(_)) | (Some(_), None) => true,
+            (None, None) => false,
+        };
+        if mouse_moved {
+            pointer_state.0 = false;
+        }
+        pointer_state.1 = cursor.position;
 
-            if up_pressed && !down_pressed {
-                menu.selected_index =
-                    move_selection(&indices, menu.selected_index, false, menu.wrap);
-            } else if down_pressed && !up_pressed {
-                menu.selected_index =
-                    move_selection(&indices, menu.selected_index, true, menu.wrap);
+        let up_pressed = menu
+            .up_keys
+            .iter()
+            .any(|&key| keyboard_input.just_pressed(key));
+        let down_pressed = menu
+            .down_keys
+            .iter()
+            .any(|&key| keyboard_input.just_pressed(key));
+
+        if up_pressed && !down_pressed {
+            menu.selected_index =
+                move_selection(&indices, menu.selected_index, false, menu.wrap);
+            pointer_state.0 = true;
+        } else if down_pressed && !up_pressed {
+            menu.selected_index =
+                move_selection(&indices, menu.selected_index, true, menu.wrap);
+            pointer_state.0 = true;
+        } else if !pointer_state.0 {
+            if let Some(top_hovered) = candidates
+                .iter()
+                .filter(|candidate| candidate.hovered)
+                .max_by(|a, b| {
+                    a.z.partial_cmp(&b.z)
+                        .unwrap_or(Ordering::Equal)
+                        .then_with(|| a.entity.index().cmp(&b.entity.index()))
+                })
+            {
+                menu.selected_index = top_hovered.index;
             }
         }
 
@@ -849,17 +918,20 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             .activate_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
+        let force_selected_click = pointer_state.0 && mouse_input.just_pressed(MouseButton::Left);
 
         selection_state_by_menu.insert(
             *menu_entity,
             SelectionState {
                 selected_index: menu.selected_index,
                 activate_pressed,
+                force_selected_click,
             },
         );
     }
+    menu_pointer_state.retain(|entity, _| candidates_by_menu.contains_key(entity));
 
-    for (selectable, selectable_colors, color_anchor, mut clickable) in
+    for (selectable, selectable_colors, color_anchor, text_color, mut clickable) in
         selectable_queries.p1().iter_mut()
     {
         let Some(selection_state) = selection_state_by_menu.get(&selectable.menu_entity) else {
@@ -870,13 +942,22 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         if is_selected && selection_state.activate_pressed {
             clickable.triggered = true;
         }
+        if selection_state.force_selected_click {
+            clickable.triggered = is_selected;
+        }
 
-        if let (Some(colors), Some(mut color_anchor)) = (selectable_colors, color_anchor) {
-            color_anchor.0 = if is_selected {
+        if let Some(colors) = selectable_colors {
+            let target_color = if is_selected {
                 colors.selected_color
             } else {
                 colors.idle_color
             };
+            if let Some(mut color_anchor) = color_anchor {
+                color_anchor.0 = target_color;
+            }
+            if let Some(mut text_color) = text_color {
+                text_color.0 = target_color;
+            }
         }
     }
 }

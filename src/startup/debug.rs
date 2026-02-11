@@ -9,15 +9,15 @@ use enum_map::enum_map;
 use crate::{
     data::states::{MainState, StateVector},
     entities::{
-        sprites::window::WindowTitle,
-        text::{TextPlugin, TextRaw, TextWindow},
+        sprites::{compound::HollowRectangle, window::WindowTitle},
+        text::{TextButton, TextPlugin, TextRaw, TextWindow},
     },
     startup::{cursor::CustomCursor, render::{MainCamera, OffscreenCamera}},
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
-        colors::{HOVERED_BUTTON, MENU_COLOR},
+        colors::{ColorAnchor, HOVERED_BUTTON, SYSTEM_MENU_COLOR},
         interaction::{
-            ActionPallet, Draggable, InputAction, OverlayMenuActions, OverlayMenuSounds,
+            ActionPallet, Clickable, Draggable, InputAction, OverlayMenuActions, OverlayMenuSounds,
             Selectable, SelectableColors, SelectableMenu,
         },
         particles::FireworkLauncher,
@@ -36,6 +36,10 @@ const DEBUG_MENU_TITLE: &str = "DEBUG OVERLAY MENU";
 const DEBUG_MENU_HINT: &str = "[ArrowUp/ArrowDown + Enter]\n[Click also works]";
 const DEBUG_MENU_RESUME_TEXT: &str = "[Close Debug Menu]";
 const DEBUG_MENU_MAIN_MENU_TEXT: &str = "[Return To Main Menu]";
+const DEBUG_MENU_PANEL_WIDTH: f32 = 760.0;
+const DEBUG_MENU_PANEL_HEIGHT: f32 = 460.0;
+const DEBUG_MENU_BORDER_MARGIN: f32 = 18.0;
+const DEBUG_MENU_BORDER_THICKNESS: f32 = 2.0;
 
 pub struct DebugPlugin;
 
@@ -272,14 +276,31 @@ fn spawn_debug_menu_overlay(
                 true,
             ),
             Transform::from_xyz(camera_translation.x, camera_translation.y, DEBUG_MENU_Z),
+            Visibility::Visible,
         ))
         .id();
 
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((
             Name::new("debug_menu_panel"),
-            Sprite::from_color(Color::srgba(0.0, 0.0, 0.0, 0.9), Vec2::new(760.0, 460.0)),
+            Sprite::from_color(
+                Color::BLACK,
+                Vec2::new(DEBUG_MENU_PANEL_WIDTH, DEBUG_MENU_PANEL_HEIGHT),
+            ),
             Transform::from_xyz(0.0, 0.0, 0.0),
+        ));
+        parent.spawn((
+            Name::new("debug_menu_panel_border"),
+            HollowRectangle {
+                dimensions: Vec2::new(
+                    DEBUG_MENU_PANEL_WIDTH - 2.0 * DEBUG_MENU_BORDER_MARGIN,
+                    DEBUG_MENU_PANEL_HEIGHT - 2.0 * DEBUG_MENU_BORDER_MARGIN,
+                ),
+                thickness: DEBUG_MENU_BORDER_THICKNESS,
+                color: SYSTEM_MENU_COLOR,
+                ..default()
+            },
+            Transform::from_xyz(0.0, 0.0, 0.5),
         ));
 
         parent.spawn((
@@ -290,7 +311,7 @@ fn spawn_debug_menu_overlay(
                 font_size: 24.0,
                 ..default()
             },
-            TextColor(MENU_COLOR),
+            TextColor(SYSTEM_MENU_COLOR),
             Anchor::CENTER,
             Transform::from_xyz(0.0, 150.0, 1.0),
         ));
@@ -303,22 +324,25 @@ fn spawn_debug_menu_overlay(
                 font_size: 14.0,
                 ..default()
             },
-            TextColor(MENU_COLOR),
+            TextColor(SYSTEM_MENU_COLOR),
             Anchor::CENTER,
             Transform::from_xyz(0.0, 110.0, 1.0),
         ));
 
         parent.spawn((
             Name::new("debug_menu_close_option"),
-            TextColor(MENU_COLOR),
+            TextButton,
+            Text2d::new(DEBUG_MENU_RESUME_TEXT),
+            TextLayout {
+                justify: Justify::Center,
+                ..default()
+            },
+            TextColor(SYSTEM_MENU_COLOR),
+            ColorAnchor(SYSTEM_MENU_COLOR),
+            Clickable::new(vec![OverlayMenuActions::CloseOverlay]),
             Transform::from_xyz(0.0, 25.0, 1.0),
             Selectable::new(menu_entity, 0),
-            SelectableColors::new(MENU_COLOR, HOVERED_BUTTON),
-            crate::entities::text::TextButton::new(
-                vec![OverlayMenuActions::CloseOverlay],
-                vec![],
-                DEBUG_MENU_RESUME_TEXT,
-            ),
+            SelectableColors::new(SYSTEM_MENU_COLOR, HOVERED_BUTTON),
             ActionPallet::<OverlayMenuActions, OverlayMenuSounds>(enum_map!(
                 OverlayMenuActions::CloseOverlay => vec![
                     InputAction::PlaySound(OverlayMenuSounds::Click),
@@ -331,15 +355,18 @@ fn spawn_debug_menu_overlay(
 
         parent.spawn((
             Name::new("debug_menu_main_menu_option"),
-            TextColor(MENU_COLOR),
+            TextButton,
+            Text2d::new(DEBUG_MENU_MAIN_MENU_TEXT),
+            TextLayout {
+                justify: Justify::Center,
+                ..default()
+            },
+            TextColor(SYSTEM_MENU_COLOR),
+            ColorAnchor(SYSTEM_MENU_COLOR),
+            Clickable::new(vec![OverlayMenuActions::ReturnToMenu]),
             Transform::from_xyz(0.0, -25.0, 1.0),
             Selectable::new(menu_entity, 1),
-            SelectableColors::new(MENU_COLOR, HOVERED_BUTTON),
-            crate::entities::text::TextButton::new(
-                vec![OverlayMenuActions::ReturnToMenu],
-                vec![],
-                DEBUG_MENU_MAIN_MENU_TEXT,
-            ),
+            SelectableColors::new(SYSTEM_MENU_COLOR, HOVERED_BUTTON),
             ActionPallet::<OverlayMenuActions, OverlayMenuSounds>(enum_map!(
                 OverlayMenuActions::CloseOverlay => vec![],
                 OverlayMenuActions::ReturnToMenu => vec![
