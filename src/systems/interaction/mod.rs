@@ -5,7 +5,11 @@ use enum_map::{
     EnumMap
 };
 use bevy::{
-    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb,
+    app::AppExit,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    camera::primitives::Aabb,
+    window::{ClosingWindow, PrimaryWindow, WindowCloseRequested},
 };
 use crate::{
     data::{
@@ -13,6 +17,7 @@ use crate::{
             DilemmaPhase, 
             GameState, 
             MainState, 
+            PauseState,
             StateVector
         }, 
         stats::GameStats
@@ -134,7 +139,9 @@ macro_rules! register_interaction_systems {
                 system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::LeverChange),
                 system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Bounce),
                 system_entry!(trigger_reset_game::<$enum_type, $audio_type>, InteractionSystem::ResetGame, after: InteractionSystem::Bounce),
+                system_entry!(trigger_exit_application::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
                 system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
+                system_entry!(trigger_pause_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
                 system_entry!(trigger_next_scene::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
                 system_entry!(trigger_despawn::<$enum_type, $audio_type>, InteractionSystem::Despawn, after: InteractionSystem::StateChange),
             )
@@ -156,7 +163,12 @@ impl Plugin for InteractionPlugin {
         app.add_message::<AdvanceDialogue>()
             .init_resource::<InteractionAggregate >()
             .add_systems(Startup, activate_prerequisite_states)
-            .add_systems(Update, reset_clickable_aggregate.before(InteractionSystem::Clickable));
+            .add_systems(
+                Update,
+                (reset_clickable_aggregate, reset_interaction_visual_state)
+                    .before(InteractionSystem::Clickable),
+            )
+            .add_systems(Update, apply_interaction_visuals.after(InteractionSystem::Selectable));
 
         register_interaction_systems!(app, WindowActions, WindowSounds);
         register_interaction_systems!(app, MenuActions, MenuSounds);
@@ -171,6 +183,7 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, TrainActions, TrainSounds);
         register_interaction_systems!(app, EndingActions, EndingSounds);
         register_interaction_systems!(app, OverlayMenuActions, OverlayMenuSounds);
+        register_interaction_systems!(app, PauseMenuActions, PauseMenuSounds);
 
     }
 }
@@ -187,6 +200,7 @@ pub struct AdvanceDialogue;
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OverlayMenuSounds {
     Click,
+    Switch,
 }
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,6 +214,29 @@ impl std::fmt::Display for OverlayMenuActions {
         write!(f, "{:?}", self)
     }
 }
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PauseMenuSounds {
+    Click,
+    Switch,
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PauseMenuActions {
+    Continue,
+    OpenOptions,
+    ExitToMenu,
+    ExitToDesktop,
+}
+
+impl std::fmt::Display for PauseMenuActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Component)]
+pub struct PauseMenuItem;
 
 #[derive(Copy, Clone, Component)]
 pub struct ClickableCursorIcons {
@@ -332,6 +369,7 @@ impl SelectableMenu {
 }
 
 #[derive(Component, Clone, Copy)]
+#[require(InteractionVisualState, InteractionVisualPalette)]
 pub struct Selectable {
     pub menu_entity: Entity,
     pub index: usize,
@@ -340,30 +378,6 @@ pub struct Selectable {
 impl Selectable {
     pub fn new(menu_entity: Entity, index: usize) -> Self {
         Self { menu_entity, index }
-    }
-}
-
-#[derive(Component, Clone, Copy)]
-pub struct SelectableColors {
-    pub idle_color: Color,
-    pub selected_color: Color,
-}
-
-impl Default for SelectableColors {
-    fn default() -> Self {
-        Self {
-            idle_color: Color::WHITE,
-            selected_color: Color::srgb(0.0, 6.0, 6.0),
-        }
-    }
-}
-
-impl SelectableColors {
-    pub fn new(idle_color: Color, selected_color: Color) -> Self {
-        Self {
-            idle_color,
-            selected_color,
-        }
     }
 }
 
@@ -379,6 +393,8 @@ impl InteractionVisualState {
     pub fn clear_frame_state(&mut self) {
         self.hovered = false;
         self.pressed = false;
+        self.selected = false;
+        self.keyboard_locked = false;
     }
 }
 
@@ -494,10 +510,12 @@ where
 {
     PlaySound(S),
     ChangeState(StateVector),
+    ChangePauseState(PauseState),
     NextScene,
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
     ResetGame, 
+    ExitApplication,
     Bounce,
     Despawn(Option<Entity>),
     #[allow(unused)]
@@ -634,8 +652,45 @@ pub fn reset_clickable_aggregate(
     *aggregate = InteractionAggregate::default();
 }
 
+pub fn reset_interaction_visual_state(
+    mut query: Query<&mut InteractionVisualState>,
+) {
+    for mut state in query.iter_mut() {
+        state.clear_frame_state();
+    }
+}
+
+pub fn apply_interaction_visuals(
+    mut query: Query<(
+        &InteractionVisualState,
+        &InteractionVisualPalette,
+        Option<&mut ColorAnchor>,
+        Option<&mut TextColor>,
+    )>,
+) {
+    for (state, palette, color_anchor, text_color) in query.iter_mut() {
+        let target_color = if state.pressed {
+            palette.pressed_color
+        } else if state.selected {
+            palette.selected_color
+        } else if state.hovered {
+            palette.hovered_color
+        } else {
+            palette.idle_color
+        };
+
+        if let Some(mut color_anchor) = color_anchor {
+            color_anchor.0 = target_color;
+        }
+        if let Some(mut text_color) = text_color {
+            text_color.0 = target_color;
+        }
+    }
+}
+
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         mouse_input: Res<ButtonInput<MouseButton>>,
+        pause_state: Option<Res<State<PauseState>>>,
         mut aggregate : ResMut<InteractionAggregate>,
         cursor : Res<CustomCursor>,
         window_query: Query<(&Window, &Transform, &GlobalTransform), Without<TextSpan>>,
@@ -646,14 +701,19 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
                 &Transform,
                 &GlobalTransform,
                 &ClickableCursorIcons,
+                Option<&PauseMenuItem>,
+                Option<&mut InteractionVisualState>,
                 &mut Clickable<T>
             ),
             Without<TextSpan>
         >,
         ) {
+    let paused = pause_state
+        .as_ref()
+        .is_some_and(|state| *state.get() == PauseState::Paused);
 
     // Reset click latches every frame so stale clicks cannot retrigger actions.
-    for (_, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
+    for (_, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
         clickable.triggered = false;
     }
 
@@ -684,7 +744,11 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     let mut hovered_top: Option<(Entity, f32, CursorMode)> = None;
 
-    for (entity, bound, transform, global_transform, icons, clickable) in clickable_query.iter_mut() {
+    for (entity, bound, transform, global_transform, icons, pause_menu_item, _, clickable) in clickable_query.iter_mut() {
+        if paused && pause_menu_item.is_none() {
+            continue;
+        }
+
         let is_hovered = if let Some(region) = clickable.region {
             is_cursor_within_region(
                 cursor_position,
@@ -722,9 +786,21 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     if let Some((entity, _, on_hover_mode)) = hovered_top {
         aggregate.option_to_click = Some(on_hover_mode);
+        if let Ok((_, _, _, _, _, _, visual_state, _)) = clickable_query.get_mut(entity) {
+            if let Some(mut visual_state) = visual_state {
+                visual_state.hovered = true;
+                if mouse_input.pressed(MouseButton::Left) {
+                    visual_state.pressed = true;
+                }
+            }
+        }
         if mouse_input.just_pressed(MouseButton::Left) {
-            if let Ok((_, _, _, _, _, mut clickable)) = clickable_query.get_mut(entity) {
+            if let Ok((_, _, _, _, _, _, visual_state, mut clickable)) = clickable_query.get_mut(entity)
+            {
                 clickable.triggered = true;
+                if let Some(mut visual_state) = visual_state {
+                    visual_state.pressed = true;
+                }
             }
         }
     }
@@ -732,11 +808,26 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
 pub fn pressable_system<T: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&mut Pressable<T>, &mut InteractionState)>,
+    pause_state: Option<Res<State<PauseState>>>,
+    mut query: Query<(
+        &mut Pressable<T>,
+        &mut InteractionState,
+        Option<&PauseMenuItem>,
+        Option<&mut InteractionVisualState>,
+    )>,
 ) {
-    for (mut pressable, mut state) in query.iter_mut() {
+    let paused = pause_state
+        .as_ref()
+        .is_some_and(|state| *state.get() == PauseState::Paused);
+
+    for (mut pressable, mut state, pause_menu_item, visual_state) in query.iter_mut() {
+        let mut visual_state = visual_state;
         // Reset the triggered mapping each frame.
         pressable.triggered_mapping = None;
+
+        if paused && pause_menu_item.is_none() {
+            continue;
+        }
 
         // Iterate over all mappings.
         for (i, mapping) in pressable.mappings.iter().enumerate() {
@@ -745,6 +836,9 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
                 if mapping.keys.iter().any(|&key| keyboard_input.just_pressed(key)) {
                     pressable.triggered_mapping = Some(i);
                     state.0 = i;
+                    if let Some(ref mut visual_state) = visual_state {
+                        visual_state.pressed = true;
+                    }
                     break;
                 }
             }
@@ -756,7 +850,8 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
-    mut menus: Query<&mut SelectableMenu>,
+    pause_state: Option<Res<State<PauseState>>>,
+    mut menus: Query<(Entity, &mut SelectableMenu, Option<&PauseMenuItem>)>,
     mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
         Query<
@@ -766,19 +861,23 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
                 Option<&Aabb>,
                 &Transform,
                 &GlobalTransform,
+                Option<&PauseMenuItem>,
                 &Clickable<K>,
             ),
             Without<TextSpan>,
         >,
         Query<(
             &Selectable,
-            Option<&SelectableColors>,
-            Option<&mut ColorAnchor>,
-            Option<&mut TextColor>,
+            &mut InteractionVisualState,
+            &mut InteractionVisualPalette,
+            Option<&PauseMenuItem>,
             &mut Clickable<K>,
         )>,
     )>,
 ) {
+    let paused = pause_state
+        .as_ref()
+        .is_some_and(|state| *state.get() == PauseState::Paused);
     #[derive(Clone, Copy)]
     struct SelectableCandidate {
         entity: Entity,
@@ -792,6 +891,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         selected_index: usize,
         activate_pressed: bool,
         force_selected_click: bool,
+        keyboard_locked: bool,
     }
 
     fn move_selection(indices: &[usize], current_index: usize, forward: bool, wrap: bool) -> usize {
@@ -817,9 +917,13 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     }
 
     let mut candidates_by_menu: HashMap<Entity, Vec<SelectableCandidate>> = HashMap::new();
-    for (entity, selectable, bound, transform, global_transform, clickable) in
+    for (entity, selectable, bound, transform, global_transform, pause_menu_item, clickable) in
         selectable_queries.p0().iter()
     {
+        if paused && pause_menu_item.is_none() {
+            continue;
+        }
+
         let hovered = if let Some(cursor_position) = cursor.position {
             if let Some(region) = clickable.region {
                 is_cursor_within_region(
@@ -851,9 +955,14 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
 
     let mut selection_state_by_menu: HashMap<Entity, SelectionState> = HashMap::new();
     for (menu_entity, candidates) in candidates_by_menu.iter() {
-        let Ok(mut menu) = menus.get_mut(*menu_entity) else {
+        let Ok((_, mut menu, pause_menu_item)) = menus.get_mut(*menu_entity) else {
             continue;
         };
+
+        if paused && pause_menu_item.is_none() {
+            continue;
+        }
+
         if candidates.is_empty() {
             continue;
         }
@@ -926,14 +1035,19 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
                 selected_index: menu.selected_index,
                 activate_pressed,
                 force_selected_click,
+                keyboard_locked: pointer_state.0,
             },
         );
     }
     menu_pointer_state.retain(|entity, _| candidates_by_menu.contains_key(entity));
 
-    for (selectable, selectable_colors, color_anchor, text_color, mut clickable) in
+    for (selectable, mut visual_state, _visual_palette, pause_menu_item, mut clickable) in
         selectable_queries.p1().iter_mut()
     {
+        if paused && pause_menu_item.is_none() {
+            continue;
+        }
+
         let Some(selection_state) = selection_state_by_menu.get(&selectable.menu_entity) else {
             continue;
         };
@@ -946,20 +1060,16 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             clickable.triggered = is_selected;
         }
 
-        if let Some(colors) = selectable_colors {
-            let target_color = if is_selected {
-                colors.selected_color
-            } else {
-                colors.idle_color
-            };
-            if let Some(mut color_anchor) = color_anchor {
-                color_anchor.0 = target_color;
-            }
-            if let Some(mut text_color) = text_color {
-                text_color.0 = target_color;
-            }
+        visual_state.selected = is_selected;
+        visual_state.keyboard_locked = selection_state.keyboard_locked;
+        if selection_state.keyboard_locked && !is_selected {
+            visual_state.hovered = false;
+        }
+        if selection_state.force_selected_click {
+            visual_state.pressed = is_selected;
         }
     }
+
 }
 
 /// -- Trigger Systems (Audio, State Change, etc.) --
@@ -1103,6 +1213,71 @@ where
                         &mut next_game_state,
                         &mut next_sub_state,
                     );
+                }
+            });
+        });
+    }
+}
+
+pub fn trigger_pause_state_change<K, S>(
+    mut query: Query<(
+        Entity,
+        Option<&mut Clickable<K>>,
+        Option<&mut Pressable<K>>,
+        &ActionPallet<K, S>,
+    )>,
+    mut next_pause_state: ResMut<NextState<PauseState>>,
+)
+where
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
+{
+    for (_, clickable, pressable, pallet) in query.iter_mut() {
+        handle_triggers!(clickable, pressable, pallet, handle => {
+            handle_all_actions!(handle, pallet => {
+                ChangePauseState(state) => {
+                    next_pause_state.set(state);
+                }
+            });
+        });
+    }
+}
+
+pub fn trigger_exit_application<K, S>(
+    mut query: Query<(
+        Entity,
+        Option<&mut Clickable<K>>,
+        Option<&mut Pressable<K>>,
+        &ActionPallet<K, S>,
+    )>,
+    primary_window: Query<
+        Entity,
+        (
+            With<bevy::window::Window>,
+            With<PrimaryWindow>,
+            Without<ClosingWindow>,
+        ),
+    >,
+    mut close_requests: MessageWriter<WindowCloseRequested>,
+    mut app_exit: MessageWriter<AppExit>,
+)
+where
+    K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
+    <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync,
+{
+    for (_, clickable, pressable, pallet) in query.iter_mut() {
+        handle_triggers!(clickable, pressable, pallet, handle => {
+            handle_all_actions!(handle, pallet => {
+                ExitApplication => {
+                    if let Ok(window) = primary_window.single() {
+                        close_requests.write(WindowCloseRequested { window });
+                    } else {
+                        app_exit.write(AppExit::Success);
+                    }
                 }
             });
         });
@@ -1355,6 +1530,7 @@ impl Draggable {
     pub fn enact(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
+        pause_state: Option<Res<State<PauseState>>>,
         mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<
             (
@@ -1364,16 +1540,29 @@ impl Draggable {
                 &mut Transform,
                 Option<&Aabb>,
                 Option<&DraggableViewportBounds>,
+                Option<&PauseMenuItem>,
             ),
             Without<TextSpan>
         >,
     ) {
+        let paused = pause_state
+            .as_ref()
+            .is_some_and(|state| *state.get() == PauseState::Paused);
+
         // Reset the option_to_drag flag at the beginning of the frame
         aggregate.option_to_drag = false;
 
+        if paused {
+            for (_, _, mut draggable, _, _, _, pause_menu_item) in draggable_q.iter_mut() {
+                if pause_menu_item.is_none() {
+                    draggable.dragging = false;
+                }
+            }
+        }
+
         let Some(cursor_position) = cursor.position else {
             if !mouse_input.pressed(MouseButton::Left) {
-                for (_, _, mut draggable, _, _, _) in draggable_q.iter_mut() {
+                for (_, _, mut draggable, _, _, _, _) in draggable_q.iter_mut() {
                     draggable.dragging = false;
                 }
             }
@@ -1384,7 +1573,14 @@ impl Draggable {
         let mut active_drag_target: Option<(Entity, f32)> = None;
         let mut hover_target: Option<(Entity, f32)> = None;
 
-        for (entity, global_transform, draggable, transform, aabb, _) in draggable_q.iter_mut() {
+        for (entity, global_transform, mut draggable, transform, aabb, _, pause_menu_item) in
+            draggable_q.iter_mut()
+        {
+            if paused && pause_menu_item.is_none() {
+                draggable.dragging = false;
+                continue;
+            }
+
             let is_within_bounds = if let Some(region) = &draggable.region {
                 is_cursor_within_region(
                     cursor_position,
@@ -1436,7 +1632,7 @@ impl Draggable {
         }
 
         if !mouse_input.pressed(MouseButton::Left) {
-            for (_, _, mut draggable, _, _, _) in draggable_q.iter_mut() {
+            for (_, _, mut draggable, _, _, _, _) in draggable_q.iter_mut() {
                 draggable.dragging = false;
             }
             aggregate.is_dragging = false;
@@ -1444,7 +1640,7 @@ impl Draggable {
         }
 
         if let Some((active_entity, _)) = active_drag_target {
-            for (entity, _, mut draggable, mut transform, _, bounds) in draggable_q.iter_mut() {
+            for (entity, _, mut draggable, mut transform, _, bounds, _) in draggable_q.iter_mut() {
                 if entity == active_entity {
                     let new_position = cursor_position + draggable.offset;
                     let clamped_position = bounds
@@ -1463,7 +1659,8 @@ impl Draggable {
 
         if mouse_input.just_pressed(MouseButton::Left) {
             if let Some((target_entity, _)) = hover_target {
-                for (entity, global_transform, mut draggable, _, _, _) in draggable_q.iter_mut() {
+                for (entity, global_transform, mut draggable, _, _, _, _) in draggable_q.iter_mut()
+                {
                     if entity == target_entity {
                         draggable.dragging = true;
                         draggable.offset =

@@ -12,7 +12,8 @@ use bevy::{
         Volume
     },
     ecs::{lifecycle::HookContext, world::DeferredWorld},
-    prelude::*
+    prelude::*,
+    time::Real,
 };
 
 use crate::systems::time::Dilation;
@@ -126,7 +127,7 @@ impl TransientAudio {
     }
 
     pub fn tick(
-        time : Res<Time>,
+        time : Res<Time<Real>>,
         mut audio_query : Query<&mut TransientAudio>
     ) {
 

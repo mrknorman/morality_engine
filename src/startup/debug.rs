@@ -1,4 +1,5 @@
 use bevy::{
+    audio::Volume,
     prelude::*,
     sprite::Anchor,
     text::TextBounds,
@@ -9,25 +10,31 @@ use enum_map::enum_map;
 use crate::{
     data::states::{MainState, StateVector},
     entities::{
-        sprites::{compound::HollowRectangle, window::WindowTitle},
-        text::{TextButton, TextPlugin, TextRaw, TextWindow},
+        sprites::window::WindowTitle,
+        text::{TextPlugin, TextRaw, TextWindow},
     },
-    startup::{cursor::CustomCursor, render::{MainCamera, OffscreenCamera}},
+    startup::{
+        cursor::CustomCursor,
+        render::{MainCamera, OffscreenCamera},
+        system_menu,
+    },
     systems::{
-        audio::{TransientAudio, TransientAudioPallet},
-        colors::{ColorAnchor, HOVERED_BUTTON, SYSTEM_MENU_COLOR},
+        audio::{
+            DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet,
+            continuous_audio,
+        },
         interaction::{
-            ActionPallet, Clickable, Draggable, InputAction, OverlayMenuActions, OverlayMenuSounds,
-            Selectable, SelectableColors, SelectableMenu,
+            ActionPallet, Clickable, Draggable, InputAction, OverlayMenuActions,
+            OverlayMenuSounds, SelectableMenu,
         },
         particles::FireworkLauncher,
+        time::Dilation,
     },
 };
 
 const DEBUG_OVERLAY_Z: f32 = 900.0;
 const DEBUG_LABEL_Z: f32 = 901.0;
 const DEBUG_CONTENT_Z: f32 = 910.0;
-const DEBUG_MENU_Z: f32 = 920.0;
 const DEBUG_OVERLAY_SIZE: f32 = 100_000.0;
 const DEBUG_LABEL: &str = "DEBUG MODE\n[F3 or Q to exit]\n[Tab for menu]";
 const DEBUG_WINDOW_TITLE: &str = "Debug Lorem Ipsum";
@@ -36,10 +43,8 @@ const DEBUG_MENU_TITLE: &str = "DEBUG OVERLAY MENU";
 const DEBUG_MENU_HINT: &str = "[ArrowUp/ArrowDown + Enter]\n[Click also works]";
 const DEBUG_MENU_RESUME_TEXT: &str = "[Close Debug Menu]";
 const DEBUG_MENU_MAIN_MENU_TEXT: &str = "[Return To Main Menu]";
-const DEBUG_MENU_PANEL_WIDTH: f32 = 760.0;
-const DEBUG_MENU_PANEL_HEIGHT: f32 = 460.0;
-const DEBUG_MENU_BORDER_MARGIN: f32 = 18.0;
-const DEBUG_MENU_BORDER_THICKNESS: f32 = 2.0;
+const DEBUG_MENU_GOLDEN_RATIO: f32 = 1.5;
+const SYSTEM_MUSIC_PATH: &str = "./audio/music/suspended_systems.ogg";
 
 pub struct DebugPlugin;
 
@@ -53,6 +58,7 @@ impl Plugin for DebugPlugin {
                 (
                     update_debug_overlay_position,
                     toggle_debug_menu_overlay,
+                    play_debug_menu_navigation_sound,
                     handle_debug_shortcuts,
                     cleanup_debug_lifetimes,
                 )
@@ -98,6 +104,7 @@ fn setup_debug_scene(
     mut commands: Commands,
     offscreen_camera_query: Query<&GlobalTransform, With<OffscreenCamera>>,
     main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
+    asset_server: Res<AssetServer>,
 ) {
     let mut translation = Vec3::new(0.0, 0.0, DEBUG_OVERLAY_Z);
     if let Ok(camera) = offscreen_camera_query.single() {
@@ -129,6 +136,17 @@ fn setup_debug_scene(
         TextColor(Color::WHITE),
         Anchor::CENTER,
         Transform::from_xyz(translation.x, translation.y, DEBUG_LABEL_Z),
+    ));
+
+    commands.spawn((
+        Name::new("debug_system_music"),
+        DespawnOnExit(MainState::Debug),
+        MusicAudio,
+        AudioPlayer::<AudioSource>(asset_server.load(SYSTEM_MUSIC_PATH)),
+        PlaybackSettings {
+            volume: Volume::Linear(0.3),
+            ..continuous_audio()
+        },
     ));
 }
 
@@ -249,100 +267,42 @@ fn spawn_debug_menu_overlay(
     asset_server: &Res<AssetServer>,
     camera_translation: Vec3,
 ) {
-    let click_audio = || {
-        TransientAudioPallet::new(vec![(
-            OverlayMenuSounds::Click,
-            vec![TransientAudio::new(
-                asset_server.load("./audio/effects/mech_click.ogg"),
-                0.1,
-                true,
-                1.0,
-                true,
-            )],
-        )])
-    };
+    let menu_entity = system_menu::spawn_root(
+        commands,
+        asset_server,
+        "debug_menu_overlay",
+        Vec3::new(
+            camera_translation.x,
+            camera_translation.y,
+            system_menu::MENU_Z,
+        ),
+        OverlayMenuSounds::Switch,
+        (DebugOverlay, DebugMenuOverlay, DespawnOnExit(MainState::Debug)),
+    );
 
-    let menu_entity = commands
-        .spawn((
-            Name::new("debug_menu_overlay"),
-            DebugOverlay,
-            DebugMenuOverlay,
-            DespawnOnExit(MainState::Debug),
-            SelectableMenu::new(
-                0,
-                vec![KeyCode::ArrowUp],
-                vec![KeyCode::ArrowDown],
-                vec![KeyCode::Enter],
-                true,
+    system_menu::spawn_chrome(
+        commands,
+        menu_entity,
+        "debug_menu",
+        DEBUG_MENU_TITLE,
+        DEBUG_MENU_HINT,
+        system_menu::SystemMenuLayout::new(
+            Vec2::new(
+                system_menu::PANEL_WIDTH,
+                system_menu::PANEL_WIDTH * DEBUG_MENU_GOLDEN_RATIO,
             ),
-            Transform::from_xyz(camera_translation.x, camera_translation.y, DEBUG_MENU_Z),
-            Visibility::Visible,
-        ))
-        .id();
+            150.0,
+            110.0,
+        ),
+    );
+
+    let click_audio = || system_menu::click_audio_pallet(asset_server, OverlayMenuSounds::Click);
 
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((
-            Name::new("debug_menu_panel"),
-            Sprite::from_color(
-                Color::BLACK,
-                Vec2::new(DEBUG_MENU_PANEL_WIDTH, DEBUG_MENU_PANEL_HEIGHT),
-            ),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-        ));
-        parent.spawn((
-            Name::new("debug_menu_panel_border"),
-            HollowRectangle {
-                dimensions: Vec2::new(
-                    DEBUG_MENU_PANEL_WIDTH - 2.0 * DEBUG_MENU_BORDER_MARGIN,
-                    DEBUG_MENU_PANEL_HEIGHT - 2.0 * DEBUG_MENU_BORDER_MARGIN,
-                ),
-                thickness: DEBUG_MENU_BORDER_THICKNESS,
-                color: SYSTEM_MENU_COLOR,
-                ..default()
-            },
-            Transform::from_xyz(0.0, 0.0, 0.5),
-        ));
-
-        parent.spawn((
-            Name::new("debug_menu_title"),
-            TextRaw,
-            Text2d::new(DEBUG_MENU_TITLE),
-            TextFont {
-                font_size: 24.0,
-                ..default()
-            },
-            TextColor(SYSTEM_MENU_COLOR),
-            Anchor::CENTER,
-            Transform::from_xyz(0.0, 150.0, 1.0),
-        ));
-
-        parent.spawn((
-            Name::new("debug_menu_hint"),
-            TextRaw,
-            Text2d::new(DEBUG_MENU_HINT),
-            TextFont {
-                font_size: 14.0,
-                ..default()
-            },
-            TextColor(SYSTEM_MENU_COLOR),
-            Anchor::CENTER,
-            Transform::from_xyz(0.0, 110.0, 1.0),
-        ));
-
-        parent.spawn((
             Name::new("debug_menu_close_option"),
-            TextButton,
-            Text2d::new(DEBUG_MENU_RESUME_TEXT),
-            TextLayout {
-                justify: Justify::Center,
-                ..default()
-            },
-            TextColor(SYSTEM_MENU_COLOR),
-            ColorAnchor(SYSTEM_MENU_COLOR),
+            system_menu::SystemMenuOptionBundle::new(DEBUG_MENU_RESUME_TEXT, 25.0, menu_entity, 0),
             Clickable::new(vec![OverlayMenuActions::CloseOverlay]),
-            Transform::from_xyz(0.0, 25.0, 1.0),
-            Selectable::new(menu_entity, 0),
-            SelectableColors::new(SYSTEM_MENU_COLOR, HOVERED_BUTTON),
             ActionPallet::<OverlayMenuActions, OverlayMenuSounds>(enum_map!(
                 OverlayMenuActions::CloseOverlay => vec![
                     InputAction::PlaySound(OverlayMenuSounds::Click),
@@ -355,18 +315,13 @@ fn spawn_debug_menu_overlay(
 
         parent.spawn((
             Name::new("debug_menu_main_menu_option"),
-            TextButton,
-            Text2d::new(DEBUG_MENU_MAIN_MENU_TEXT),
-            TextLayout {
-                justify: Justify::Center,
-                ..default()
-            },
-            TextColor(SYSTEM_MENU_COLOR),
-            ColorAnchor(SYSTEM_MENU_COLOR),
+            system_menu::SystemMenuOptionBundle::new(
+                DEBUG_MENU_MAIN_MENU_TEXT,
+                -25.0,
+                menu_entity,
+                1,
+            ),
             Clickable::new(vec![OverlayMenuActions::ReturnToMenu]),
-            Transform::from_xyz(0.0, -25.0, 1.0),
-            Selectable::new(menu_entity, 1),
-            SelectableColors::new(SYSTEM_MENU_COLOR, HOVERED_BUTTON),
             ActionPallet::<OverlayMenuActions, OverlayMenuSounds>(enum_map!(
                 OverlayMenuActions::CloseOverlay => vec![],
                 OverlayMenuActions::ReturnToMenu => vec![
@@ -377,6 +332,26 @@ fn spawn_debug_menu_overlay(
             click_audio(),
         ));
     });
+}
+
+fn play_debug_menu_navigation_sound(
+    mut commands: Commands,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    menu_query: Query<
+        (Entity, &SelectableMenu, &TransientAudioPallet<OverlayMenuSounds>),
+        With<DebugMenuOverlay>,
+    >,
+    mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    dilation: Res<Dilation>,
+) {
+    system_menu::play_navigation_sound(
+        &mut commands,
+        keyboard_input.as_ref(),
+        &menu_query,
+        &mut audio_query,
+        OverlayMenuSounds::Switch,
+        dilation.0,
+    );
 }
 
 fn spawn_debug_firework(commands: &mut Commands, cursor_position: Vec2) {

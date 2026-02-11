@@ -11,6 +11,7 @@ impl Plugin for GameStatesPlugin {
         app           
         .init_state::<MainState>()
         .add_sub_state::<GameState>()
+        .add_sub_state::<PauseState>()
         .add_sub_state::<DilemmaPhase>();
     }
 }
@@ -33,6 +34,14 @@ pub enum GameState {
     Dialogue,
     Dilemma,
     Ending
+}
+
+#[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash)]
+#[source(MainState = MainState::InGame)]
+pub enum PauseState {
+    #[default]
+    Unpaused,
+    Paused,
 }
 
 #[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash)]

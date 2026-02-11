@@ -9,8 +9,6 @@ use crate::{
     systems::{
         colors::{
             ColorAnchor, 
-            ColorChangeEvent, 
-            ColorChangeOn, 
             CLICKED_BUTTON,
             HOVERED_BUTTON, 
             PRIMARY_COLOR
@@ -19,6 +17,8 @@ use crate::{
             Clickable, 
             Draggable, 
             DraggableRegion, 
+            InteractionVisualPalette,
+            InteractionVisualState,
             KeyMapping, 
             Pressable
         }, 
@@ -319,7 +319,9 @@ pub fn get_text_height(text: &String) -> f32 {
     TextFont = default_button_font(), 
     TextColor = default_font_color(),
     TextBounds = default_button_bounds(),
-    ColorAnchor
+    ColorAnchor,
+    InteractionVisualState,
+    InteractionVisualPalette = default_button_visual_palette()
 )]
 
 pub struct TextButton;
@@ -340,6 +342,15 @@ pub fn default_button_bounds() -> TextBounds {
         width: Some(1000.0),
         ..default()
     }
+}
+
+fn default_button_visual_palette() -> InteractionVisualPalette {
+    InteractionVisualPalette::new(
+        default_font_color().0,
+        HOVERED_BUTTON,
+        CLICKED_BUTTON,
+        HOVERED_BUTTON,
+    )
 }
 
 impl TextButton {
@@ -365,10 +376,6 @@ impl TextButton {
                     allow_repeated_activation : false  
                 }
             )),
-            ColorChangeOn::new(vec![
-                ColorChangeEvent::Click(vec![CLICKED_BUTTON], None),
-                ColorChangeEvent::Hover(vec![HOVERED_BUTTON], None),
-            ]),
             Text2d::new(text.into()),
         )
     }

@@ -12,7 +12,7 @@ use rand::Rng;
 use smallvec::SmallVec;
 
 use crate::{
-    data::rng::GlobalRng, 
+    data::{rng::GlobalRng, states::PauseState}, 
     startup::cursor::CustomCursor,
 };
 
@@ -71,7 +71,14 @@ impl Ripple {
         mut cascade_numbers: Query<Entity, With<Cascade>>,
         input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
+        pause_state: Option<Res<State<PauseState>>>,
     ) {
+        let paused = pause_state
+            .as_ref()
+            .is_some_and(|state| *state.get() == PauseState::Paused);
+        if paused {
+            return;
+        }
 
         let Some(cursor_position) = cursor.position else { return };
 
@@ -324,8 +331,16 @@ impl Cascade {
     
     pub fn enlarge(
         mut numbers: Query<(&GlobalTransform, &mut Transform, &CascadeNumber)>,
-        cursor: Res<CustomCursor>
+        cursor: Res<CustomCursor>,
+        pause_state: Option<Res<State<PauseState>>>,
     ) {
+        let paused = pause_state
+            .as_ref()
+            .is_some_and(|state| *state.get() == PauseState::Paused);
+        if paused {
+            return;
+        }
+
         let Some(cursor_position) = cursor.position else { return };
         
         // Configuration parameters

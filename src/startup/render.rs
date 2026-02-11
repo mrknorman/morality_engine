@@ -9,7 +9,7 @@ use bevy::{
     }, shader::ShaderRef, sprite_render::{Material2d, Material2dPlugin}, window::{
         PrimaryWindow, 
         WindowResized
-    }
+    }, time::Real
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -208,6 +208,7 @@ impl ScanLinesMaterial {
                 thickness: 1,
                 darkness: 0.7,
                 resolution: window_resolution,
+                real_time: 0.0,
             },
         });
 
@@ -222,12 +223,14 @@ impl ScanLinesMaterial {
 
     /// Update the resolution uniform if the window size changes.
     fn update(
-        window: Single<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+        window: Single<&Window, With<PrimaryWindow>>,
+        time: Res<Time<Real>>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
     ) {        
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
         for (_id, material) in materials.iter_mut() {
             material.scan_line.resolution = window_resolution;
+            material.scan_line.real_time = time.elapsed_secs();
         }
     }
     
@@ -266,7 +269,8 @@ struct ScanLineUniform {
     pub spacing: i32,
     pub thickness: i32,
     pub darkness: f32,
-    pub resolution: Vec2
+    pub resolution: Vec2,
+    pub real_time: f32,
 }
 
 impl Material2d for ScanLinesMaterial {
