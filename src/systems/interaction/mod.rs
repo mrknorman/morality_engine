@@ -39,11 +39,14 @@ use crate::{
             AsciiActions, 
             AsciiSounds
         },
-        sprites::window::{
-            Window,
-            WindowActions,
-             WindowSounds
-            },
+        sprites::{
+            compound::Plus,
+            window::{
+                Window,
+                WindowActions,
+                 WindowSounds
+                },
+        },
         train::{
             TrainActions,
             TrainSounds
@@ -235,8 +238,30 @@ impl std::fmt::Display for PauseMenuActions {
     }
 }
 
-#[derive(Component)]
-pub struct PauseMenuItem;
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InteractionGate {
+    GameplayOnly,
+    PauseMenuOnly,
+}
+
+impl Default for InteractionGate {
+    fn default() -> Self {
+        Self::GameplayOnly
+    }
+}
+
+impl InteractionGate {
+    fn allows(self, paused: bool) -> bool {
+        match self {
+            Self::GameplayOnly => !paused,
+            Self::PauseMenuOnly => paused,
+        }
+    }
+}
+
+pub fn interaction_gate_allows(gate: Option<&InteractionGate>, paused: bool) -> bool {
+    gate.copied().unwrap_or_default().allows(paused)
+}
 
 #[derive(Copy, Clone, Component)]
 pub struct ClickableCursorIcons {
@@ -252,7 +277,7 @@ impl Default for ClickableCursorIcons{
 }
 
 #[derive(Component)]
-#[require(ClickableCursorIcons)]
+#[require(ClickableCursorIcons, InteractionGate)]
 pub struct Clickable<T>
 where
     T: Copy + Send + Sync,
@@ -306,7 +331,7 @@ where
 }
 
 #[derive(Component)]
-#[require(InteractionState)]
+#[require(InteractionState, InteractionGate)]
 pub struct Pressable<T>
 where
     T: Copy + Send + Sync,
@@ -330,6 +355,7 @@ where
 }
 
 #[derive(Component, Clone)]
+#[require(InteractionGate)]
 pub struct SelectableMenu {
     pub selected_index: usize,
     pub up_keys: Vec<KeyCode>,
@@ -369,7 +395,7 @@ impl SelectableMenu {
 }
 
 #[derive(Component, Clone, Copy)]
-#[require(InteractionVisualState, InteractionVisualPalette)]
+#[require(InteractionVisualState, InteractionVisualPalette, InteractionGate)]
 pub struct Selectable {
     pub menu_entity: Entity,
     pub index: usize,
@@ -666,9 +692,10 @@ pub fn apply_interaction_visuals(
         &InteractionVisualPalette,
         Option<&mut ColorAnchor>,
         Option<&mut TextColor>,
+        Option<&mut Plus>,
     )>,
 ) {
-    for (state, palette, color_anchor, text_color) in query.iter_mut() {
+    for (state, palette, color_anchor, text_color, plus) in query.iter_mut() {
         let target_color = if state.pressed {
             palette.pressed_color
         } else if state.selected {
@@ -684,6 +711,9 @@ pub fn apply_interaction_visuals(
         }
         if let Some(mut text_color) = text_color {
             text_color.0 = target_color;
+        }
+        if let Some(mut plus) = plus {
+            plus.color = target_color;
         }
     }
 }
@@ -701,7 +731,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
                 &Transform,
                 &GlobalTransform,
                 &ClickableCursorIcons,
-                Option<&PauseMenuItem>,
+                Option<&InteractionGate>,
                 Option<&mut InteractionVisualState>,
                 &mut Clickable<T>
             ),
@@ -744,8 +774,8 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     let mut hovered_top: Option<(Entity, f32, CursorMode)> = None;
 
-    for (entity, bound, transform, global_transform, icons, pause_menu_item, _, clickable) in clickable_query.iter_mut() {
-        if paused && pause_menu_item.is_none() {
+    for (entity, bound, transform, global_transform, icons, gate, _, clickable) in clickable_query.iter_mut() {
+        if !interaction_gate_allows(gate, paused) {
             continue;
         }
 
@@ -812,7 +842,7 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
     mut query: Query<(
         &mut Pressable<T>,
         &mut InteractionState,
-        Option<&PauseMenuItem>,
+        Option<&InteractionGate>,
         Option<&mut InteractionVisualState>,
     )>,
 ) {
@@ -820,12 +850,12 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
         .as_ref()
         .is_some_and(|state| *state.get() == PauseState::Paused);
 
-    for (mut pressable, mut state, pause_menu_item, visual_state) in query.iter_mut() {
+    for (mut pressable, mut state, gate, visual_state) in query.iter_mut() {
         let mut visual_state = visual_state;
         // Reset the triggered mapping each frame.
         pressable.triggered_mapping = None;
 
-        if paused && pause_menu_item.is_none() {
+        if !interaction_gate_allows(gate, paused) {
             continue;
         }
 
@@ -851,7 +881,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
-    mut menus: Query<(Entity, &mut SelectableMenu, Option<&PauseMenuItem>)>,
+    mut menus: Query<(Entity, &mut SelectableMenu, Option<&InteractionGate>)>,
     mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
         Query<
@@ -861,7 +891,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
                 Option<&Aabb>,
                 &Transform,
                 &GlobalTransform,
-                Option<&PauseMenuItem>,
+                Option<&InteractionGate>,
                 &Clickable<K>,
             ),
             Without<TextSpan>,
@@ -870,7 +900,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             &Selectable,
             &mut InteractionVisualState,
             &mut InteractionVisualPalette,
-            Option<&PauseMenuItem>,
+            Option<&InteractionGate>,
             &mut Clickable<K>,
         )>,
     )>,
@@ -917,10 +947,10 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     }
 
     let mut candidates_by_menu: HashMap<Entity, Vec<SelectableCandidate>> = HashMap::new();
-    for (entity, selectable, bound, transform, global_transform, pause_menu_item, clickable) in
+    for (entity, selectable, bound, transform, global_transform, gate, clickable) in
         selectable_queries.p0().iter()
     {
-        if paused && pause_menu_item.is_none() {
+        if !interaction_gate_allows(gate, paused) {
             continue;
         }
 
@@ -955,11 +985,11 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
 
     let mut selection_state_by_menu: HashMap<Entity, SelectionState> = HashMap::new();
     for (menu_entity, candidates) in candidates_by_menu.iter() {
-        let Ok((_, mut menu, pause_menu_item)) = menus.get_mut(*menu_entity) else {
+        let Ok((_, mut menu, gate)) = menus.get_mut(*menu_entity) else {
             continue;
         };
 
-        if paused && pause_menu_item.is_none() {
+        if !interaction_gate_allows(gate, paused) {
             continue;
         }
 
@@ -1041,10 +1071,10 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     }
     menu_pointer_state.retain(|entity, _| candidates_by_menu.contains_key(entity));
 
-    for (selectable, mut visual_state, _visual_palette, pause_menu_item, mut clickable) in
+    for (selectable, mut visual_state, _visual_palette, gate, mut clickable) in
         selectable_queries.p1().iter_mut()
     {
-        if paused && pause_menu_item.is_none() {
+        if !interaction_gate_allows(gate, paused) {
             continue;
         }
 
@@ -1509,7 +1539,7 @@ impl DraggableViewportBounds {
 }
 
 #[derive(Component)]
-#[require(Transform)]
+#[require(Transform, InteractionGate)]
 pub struct Draggable {
     pub region: Option<DraggableRegion>,
     pub offset: Vec2,
@@ -1540,7 +1570,7 @@ impl Draggable {
                 &mut Transform,
                 Option<&Aabb>,
                 Option<&DraggableViewportBounds>,
-                Option<&PauseMenuItem>,
+                Option<&InteractionGate>,
             ),
             Without<TextSpan>
         >,
@@ -1553,8 +1583,8 @@ impl Draggable {
         aggregate.option_to_drag = false;
 
         if paused {
-            for (_, _, mut draggable, _, _, _, pause_menu_item) in draggable_q.iter_mut() {
-                if pause_menu_item.is_none() {
+            for (_, _, mut draggable, _, _, _, gate) in draggable_q.iter_mut() {
+                if !interaction_gate_allows(gate, paused) {
                     draggable.dragging = false;
                 }
             }
@@ -1573,10 +1603,10 @@ impl Draggable {
         let mut active_drag_target: Option<(Entity, f32)> = None;
         let mut hover_target: Option<(Entity, f32)> = None;
 
-        for (entity, global_transform, mut draggable, transform, aabb, _, pause_menu_item) in
+        for (entity, global_transform, mut draggable, transform, aabb, _, gate) in
             draggable_q.iter_mut()
         {
-            if paused && pause_menu_item.is_none() {
+            if !interaction_gate_allows(gate, paused) {
                 draggable.dragging = false;
                 continue;
             }

@@ -6,13 +6,15 @@ use std::time::Duration;
 use rand::{Rng, seq::{IndexedRandom, SliceRandom}};
 
 use crate::{
-    data::rng::GlobalRng, entities::sprites::compound::{
+    data::{rng::GlobalRng, states::PauseState}, entities::sprites::compound::{
         AssembleShape,
         Plus
     }, startup::cursor::CustomCursor, systems::{
         interaction::{
+            interaction_gate_allows,
             is_cursor_within_bounds, 
-            is_cursor_within_region
+            is_cursor_within_region,
+            InteractionGate,
         },
         motion::{Bounce, Pulse},
         time::Dilation
@@ -527,9 +529,24 @@ impl ColorChangeOn {
     fn handle_cursor_events_shapes<T: AssembleShape + Component<Mutability = Mutable>>(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor : Res<CustomCursor>,
-        mut query: Query<(&mut ColorChangeOn, &mut T, &Transform, &GlobalTransform)>,
+        pause_state: Option<Res<State<PauseState>>>,
+        mut query: Query<(
+            &mut ColorChangeOn,
+            &mut T,
+            &Transform,
+            &GlobalTransform,
+            Option<&InteractionGate>,
+        )>,
     ) {
-        for (mut color_change, mut shape, transform, global_transform) in query.iter_mut() {
+        let paused = pause_state
+            .as_ref()
+            .is_some_and(|state| *state.get() == PauseState::Paused);
+
+        for (mut color_change, mut shape, transform, global_transform, gate) in query.iter_mut() {
+            if !interaction_gate_allows(gate, paused) {
+                continue;
+            }
+
             if color_change.event_occurring {
                 continue;
             }
@@ -580,9 +597,24 @@ impl ColorChangeOn {
     fn handle_cursor_events(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor : Res<CustomCursor>,
-        mut query: Query<(&mut ColorChangeOn, &mut TextColor, &Aabb, &GlobalTransform)>,
+        pause_state: Option<Res<State<PauseState>>>,
+        mut query: Query<(
+            &mut ColorChangeOn,
+            &mut TextColor,
+            &Aabb,
+            &GlobalTransform,
+            Option<&InteractionGate>,
+        )>,
     ) {
-        for (mut color_change, mut text_color, aabb, transform) in query.iter_mut() {
+        let paused = pause_state
+            .as_ref()
+            .is_some_and(|state| *state.get() == PauseState::Paused);
+
+        for (mut color_change, mut text_color, aabb, transform, gate) in query.iter_mut() {
+            if !interaction_gate_allows(gate, paused) {
+                continue;
+            }
+
             if color_change.event_occurring {
                 continue;
             }

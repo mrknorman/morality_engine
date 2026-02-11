@@ -13,7 +13,7 @@ use smallvec::SmallVec;
 
 use crate::{
     data::{rng::GlobalRng, states::PauseState}, 
-    startup::cursor::CustomCursor,
+    startup::cursor::CustomCursor, systems::interaction::{interaction_gate_allows, InteractionGate},
 };
 
 use super::{
@@ -68,7 +68,7 @@ impl Ripple {
 
     fn spawn(
         mut commands: Commands,
-        mut cascade_numbers: Query<Entity, With<Cascade>>,
+        cascade_numbers: Query<(Entity, Option<&InteractionGate>), With<Cascade>>,
         input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
@@ -76,9 +76,6 @@ impl Ripple {
         let paused = pause_state
             .as_ref()
             .is_some_and(|state| *state.get() == PauseState::Paused);
-        if paused {
-            return;
-        }
 
         let Some(cursor_position) = cursor.position else { return };
 
@@ -91,7 +88,10 @@ impl Ripple {
             return;
         };
 
-        for entity in cascade_numbers.iter_mut() {
+        for (entity, gate) in cascade_numbers.iter() {
+            if !interaction_gate_allows(gate, paused) {
+                continue;
+            }
             commands.entity(entity).with_children(|parent| {
                 parent.spawn(Ripple {
                     origin: cursor_position,
@@ -330,15 +330,20 @@ impl Cascade {
     }
     
     pub fn enlarge(
-        mut numbers: Query<(&GlobalTransform, &mut Transform, &CascadeNumber)>,
+        mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform, &CascadeNumber)>,
+        cascades: Query<(Entity, Option<&InteractionGate>), With<Cascade>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
+        mut gate_by_parent: Local<HashMap<Entity, bool>>,
     ) {
         let paused = pause_state
             .as_ref()
             .is_some_and(|state| *state.get() == PauseState::Paused);
-        if paused {
-            return;
+
+        gate_by_parent.clear();
+        gate_by_parent.reserve(cascades.iter().len());
+        for (entity, gate) in cascades.iter() {
+            gate_by_parent.insert(entity, interaction_gate_allows(gate, paused));
         }
 
         let Some(cursor_position) = cursor.position else { return };
@@ -350,7 +355,14 @@ impl Cascade {
         let influence_radius_sq = influence_radius * influence_radius;
         let min_distance_sq = min_distance * min_distance;
         
-        numbers.par_iter_mut().for_each(|(global_transform,  mut transform, number)| {
+        numbers.par_iter_mut().for_each(|(parent, global_transform,  mut transform, number)| {
+            let Some(allowed) = gate_by_parent.get(&parent.parent()) else {
+                return;
+            };
+            if !allowed {
+                return;
+            }
+
             if !number.rippling {
                 // Get the position of the number in world space
                 let number_position = global_transform.translation().truncate();

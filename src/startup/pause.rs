@@ -14,7 +14,7 @@ use crate::{
             continuous_audio,
         },
         interaction::{
-            ActionPallet, Clickable, InputAction, PauseMenuActions, PauseMenuItem,
+            ActionPallet, Clickable, InputAction, InteractionGate, PauseMenuActions,
             PauseMenuSounds, SelectableMenu,
         },
         time::Dilation,
@@ -22,11 +22,11 @@ use crate::{
 };
 
 const PAUSE_MENU_TITLE: &str = "PAUSED";
-const PAUSE_MENU_HINT: &str = "[Escape to continue]\n[ArrowUp/ArrowDown + Enter]";
-const PAUSE_MENU_CONTINUE_TEXT: &str = "Continue";
-const PAUSE_MENU_OPTIONS_TEXT: &str = "Options";
-const PAUSE_MENU_EXIT_TO_MENU_TEXT: &str = "Exit to Menu";
-const PAUSE_MENU_EXIT_TO_DESKTOP_TEXT: &str = "Exit to Desktop";
+const PAUSE_MENU_HINT: &str = "[ESCAPE TO CONTINUE]\n[ARROW UP/ARROW DOWN + ENTER]";
+const PAUSE_MENU_CONTINUE_TEXT: &str = "CONTINUE";
+const PAUSE_MENU_OPTIONS_TEXT: &str = "OPTIONS";
+const PAUSE_MENU_EXIT_TO_MENU_TEXT: &str = "EXIT TO MENU";
+const PAUSE_MENU_EXIT_TO_DESKTOP_TEXT: &str = "EXIT TO DESKTOP";
 const PAUSE_MENU_MUSIC_PATH: &str = "./audio/music/suspended_systems.ogg";
 const PAUSE_MENU_DIM_ALPHA: f32 = 0.8;
 const PAUSE_MENU_DIM_SIZE: f32 = 6000.0;
@@ -60,7 +60,15 @@ impl Plugin for PausePlugin {
             )
             .add_systems(
                 Update,
-                (update_pause_overlay_position, play_pause_menu_navigation_sound)
+                (
+                    update_pause_overlay_position,
+                    play_pause_menu_navigation_sound,
+                    (
+                        system_menu::ensure_selection_indicators,
+                        system_menu::update_selection_indicators,
+                    )
+                        .chain(),
+                )
                     .run_if(in_state(MainState::InGame))
                     .run_if(in_state(PauseState::Paused)),
             );
@@ -173,7 +181,11 @@ fn setup_pause_menu_overlay(
             system_menu::MENU_Z,
         ),
         PauseMenuSounds::Switch,
-        (PauseMenuOverlay, PauseMenuItem, DespawnOnExit(PauseState::Paused)),
+        (
+            PauseMenuOverlay,
+            InteractionGate::PauseMenuOnly,
+            DespawnOnExit(PauseState::Paused),
+        ),
     );
 
     commands.entity(menu_entity).with_children(|parent| {
@@ -219,7 +231,7 @@ fn setup_pause_menu_overlay(
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((
             Name::new("pause_menu_continue_option"),
-            PauseMenuItem,
+            InteractionGate::PauseMenuOnly,
             system_menu::SystemMenuOptionBundle::new(PAUSE_MENU_CONTINUE_TEXT, 50.0, menu_entity, 0),
             Clickable::new(vec![PauseMenuActions::Continue]),
             ActionPallet::<PauseMenuActions, PauseMenuSounds>(enum_map!(
@@ -236,7 +248,7 @@ fn setup_pause_menu_overlay(
 
         parent.spawn((
             Name::new("pause_menu_options_option"),
-            PauseMenuItem,
+            InteractionGate::PauseMenuOnly,
             system_menu::SystemMenuOptionBundle::new(PAUSE_MENU_OPTIONS_TEXT, 5.0, menu_entity, 1),
             Clickable::new(vec![PauseMenuActions::OpenOptions]),
             ActionPallet::<PauseMenuActions, PauseMenuSounds>(enum_map!(
@@ -250,7 +262,7 @@ fn setup_pause_menu_overlay(
 
         parent.spawn((
             Name::new("pause_menu_exit_to_menu_option"),
-            PauseMenuItem,
+            InteractionGate::PauseMenuOnly,
             system_menu::SystemMenuOptionBundle::new(PAUSE_MENU_EXIT_TO_MENU_TEXT, -40.0, menu_entity, 2),
             Clickable::new(vec![PauseMenuActions::ExitToMenu]),
             ActionPallet::<PauseMenuActions, PauseMenuSounds>(enum_map!(
@@ -268,7 +280,7 @@ fn setup_pause_menu_overlay(
 
         parent.spawn((
             Name::new("pause_menu_exit_to_desktop_option"),
-            PauseMenuItem,
+            InteractionGate::PauseMenuOnly,
             system_menu::SystemMenuOptionBundle::new(
                 PAUSE_MENU_EXIT_TO_DESKTOP_TEXT,
                 -85.0,

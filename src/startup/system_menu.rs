@@ -8,7 +8,7 @@ use crate::{
     },
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
-        colors::{CLICKED_BUTTON, ColorAnchor, HOVERED_BUTTON, SYSTEM_MENU_COLOR},
+        colors::{ColorAnchor, SYSTEM_MENU_COLOR},
         interaction::{InteractionVisualPalette, InteractionVisualState, Selectable, SelectableMenu},
     },
 };
@@ -19,9 +19,32 @@ pub const BORDER_THICKNESS: f32 = 2.0;
 pub const MENU_Z: f32 = 920.0;
 pub const TITLE_FONT_SIZE: f32 = 24.0;
 pub const HINT_FONT_SIZE: f32 = 14.0;
+const OPTION_FONT_SIZE: f32 = 16.0;
+const OPTION_SELECTED_FONT_SIZE: f32 = 17.5;
+const OPTION_FONT_WEIGHT: FontWeight = FontWeight::NORMAL;
+const OPTION_SELECTED_FONT_WEIGHT: FontWeight = FontWeight::BOLD;
+const SELECTION_HIGHLIGHT_WIDTH: f32 = 290.0;
+const SELECTION_HIGHLIGHT_HEIGHT: f32 = 28.0;
+const SELECTION_HIGHLIGHT_Z: f32 = -0.05;
+const SELECTION_INDICATOR_WIDTH: f32 = 16.0;
+const SELECTION_INDICATOR_HEIGHT: f32 = 20.0;
+const SELECTION_INDICATOR_X: f32 = 132.0;
+const SELECTION_INDICATOR_Z: f32 = 0.2;
 
 #[derive(Component)]
 pub struct SystemMenu;
+
+#[derive(Component)]
+pub struct SystemMenuOption;
+
+#[derive(Component)]
+pub struct SystemMenuSelectionIndicator;
+
+#[derive(Component)]
+pub struct SystemMenuSelectionHighlight;
+
+#[derive(Component)]
+pub struct SystemMenuSelectionIndicatorsAttached;
 
 #[derive(Clone, Copy)]
 pub struct SystemMenuLayout {
@@ -42,8 +65,10 @@ impl SystemMenuLayout {
 
 #[derive(Bundle)]
 pub struct SystemMenuOptionBundle {
+    option: SystemMenuOption,
     text_button: TextButton,
     text: Text2d,
+    text_font: TextFont,
     text_layout: TextLayout,
     text_color: TextColor,
     color_anchor: ColorAnchor,
@@ -56,8 +81,14 @@ pub struct SystemMenuOptionBundle {
 impl SystemMenuOptionBundle {
     pub fn new(label: impl Into<String>, y: f32, menu_entity: Entity, index: usize) -> Self {
         Self {
+            option: SystemMenuOption,
             text_button: TextButton,
             text: Text2d::new(label.into()),
+            text_font: TextFont {
+                font_size: OPTION_FONT_SIZE,
+                weight: OPTION_FONT_WEIGHT,
+                ..default()
+            },
             text_layout: TextLayout {
                 justify: Justify::Center,
                 ..default()
@@ -67,12 +98,141 @@ impl SystemMenuOptionBundle {
             visual_state: InteractionVisualState::default(),
             visual_palette: InteractionVisualPalette::new(
                 SYSTEM_MENU_COLOR,
-                HOVERED_BUTTON,
-                CLICKED_BUTTON,
-                HOVERED_BUTTON,
+                Color::BLACK,
+                Color::BLACK,
+                Color::BLACK,
             ),
             transform: Transform::from_xyz(0.0, y, 1.0),
             selectable: Selectable::new(menu_entity, index),
+        }
+    }
+}
+
+pub fn ensure_selection_indicators(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    option_query: Query<
+        Entity,
+        (
+            With<SystemMenuOption>,
+            Without<SystemMenuSelectionIndicatorsAttached>,
+        ),
+    >,
+) {
+    let triangle_mesh = meshes.add(Mesh::from(Triangle2d::new(
+        Vec2::new(-SELECTION_INDICATOR_WIDTH * 0.5, SELECTION_INDICATOR_HEIGHT * 0.5),
+        Vec2::new(-SELECTION_INDICATOR_WIDTH * 0.5, -SELECTION_INDICATOR_HEIGHT * 0.5),
+        Vec2::new(SELECTION_INDICATOR_WIDTH * 0.5, 0.0),
+    )));
+
+    for option_entity in option_query.iter() {
+        let left_material = materials.add(ColorMaterial::from(Color::BLACK));
+        let right_material = materials.add(ColorMaterial::from(Color::BLACK));
+
+        commands.entity(option_entity).with_children(|parent| {
+            parent.spawn((
+                Name::new("system_menu_selection_highlight"),
+                SystemMenuSelectionHighlight,
+                Sprite::from_color(
+                    SYSTEM_MENU_COLOR,
+                    Vec2::new(SELECTION_HIGHLIGHT_WIDTH, SELECTION_HIGHLIGHT_HEIGHT),
+                ),
+                Transform::from_xyz(0.0, 0.0, SELECTION_HIGHLIGHT_Z),
+                Visibility::Hidden,
+            ));
+
+            parent.spawn((
+                Name::new("system_menu_selected_indicator_left"),
+                SystemMenuSelectionIndicator,
+                Mesh2d(triangle_mesh.clone()),
+                MeshMaterial2d(left_material),
+                Transform::from_xyz(-SELECTION_INDICATOR_X, 0.0, SELECTION_INDICATOR_Z),
+                Visibility::Hidden,
+            ));
+
+            parent.spawn((
+                Name::new("system_menu_selected_indicator_right"),
+                SystemMenuSelectionIndicator,
+                Mesh2d(triangle_mesh.clone()),
+                MeshMaterial2d(right_material),
+                Transform::from_xyz(SELECTION_INDICATOR_X, 0.0, SELECTION_INDICATOR_Z)
+                    .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
+                Visibility::Hidden,
+            ));
+        });
+
+        commands
+            .entity(option_entity)
+            .insert(SystemMenuSelectionIndicatorsAttached);
+    }
+}
+
+pub fn update_selection_indicators(
+    option_query: Query<
+        (&InteractionVisualState, &InteractionVisualPalette),
+        With<SystemMenuOption>,
+    >,
+    mut option_text_query: Query<
+        (&InteractionVisualState, &mut TextFont),
+        With<SystemMenuOption>,
+    >,
+    mut highlight_query: Query<
+        (&ChildOf, &mut Visibility),
+        (
+            With<SystemMenuSelectionHighlight>,
+            Without<SystemMenuSelectionIndicator>,
+        ),
+    >,
+    mut indicator_query: Query<
+        (&ChildOf, &mut Visibility, &MeshMaterial2d<ColorMaterial>),
+        (
+            With<SystemMenuSelectionIndicator>,
+            Without<SystemMenuSelectionHighlight>,
+        ),
+    >,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    for (state, mut text_font) in option_text_query.iter_mut() {
+        let selected = state.selected;
+        text_font.font_size = if selected {
+            OPTION_SELECTED_FONT_SIZE
+        } else {
+            OPTION_FONT_SIZE
+        };
+        text_font.weight = if selected {
+            OPTION_SELECTED_FONT_WEIGHT
+        } else {
+            OPTION_FONT_WEIGHT
+        };
+    }
+
+    for (parent, mut visibility) in highlight_query.iter_mut() {
+        let Ok((state, _)) = option_query.get(parent.parent()) else {
+            continue;
+        };
+
+        let highlighted = state.pressed || state.selected || state.hovered;
+        *visibility = if highlighted {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+
+    for (parent, mut visibility, material_handle) in indicator_query.iter_mut() {
+        let Ok((state, palette)) = option_query.get(parent.parent()) else {
+            continue;
+        };
+
+        let highlighted = state.pressed || state.selected || state.hovered;
+        if highlighted {
+            *visibility = Visibility::Visible;
+            if let Some(material) = materials.get_mut(material_handle.0.id()) {
+                material.color = palette.pressed_color;
+            }
+        } else {
+            *visibility = Visibility::Hidden;
         }
     }
 }

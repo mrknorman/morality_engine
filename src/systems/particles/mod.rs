@@ -3,6 +3,7 @@ use bevy::{
     audio::Volume,
     image::{TextureAtlas, TextureAtlasLayout},
     prelude::*,
+    time::Virtual,
 };
 use std::time::Duration;
 
@@ -163,7 +164,7 @@ impl FireworkLauncher {
     }
 
     fn enact(
-        time: Res<Time<Real>>,
+        time: Res<Time<Virtual>>,
         dilation: Res<Dilation>,
         mut commands: Commands,
         asset_server: Res<AssetServer>,
@@ -221,7 +222,7 @@ impl FireworkLauncher {
     }
 
     fn simulate_rockets(
-        time: Res<Time<Real>>,
+        time: Res<Time<Virtual>>,
         dilation: Res<Dilation>,
         mut commands: Commands,
         fx: Res<FireworkFx>,
@@ -355,7 +356,7 @@ impl FireworkLauncher {
     }
 
     fn simulate_particles(
-        time: Res<Time<Real>>,
+        time: Res<Time<Virtual>>,
         dilation: Res<Dilation>,
         mut commands: Commands,
         mut q: Query<(Entity, &mut FireworkParticle, &mut Transform, &mut Sprite)>,
@@ -383,7 +384,7 @@ impl FireworkLauncher {
     }
 
     fn boom_sound(
-        time: Res<Time<Real>>,
+        time: Res<Time<Virtual>>,
         dilation: Res<Dilation>,
         asset_server: Res<AssetServer>,
         mut commands: Commands,

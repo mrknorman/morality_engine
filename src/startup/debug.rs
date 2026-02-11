@@ -40,9 +40,9 @@ const DEBUG_LABEL: &str = "DEBUG MODE\n[F3 or Q to exit]\n[Tab for menu]";
 const DEBUG_WINDOW_TITLE: &str = "Debug Lorem Ipsum";
 const DEBUG_LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.";
 const DEBUG_MENU_TITLE: &str = "DEBUG OVERLAY MENU";
-const DEBUG_MENU_HINT: &str = "[ArrowUp/ArrowDown + Enter]\n[Click also works]";
-const DEBUG_MENU_RESUME_TEXT: &str = "[Close Debug Menu]";
-const DEBUG_MENU_MAIN_MENU_TEXT: &str = "[Return To Main Menu]";
+const DEBUG_MENU_HINT: &str = "[ARROW UP/ARROW DOWN + ENTER]\n[CLICK ALSO WORKS]";
+const DEBUG_MENU_RESUME_TEXT: &str = "[CLOSE DEBUG MENU]";
+const DEBUG_MENU_MAIN_MENU_TEXT: &str = "[RETURN TO MAIN MENU]";
 const DEBUG_MENU_GOLDEN_RATIO: f32 = 1.5;
 const SYSTEM_MUSIC_PATH: &str = "./audio/music/suspended_systems.ogg";
 
@@ -59,6 +59,11 @@ impl Plugin for DebugPlugin {
                     update_debug_overlay_position,
                     toggle_debug_menu_overlay,
                     play_debug_menu_navigation_sound,
+                    (
+                        system_menu::ensure_selection_indicators,
+                        system_menu::update_selection_indicators,
+                    )
+                        .chain(),
                     handle_debug_shortcuts,
                     cleanup_debug_lifetimes,
                 )

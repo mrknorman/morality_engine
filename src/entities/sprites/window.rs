@@ -14,12 +14,12 @@ use crate::{
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
         colors::{
-            ColorAnchor, ColorChangeEvent, ColorChangeOn, CLICKED_BUTTON, HOVERED_BUTTON,
+            ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON,
             PRIMARY_COLOR,
         },
         interaction::{
             ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
-            InputAction,
+            InputAction, InteractionVisualPalette, InteractionVisualState,
         },
     },
 };
@@ -1042,9 +1042,9 @@ impl Window {
         mut borders: Query<&mut BorderedRectangle>,
         mut plus_sets: Query<(
             &mut Plus,
-            &mut ColorChangeOn,
             &mut Clickable<WindowActions>,
             &mut ColorAnchor,
+            &mut InteractionVisualPalette,
         )>,
         mut header_titles: Query<
             (&mut WindowTitle, &mut Text2d, &mut Transform),
@@ -1151,7 +1151,7 @@ impl Window {
                     }
                 }
                 if let Some(close_icon_entity) = parts.close_button_icon {
-                    if let Ok((mut plus, mut cc, mut click, mut color_anchor)) =
+                    if let Ok((mut plus, mut click, mut color_anchor, mut palette)) =
                         plus_sets.get_mut(close_icon_entity)
                     {
                         plus.dimensions = close_boundary.dimensions - 10.0;
@@ -1159,13 +1159,7 @@ impl Window {
                         let region = Some(close_boundary.dimensions + 10.0);
                         click.region = region;
                         color_anchor.0 = close_boundary.color;
-                        for ev in &mut cc.events {
-                            if let ColorChangeEvent::Hover(_, r) | ColorChangeEvent::Click(_, r) =
-                                ev
-                            {
-                                *r = region;
-                            }
-                        }
+                        palette.idle_color = close_boundary.color;
                     }
                 }
             }
@@ -1293,10 +1287,13 @@ impl WindowCloseButton {
                     color: PRIMARY_COLOR,
                 },
                 Clickable::with_region(vec![WindowActions::CloseWindow], default_region),
-                ColorChangeOn::new(vec![
-                    ColorChangeEvent::Click(vec![CLICKED_BUTTON], Some(default_region)),
-                    ColorChangeEvent::Hover(vec![HOVERED_BUTTON], Some(default_region)),
-                ]),
+                InteractionVisualState::default(),
+                InteractionVisualPalette::new(
+                    PRIMARY_COLOR,
+                    HOVERED_BUTTON,
+                    CLICKED_BUTTON,
+                    HOVERED_BUTTON,
+                ),
                 ColorAnchor(PRIMARY_COLOR),
                 Transform {
                     rotation: Quat::from_rotation_z(FRAC_PI_4),
