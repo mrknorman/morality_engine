@@ -1,4 +1,4 @@
-use std::hash::Hash;
+use std::{cmp::Ordering, collections::HashMap, hash::Hash};
 use enum_map::{
     Enum, 
     EnumArray,
@@ -24,7 +24,8 @@ use crate::{
             DilatableAudio,
             TransientAudio,
             TransientAudioPallet,
-        }, 
+        },
+        colors::ColorAnchor,
         motion::Bounce,
         time::Dilation
     }, 
@@ -91,6 +92,7 @@ use crate::{
 pub enum InteractionSystem {
     Clickable,
     Pressable,
+    Selectable,
     Audio,
     AdvanceDialogue,
     LeverChange,
@@ -120,7 +122,8 @@ macro_rules! register_interaction_systems {
                 Draggable::enact,
                 system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable),
                 system_entry!(pressable_system::<$enum_type>, InteractionSystem::Pressable, after: InteractionSystem::Clickable),
-                system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Pressable),
+                system_entry!(selectable_system::<$enum_type>, InteractionSystem::Selectable, after: InteractionSystem::Pressable),
+                system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Selectable),
                 system_entry!(trigger_advance_dialogue::<$enum_type, $audio_type>, InteractionSystem::AdvanceDialogue, after: InteractionSystem::Audio),
                 system_entry!(trigger_lever_state_change::<$enum_type, $audio_type>, InteractionSystem::LeverChange, after: InteractionSystem::AdvanceDialogue),
                 #[cfg(any(debug_assertions, feature = "debug_tools"))]
@@ -167,6 +170,7 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, AsciiActions, AsciiSounds);
         register_interaction_systems!(app, TrainActions, TrainSounds);
         register_interaction_systems!(app, EndingActions, EndingSounds);
+        register_interaction_systems!(app, OverlayMenuActions, OverlayMenuSounds);
 
     }
 }
@@ -179,6 +183,24 @@ fn activate_prerequisite_states(
 
 #[derive(Message)]
 pub struct AdvanceDialogue;
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayMenuSounds {
+    Click,
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayMenuActions {
+    CloseOverlay,
+    ReturnToMenu,
+}
+
+impl std::fmt::Display for OverlayMenuActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Copy, Clone, Component)]
 pub struct ClickableCursorIcons {
     pub on_hover : CursorMode,
@@ -266,6 +288,81 @@ where
         Self {
             mappings,
             triggered_mapping: None,
+        }
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct SelectableMenu {
+    pub selected_index: usize,
+    pub up_keys: Vec<KeyCode>,
+    pub down_keys: Vec<KeyCode>,
+    pub activate_keys: Vec<KeyCode>,
+    pub wrap: bool,
+}
+
+impl Default for SelectableMenu {
+    fn default() -> Self {
+        Self {
+            selected_index: 0,
+            up_keys: vec![KeyCode::ArrowUp],
+            down_keys: vec![KeyCode::ArrowDown],
+            activate_keys: vec![KeyCode::Enter],
+            wrap: true,
+        }
+    }
+}
+
+impl SelectableMenu {
+    pub fn new(
+        selected_index: usize,
+        up_keys: Vec<KeyCode>,
+        down_keys: Vec<KeyCode>,
+        activate_keys: Vec<KeyCode>,
+        wrap: bool,
+    ) -> Self {
+        Self {
+            selected_index,
+            up_keys,
+            down_keys,
+            activate_keys,
+            wrap,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct Selectable {
+    pub menu_entity: Entity,
+    pub index: usize,
+}
+
+impl Selectable {
+    pub fn new(menu_entity: Entity, index: usize) -> Self {
+        Self { menu_entity, index }
+    }
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct SelectableColors {
+    pub idle_color: Color,
+    pub selected_color: Color,
+}
+
+impl Default for SelectableColors {
+    fn default() -> Self {
+        Self {
+            idle_color: Color::WHITE,
+            selected_color: Color::srgb(0.0, 6.0, 6.0),
+        }
+    }
+}
+
+impl SelectableColors {
+    pub fn new(idle_color: Color, selected_color: Color) -> Self {
+        Self {
+            idle_color,
+            selected_color,
         }
     }
 }
@@ -601,6 +698,185 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
                     break;
                 }
             }
+        }
+    }
+}
+
+pub fn selectable_system<K: Copy + Send + Sync + 'static>(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    cursor: Res<CustomCursor>,
+    mut menus: Query<&mut SelectableMenu>,
+    mut selectable_queries: ParamSet<(
+        Query<
+            (
+                Entity,
+                &Selectable,
+                Option<&Aabb>,
+                &Transform,
+                &GlobalTransform,
+                &Clickable<K>,
+            ),
+            Without<TextSpan>,
+        >,
+        Query<(
+            &Selectable,
+            Option<&SelectableColors>,
+            Option<&mut ColorAnchor>,
+            &mut Clickable<K>,
+        )>,
+    )>,
+) {
+    #[derive(Clone, Copy)]
+    struct SelectableCandidate {
+        entity: Entity,
+        index: usize,
+        z: f32,
+        hovered: bool,
+    }
+
+    #[derive(Clone, Copy)]
+    struct SelectionState {
+        selected_index: usize,
+        activate_pressed: bool,
+    }
+
+    fn move_selection(indices: &[usize], current_index: usize, forward: bool, wrap: bool) -> usize {
+        let Some(current_position) = indices.iter().position(|&index| index == current_index) else {
+            return indices[0];
+        };
+        if forward {
+            let next = current_position + 1;
+            if next < indices.len() {
+                indices[next]
+            } else if wrap {
+                indices[0]
+            } else {
+                indices[current_position]
+            }
+        } else if current_position > 0 {
+            indices[current_position - 1]
+        } else if wrap {
+            indices[indices.len() - 1]
+        } else {
+            indices[current_position]
+        }
+    }
+
+    let mut candidates_by_menu: HashMap<Entity, Vec<SelectableCandidate>> = HashMap::new();
+    for (entity, selectable, bound, transform, global_transform, clickable) in
+        selectable_queries.p0().iter()
+    {
+        let hovered = if let Some(cursor_position) = cursor.position {
+            if let Some(region) = clickable.region {
+                is_cursor_within_region(
+                    cursor_position,
+                    transform,
+                    global_transform,
+                    region,
+                    Vec2::ZERO,
+                )
+            } else if let Some(bound) = bound {
+                is_cursor_within_bounds(cursor_position, global_transform, bound)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        candidates_by_menu
+            .entry(selectable.menu_entity)
+            .or_default()
+            .push(SelectableCandidate {
+                entity,
+                index: selectable.index,
+                z: global_transform.translation().z,
+                hovered,
+            });
+    }
+
+    let mut selection_state_by_menu: HashMap<Entity, SelectionState> = HashMap::new();
+    for (menu_entity, candidates) in candidates_by_menu.iter() {
+        let Ok(mut menu) = menus.get_mut(*menu_entity) else {
+            continue;
+        };
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let mut indices: Vec<usize> = candidates.iter().map(|candidate| candidate.index).collect();
+        indices.sort_unstable();
+        indices.dedup();
+
+        if indices.is_empty() {
+            continue;
+        }
+
+        if !indices.contains(&menu.selected_index) {
+            menu.selected_index = indices[0];
+        }
+
+        if let Some(top_hovered) = candidates
+            .iter()
+            .filter(|candidate| candidate.hovered)
+            .max_by(|a, b| {
+                a.z.partial_cmp(&b.z)
+                    .unwrap_or(Ordering::Equal)
+                    .then_with(|| a.entity.index().cmp(&b.entity.index()))
+            })
+        {
+            menu.selected_index = top_hovered.index;
+        } else {
+            let up_pressed = menu
+                .up_keys
+                .iter()
+                .any(|&key| keyboard_input.just_pressed(key));
+            let down_pressed = menu
+                .down_keys
+                .iter()
+                .any(|&key| keyboard_input.just_pressed(key));
+
+            if up_pressed && !down_pressed {
+                menu.selected_index =
+                    move_selection(&indices, menu.selected_index, false, menu.wrap);
+            } else if down_pressed && !up_pressed {
+                menu.selected_index =
+                    move_selection(&indices, menu.selected_index, true, menu.wrap);
+            }
+        }
+
+        let activate_pressed = menu
+            .activate_keys
+            .iter()
+            .any(|&key| keyboard_input.just_pressed(key));
+
+        selection_state_by_menu.insert(
+            *menu_entity,
+            SelectionState {
+                selected_index: menu.selected_index,
+                activate_pressed,
+            },
+        );
+    }
+
+    for (selectable, selectable_colors, color_anchor, mut clickable) in
+        selectable_queries.p1().iter_mut()
+    {
+        let Some(selection_state) = selection_state_by_menu.get(&selectable.menu_entity) else {
+            continue;
+        };
+
+        let is_selected = selection_state.selected_index == selectable.index;
+        if is_selected && selection_state.activate_pressed {
+            clickable.triggered = true;
+        }
+
+        if let (Some(colors), Some(mut color_anchor)) = (selectable_colors, color_anchor) {
+            color_anchor.0 = if is_selected {
+                colors.selected_color
+            } else {
+                colors.idle_color
+            };
         }
     }
 }
