@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::{ecs::query::QueryFilter, prelude::*, sprite::Anchor};
 use enum_map::{Enum, EnumArray};
 
@@ -204,15 +206,16 @@ pub fn ensure_selection_indicators(
 }
 
 pub fn update_selection_indicators(
-    option_query: Query<&InteractionVisualState, With<SystemMenuOption>>,
-    mut option_text_query: Query<(&InteractionVisualState, &mut TextFont), With<SystemMenuOption>>,
+    mut option_query: Query<(Entity, &InteractionVisualState, &mut TextFont), With<SystemMenuOption>>,
     mut indicator_query: Query<
         (&ChildOf, &mut Visibility, &MeshMaterial2d<ColorMaterial>),
         With<SystemMenuSelectionIndicator>,
     >,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    for (state, mut text_font) in option_text_query.iter_mut() {
+    let mut highlighted_by_option: HashMap<Entity, bool> = HashMap::new();
+
+    for (entity, state, mut text_font) in option_query.iter_mut() {
         let selected = state.selected;
         text_font.font_size = if selected {
             OPTION_SELECTED_FONT_SIZE
@@ -224,14 +227,14 @@ pub fn update_selection_indicators(
         } else {
             OPTION_FONT_WEIGHT
         };
+        highlighted_by_option.insert(entity, state.pressed || state.selected || state.hovered);
     }
 
     for (parent, mut visibility, material_handle) in indicator_query.iter_mut() {
-        let Ok(state) = option_query.get(parent.parent()) else {
-            continue;
-        };
-
-        let highlighted = state.pressed || state.selected || state.hovered;
+        let highlighted = highlighted_by_option
+            .get(&parent.parent())
+            .copied()
+            .unwrap_or(false);
         if highlighted {
             *visibility = Visibility::Visible;
             if let Some(material) = materials.get_mut(material_handle.0.id()) {

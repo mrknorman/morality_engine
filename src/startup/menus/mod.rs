@@ -2481,6 +2481,124 @@ fn handle_option_cycler_commands(
     }
 }
 
+fn sanitize_menu_selection_indices(
+    mut menu_query: Query<
+        (Entity, &mut SelectableMenu),
+        Or<(
+            With<MenuRoot>,
+            With<VideoResolutionDropdown>,
+            With<VideoModalRoot>,
+        )>,
+    >,
+    selectable_query: Query<&Selectable>,
+) {
+    let mut indices_by_menu: HashMap<Entity, Vec<usize>> = HashMap::new();
+
+    for selectable in selectable_query.iter() {
+        indices_by_menu
+            .entry(selectable.menu_entity)
+            .or_default()
+            .push(selectable.index);
+    }
+
+    for (menu_entity, mut menu) in menu_query.iter_mut() {
+        let Some(indices) = indices_by_menu.get_mut(&menu_entity) else {
+            if menu.selected_index != 0 {
+                menu.selected_index = 0;
+            }
+            continue;
+        };
+
+        indices.sort_unstable();
+        indices.dedup();
+        if indices.is_empty() {
+            menu.selected_index = 0;
+            continue;
+        }
+
+        if !indices.contains(&menu.selected_index) {
+            menu.selected_index = indices[0];
+        }
+    }
+}
+
+fn enforce_menu_layer_invariants(
+    mut settings: ResMut<VideoSettingsState>,
+    menu_root_query: Query<Entity, With<MenuRoot>>,
+    modal_query: Query<(), With<VideoModalRoot>>,
+    mut dropdown_query: Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
+) {
+    let mut live_menu_roots = HashSet::new();
+    for menu_entity in menu_root_query.iter() {
+        live_menu_roots.insert(menu_entity);
+    }
+
+    let clear_if_stale = |slot: &mut Option<Entity>| {
+        if slot
+            .as_ref()
+            .is_some_and(|menu_entity| !live_menu_roots.contains(menu_entity))
+        {
+            *slot = None;
+        }
+    };
+
+    clear_if_stale(&mut settings.dropdown_open_menu);
+    clear_if_stale(&mut settings.exit_prompt_target_menu);
+    clear_if_stale(&mut settings.pending_exit_menu);
+
+    let modal_open = any_video_modal_open(&modal_query);
+    let mut visible_dropdowns: Vec<(Entity, Entity)> = Vec::new();
+    for (dropdown_entity, parent, visibility) in dropdown_query.iter() {
+        if *visibility == Visibility::Visible {
+            visible_dropdowns.push((dropdown_entity, parent.parent()));
+        }
+    }
+
+    if modal_open {
+        if !visible_dropdowns.is_empty() {
+            for (_, _, mut visibility) in dropdown_query.iter_mut() {
+                *visibility = Visibility::Hidden;
+            }
+        }
+        settings.dropdown_open_menu = None;
+        return;
+    }
+
+    if visible_dropdowns.is_empty() {
+        settings.dropdown_open_menu = None;
+        return;
+    }
+
+    let keep_dropdown = if visible_dropdowns.len() == 1 {
+        visible_dropdowns[0].0
+    } else if let Some(open_menu) = settings.dropdown_open_menu {
+        visible_dropdowns
+            .iter()
+            .find_map(|(dropdown_entity, parent_menu)| {
+                if *parent_menu == open_menu {
+                    Some(*dropdown_entity)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(visible_dropdowns[0].0)
+    } else {
+        visible_dropdowns[0].0
+    };
+
+    let mut keep_parent_menu = None;
+    for (dropdown_entity, parent, mut visibility) in dropdown_query.iter_mut() {
+        if dropdown_entity == keep_dropdown {
+            keep_parent_menu = Some(parent.parent());
+            *visibility = Visibility::Visible;
+        } else if *visibility == Visibility::Visible {
+            *visibility = Visibility::Hidden;
+        }
+    }
+
+    settings.dropdown_open_menu = keep_parent_menu;
+}
+
 pub struct MenusPlugin;
 
 impl Plugin for MenusPlugin {
@@ -2530,6 +2648,14 @@ impl Plugin for MenusPlugin {
                 .chain()
                 .after(sync_resolution_dropdown_items)
                 .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            (sanitize_menu_selection_indices, enforce_menu_layer_invariants)
+                .chain()
+                .after(handle_menu_option_commands)
+                .after(handle_video_modal_button_commands)
+                .after(handle_resolution_dropdown_keyboard_navigation),
         );
     }
 }
