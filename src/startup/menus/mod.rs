@@ -33,12 +33,18 @@ use crate::{
 };
 
 mod defs;
+mod dropdown;
+mod selector;
+mod stack;
 
 pub use defs::{
     MenuCommand, MenuHost, MenuOptionCommand, MenuPage, MenuPageContent, MenuRoot, MenuStack,
     PauseMenuAudio,
 };
 use defs::*;
+use dropdown::MenuDropdownState;
+use selector::MenuOptionShortcut;
+use stack::MenuNavigationState;
 
 #[derive(Message, Clone, Debug)]
 enum MenuIntent {
@@ -49,67 +55,71 @@ enum MenuIntent {
     TriggerModalButton(VideoModalButton),
 }
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+enum MenuSystems {
+    Core,
+    Commands,
+    PostCommands,
+    Visual,
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct WindowExitContext<'w, 's> {
+    primary_window_queries: ParamSet<
+        'w,
+        's,
+        (
+            Query<
+                'w,
+                's,
+                Entity,
+                (With<Window>, With<PrimaryWindow>, Without<ClosingWindow>),
+            >,
+            Query<'w, 's, &'static mut Window, With<PrimaryWindow>>,
+        ),
+    >,
+    close_requests: MessageWriter<'w, WindowCloseRequested>,
+    app_exit: MessageWriter<'w, AppExit>,
+}
+
 fn any_resolution_dropdown_open(
     dropdown_query: &Query<&Visibility, With<VideoResolutionDropdown>>,
 ) -> bool {
-    dropdown_query
-        .iter()
-        .any(|visibility| *visibility == Visibility::Visible)
+    dropdown::any_open::<VideoResolutionDropdown>(dropdown_query)
 }
 
 fn open_dropdown_for_menu(
     menu_entity: Entity,
-    settings: &mut VideoSettingsState,
+    selected_index: usize,
+    dropdown_state: &mut MenuDropdownState,
     dropdown_query: &mut Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
     dropdown_menu_query: &mut Query<
         &mut SelectableMenu,
         (With<VideoResolutionDropdown>, Without<MenuRoot>),
     >,
 ) {
-    let mut found = false;
-    for (dropdown_entity, parent, mut visibility) in dropdown_query.iter_mut() {
-        if parent.parent() == menu_entity {
-            *visibility = Visibility::Visible;
-            found = true;
-            if let Ok(mut dropdown_menu) = dropdown_menu_query.get_mut(dropdown_entity) {
-                dropdown_menu.selected_index =
-                    settings.pending.resolution_index.min(RESOLUTIONS.len() - 1);
-            }
-        } else {
-            *visibility = Visibility::Hidden;
-        }
-    }
-
-    if found {
-        settings.dropdown_open_menu = Some(menu_entity);
-    } else if settings.dropdown_open_menu == Some(menu_entity) {
-        settings.dropdown_open_menu = None;
-    }
+    dropdown::open_for_menu::<VideoResolutionDropdown>(
+        menu_entity,
+        selected_index,
+        dropdown_state,
+        dropdown_query,
+        dropdown_menu_query,
+    );
 }
 
 fn close_all_dropdowns(
-    settings: &mut VideoSettingsState,
+    dropdown_state: &mut MenuDropdownState,
     dropdown_query: &mut Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
 ) {
-    for (_, _, mut visibility) in dropdown_query.iter_mut() {
-        *visibility = Visibility::Hidden;
-    }
-    settings.dropdown_open_menu = None;
+    dropdown::close_all::<VideoResolutionDropdown>(dropdown_state, dropdown_query);
 }
 
 fn close_dropdowns_for_menu(
     menu_entity: Entity,
-    settings: &mut VideoSettingsState,
+    dropdown_state: &mut MenuDropdownState,
     dropdown_query: &mut Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
 ) {
-    for (_, parent, mut visibility) in dropdown_query.iter_mut() {
-        if parent.parent() == menu_entity {
-            *visibility = Visibility::Hidden;
-        }
-    }
-    if settings.dropdown_open_menu == Some(menu_entity) {
-        settings.dropdown_open_menu = None;
-    }
+    dropdown::close_for_menu::<VideoResolutionDropdown>(menu_entity, dropdown_state, dropdown_query);
 }
 
 fn any_video_modal_open(modal_query: &Query<(), With<VideoModalRoot>>) -> bool {
@@ -502,6 +512,13 @@ fn spawn_page_content(
                     ))
                     .id();
 
+                if let Some(shortcut) = option.shortcut {
+                    parent
+                        .commands()
+                        .entity(entity_id)
+                        .insert(MenuOptionShortcut(shortcut));
+                }
+
                 if option.cyclable {
                     parent.commands().entity(entity_id).insert((
                         OptionCycler::default(),
@@ -509,7 +526,8 @@ fn spawn_page_content(
                     ));
                 }
             } else {
-                parent.spawn((
+                let entity_id = parent
+                    .spawn((
                     Name::new(option.name),
                     MenuPageContent,
                     gate,
@@ -523,7 +541,15 @@ fn spawn_page_content(
                     clickable,
                     MenuOptionCommand(option.command.clone()),
                     click_audio(),
-                ));
+                ))
+                    .id();
+
+                if let Some(shortcut) = option.shortcut {
+                    parent
+                        .commands()
+                        .entity(entity_id)
+                        .insert(MenuOptionShortcut(shortcut));
+                }
             }
         }
     });
@@ -728,6 +754,7 @@ fn initialize_video_settings_from_window(
 
 fn sync_resolution_dropdown_items(
     settings: Res<VideoSettingsState>,
+    dropdown_state: Res<MenuDropdownState>,
     mut item_query: Query<(
         &VideoResolutionDropdownItem,
         &InteractionVisualState,
@@ -741,7 +768,7 @@ fn sync_resolution_dropdown_items(
     }
 
     let selected_index = settings.pending.resolution_index.min(RESOLUTIONS.len() - 1);
-    let dropdown_open = settings.dropdown_open_menu.is_some();
+    let dropdown_open = dropdown_state.open_menu.is_some();
 
     for (item, state, mut text, mut color, mut font) in item_query.iter_mut() {
         let (w, h) = RESOLUTIONS[item.index.min(RESOLUTIONS.len() - 1)];
@@ -1033,6 +1060,7 @@ fn handle_video_modal_shortcuts(
 fn handle_video_modal_button_commands(
     mut commands: Commands,
     mut settings: ResMut<VideoSettingsState>,
+    mut navigation_state: ResMut<MenuNavigationState>,
     mut button_query: Query<(
         Entity,
         &VideoModalButton,
@@ -1084,15 +1112,16 @@ fn handle_video_modal_button_commands(
         }
         VideoModalButton::ExitWithoutSaving => {
             settings.pending = settings.saved;
-            settings.pending_exit_menu = settings.exit_prompt_target_menu.take();
-            settings.pending_exit_closes_menu_system = settings.exit_prompt_closes_menu_system;
-            settings.exit_prompt_closes_menu_system = false;
+            navigation_state.pending_exit_menu = navigation_state.exit_prompt_target_menu.take();
+            navigation_state.pending_exit_closes_menu_system =
+                navigation_state.exit_prompt_closes_menu_system;
+            navigation_state.exit_prompt_closes_menu_system = false;
         }
         VideoModalButton::ExitCancel => {
-            settings.exit_prompt_target_menu = None;
-            settings.pending_exit_menu = None;
-            settings.exit_prompt_closes_menu_system = false;
-            settings.pending_exit_closes_menu_system = false;
+            navigation_state.exit_prompt_target_menu = None;
+            navigation_state.pending_exit_menu = None;
+            navigation_state.exit_prompt_closes_menu_system = false;
+            navigation_state.pending_exit_closes_menu_system = false;
         }
     }
 
@@ -1102,6 +1131,7 @@ fn handle_video_modal_button_commands(
 fn handle_resolution_dropdown_item_commands(
     mut commands: Commands,
     mut settings: ResMut<VideoSettingsState>,
+    mut dropdown_state: ResMut<MenuDropdownState>,
     mut item_query: Query<(
         Entity,
         &ChildOf,
@@ -1151,18 +1181,19 @@ fn handle_resolution_dropdown_item_commands(
     };
 
     settings.pending.resolution_index = index.min(RESOLUTIONS.len() - 1);
-    settings.suppress_resolution_toggle_once = true;
-    close_all_dropdowns(&mut settings, &mut dropdown_query);
+    dropdown_state.suppress_toggle_once = true;
+    close_all_dropdowns(&mut dropdown_state, &mut dropdown_query);
 }
 
 fn close_resolution_dropdown_on_outside_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut settings: ResMut<VideoSettingsState>,
+    settings: Res<VideoSettingsState>,
+    mut dropdown_state: ResMut<MenuDropdownState>,
     mut dropdown_query: Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
     item_query: Query<&Clickable<SystemMenuActions>, With<VideoResolutionDropdownItem>>,
 ) {
     if !settings.initialized
-        || settings.dropdown_open_menu.is_none()
+        || dropdown_state.open_menu.is_none()
         || !mouse_input.just_pressed(MouseButton::Left)
     {
         return;
@@ -1181,8 +1212,8 @@ fn close_resolution_dropdown_on_outside_click(
         return;
     }
 
-    settings.suppress_resolution_toggle_once = true;
-    close_all_dropdowns(&mut settings, &mut dropdown_query);
+    dropdown_state.suppress_toggle_once = true;
+    close_all_dropdowns(&mut dropdown_state, &mut dropdown_query);
 }
 
 fn handle_resolution_dropdown_keyboard_navigation(
@@ -1190,7 +1221,11 @@ fn handle_resolution_dropdown_keyboard_navigation(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<(), With<InteractionCapture>>,
     mut settings: ResMut<VideoSettingsState>,
-    mut menu_query: Query<(Entity, &MenuStack, &MenuRoot, &mut SelectableMenu)>,
+    mut dropdown_state: ResMut<MenuDropdownState>,
+    mut selectable_menu_queries: ParamSet<(
+        Query<(Entity, &MenuStack, &MenuRoot, &mut SelectableMenu)>,
+        Query<&mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>,
+    )>,
     mut option_query: Query<
         (
             &Selectable,
@@ -1200,10 +1235,6 @@ fn handle_resolution_dropdown_keyboard_navigation(
         With<MenuOptionCommand>,
     >,
     mut dropdown_query: Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
-    mut dropdown_menu_query: Query<
-        &mut SelectableMenu,
-        (With<VideoResolutionDropdown>, Without<MenuRoot>),
-    >,
     modal_query: Query<(), With<VideoModalRoot>>,
 ) {
     if !settings.initialized || any_video_modal_open(&modal_query) {
@@ -1215,7 +1246,7 @@ fn handle_resolution_dropdown_keyboard_navigation(
     let backspace_pressed = keyboard_input.just_pressed(KeyCode::Backspace);
     let escape_pressed = keyboard_input.just_pressed(KeyCode::Escape);
     let resolution_shortcut = dropdown_resolution_shortcut_index(&keyboard_input);
-    let dropdown_open = settings.dropdown_open_menu.is_some();
+    let dropdown_open = dropdown_state.open_menu.is_some();
 
     if !(left_pressed
         || right_pressed
@@ -1230,58 +1261,62 @@ fn handle_resolution_dropdown_keyboard_navigation(
     let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
     let resolution_option_index = video_resolution_option_index();
     let mut selected_resolution_menu: Option<Entity> = None;
-
-    for (menu_entity, menu_stack, menu_root, mut selectable_menu) in menu_query.iter_mut() {
-        if !interaction_gate_allows(Some(&menu_root.gate), interaction_captured) {
-            continue;
-        }
-        if menu_stack.current_page() != Some(MenuPage::Video) {
-            continue;
-        }
-
-        if settings.dropdown_open_menu == Some(menu_entity) {
-            selectable_menu.selected_index = resolution_option_index;
-            for (selectable, mut visual_state, mut clickable) in option_query.iter_mut() {
-                if selectable.menu_entity != menu_entity {
-                    continue;
-                }
-                clickable.triggered = false;
-                if selectable.index == resolution_option_index {
-                    visual_state.selected = true;
-                } else {
-                    visual_state.selected = false;
-                    visual_state.hovered = false;
-                    visual_state.pressed = false;
-                }
+    {
+        let mut menu_query = selectable_menu_queries.p0();
+        for (menu_entity, menu_stack, menu_root, mut selectable_menu) in menu_query.iter_mut() {
+            if !interaction_gate_allows(Some(&menu_root.gate), interaction_captured) {
+                continue;
+            }
+            if menu_stack.current_page() != Some(MenuPage::Video) {
+                continue;
             }
 
-            if let Some(resolution_index) = resolution_shortcut {
-                settings.pending.resolution_index = resolution_index.min(RESOLUTIONS.len() - 1);
-                settings.suppress_resolution_toggle_once = true;
-                close_dropdowns_for_menu(menu_entity, &mut settings, &mut dropdown_query);
-            } else if (left_pressed && !right_pressed) || backspace_pressed || escape_pressed {
-                close_dropdowns_for_menu(menu_entity, &mut settings, &mut dropdown_query);
-            }
-            return;
-        }
+            if dropdown_state.open_menu == Some(menu_entity) {
+                selectable_menu.selected_index = resolution_option_index;
+                for (selectable, mut visual_state, mut clickable) in option_query.iter_mut() {
+                    if selectable.menu_entity != menu_entity {
+                        continue;
+                    }
+                    clickable.triggered = false;
+                    if selectable.index == resolution_option_index {
+                        visual_state.selected = true;
+                    } else {
+                        visual_state.selected = false;
+                        visual_state.hovered = false;
+                        visual_state.pressed = false;
+                    }
+                }
 
-        if selectable_menu.selected_index == resolution_option_index
-            && selected_resolution_menu.is_none()
-        {
-            selected_resolution_menu = Some(menu_entity);
+                if let Some(resolution_index) = resolution_shortcut {
+                    settings.pending.resolution_index = resolution_index.min(RESOLUTIONS.len() - 1);
+                    dropdown_state.suppress_toggle_once = true;
+                    close_dropdowns_for_menu(menu_entity, &mut dropdown_state, &mut dropdown_query);
+                } else if (left_pressed && !right_pressed) || backspace_pressed || escape_pressed {
+                    close_dropdowns_for_menu(menu_entity, &mut dropdown_state, &mut dropdown_query);
+                }
+                return;
+            }
+
+            if selectable_menu.selected_index == resolution_option_index
+                && selected_resolution_menu.is_none()
+            {
+                selected_resolution_menu = Some(menu_entity);
+            }
         }
     }
 
-    if settings.dropdown_open_menu.is_some() {
-        close_all_dropdowns(&mut settings, &mut dropdown_query);
+    if dropdown_state.open_menu.is_some() {
+        close_all_dropdowns(&mut dropdown_state, &mut dropdown_query);
         return;
     }
 
     if right_pressed && !left_pressed && !backspace_pressed && !escape_pressed {
         if let Some(menu_entity) = selected_resolution_menu {
+            let mut dropdown_menu_query = selectable_menu_queries.p1();
             open_dropdown_for_menu(
                 menu_entity,
-                &mut settings,
+                settings.pending.resolution_index.min(RESOLUTIONS.len() - 1),
+                &mut dropdown_state,
                 &mut dropdown_query,
                 &mut dropdown_menu_query,
             );
@@ -1475,12 +1510,15 @@ fn handle_menu_shortcuts(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<(), With<InteractionCapture>>,
-    mut settings: ResMut<VideoSettingsState>,
+    settings: Res<VideoSettingsState>,
+    dropdown_state: Res<MenuDropdownState>,
+    mut navigation_state: ResMut<MenuNavigationState>,
     modal_query: Query<(), With<VideoModalRoot>>,
     menu_query: Query<(Entity, &MenuStack, &MenuRoot)>,
+    option_shortcut_query: Query<(&Selectable, &MenuOptionShortcut, &MenuOptionCommand)>,
     mut menu_intents: MessageWriter<MenuIntent>,
 ) {
-    if any_video_modal_open(&modal_query) || settings.dropdown_open_menu.is_some() {
+    if any_video_modal_open(&modal_query) || dropdown_state.open_menu.is_some() {
         return;
     }
 
@@ -1488,7 +1526,6 @@ fn handle_menu_shortcuts(
 
     let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
     let mut handled_escape = false;
-    let mut pending_shortcuts: Vec<(Entity, MenuCommand)> = Vec::new();
 
     for (menu_entity, menu_stack, menu_root) in menu_query.iter() {
         if !interaction_gate_allows(Some(&menu_root.gate), interaction_captured) {
@@ -1498,38 +1535,28 @@ fn handle_menu_shortcuts(
         let Some(page) = menu_stack.current_page() else {
             continue;
         };
-        let page_def = page_definition(page);
-        let mut command: Option<MenuCommand> = None;
 
         if escape_pressed && !handled_escape {
             handled_escape = true;
             let leaving_video_options = matches!(page, MenuPage::Video | MenuPage::Options);
             if settings.initialized && video_settings_dirty(&settings) && leaving_video_options {
-                settings.exit_prompt_target_menu = Some(menu_entity);
-                settings.exit_prompt_closes_menu_system = true;
+                navigation_state.exit_prompt_target_menu = Some(menu_entity);
+                navigation_state.exit_prompt_closes_menu_system = true;
                 spawn_exit_unsaved_modal(&mut commands, menu_entity, &asset_server, menu_root.gate);
             } else {
-                settings.pending_exit_menu = Some(menu_entity);
-                settings.pending_exit_closes_menu_system = true;
+                navigation_state.pending_exit_menu = Some(menu_entity);
+                navigation_state.pending_exit_closes_menu_system = true;
             }
             continue;
         }
-
-        for option in page_def.options {
-            let Some(shortcut) = option.shortcut else {
-                continue;
-            };
-            if keyboard_input.just_pressed(shortcut) {
-                command = Some(option.command.clone());
-                break;
-            }
-        }
-
-        if let Some(command) = command {
-            pending_shortcuts.push((menu_entity, command));
-        }
     }
 
+    let pending_shortcuts = selector::collect_shortcut_commands(
+        &keyboard_input,
+        interaction_captured,
+        &menu_query,
+        &option_shortcut_query,
+    );
     for (menu_entity, command) in pending_shortcuts {
         menu_intents.write(MenuIntent::TriggerCommand {
             menu_entity,
@@ -1550,37 +1577,32 @@ fn handle_menu_option_commands(
     mut menu_queries: ParamSet<(
         Query<(&MenuRoot, &mut MenuStack, &mut SelectableMenu)>,
         Query<(&MenuRoot, &MenuStack)>,
+        Query<&mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>,
     )>,
     page_content_query: Query<(Entity, &ChildOf), With<MenuPageContent>>,
     asset_server: Res<AssetServer>,
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
-    mut primary_window_queries: ParamSet<(
-        Query<Entity, (With<Window>, With<PrimaryWindow>, Without<ClosingWindow>)>,
-        Query<&mut Window, With<PrimaryWindow>>,
-    )>,
-    mut close_requests: MessageWriter<WindowCloseRequested>,
-    mut app_exit: MessageWriter<AppExit>,
+    mut window_exit: WindowExitContext,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_pause_state: ResMut<NextState<PauseState>>,
     mut settings: ResMut<VideoSettingsState>,
+    mut dropdown_state: ResMut<MenuDropdownState>,
+    mut navigation_state: ResMut<MenuNavigationState>,
     mut dropdown_query: Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
-    mut dropdown_menu_query: Query<
-        &mut SelectableMenu,
-        (With<VideoResolutionDropdown>, Without<MenuRoot>),
-    >,
     modal_query: Query<(), With<VideoModalRoot>>,
 ) {
     let mut dirty_menus = HashSet::new();
     let mut closed_menus = HashSet::new();
+    let mut pending_dropdown_open: Vec<(Entity, usize)> = Vec::new();
     let mut menu_query = menu_queries.p0();
     let modal_open = any_video_modal_open(&modal_query);
-    let mut suppress_resolution_toggle = settings.suppress_resolution_toggle_once;
-    settings.suppress_resolution_toggle_once = false;
+    let mut suppress_resolution_toggle = dropdown_state.suppress_toggle_once;
+    dropdown_state.suppress_toggle_once = false;
 
-    if let Some(menu_entity) = settings.pending_exit_menu.take() {
-        let close_menu_system = settings.pending_exit_closes_menu_system;
-        settings.pending_exit_closes_menu_system = false;
+    if let Some(menu_entity) = navigation_state.pending_exit_menu.take() {
+        let close_menu_system = navigation_state.pending_exit_closes_menu_system;
+        navigation_state.pending_exit_closes_menu_system = false;
 
         if let Ok((menu_root, mut menu_stack, mut selectable_menu)) = menu_query.get_mut(menu_entity) {
             if close_menu_system {
@@ -1613,7 +1635,7 @@ fn handle_menu_option_commands(
             continue;
         }
 
-        if settings.dropdown_open_menu == Some(selectable.menu_entity)
+        if dropdown_state.open_menu == Some(selectable.menu_entity)
             && !matches!(&option_command.0, MenuCommand::ToggleResolutionDropdown)
         {
             continue;
@@ -1642,7 +1664,7 @@ fn handle_menu_option_commands(
             MenuCommand::Push(page) => {
                 close_dropdowns_for_menu(
                     selectable.menu_entity,
-                    &mut settings,
+                    &mut dropdown_state,
                     &mut dropdown_query,
                 );
                 menu_stack.push(page);
@@ -1652,15 +1674,15 @@ fn handle_menu_option_commands(
             MenuCommand::Pop => {
                 close_dropdowns_for_menu(
                     selectable.menu_entity,
-                    &mut settings,
+                    &mut dropdown_state,
                     &mut dropdown_query,
                 );
                 let leaving_video_options = current_page
                     .is_some_and(|page| matches!(page, MenuPage::Video | MenuPage::Options));
                 if settings.initialized && video_settings_dirty(&settings) && leaving_video_options
                 {
-                    settings.exit_prompt_target_menu = Some(selectable.menu_entity);
-                    settings.exit_prompt_closes_menu_system = false;
+                    navigation_state.exit_prompt_target_menu = Some(selectable.menu_entity);
+                    navigation_state.exit_prompt_closes_menu_system = false;
                     spawn_exit_unsaved_modal(
                         &mut commands,
                         selectable.menu_entity,
@@ -1684,19 +1706,17 @@ fn handle_menu_option_commands(
                     suppress_resolution_toggle = false;
                     continue;
                 }
-                if settings.dropdown_open_menu == Some(selectable.menu_entity) {
+                if dropdown_state.open_menu == Some(selectable.menu_entity) {
                     close_dropdowns_for_menu(
                         selectable.menu_entity,
-                        &mut settings,
+                        &mut dropdown_state,
                         &mut dropdown_query,
                     );
                 } else {
-                    open_dropdown_for_menu(
+                    pending_dropdown_open.push((
                         selectable.menu_entity,
-                        &mut settings,
-                        &mut dropdown_query,
-                        &mut dropdown_menu_query,
-                    );
+                        settings.pending.resolution_index.min(RESOLUTIONS.len() - 1),
+                    ));
                 }
             }
             MenuCommand::SetPause(state) => {
@@ -1706,7 +1726,7 @@ fn handle_menu_option_commands(
                 if settings.initialized {
                     close_dropdowns_for_menu(
                         selectable.menu_entity,
-                        &mut settings,
+                        &mut dropdown_state,
                         &mut dropdown_query,
                     );
                     settings.pending.display_mode = match settings.pending.display_mode {
@@ -1719,7 +1739,7 @@ fn handle_menu_option_commands(
                 if settings.initialized {
                     close_dropdowns_for_menu(
                         selectable.menu_entity,
-                        &mut settings,
+                        &mut dropdown_state,
                         &mut dropdown_query,
                     );
                     settings.pending.vsync_enabled = !settings.pending.vsync_enabled;
@@ -1729,11 +1749,11 @@ fn handle_menu_option_commands(
                 if settings.initialized && video_settings_dirty(&settings) {
                     close_dropdowns_for_menu(
                         selectable.menu_entity,
-                        &mut settings,
+                        &mut dropdown_state,
                         &mut dropdown_query,
                     );
                     settings.revert_snapshot = Some(settings.saved);
-                    if let Ok(mut window) = primary_window_queries.p1().single_mut() {
+                    if let Ok(mut window) = window_exit.primary_window_queries.p1().single_mut() {
                         apply_snapshot_to_window(&mut window, settings.pending);
                     }
                     settings.apply_timer = Some(Timer::from_seconds(30.0, TimerMode::Once));
@@ -1750,7 +1770,7 @@ fn handle_menu_option_commands(
                     settings.pending = default_video_settings();
                     close_dropdowns_for_menu(
                         selectable.menu_entity,
-                        &mut settings,
+                        &mut dropdown_state,
                         &mut dropdown_query,
                     );
                 }
@@ -1763,8 +1783,12 @@ fn handle_menu_option_commands(
                 next_main_state.set(main_state);
             }
             MenuCommand::ExitApplication => {
-                let primary_window = primary_window_queries.p0();
-                request_application_exit(&primary_window, &mut close_requests, &mut app_exit);
+                let primary_window = window_exit.primary_window_queries.p0();
+                request_application_exit(
+                    &primary_window,
+                    &mut window_exit.close_requests,
+                    &mut window_exit.app_exit,
+                );
             }
             MenuCommand::CloseMenu => {
                 closed_menus.insert(selectable.menu_entity);
@@ -1772,16 +1796,30 @@ fn handle_menu_option_commands(
         }
     }
 
-    if settings
+    for (menu_entity, selected_index) in pending_dropdown_open {
+        if closed_menus.contains(&menu_entity) {
+            continue;
+        }
+        let mut dropdown_menu_query = menu_queries.p2();
+        open_dropdown_for_menu(
+            menu_entity,
+            selected_index,
+            &mut dropdown_state,
+            &mut dropdown_query,
+            &mut dropdown_menu_query,
+        );
+    }
+
+    if navigation_state
         .exit_prompt_target_menu
         .is_some_and(|menu_entity| closed_menus.contains(&menu_entity))
     {
-        settings.exit_prompt_target_menu = None;
+        navigation_state.exit_prompt_target_menu = None;
     }
 
     for menu_entity in closed_menus {
-        if settings.dropdown_open_menu == Some(menu_entity) {
-            settings.dropdown_open_menu = None;
+        if dropdown_state.open_menu == Some(menu_entity) {
+            dropdown_state.open_menu = None;
         }
         dirty_menus.remove(&menu_entity);
         commands.entity(menu_entity).despawn_related::<Children>();
@@ -1808,13 +1846,6 @@ fn handle_menu_option_commands(
     }
 }
 
-fn sync_option_cycler_bounds(mut option_query: Query<(&MenuOptionCommand, &mut OptionCycler)>) {
-    for (_, mut cycler) in option_query.iter_mut() {
-        cycler.at_min = false;
-        cycler.at_max = false;
-    }
-}
-
 fn handle_option_cycler_commands(
     mut commands: Commands,
     mut option_query: Query<(
@@ -1826,6 +1857,7 @@ fn handle_option_cycler_commands(
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
     mut settings: ResMut<VideoSettingsState>,
+    dropdown_state: Res<MenuDropdownState>,
     modal_query: Query<(), With<VideoModalRoot>>,
 ) {
     let modal_open = any_video_modal_open(&modal_query);
@@ -1846,7 +1878,7 @@ fn handle_option_cycler_commands(
             continue;
         };
 
-        if modal_open || settings.dropdown_open_menu.is_some() || !settings.initialized {
+        if modal_open || dropdown_state.open_menu.is_some() || !settings.initialized {
             continue;
         }
 
@@ -1916,80 +1948,19 @@ fn sanitize_menu_selection_indices(
 }
 
 fn enforce_menu_layer_invariants(
-    mut settings: ResMut<VideoSettingsState>,
+    mut navigation_state: ResMut<MenuNavigationState>,
+    mut dropdown_state: ResMut<MenuDropdownState>,
     menu_root_query: Query<Entity, With<MenuRoot>>,
     modal_query: Query<(), With<VideoModalRoot>>,
     mut dropdown_query: Query<(Entity, &ChildOf, &mut Visibility), With<VideoResolutionDropdown>>,
 ) {
-    let mut live_menu_roots = HashSet::new();
-    for menu_entity in menu_root_query.iter() {
-        live_menu_roots.insert(menu_entity);
-    }
-
-    let clear_if_stale = |slot: &mut Option<Entity>| {
-        if slot
-            .as_ref()
-            .is_some_and(|menu_entity| !live_menu_roots.contains(menu_entity))
-        {
-            *slot = None;
-        }
-    };
-
-    clear_if_stale(&mut settings.dropdown_open_menu);
-    clear_if_stale(&mut settings.exit_prompt_target_menu);
-    clear_if_stale(&mut settings.pending_exit_menu);
-
-    let modal_open = any_video_modal_open(&modal_query);
-    let mut visible_dropdowns: Vec<(Entity, Entity)> = Vec::new();
-    for (dropdown_entity, parent, visibility) in dropdown_query.iter() {
-        if *visibility == Visibility::Visible {
-            visible_dropdowns.push((dropdown_entity, parent.parent()));
-        }
-    }
-
-    if modal_open {
-        if !visible_dropdowns.is_empty() {
-            for (_, _, mut visibility) in dropdown_query.iter_mut() {
-                *visibility = Visibility::Hidden;
-            }
-        }
-        settings.dropdown_open_menu = None;
-        return;
-    }
-
-    if visible_dropdowns.is_empty() {
-        settings.dropdown_open_menu = None;
-        return;
-    }
-
-    let keep_dropdown = if visible_dropdowns.len() == 1 {
-        visible_dropdowns[0].0
-    } else if let Some(open_menu) = settings.dropdown_open_menu {
-        visible_dropdowns
-            .iter()
-            .find_map(|(dropdown_entity, parent_menu)| {
-                if *parent_menu == open_menu {
-                    Some(*dropdown_entity)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(visible_dropdowns[0].0)
-    } else {
-        visible_dropdowns[0].0
-    };
-
-    let mut keep_parent_menu = None;
-    for (dropdown_entity, parent, mut visibility) in dropdown_query.iter_mut() {
-        if dropdown_entity == keep_dropdown {
-            keep_parent_menu = Some(parent.parent());
-            *visibility = Visibility::Visible;
-        } else if *visibility == Visibility::Visible {
-            *visibility = Visibility::Hidden;
-        }
-    }
-
-    settings.dropdown_open_menu = keep_parent_menu;
+    stack::clear_stale_menu_targets(&mut navigation_state, &menu_root_query);
+    dropdown::enforce_single_visible_layer::<VideoResolutionDropdown>(
+        &mut dropdown_state,
+        &menu_root_query,
+        any_video_modal_open(&modal_query),
+        &mut dropdown_query,
+    );
 }
 
 pub struct MenusPlugin;
@@ -1997,25 +1968,75 @@ pub struct MenusPlugin;
 impl Plugin for MenusPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VideoSettingsState>()
+            .init_resource::<MenuDropdownState>()
+            .init_resource::<MenuNavigationState>()
             .add_message::<MenuIntent>();
+        app.configure_sets(
+            Update,
+            (
+                MenuSystems::Core,
+                MenuSystems::Commands.after(MenuSystems::Core),
+                MenuSystems::PostCommands.after(MenuSystems::Commands),
+                MenuSystems::Visual.after(MenuSystems::PostCommands),
+            ),
+        );
         app.add_systems(
             Update,
             (
                 initialize_video_settings_from_window,
-                sync_option_cycler_bounds,
+                selector::sync_option_cycler_bounds,
                 option_cycler_input_system,
                 play_menu_navigation_sound,
                 handle_menu_shortcuts,
                 handle_resolution_dropdown_keyboard_navigation,
                 apply_menu_intents,
+            )
+                .chain()
+                .in_set(MenuSystems::Core)
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            (
                 handle_video_modal_button_commands,
                 handle_resolution_dropdown_item_commands,
                 close_resolution_dropdown_on_outside_click,
                 update_apply_confirmation_countdown,
                 handle_menu_option_commands,
-                handle_option_cycler_commands,
             )
                 .chain()
+                .in_set(MenuSystems::Commands)
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            (
+                handle_option_cycler_commands,
+                sanitize_menu_selection_indices,
+                enforce_menu_layer_invariants,
+            )
+                .chain()
+                .in_set(MenuSystems::PostCommands)
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            handle_video_modal_shortcuts
+                .after(option_cycler_input_system)
+                .before(apply_menu_intents)
+                .in_set(MenuSystems::Core)
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            (
+                ensure_resolution_dropdown_value_arrows,
+                update_resolution_dropdown_value_arrows,
+                recenter_resolution_dropdown_item_text,
+            )
+                .chain()
+                .in_set(MenuSystems::Visual)
+                .after(sync_resolution_dropdown_items)
                 .after(InteractionSystem::Selectable),
         );
         app.add_systems(
@@ -2031,34 +2052,8 @@ impl Plugin for MenusPlugin {
                 system_menu::update_cycle_arrows,
             )
                 .chain()
-                .after(handle_option_cycler_commands)
+                .in_set(MenuSystems::Visual)
                 .after(InteractionSystem::Selectable),
-        );
-        app.add_systems(
-            Update,
-            handle_video_modal_shortcuts
-                .after(option_cycler_input_system)
-                .before(apply_menu_intents)
-                .after(InteractionSystem::Selectable),
-        );
-        app.add_systems(
-            Update,
-            (
-                ensure_resolution_dropdown_value_arrows,
-                update_resolution_dropdown_value_arrows,
-                recenter_resolution_dropdown_item_text,
-            )
-                .chain()
-                .after(sync_resolution_dropdown_items)
-                .after(InteractionSystem::Selectable),
-        );
-        app.add_systems(
-            Update,
-            (sanitize_menu_selection_indices, enforce_menu_layer_invariants)
-                .chain()
-                .after(handle_menu_option_commands)
-                .after(handle_video_modal_button_commands)
-                .after(handle_resolution_dropdown_keyboard_navigation),
         );
     }
 }

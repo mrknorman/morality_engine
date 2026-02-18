@@ -252,12 +252,6 @@ pub(super) struct VideoSettingsState {
     pub(super) pending: VideoSettingsSnapshot,
     pub(super) revert_snapshot: Option<VideoSettingsSnapshot>,
     pub(super) apply_timer: Option<Timer>,
-    pub(super) exit_prompt_target_menu: Option<Entity>,
-    pub(super) exit_prompt_closes_menu_system: bool,
-    pub(super) pending_exit_menu: Option<Entity>,
-    pub(super) pending_exit_closes_menu_system: bool,
-    pub(super) dropdown_open_menu: Option<Entity>,
-    pub(super) suppress_resolution_toggle_once: bool,
 }
 
 impl Default for VideoSettingsState {
@@ -269,12 +263,6 @@ impl Default for VideoSettingsState {
             pending: snapshot,
             revert_snapshot: None,
             apply_timer: None,
-            exit_prompt_target_menu: None,
-            exit_prompt_closes_menu_system: false,
-            pending_exit_menu: None,
-            pending_exit_closes_menu_system: false,
-            dropdown_open_menu: None,
-            suppress_resolution_toggle_once: false,
         }
     }
 }
