@@ -933,8 +933,11 @@ fn apply_menu_intents(
         &Selectable,
         &MenuOptionCommand,
         &mut Clickable<SystemMenuActions>,
-    )>,
-    mut modal_button_query: Query<(&VideoModalButton, &mut Clickable<SystemMenuActions>)>,
+    ), Without<VideoModalButton>>,
+    mut modal_button_query: Query<
+        (&VideoModalButton, &mut Clickable<SystemMenuActions>),
+        Without<MenuOptionCommand>,
+    >,
 ) {
     let mut command_intents: Vec<(Entity, MenuCommand)> = Vec::new();
     let mut modal_button_intents: Vec<VideoModalButton> = Vec::new();
