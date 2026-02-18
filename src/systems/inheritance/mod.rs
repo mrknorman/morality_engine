@@ -3,38 +3,32 @@ use bevy::prelude::*;
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InheritanceSystemsActive {
     #[default]
-	False,
-    True
+    False,
+    True,
 }
 pub struct InheritancePlugin;
 
 impl Plugin for InheritancePlugin {
-    fn build(&self, app: &mut App) {	
-		app
-		.init_state::<InheritanceSystemsActive>()
-		.add_systems(
-			Update,
-			activate_systems
-		).add_systems(
-            Update,
-            (
-				BequeathTextColor::bequeath,
-                BequeathTextAlpha::bequeath,
-            )
-            .run_if(in_state(InheritanceSystemsActive::True))
-        );
+    fn build(&self, app: &mut App) {
+        app.init_state::<InheritanceSystemsActive>()
+            .add_systems(Update, activate_systems)
+            .add_systems(
+                Update,
+                (BequeathTextColor::bequeath, BequeathTextAlpha::bequeath)
+                    .run_if(in_state(InheritanceSystemsActive::True)),
+            );
     }
 }
 
 fn activate_systems(
-	mut inheritance_state: ResMut<NextState<InheritanceSystemsActive>>,
-	inheritance_query: Query<&BequeathTextColor>
+    mut inheritance_state: ResMut<NextState<InheritanceSystemsActive>>,
+    inheritance_query: Query<&BequeathTextColor>,
 ) {
-	if !inheritance_query.is_empty() {
-		inheritance_state.set(InheritanceSystemsActive::True)
-	} else {
-		inheritance_state.set(InheritanceSystemsActive::False)
-	}
+    if !inheritance_query.is_empty() {
+        inheritance_state.set(InheritanceSystemsActive::True)
+    } else {
+        inheritance_state.set(InheritanceSystemsActive::False)
+    }
 }
 
 #[derive(Component)]
@@ -43,13 +37,11 @@ pub struct BequeathTextColor;
 
 impl BequeathTextColor {
     fn bequeath(
-        parent_query : Query<(&Children, &TextColor), With<BequeathTextColor>>,
-        mut child_query : Query<&mut TextColor, Without<BequeathTextColor>>
+        parent_query: Query<(&Children, &TextColor), With<BequeathTextColor>>,
+        mut child_query: Query<&mut TextColor, Without<BequeathTextColor>>,
     ) {
-
         for (children, parent_color) in parent_query.iter() {
             for child in children.iter() {
-
                 if let Ok(mut child_color) = child_query.get_mut(child) {
                     child_color.0 = parent_color.0;
                 }
@@ -64,20 +56,17 @@ impl Default for BequeathTextColor {
     }
 }
 
-
 #[derive(Component)]
 #[require(TextColor)]
 pub struct BequeathTextAlpha;
 
 impl BequeathTextAlpha {
     fn bequeath(
-        parent_query : Query<(&Children, &TextColor), With<BequeathTextAlpha>>,
-        mut child_query : Query<&mut TextColor, Without<BequeathTextAlpha>>
+        parent_query: Query<(&Children, &TextColor), With<BequeathTextAlpha>>,
+        mut child_query: Query<&mut TextColor, Without<BequeathTextAlpha>>,
     ) {
-
         for (children, parent_color) in parent_query.iter() {
             for child in children.iter() {
-
                 if let Ok(mut child_color) = child_query.get_mut(child) {
                     child_color.0 = child_color.0.with_alpha(parent_color.0.alpha());
                 }

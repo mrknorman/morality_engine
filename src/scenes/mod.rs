@@ -1,57 +1,45 @@
 pub mod dialogue;
 pub mod dilemma;
-pub mod loading;
 pub mod ending;
+pub mod loading;
 pub mod menu;
 
 use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
-use menu::MenuScenePlugin;
+use dialogue::{content::*, DialogueScenePlugin};
+use dilemma::{content::*, DilemmaScenePlugin};
+use ending::{content::*, EndingScenePlugin};
 use loading::LoadingScenePlugin;
-use dialogue::{
-    DialogueScenePlugin,
-    content::*
-};
-use dilemma::{
-    DilemmaScenePlugin,
-    content::*
-};
-use ending::{
-    EndingScenePlugin,
-    content::*
-};
+use menu::MenuScenePlugin;
 
 pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
-        app         
-        .add_plugins(
-            (
-                MenuScenePlugin,
-                LoadingScenePlugin,
-                DialogueScenePlugin,
-                DilemmaScenePlugin,
-                EndingScenePlugin
-            )
-        )  
+        app.add_plugins((
+            MenuScenePlugin,
+            LoadingScenePlugin,
+            DialogueScenePlugin,
+            DilemmaScenePlugin,
+            EndingScenePlugin,
+        ))
         .insert_resource(SceneQueue::default());
     }
 }
 
 #[derive(Resource)]
-pub struct SceneQueue{
-    queue : VecDeque<Scene>,
+pub struct SceneQueue {
+    queue: VecDeque<Scene>,
     next: Option<Scene>,
-    current : Scene
+    current: Scene,
 }
 
 impl SceneQueue {
     pub fn pop(&mut self) -> Scene {
         let scene = match self.queue.pop_front() {
             Some(scene) => scene,
-            _ => panic!("Queue Is Empty!")
+            _ => panic!("Queue Is Empty!"),
         };
         self.next = self.queue.front().copied();
         self.current = scene;
@@ -64,17 +52,16 @@ impl SceneQueue {
     }
 }
 
-
-impl Default for SceneQueue{
+impl Default for SceneQueue {
     fn default() -> Self {
         Self {
-            queue : VecDeque::from([
-                Scene::Loading, 
-                Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro)),   
-                Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit))
+            queue: VecDeque::from([
+                Scene::Loading,
+                Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro)),
+                Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit)),
             ]),
-            next : Some(Scene::Loading),
-            current : Scene::Menu
+            next: Some(Scene::Loading),
+            current: Scene::Menu,
         }
     }
 }
@@ -82,11 +69,11 @@ impl Default for SceneQueue{
 impl SceneQueue {
     fn dilemma_start() -> Self {
         Self {
-            queue : VecDeque::from([
-                Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths))
-            ]),
-            next : None,
-            current : Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths))
+            queue: VecDeque::from([Scene::Dilemma(DilemmaScene::Lab4(
+                Lab4Dilemma::RandomDeaths,
+            ))]),
+            next: None,
+            current: Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         }
     }
 }
@@ -98,7 +85,5 @@ pub enum Scene {
     Loading,
     Dialogue(DialogueScene),
     Dilemma(DilemmaScene),
-    Ending(EndingScene)
+    Ending(EndingScene),
 }
-
-

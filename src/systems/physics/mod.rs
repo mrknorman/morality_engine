@@ -1,59 +1,66 @@
 use bevy::{
-    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, window::PrimaryWindow
+    camera::primitives::Aabb,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    window::PrimaryWindow,
 };
 
 use rand::{seq::IndexedRandom, Rng};
 use rand_distr::{Distribution, LogNormal, Normal, UnitSphere};
 
-use crate::{data::rng::GlobalRng, entities::{person::{BloodSprite, EmotionSounds}, text::{CharacterSprite, TextSprite}}, systems::{interaction::world_aabb, time::Dilation}};
+use crate::{
+    data::rng::GlobalRng,
+    entities::{
+        person::{BloodSprite, EmotionSounds},
+        text::{CharacterSprite, TextSprite},
+    },
+    systems::{interaction::world_aabb, time::Dilation},
+};
 
 use super::audio::{DilatableAudio, TransientAudio, TransientAudioPallet};
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PhysicsSystemsActive {
     #[default]
-	False,
-    True
+    False,
+    True,
 }
 
 pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
-    fn build(&self, app: &mut App) {	
-		app
-		.init_state::<PhysicsSystemsActive>()
-		.add_systems(
-			Update,
-			activate_systems
-		).add_systems(
-            Update,
-            (
-				Velocity::enact,
-                CameraVelocity::enact,
-                AngularVelocity::enact,
-                ScaleVelocity::enact,
-                Gravity::enact,
-                Friction::enact,
-                Volatile::enact,
+    fn build(&self, app: &mut App) {
+        app.init_state::<PhysicsSystemsActive>()
+            .add_systems(Update, activate_systems)
+            .add_systems(
+                Update,
+                (
+                    Velocity::enact,
+                    CameraVelocity::enact,
+                    AngularVelocity::enact,
+                    ScaleVelocity::enact,
+                    Gravity::enact,
+                    Friction::enact,
+                    Volatile::enact,
+                )
+                    .run_if(in_state(PhysicsSystemsActive::True)),
             )
-            .run_if(in_state(PhysicsSystemsActive::True))
-        ).add_systems(
+            .add_systems(
                 PostUpdate,
-                DespawnOffscreen::enact.run_if(in_state(PhysicsSystemsActive::True)
-        ));
+                DespawnOffscreen::enact.run_if(in_state(PhysicsSystemsActive::True)),
+            );
     }
-
 }
 
 fn activate_systems(
-	mut physics_state: ResMut<NextState<PhysicsSystemsActive>>,
-	physics_query: Query<&Velocity>
+    mut physics_state: ResMut<NextState<PhysicsSystemsActive>>,
+    physics_query: Query<&Velocity>,
 ) {
-	if !physics_query.is_empty() {
-		physics_state.set(PhysicsSystemsActive::True)
-	} else {
-		physics_state.set(PhysicsSystemsActive::False)
-	}
+    if !physics_query.is_empty() {
+        physics_state.set(PhysicsSystemsActive::True)
+    } else {
+        physics_state.set(PhysicsSystemsActive::False)
+    }
 }
 
 #[derive(Component)]
@@ -66,18 +73,18 @@ pub struct Velocity(pub Vec3);
 impl Default for Velocity {
     fn default() -> Self {
         Self(Vec3::ZERO)
-    }    
+    }
 }
 
 impl Velocity {
     fn enact(
         time: Res<Time>,
-        dilation : Res<Dilation>,
-        mut query : Query<(&mut Transform, &mut Velocity)>, 
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut Transform, &mut Velocity)>,
     ) {
-        let duration_seconds = time.delta_secs()*dilation.0;
+        let duration_seconds = time.delta_secs() * dilation.0;
         for (mut transform, velocity) in query.iter_mut() {
-            transform.translation += velocity.0*duration_seconds;
+            transform.translation += velocity.0 * duration_seconds;
         }
     }
 }
@@ -89,18 +96,18 @@ pub struct CameraVelocity(pub Vec3);
 impl Default for CameraVelocity {
     fn default() -> Self {
         Self(Vec3::ZERO)
-    }    
+    }
 }
 
 impl CameraVelocity {
     fn enact(
         time: Res<Time>,
-        dilation : Res<Dilation>,
-        mut query : Query<(&mut Transform, &mut CameraVelocity)>, 
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut Transform, &mut CameraVelocity)>,
     ) {
-        let duration_seconds = time.delta_secs()*dilation.0;
+        let duration_seconds = time.delta_secs() * dilation.0;
         for (mut transform, velocity) in query.iter_mut() {
-            transform.translation += velocity.0*duration_seconds;
+            transform.translation += velocity.0 * duration_seconds;
         }
     }
 }
@@ -108,7 +115,6 @@ impl CameraVelocity {
 #[derive(Component, Default)]
 #[require(Transform)]
 pub struct AngularVelocity(pub Vec3); // Radians per second for rotation around X, Y, Z axes
-
 
 impl AngularVelocity {
     pub fn enact(
@@ -132,7 +138,6 @@ impl AngularVelocity {
     }
 }
 
-
 #[derive(Component, Default)]
 #[require(Transform)]
 pub struct ScaleVelocity(pub Vec3); // Radians per second for rotation around X, Y, Z axes
@@ -147,12 +152,11 @@ impl ScaleVelocity {
 
         for (mut transform, scale_velocity) in query.iter_mut() {
             if scale_velocity.0 != Vec3::ZERO {
-                transform.scale += scale_velocity.0*delta_time;
+                transform.scale += scale_velocity.0 * delta_time;
             }
         }
     }
 }
-
 
 #[derive(Component)]
 pub struct Colidable;
@@ -164,24 +168,23 @@ pub struct InertialMass(f32);
 #[require(Transform, Velocity)]
 #[component(on_insert = Gravity::on_insert)]
 pub struct Gravity {
-    pub acceleration : Vec3,
-    pub floor_level : Option<f32>,
-    pub is_falling : bool
+    pub acceleration: Vec3,
+    pub floor_level: Option<f32>,
+    pub is_falling: bool,
 }
 
-impl Gravity{
+impl Gravity {
     fn enact(
         time: Res<Time>,
-        dilation : Res<Dilation>,
-        mut query : Query<(&mut Gravity, &mut Velocity, &mut Transform)>, 
+        dilation: Res<Dilation>,
+        mut query: Query<(&mut Gravity, &mut Velocity, &mut Transform)>,
     ) {
-        let duration_seconds = time.delta_secs()*dilation.0;
+        let duration_seconds = time.delta_secs() * dilation.0;
         for (mut gravity, mut velocity, mut transform) in query.iter_mut() {
-
             if let Some(floor_level) = gravity.floor_level {
                 if transform.translation.y > floor_level {
                     gravity.is_falling = true;
-                    velocity.0 += gravity.acceleration*duration_seconds;
+                    velocity.0 += gravity.acceleration * duration_seconds;
                 } else if gravity.is_falling && transform.translation.y < floor_level {
                     gravity.is_falling = false;
                     transform.translation.y = floor_level;
@@ -191,13 +194,11 @@ impl Gravity{
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let transform: Option<Transform> = {
             let entity_mut = world.entity(entity);
-            entity_mut.get::<Transform>()
+            entity_mut
+                .get::<Transform>()
                 .map(|transform: &Transform| transform.clone())
         };
 
@@ -215,32 +216,31 @@ impl Gravity{
 
 impl Default for Gravity {
     fn default() -> Self {
-        Self{
-            acceleration : Vec3::new(0.0, -200.0, 1.0),
-            floor_level : None,
-            is_falling : false
+        Self {
+            acceleration: Vec3::new(0.0, -200.0, 1.0),
+            floor_level: None,
+            is_falling: false,
         }
     }
-
 }
 
 #[derive(Component, Clone)]
 #[require(Transform, Velocity)]
 #[component(on_insert = Friction::on_insert)]
 pub struct Friction {
-    pub coefficient : f32,
-    pub floor_level : Option<f32>,
-    pub is_sliding : bool
+    pub coefficient: f32,
+    pub floor_level: Option<f32>,
+    pub is_sliding: bool,
 }
 
-impl Friction{
+impl Friction {
     fn enact(
         time: Res<Time>,
         dilation: Res<Dilation>,
         mut query: Query<(
             &mut Friction,
-            &mut Velocity,                 // linear velocity
-            Option<&mut AngularVelocity>,   // angular velocity (optional)
+            &mut Velocity,                // linear velocity
+            Option<&mut AngularVelocity>, // angular velocity (optional)
             Option<&mut ScaleVelocity>,
             &mut Transform,
         )>,
@@ -259,8 +259,8 @@ impl Friction{
                 if on_floor && linear_v.0.length_squared() > 0.0 {
                     friction.is_sliding = true;
 
-                    let v0 = linear_v.0;                               // copy
-                    linear_v.0 -= v0 * friction.coefficient * dt;       // mutate
+                    let v0 = linear_v.0; // copy
+                    linear_v.0 -= v0 * friction.coefficient * dt; // mutate
 
                     if linear_v.0.length_squared() < 0.01 {
                         linear_v.0 = Vec3::ZERO;
@@ -277,8 +277,8 @@ impl Friction{
                 /* ---------- SCALAR FRICTION ---------- */
                 if let Some(mut scalar_opt) = scalar_opt {
                     if on_floor && scalar_opt.0.length_squared() > 0.0 {
-                        let w0 = scalar_opt.0;                             // copy
-                        scalar_opt.0 -= w0 * friction.coefficient * dt;     // mutate
+                        let w0 = scalar_opt.0; // copy
+                        scalar_opt.0 -= w0 * friction.coefficient * dt; // mutate
 
                         if scalar_opt.0.length_squared() < 0.01 {
                             scalar_opt.0 = Vec3::ZERO;
@@ -294,13 +294,11 @@ impl Friction{
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let transform: Option<Transform> = {
             let entity_mut = world.entity(entity);
-            entity_mut.get::<Transform>()
+            entity_mut
+                .get::<Transform>()
                 .map(|transform: &Transform| transform.clone())
         };
 
@@ -318,14 +316,13 @@ impl Friction{
 
 impl Default for Friction {
     fn default() -> Self {
-        Self{
-            coefficient : 1.5,
-            floor_level : None,
-            is_sliding : false
+        Self {
+            coefficient: 1.5,
+            floor_level: None,
+            is_sliding: false,
         }
     }
 }
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Volatile Component - Handles explosion behavior
@@ -370,7 +367,11 @@ impl Volatile {
     }
 
     pub fn enact(
-        mut volatile_q: Query<(Entity, &mut Volatile, Option<&TransientAudioPallet<EmotionSounds>>)>,
+        mut volatile_q: Query<(
+            Entity,
+            &mut Volatile,
+            Option<&TransientAudioPallet<EmotionSounds>>,
+        )>,
         char_q: Query<(Entity, &GlobalTransform, &Transform, &ChildOf), With<CharacterSprite>>,
         mut rng: ResMut<GlobalRng>,
         dilation: Res<Dilation>,
@@ -423,7 +424,7 @@ impl Volatile {
                     glyph_tf,
                     local_tf,
                     explosion_data,
-                    &mut commands
+                    &mut commands,
                 );
             }
 
@@ -457,7 +458,7 @@ impl Volatile {
         let mut dir = (glyph_pos - explosion_center)
             .try_normalize()
             .unwrap_or(Vec3::X);
-        
+
         let jitter: Vec3 = Vec3::from(UnitSphere.sample(&mut *rng)) * jitter_n.sample(&mut *rng);
         dir = (dir + jitter).try_normalize().unwrap_or(dir);
 
@@ -484,28 +485,30 @@ impl Volatile {
         glyph_tf: &GlobalTransform,
         local_tf: &Transform,
         forces: ExplosionForces,
-        commands: &mut Commands
+        commands: &mut Commands,
     ) {
         let world_tf = Transform::from_matrix(glyph_tf.to_matrix());
         let vz = forces.velocity.z / 500.0;
         let scale_velocity = Vec3::splat(vz);
         let floor_level = Some(-local_tf.translation.y - vz * 1000.0);
 
-        commands.entity(glyph_e)
-            .remove::<ChildOf>()
-            .insert((
-                world_tf,
-                ExplodedGlyph,
-                TextColor(Color::srgba(3.0, forces.tint_shade, forces.tint_shade, 1.0)),
-                Gravity { floor_level, ..default() },
-                Friction { floor_level, ..default() },
-                ScaleVelocity(scale_velocity),
-                Velocity(forces.velocity),
-                AngularVelocity(forces.angular_velocity),
-                DespawnOffscreen{
-                    margin : 500.0
-                }
-            ));
+        commands.entity(glyph_e).remove::<ChildOf>().insert((
+            world_tf,
+            ExplodedGlyph,
+            TextColor(Color::srgba(3.0, forces.tint_shade, forces.tint_shade, 1.0)),
+            Gravity {
+                floor_level,
+                ..default()
+            },
+            Friction {
+                floor_level,
+                ..default()
+            },
+            ScaleVelocity(scale_velocity),
+            Velocity(forces.velocity),
+            AngularVelocity(forces.angular_velocity),
+            DespawnOffscreen { margin: 500.0 },
+        ));
     }
 
     fn create_explosion_particles(
@@ -517,8 +520,9 @@ impl Volatile {
         rng: &mut GlobalRng,
         speed_ln: &LogNormal<f32>,
     ) {
-        let n_particles = rng.random_range(volatile.particle_count_range.0..=volatile.particle_count_range.1);
-        
+        let n_particles =
+            rng.random_range(volatile.particle_count_range.0..=volatile.particle_count_range.1);
+
         for _ in 0..n_particles {
             let ch = *volatile.particle_chars.choose(&mut *rng).unwrap_or(&'.');
             let dir: Vec3 = Vec3::from(UnitSphere.sample(&mut *rng)).normalize_or_zero();
@@ -528,7 +532,7 @@ impl Volatile {
                 * speed_ln.sample(&mut *rng)
                 + impact_vel
                 + entity_vel;
-            
+
             let vz = velocity.z / 500.0;
             let scale_velocity = Vec3::splat(vz);
             let floor_level = Some(explosion_center.y - vz * 400.0);
@@ -539,13 +543,17 @@ impl Volatile {
                 TextColor(Color::srgba(2.0, 0.0, 0.0, 1.0)),
                 Text2d::new(ch.to_string()),
                 Transform::from_translation(explosion_center),
-                Gravity { floor_level, ..default() },
-                Friction { floor_level, ..default() },
+                Gravity {
+                    floor_level,
+                    ..default()
+                },
+                Friction {
+                    floor_level,
+                    ..default()
+                },
                 ScaleVelocity(scale_velocity),
                 Velocity(velocity),
-                DespawnOffscreen{
-                    margin : 500.0
-                }
+                DespawnOffscreen { margin: 500.0 },
             ));
         }
     }
@@ -575,7 +583,6 @@ impl DespawnOffscreen {
         mut commands: Commands,
         query: Query<(Entity, &Aabb, &GlobalTransform, &DespawnOffscreen)>,
     ) {
-
         let half_width = window.width() / 2.0;
         let half_height = window.height() / 2.0;
 
@@ -583,9 +590,10 @@ impl DespawnOffscreen {
             let (min, max) = world_aabb(aabb, global_tf);
 
             let margin = marker.margin;
-            let outside =
-                max.x < -half_width - margin || min.x > half_width + margin ||
-                max.y < -half_height - margin || min.y > half_height + margin;
+            let outside = max.x < -half_width - margin
+                || min.x > half_width + margin
+                || max.y < -half_height - margin
+                || min.y > half_height + margin;
 
             if outside {
                 commands.entity(entity).despawn();

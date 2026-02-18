@@ -19,9 +19,9 @@ use crate::{
 
 pub mod cursor;
 pub mod debug;
+pub mod menus;
 pub mod pause;
 pub mod render;
-pub mod shortcuts;
 pub mod system_menu;
 pub mod textures;
 
@@ -46,10 +46,10 @@ impl Plugin for StartupPlugin {
                 ColorsPlugin,
                 InheritancePlugin,
                 DilationPLugin,
+                menus::MenusPlugin,
                 debug::DebugPlugin,
                 pause::PausePlugin,
             ))
-            .add_systems(Update, shortcuts::close_on_esc)
             .add_systems(Startup, crt_start_up);
 
         //#[cfg(debug_assertions)]

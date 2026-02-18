@@ -1,46 +1,29 @@
-use serde::Deserialize;
 use bevy::{
-    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, sprite::Anchor, text::{
-        TextBounds, TextLayoutInfo
-    }
+    camera::primitives::Aabb,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    sprite::Anchor,
+    text::{TextBounds, TextLayoutInfo},
 };
+use serde::Deserialize;
 
 use crate::{
-    systems::{
-        colors::{
-            ColorAnchor, 
-            CLICKED_BUTTON,
-            HOVERED_BUTTON, 
-            PRIMARY_COLOR
-        }, 
-        interaction::{
-            Clickable, 
-            Draggable, 
-            DraggableRegion, 
-            InteractionVisualPalette,
-            InteractionVisualState,
-            KeyMapping, 
-            Pressable
-        }, 
-        time::Dilation
-    },
     entities::sprites::{
-        compound::{
-            BorderedRectangle, 
-            HollowRectangle, 
-            RectangleSides
-        }, 
+        compound::{BorderedRectangle, HollowRectangle, RectangleSides},
         window::{
-            WindowContentHost,
-            WindowContentMetrics,
-            WindowOverflowPolicy,
-            WindowResizeInProgress,
-            WindowSystem,
-            Window, 
-            WindowTitle
+            Window, WindowContentHost, WindowContentMetrics, WindowOverflowPolicy,
+            WindowResizeInProgress, WindowSystem, WindowTitle,
         },
-        SpritePlugin
-    }
+        SpritePlugin,
+    },
+    systems::{
+        colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
+        interaction::{
+            Clickable, Draggable, DraggableRegion, InteractionVisualPalette,
+            InteractionVisualState, KeyMapping, Pressable,
+        },
+        time::Dilation,
+    },
 };
 
 pub struct TextPlugin;
@@ -54,8 +37,7 @@ enum TextSystem {
 
 impl Plugin for TextPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .configure_sets(
+        app.configure_sets(
             Update,
             (
                 TextSystem::Contracts,
@@ -65,43 +47,44 @@ impl Plugin for TextPlugin {
         )
         .add_systems(
             Update,
-                (
-                    TextWindow::refresh_layout_state,
-                    TextWindow::sync_window_contract
-                )
-                    .chain()
-                    .in_set(TextSystem::Contracts)
-                    .after(WindowSystem::Layout)
+            (
+                TextWindow::refresh_layout_state,
+                TextWindow::sync_window_contract,
             )
+                .chain()
+                .in_set(TextSystem::Contracts)
+                .after(WindowSystem::Layout),
+        )
         .add_systems(
             Update,
             (
                 TextWindow::apply_window_to_text,
-                WindowedTable::apply_window_to_table
+                WindowedTable::apply_window_to_table,
             )
                 .in_set(TextSystem::ContentLayout)
-                .after(WindowSystem::Layout)
+                .after(WindowSystem::Layout),
         )
         .add_systems(
             Update,
             (
                 Table::propagate_changes,
                 Column::propagate_changes,
-                Cell::propagate_changes
+                Cell::propagate_changes,
+                Cell::recenter_text_vertically,
             )
                 .chain()
-                .in_set(TextSystem::TableLayout)
+                .in_set(TextSystem::TableLayout),
         );
 
         if !app.is_plugin_added::<SpritePlugin>() {
-			app.add_plugins(SpritePlugin);
-		}
+            app.add_plugins(SpritePlugin);
+        }
     }
 }
 
 fn default_font() -> TextFont {
-    TextFont{
-        font_size : 12.0,
+    TextFont {
+        font_size: scaled_font_size(12.0),
         ..default()
     }
 }
@@ -111,16 +94,16 @@ fn default_font_color() -> TextColor {
 }
 
 fn default_text_layout() -> TextLayout {
-    TextLayout{
+    TextLayout {
         justify: Justify::Center,
         ..default()
     }
 }
 
 fn default_nowrap_layout() -> TextLayout {
-    TextLayout{
+    TextLayout {
         justify: Justify::Center,
-        linebreak : LineBreak::NoWrap,
+        linebreak: LineBreak::NoWrap,
         ..default()
     }
 }
@@ -158,14 +141,12 @@ impl Default for TextTitle {
 
 #[derive(Component, Deserialize, Clone)]
 pub struct TextFrames {
-    pub frames: Vec<String>
+    pub frames: Vec<String>,
 }
 
 impl Default for TextFrames {
     fn default() -> Self {
-        Self {
-            frames: vec![]
-        }
+        Self { frames: vec![] }
     }
 }
 
@@ -174,7 +155,7 @@ impl TextFrames {
         Self { frames }
     }
 
-    pub fn load(input_string : &str) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load(input_string: &str) -> Result<Self, Box<dyn std::error::Error>> {
         match serde_json::from_str(input_string) {
             Ok(frames) => Ok(Self::new(frames)),
             Err(e) => {
@@ -185,17 +166,32 @@ impl TextFrames {
     }
 }
 
+const BASE_CHAR_WIDTH: f32 = 7.0;
+const BASE_LINE_HEIGHT: f32 = 16.0;
+const BASE_TEXT_WIDTH_PER_CHAR: f32 = 7.92;
+const BASE_TEXT_HEIGHT_PER_LINE: f32 = 12.0;
+pub const GLOBAL_TEXT_SCALE: f32 = 1.5;
 
-const CHAR_WIDTH: f32 = 7.0;
-const LINE_HEIGHT: f32 = 16.0;
+#[inline]
+pub const fn scaled_font_size(size: f32) -> f32 {
+    size * GLOBAL_TEXT_SCALE
+}
+
+#[inline]
+pub const fn scaled_text_units(units: f32) -> f32 {
+    units * GLOBAL_TEXT_SCALE
+}
+
+const CHAR_WIDTH: f32 = scaled_text_units(BASE_CHAR_WIDTH);
+const LINE_HEIGHT: f32 = scaled_text_units(BASE_LINE_HEIGHT);
 
 // ────────────────────────────────────────────────────────────────
 //  CharacterSprite now carries figure dimensions so `offset()` works
 // ────────────────────────────────────────────────────────────────
 #[derive(Component)]
 pub struct CharacterSprite {
-    pub row : usize,
-    pub col : usize,
+    pub row: usize,
+    pub col: usize,
     pub cols: usize,
     pub lines: usize,
 }
@@ -214,9 +210,9 @@ impl CharacterSprite {
 #[derive(Component)]
 #[component(on_insert = GlyphString::on_insert)]
 #[require(Transform, Visibility)]
-pub struct GlyphString{
-    pub text : String, 
-    pub depth : f32    
+pub struct GlyphString {
+    pub text: String,
+    pub depth: f32,
 }
 
 impl GlyphString {
@@ -227,34 +223,45 @@ impl GlyphString {
         let depth = glyph_string.depth.clone();
 
         let lines: Vec<&str> = text.lines().collect();
-        let lines_count      = lines.len();
-        let max_cols         = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+        let lines_count = lines.len();
+        let max_cols = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
 
         // 1. spawn each glyph as a child
         for (row, line) in lines.iter().enumerate() {
             for (col, ch) in line.chars().enumerate() {
                 world.commands().entity(entity).with_children(|p| {
                     p.spawn((
-                        CharacterSprite { row, col, cols: max_cols, lines: lines_count },
+                        CharacterSprite {
+                            row,
+                            col,
+                            cols: max_cols,
+                            lines: lines_count,
+                        },
                         TextSprite,
                         Text2d::new(ch.to_string()),
                         Anchor::BOTTOM_CENTER,
                         Transform::from_translation(
-                            CharacterSprite { row, col, cols: max_cols, lines: lines_count }.offset()
-                        )
+                            CharacterSprite {
+                                row,
+                                col,
+                                cols: max_cols,
+                                lines: lines_count,
+                            }
+                            .offset(),
+                        ),
                     ));
                 });
             }
         }
 
         // 2. add one parent-level AABB
-        let half_x = max_cols  as f32 * CHAR_WIDTH  * 0.5;
+        let half_x = max_cols as f32 * CHAR_WIDTH * 0.5;
         let half_y = lines_count as f32 * LINE_HEIGHT * 0.5;
         let half_z = depth * 0.5;
         let centre = Vec3::new(0.0, half_y, 0.0);
 
         world.commands().entity(entity).insert(Aabb {
-            center:       centre.into(),
+            center: centre.into(),
             half_extents: Vec3::new(half_x, half_y, half_z).into(),
         });
     }
@@ -268,7 +275,7 @@ pub struct Animated {
 }
 
 impl Animated {
-    pub fn new(current_frame : usize, time_seconds : f32) -> Self {
+    pub fn new(current_frame: usize, time_seconds: f32) -> Self {
         Self {
             current_frame,
             timer: Timer::from_seconds(time_seconds, TimerMode::Repeating),
@@ -302,15 +309,16 @@ impl Animated {
 }
 
 pub fn get_text_width(text: &String) -> f32 {
-    let text_length = match text.lines().next() {
-        Some(line) => line.len(),
-        None => text.len(),
-    };
-    text_length as f32 * 7.92
+    let text_length = text
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or_else(|| text.chars().count());
+    text_length as f32 * scaled_text_units(BASE_TEXT_WIDTH_PER_CHAR)
 }
 
 pub fn get_text_height(text: &String) -> f32 {
-    text.lines().count() as f32 * 12.0
+    text.lines().count() as f32 * scaled_text_units(BASE_TEXT_HEIGHT_PER_LINE)
 }
 
 #[derive(Component)]
@@ -332,7 +340,7 @@ fn default_button_text() -> Text2d {
 
 fn default_button_font() -> TextFont {
     TextFont {
-        font_size: 16.0,
+        font_size: scaled_font_size(16.0),
         ..default()
     }
 }
@@ -354,41 +362,41 @@ fn default_button_visual_palette() -> InteractionVisualPalette {
 }
 
 impl TextButton {
-    pub fn new<T>(
-        actions: Vec<T>,
-        keys: Vec<KeyCode>,
-        text: impl Into<String>
-    ) -> impl Bundle
-    where 
-        T: Clone + Copy + std::fmt::Debug + std::fmt::Display + std::cmp::Eq + Send + Sync + 'static,  
+    pub fn new<T>(actions: Vec<T>, keys: Vec<KeyCode>, text: impl Into<String>) -> impl Bundle
+    where
+        T: Clone
+            + Copy
+            + std::fmt::Debug
+            + std::fmt::Display
+            + std::cmp::Eq
+            + Send
+            + Sync
+            + 'static,
     {
         (
             TextButton,
-            TextLayout{
+            TextLayout {
                 justify: Justify::Center,
                 ..default()
-            },   
+            },
             Clickable::new(actions.clone()),
-            Pressable::new(vec!(
-                KeyMapping{
-                    keys,
-                    actions,
-                    allow_repeated_activation : false  
-                }
-            )),
+            Pressable::new(vec![KeyMapping {
+                keys,
+                actions,
+                allow_repeated_activation: false,
+            }]),
             Text2d::new(text.into()),
         )
     }
 }
 
-
-fn get_anchor_offset(anchor : &Anchor, dimensions : Vec2) -> Vec2 {
+fn get_anchor_offset(anchor: &Anchor, dimensions: Vec2) -> Vec2 {
     let width = dimensions.x;
     let height = dimensions.y;
 
     match anchor {
-        &Anchor::TOP_LEFT => Vec2::new(-width / 2.0, height / 2.0,),
-        &Anchor::TOP_CENTER=> Vec2::new(0.0, height / 2.0),
+        &Anchor::TOP_LEFT => Vec2::new(-width / 2.0, height / 2.0),
+        &Anchor::TOP_CENTER => Vec2::new(0.0, height / 2.0),
         &Anchor::TOP_RIGHT => Vec2::new(width / 2.0, height / 2.0),
         &Anchor::CENTER_LEFT => Vec2::new(-width / 2.0, 0.0),
         &Anchor::CENTER => Vec2::new(0.0, 0.0),
@@ -396,7 +404,7 @@ fn get_anchor_offset(anchor : &Anchor, dimensions : Vec2) -> Vec2 {
         &Anchor::BOTTOM_LEFT => Vec2::new(-width / 2.0, -height / 2.0),
         &Anchor::BOTTOM_CENTER => Vec2::new(0.0, -height / 2.0),
         &Anchor::BOTTOM_RIGHT => Vec2::new(width / 2.0, -height / 2.0),
-        &Anchor(offset) => offset
+        &Anchor(offset) => offset,
     }
 }
 
@@ -405,29 +413,29 @@ fn justify_for_anchor(anchor: &Anchor) -> Justify {
         &Anchor::TOP_LEFT | &Anchor::CENTER_LEFT | &Anchor::BOTTOM_LEFT => Justify::Left,
         &Anchor::TOP_CENTER | &Anchor::CENTER | &Anchor::BOTTOM_CENTER => Justify::Center,
         &Anchor::TOP_RIGHT | &Anchor::CENTER_RIGHT | &Anchor::BOTTOM_RIGHT => Justify::Right,
-        _ => Justify::Center
+        _ => Justify::Center,
     }
 }
 
 #[derive(Clone, Component)]
 #[require(Transform, Visibility)]
 #[component(on_insert = TextWindow::on_insert)]
-pub struct TextWindow{
-    pub title : Option<WindowTitle>,
-    pub border_color : Color,
-    pub header_height : f32,
-    pub padding : Vec2,
-    pub has_close_button : bool
+pub struct TextWindow {
+    pub title: Option<WindowTitle>,
+    pub border_color: Color,
+    pub header_height: f32,
+    pub padding: Vec2,
+    pub has_close_button: bool,
 }
 
-impl Default for TextWindow{
+impl Default for TextWindow {
     fn default() -> Self {
-        Self{
-            title : None,
-            border_color : PRIMARY_COLOR,
-            header_height : 20.0,
-            padding : Vec2::new(20.0, 10.0),
-            has_close_button : true
+        Self {
+            title: None,
+            border_color: PRIMARY_COLOR,
+            header_height: 20.0,
+            padding: Vec2::new(20.0, 10.0),
+            has_close_button: true,
         }
     }
 }
@@ -465,8 +473,7 @@ impl TextWindow {
             ),
         >,
     ) {
-        for (text_layout, text_bounds, bounds_policy, mut layout_state) in text_windows.iter_mut()
-        {
+        for (text_layout, text_bounds, bounds_policy, mut layout_state) in text_windows.iter_mut() {
             let measured_size =
                 Self::measured_text_size(text_layout, text_bounds).max(Vec2::splat(1.0));
             let target_min_size = Vec2::new(
@@ -573,22 +580,22 @@ impl TextWindow {
             if let Some(mut draggable) = draggable {
                 if resize_in_progress.is_none() {
                     let edge_padding = 10.0;
-                    draggable.region = Some(DraggableRegion{
-                        region : Vec2::new(inner_size.x + edge_padding, window.header_height + edge_padding),
-                        offset : Vec2::new(
+                    draggable.region = Some(DraggableRegion {
+                        region: Vec2::new(
+                            inner_size.x + edge_padding,
+                            window.header_height + edge_padding,
+                        ),
+                        offset: Vec2::new(
                             -anchor_offset.x,
-                            (inner_size.y + window.header_height) * 0.5 - anchor_offset.y
-                        )
+                            (inner_size.y + window.header_height) * 0.5 - anchor_offset.y,
+                        ),
                     });
                 }
             }
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (title, header_height, color, has_close_button, padding) = {
             if let Some(window) = world.entity(entity).get::<TextWindow>() {
                 (
@@ -596,12 +603,12 @@ impl TextWindow {
                     window.header_height,
                     window.border_color,
                     window.has_close_button,
-                    window.padding
+                    window.padding,
                 )
             } else {
                 return;
             }
-        };  
+        };
 
         let anchor = world
             .entity(entity)
@@ -639,33 +646,37 @@ impl TextWindow {
 
         if let Some(mut draggable) = world.entity_mut(entity).get_mut::<Draggable>() {
             let edge_padding = 10.0;
-            draggable.region = Some(DraggableRegion{
-                region : Vec2::new(min_inner.x + edge_padding, header_height + edge_padding),
-                offset : Vec2::new(
+            draggable.region = Some(DraggableRegion {
+                region: Vec2::new(min_inner.x + edge_padding, header_height + edge_padding),
+                offset: Vec2::new(
                     -anchor_offset.x,
-                    (min_inner.y + header_height) * 0.5 - anchor_offset.y
-                )
+                    (min_inner.y + header_height) * 0.5 - anchor_offset.y,
+                ),
             });
         }
 
         let mut window_entity: Option<Entity> = None;
         world.commands().entity(entity).with_children(|parent| {
-            window_entity = Some(parent.spawn((
-                Window::new(
-                    title,
-                    HollowRectangle{
-                        color,
-                        dimensions : min_inner,
-                        ..default()
-                    },
-                    header_height,
-                    has_close_button,
-                    Some(entity)
-                ),
-                WindowContentMetrics::from_min_inner(min_inner),
-                WindowOverflowPolicy::ConstrainToContent,
-                Transform::from_translation(-anchor_offset)
-            )).id());
+            window_entity = Some(
+                parent
+                    .spawn((
+                        Window::new(
+                            title,
+                            HollowRectangle {
+                                color,
+                                dimensions: min_inner,
+                                ..default()
+                            },
+                            header_height,
+                            has_close_button,
+                            Some(entity),
+                        ),
+                        WindowContentMetrics::from_min_inner(min_inner),
+                        WindowOverflowPolicy::ConstrainToContent,
+                        Transform::from_translation(-anchor_offset),
+                    ))
+                    .id(),
+            );
         });
 
         if let Some(window_entity) = window_entity {
@@ -675,44 +686,44 @@ impl TextWindow {
                 TextWindowLayoutState {
                     base_content_size: content_size,
                     min_content_size: content_size,
-                }
+                },
             ));
         }
     }
 }
 
 #[derive(Clone)]
-pub struct TextContent{
-    pub content : String,
-    pub color : Color,
-    pub size : f32,
-    pub padding : Vec2,
-    anchor : Anchor,
-    bounds : Vec2
+pub struct TextContent {
+    pub content: String,
+    pub color: Color,
+    pub size: f32,
+    pub padding: Vec2,
+    anchor: Anchor,
+    bounds: Vec2,
 }
 
 impl Default for TextContent {
     fn default() -> Self {
         Self {
-            content : String::from("Placeholder!"),
-            color : Color::WHITE,
-            size : 10.0,
-            padding : Vec2::ZERO,
-            anchor : Anchor::CENTER,
-            bounds : Vec2::ONE
+            content: String::from("Placeholder!"),
+            color: Color::WHITE,
+            size: 10.0,
+            padding: Vec2::ZERO,
+            anchor: Anchor::CENTER,
+            bounds: Vec2::ONE,
         }
     }
 }
 
 impl TextContent {
-    pub fn new(content : String, color : Color, size : f32) -> Self {
-        Self{ 
+    pub fn new(content: String, color: Color, size: f32) -> Self {
+        Self {
             content,
             color,
             size,
-            padding : Vec2::ZERO,
-            anchor : Anchor::CENTER,
-            bounds : Vec2::ONE
+            padding: Vec2::ZERO,
+            anchor: Anchor::CENTER,
+            bounds: Vec2::ONE,
         }
     }
 }
@@ -720,67 +731,63 @@ impl TextContent {
 #[derive(Clone, Component)]
 #[component(on_insert = Cell::on_insert)]
 #[require(Transform, Visibility)]
-pub struct Cell{
-    text : TextContent,
-    border : BorderedRectangle
+pub struct Cell {
+    text: TextContent,
+    border: BorderedRectangle,
 }
 
 impl Default for Cell {
     fn default() -> Self {
         Self {
-            text : TextContent::default(),
-            border : BorderedRectangle::default()
+            text: TextContent::default(),
+            border: BorderedRectangle::default(),
         }
     }
 }
 
+#[derive(Component)]
+struct CellTextNode;
+
 impl Cell {
-    pub fn new(
-        text : TextContent,
-    ) -> Self {
-        Self {
-            text,
-            ..default()
-        }
+    pub fn new(text: TextContent) -> Self {
+        Self { text, ..default() }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (text, border) = {
             if let Some(cell) = world.entity_mut(entity).get_mut::<Cell>() {
                 (cell.text.clone(), cell.border)
             } else {
                 return;
             }
-        };  
+        };
 
-        let offset:Vec2 = get_anchor_offset(&text.anchor, text.bounds); 
+        let offset: Vec2 = get_anchor_offset(&text.anchor, text.bounds);
 
         let justify = justify_for_anchor(&text.anchor);
 
         world.commands().entity(entity).with_children(|parent| {
             parent.spawn((
+                CellTextNode,
                 Text2d(text.content),
                 TextColor(text.color),
                 text.anchor,
-                TextLayout{
+                TextLayout {
                     justify,
                     ..default()
                 },
-                TextFont{
-                    font_size : text.size,
+                TextFont {
+                    font_size: scaled_font_size(text.size),
                     ..default()
                 },
-                TextBounds{
-                    width : Some(text.bounds.x),
-                    height : Some(text.bounds.y),
+                TextBounds {
+                    width: Some(text.bounds.x),
+                    height: Some(text.bounds.y),
                     ..default()
                 },
-                Transform::from_translation(offset.extend(0.0))
+                Transform::from_translation(offset.extend(0.0)),
             ));
-            
+
             parent.spawn(border);
         });
     }
@@ -788,7 +795,15 @@ impl Cell {
     fn propagate_changes(
         changed_cells: Query<(Entity, &Cell), Changed<Cell>>,
         children_query: Query<&Children>,
-        mut text_query: Query<(&mut TextBounds, &mut Transform, &mut Anchor, &mut TextLayout), With<Text2d>>,
+        mut text_query: Query<
+            (
+                &mut TextBounds,
+                &mut Transform,
+                &mut Anchor,
+                &mut TextLayout,
+            ),
+            With<CellTextNode>,
+        >,
         mut border_query: Query<&mut BorderedRectangle>,
     ) {
         for (cell_entity, cell) in changed_cells.iter() {
@@ -802,7 +817,8 @@ impl Cell {
                         bounds.height = Some(text_size.y);
                         *anchor = cell.text.anchor;
                         layout.justify = justify_for_anchor(&cell.text.anchor);
-                        transform.translation = get_anchor_offset(&cell.text.anchor, text_size).extend(0.0);
+                        transform.translation =
+                            get_anchor_offset(&cell.text.anchor, text_size).extend(0.0);
                     }
 
                     if let Ok(mut border) = border_query.get_mut(child) {
@@ -812,23 +828,73 @@ impl Cell {
             }
         }
     }
+
+    fn recenter_text_vertically(
+        mut text_query: Query<
+            (&Anchor, &TextBounds, &TextLayoutInfo, &mut Transform),
+            (
+                With<CellTextNode>,
+                Or<(
+                    Changed<TextLayoutInfo>,
+                    Changed<TextBounds>,
+                    Changed<Anchor>,
+                )>,
+            ),
+        >,
+    ) {
+        for (anchor, bounds, text_layout, mut transform) in text_query.iter_mut() {
+            let width = bounds.width.unwrap_or(text_layout.size.x).max(1.0);
+            let height = bounds.height.unwrap_or(text_layout.size.y).max(1.0);
+            let offset = get_anchor_offset(anchor, Vec2::new(width, height));
+
+            transform.translation.x = offset.x;
+
+            let is_centered_vertical_anchor = matches!(
+                anchor,
+                &Anchor::CENTER_LEFT | &Anchor::CENTER | &Anchor::CENTER_RIGHT
+            );
+            if !is_centered_vertical_anchor {
+                transform.translation.y = offset.y;
+                continue;
+            }
+
+            let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
+            for run in &text_layout.run_geometry {
+                min_y = min_y.min(run.bounds.min.y);
+                max_y = max_y.max(run.bounds.max.y);
+            }
+
+            let visual_center_y = if min_y.is_finite() && max_y.is_finite() {
+                (min_y + max_y) * 0.5
+            } else {
+                height * 0.5
+            };
+            let center_correction = visual_center_y - height * 0.5;
+            transform.translation.y = offset.y + center_correction;
+        }
+    }
 }
 
 #[derive(Clone, Component)]
 #[component(on_insert = Column::on_insert)]
 #[require(Transform, Visibility)]
-pub struct Column{
-    pub cells : Vec<Cell>,
-    pub width : f32,
-    pub padding : Vec2,
-    pub anchor : Anchor,
-    pub has_boundary : bool,
-    rows : Vec<Row>,
+pub struct Column {
+    pub cells: Vec<Cell>,
+    pub width: f32,
+    pub padding: Vec2,
+    pub anchor: Anchor,
+    pub has_boundary: bool,
+    rows: Vec<Row>,
 }
 
 impl Column {
-    pub fn new(cells : Vec<Cell>, width : f32, padding : Vec2, anchor : Anchor, has_boundary : bool) -> Self{
-        
+    pub fn new(
+        cells: Vec<Cell>,
+        width: f32,
+        padding: Vec2,
+        anchor: Anchor,
+        has_boundary: bool,
+    ) -> Self {
         let num_cells = cells.len();
         Self {
             cells,
@@ -836,21 +902,25 @@ impl Column {
             padding,
             anchor,
             has_boundary,
-            rows : vec![Row::default(); num_cells]
+            rows: vec![Row::default(); num_cells],
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (cells, padding, width, rows, anchor, has_boundary) = {
             if let Some(column) = world.entity_mut(entity).get_mut::<Column>() {
-                (column.cells.clone(), column.padding, column.width, column.rows.clone(), column.anchor, column.has_boundary)
+                (
+                    column.cells.clone(),
+                    column.padding,
+                    column.width,
+                    column.rows.clone(),
+                    column.anchor,
+                    column.has_boundary,
+                )
             } else {
                 return;
             }
-        };  
+        };
 
         world.commands().entity(entity).with_children(|parent| {
             let mut current_center_y = 0.0;
@@ -867,11 +937,11 @@ impl Column {
                 }
 
                 cell.border.boundary.dimensions = Vec2::new(width, height);
-                cell.border.boundary.sides = RectangleSides{
-                    top : false, 
-                    bottom : false,
-                    left : has_boundary,
-                    right : false
+                cell.border.boundary.sides = RectangleSides {
+                    top: false,
+                    bottom: false,
+                    left: has_boundary,
+                    right: false,
                 };
 
                 cell.text.bounds = (Vec2::new(width, height) - padding).max(Vec2::splat(1.0));
@@ -907,7 +977,10 @@ impl Column {
                     continue;
                 };
 
-                let row_height = column.rows.get(row_index).map_or(10.0, |row| row.height.max(1.0));
+                let row_height = column
+                    .rows
+                    .get(row_index)
+                    .map_or(10.0, |row| row.height.max(1.0));
                 if row_index == 0 {
                     current_center_y = -row_height * 0.5;
                 } else {
@@ -915,14 +988,14 @@ impl Column {
                 }
 
                 cell.border.boundary.dimensions = Vec2::new(column.width, row_height);
-                cell.border.boundary.sides = RectangleSides{
-                    top : false,
-                    bottom : false,
-                    left : column.has_boundary,
-                    right : false
+                cell.border.boundary.sides = RectangleSides {
+                    top: false,
+                    bottom: false,
+                    left: column.has_boundary,
+                    right: false,
                 };
-                cell.text.bounds = (Vec2::new(column.width, row_height) - column.padding)
-                    .max(Vec2::splat(1.0));
+                cell.text.bounds =
+                    (Vec2::new(column.width, row_height) - column.padding).max(Vec2::splat(1.0));
                 cell.text.padding = column.padding;
                 cell.text.anchor = column.anchor;
 
@@ -938,29 +1011,26 @@ impl Column {
 }
 
 #[derive(Clone)]
-pub struct Row{
-    pub height : f32
+pub struct Row {
+    pub height: f32,
 }
 
 impl Default for Row {
     fn default() -> Self {
-        Self{height : 10.0}
+        Self { height: 10.0 }
     }
 }
 
 #[derive(Component)]
 #[require(Transform, Visibility)]
 #[component(on_insert = Table::on_insert)]
-pub struct Table{
-    pub columns : Vec<Column>,
-    pub rows : Vec<Row>
+pub struct Table {
+    pub columns: Vec<Column>,
+    pub rows: Vec<Row>,
 }
 
 impl Table {
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (columns, rows) = {
             if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
                 (table.columns.clone(), table.rows.clone())
@@ -989,10 +1059,7 @@ impl Table {
 
                 // Spawn the column with its computed translation.
                 let translation = Vec3::ZERO.with_x(current_center);
-                parent.spawn((
-                    column,
-                    Transform::from_translation(translation),
-                ));
+                parent.spawn((column, Transform::from_translation(translation)));
 
                 prev_width = width;
             }
@@ -1047,11 +1114,11 @@ impl Table {
 #[derive(Clone, Component)]
 #[require(Transform, Visibility)]
 #[component(on_insert = WindowedTable::on_insert)]
-pub struct WindowedTable{
-    pub title : Option<WindowTitle>,
-    pub border_color : Color,
-    pub header_height : f32,
-    pub has_close_button : bool
+pub struct WindowedTable {
+    pub title: Option<WindowTitle>,
+    pub border_color: Color,
+    pub header_height: f32,
+    pub has_close_button: bool,
 }
 
 #[derive(Component, Clone)]
@@ -1074,13 +1141,13 @@ impl WindowedTableLayoutState {
     }
 }
 
-impl Default for WindowedTable{
+impl Default for WindowedTable {
     fn default() -> Self {
-        Self{
-            title : None,
-            border_color : PRIMARY_COLOR,
-            header_height : 20.0,
-            has_close_button : true
+        Self {
+            title: None,
+            border_color: PRIMARY_COLOR,
+            header_height: 20.0,
+            has_close_button: true,
         }
     }
 }
@@ -1091,7 +1158,9 @@ impl WindowedTable {
             return vec![];
         }
 
-        let min_total = min_sizes.iter().fold(0.0, |acc, value| acc + value.max(1.0));
+        let min_total = min_sizes
+            .iter()
+            .fold(0.0, |acc, value| acc + value.max(1.0));
         let target_total = target_total.max(min_total);
         let extra = target_total - min_total;
         if extra <= 0.0 {
@@ -1135,8 +1204,7 @@ impl WindowedTable {
             let inner_size = window.boundary.dimensions.max(Vec2::splat(1.0));
             let column_widths =
                 Self::distribute_sizes(&layout_state.min_column_widths, inner_size.x);
-            let row_heights =
-                Self::distribute_sizes(&layout_state.min_row_heights, inner_size.y);
+            let row_heights = Self::distribute_sizes(&layout_state.min_row_heights, inner_size.y);
 
             for (column_index, column) in table.columns.iter_mut().enumerate() {
                 if let Some(width) = column_widths.get(column_index) {
@@ -1156,27 +1224,28 @@ impl WindowedTable {
 
             if let Some(mut draggable) = draggable {
                 let edge_padding = 10.0;
-                draggable.region = Some(DraggableRegion{
-                    region : Vec2::new(inner_size.x + edge_padding, windowed_table.header_height + edge_padding),
-                    offset : Vec2::new(inner_size.x * 0.5, windowed_table.header_height * 0.5)
+                draggable.region = Some(DraggableRegion {
+                    region: Vec2::new(
+                        inner_size.x + edge_padding,
+                        windowed_table.header_height + edge_padding,
+                    ),
+                    offset: Vec2::new(inner_size.x * 0.5, windowed_table.header_height * 0.5),
                 });
             }
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (columns, rows) = {
             if let Some(table) = world.entity_mut(entity).get_mut::<Table>() {
                 (table.columns.clone(), table.rows.clone())
             } else {
                 return;
             }
-        };  
+        };
 
-        let min_column_widths: Vec<f32> = columns.iter().map(|column| column.width.max(1.0)).collect();
+        let min_column_widths: Vec<f32> =
+            columns.iter().map(|column| column.width.max(1.0)).collect();
         let min_row_heights: Vec<f32> = rows.iter().map(|row| row.height.max(1.0)).collect();
         let layout_state = WindowedTableLayoutState {
             min_column_widths,
@@ -1186,45 +1255,54 @@ impl WindowedTable {
 
         let (title, header_height, color, has_close_button) = {
             if let Some(window) = world.entity(entity).get::<WindowedTable>() {
-                (window.title.clone(), window.header_height, window.border_color, window.has_close_button)
+                (
+                    window.title.clone(),
+                    window.header_height,
+                    window.border_color,
+                    window.has_close_button,
+                )
             } else {
                 return;
             }
-        };  
+        };
 
         if let Some(mut draggable) = world.entity_mut(entity).get_mut::<Draggable>() {
             let edge_padding = 10.0;
-            draggable.region = Some(DraggableRegion{
-                region : Vec2::new(min_inner.x + edge_padding, header_height + edge_padding),
-                offset : Vec2::new(min_inner.x * 0.5, header_height * 0.5)
+            draggable.region = Some(DraggableRegion {
+                region: Vec2::new(min_inner.x + edge_padding, header_height + edge_padding),
+                offset: Vec2::new(min_inner.x * 0.5, header_height * 0.5),
             });
-        }   
+        }
 
         let mut window_entity: Option<Entity> = None;
         world.commands().entity(entity).with_children(|parent| {
-            window_entity = Some(parent.spawn((
-                Window::new(
-                    title,
-                    HollowRectangle{
-                        color,
-                        dimensions : min_inner,
-                        ..default()
-                    },
-                    header_height,
-                    has_close_button,
-                    Some(entity)
-                ),
-                WindowContentMetrics::from_min_inner(min_inner),
-                WindowOverflowPolicy::ConstrainToContent,
-                Transform::from_xyz(min_inner.x * 0.5, -min_inner.y * 0.5, -0.1)
-            )).id());
+            window_entity = Some(
+                parent
+                    .spawn((
+                        Window::new(
+                            title,
+                            HollowRectangle {
+                                color,
+                                dimensions: min_inner,
+                                ..default()
+                            },
+                            header_height,
+                            has_close_button,
+                            Some(entity),
+                        ),
+                        WindowContentMetrics::from_min_inner(min_inner),
+                        WindowOverflowPolicy::ConstrainToContent,
+                        Transform::from_xyz(min_inner.x * 0.5, -min_inner.y * 0.5, -0.1),
+                    ))
+                    .id(),
+            );
         });
 
         if let Some(window_entity) = window_entity {
-            world.commands().entity(entity).insert((
-                WindowContentHost { window_entity },
-                layout_state,
-            ));
+            world
+                .commands()
+                .entity(entity)
+                .insert((WindowContentHost { window_entity }, layout_state));
         }
     }
 }

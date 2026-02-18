@@ -1,39 +1,30 @@
-use std::{
-    path::PathBuf, 
-};
+use std::path::PathBuf;
 
 use bevy::prelude::*;
 
-
 use crate::{
-    data::states::{
-            DilemmaPhase, GameState, MainState, StateVector
-        }, entities::train::Train, systems::{
-        audio::{
-            OneShotAudio, 
-            OneShotAudioPallet
-        },
-        motion::PointToPointTranslation, time::Dilation
-    }
+    data::states::{DilemmaPhase, GameState, MainState, StateVector},
+    entities::train::Train,
+    systems::{
+        audio::{OneShotAudio, OneShotAudioPallet},
+        motion::PointToPointTranslation,
+        time::Dilation,
+    },
 };
 
 pub struct DilemmaSkipPlugin;
 impl Plugin for DilemmaSkipPlugin {
     fn build(&self, app: &mut App) {
-        app
-		.add_systems(
-			OnEnter(DilemmaPhase::Skip),
-			(
-                DilemmaSkipScene::setup
-            )
-			.run_if(in_state(GameState::Dilemma)),
-		)
-		.add_systems(
-			Update,
-			DilemmaSkipScene::in_position
-			.run_if(in_state(GameState::Dilemma))
-			.run_if(in_state(DilemmaPhase::Skip)),
-		);
+        app.add_systems(
+            OnEnter(DilemmaPhase::Skip),
+            (DilemmaSkipScene::setup).run_if(in_state(GameState::Dilemma)),
+        )
+        .add_systems(
+            Update,
+            DilemmaSkipScene::in_position
+                .run_if(in_state(GameState::Dilemma))
+                .run_if(in_state(DilemmaPhase::Skip)),
+        );
     }
 }
 
@@ -41,34 +32,26 @@ impl Plugin for DilemmaSkipPlugin {
 #[require(Transform, Visibility)]
 pub struct DilemmaSkipScene;
 
-impl DilemmaSkipScene{
+impl DilemmaSkipScene {
     fn setup(
-        mut commands : Commands,
+        mut commands: Commands,
         asset_server: Res<AssetServer>,
-        mut dilation: ResMut<Dilation>
-    ) {      
+        mut dilation: ResMut<Dilation>,
+    ) {
         commands.spawn((
             Self,
             DespawnOnExit(DilemmaPhase::Skip),
-            children![
-                OneShotAudioPallet::new(
-                    vec![
-                        OneShotAudio {
-                            source : asset_server.load(
-                                PathBuf::from("./audio/effects/fast_forward.ogg")
-                            ),
-                            ..default()
-                        }
-                    ]
-                )
-            ]
+            children![OneShotAudioPallet::new(vec![OneShotAudio {
+                source: asset_server.load(PathBuf::from("./audio/effects/fast_forward.ogg")),
+                ..default()
+            }])],
         ));
 
         dilation.0 = 6.0;
     }
-    
+
     fn in_position(
-        translation_query : Single<&PointToPointTranslation, With<Train>>,
+        translation_query: Single<&PointToPointTranslation, With<Train>>,
         mut dilation: ResMut<Dilation>,
         mut next_main_state: ResMut<NextState<MainState>>,
         mut next_game_state: ResMut<NextState<GameState>>,
@@ -77,11 +60,11 @@ impl DilemmaSkipScene{
         if translation_query.timer.is_finished() {
             dilation.0 = 1.0;
             let next_state = StateVector::new(None, None, Some(DilemmaPhase::Consequence));
-            next_state.set_state(                        
+            next_state.set_state(
                 &mut next_main_state,
                 &mut next_game_state,
-                &mut next_sub_state
+                &mut next_sub_state,
             );
-        }       
+        }
     }
 }

@@ -1,62 +1,38 @@
-use std::{
-	path::PathBuf, str::FromStr, time::Duration
-};
-use serde::{
-	Deserialize, 
-	Serialize,
-	de::{Error, Deserializer}
-};
 use bevy::{
-	ecs::{
-		lifecycle::HookContext, 
-		world::DeferredWorld, 
-	},
-	prelude::*
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
 };
 use rand::Rng;
+use serde::{
+    de::{Deserializer, Error},
+    Deserialize, Serialize,
+};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use crate::{
-	data::{
-		states::DilemmaPhase, 
-		stats::{
-			DilemmaStats, 
-			GameStats
-		} 
-	}, 
-	entities::text::TextRaw, 
-	scenes::{
-		dialogue::content::*,
-		ending::content::*, 
-		Scene, 
-		SceneQueue
-	}, 
-	systems::{
-		inheritance::BequeathTextColor, 
-		motion::Pulse,
-		time::Dilation 
-	}
+    data::{
+        states::DilemmaPhase,
+        stats::{DilemmaStats, GameStats},
+    },
+    entities::text::{scaled_font_size, TextRaw},
+    scenes::{dialogue::content::*, ending::content::*, Scene, SceneQueue},
+    systems::{inheritance::BequeathTextColor, motion::Pulse, time::Dilation},
 };
 
 use super::{content::*, lever::LeverState};
 
-fn has_dilemma_timers(q: Query<&DilemmaTimer>) -> bool { !q.is_empty() }
+fn has_dilemma_timers(q: Query<&DilemmaTimer>) -> bool {
+    !q.is_empty()
+}
 
 pub struct DilemmaPlugin;
 impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
-		app
-		.add_systems(
+        app.add_systems(
             Update,
-            (
-				DilemmaTimer::update,
-				DilemmaTimer::start_pulse
-			)
-            .run_if(has_dilemma_timers)
+            (DilemmaTimer::update, DilemmaTimer::start_pulse).run_if(has_dilemma_timers),
         )
-		.add_systems(
-			OnExit(DilemmaPhase::Consequence),
-			Dilemma::update_queue
-		);
+        .add_systems(OnExit(DilemmaPhase::Consequence), Dilemma::update_queue);
     }
 }
 
@@ -66,7 +42,7 @@ enum Culpability {
     Forced,
     Accidental,
     Negligent,
-    Willing
+    Willing,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -75,8 +51,8 @@ enum Gender {
     Female,
     NonBinary,
     Other,
-    None, 
-    Unknown
+    None,
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -87,8 +63,8 @@ enum EducationLevel {
     BachelorsDegree,
     MastersDegree,
     Doctorate,
-    PostDoctorate, 
-    Unknown
+    PostDoctorate,
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -107,7 +83,7 @@ enum Job {
     Nurse,
     Doctor,
     Solider,
-    Unknown
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -120,9 +96,7 @@ impl RandomizableUsize {
     pub fn resolve(&self) -> usize {
         match self {
             RandomizableUsize::Fixed(v) => *v,
-            RandomizableUsize::Uniform { min, max } => {
-                rand::rng().random_range(*min..=*max)
-            }
+            RandomizableUsize::Uniform { min, max } => rand::rng().random_range(*min..=*max),
         }
     }
 }
@@ -158,7 +132,10 @@ impl<'de> Deserialize<'de> for RandomizableUsize {
                     }
                 }
 
-                Err(D::Error::custom(format!("Invalid num_humans format: {}", s)))
+                Err(D::Error::custom(format!(
+                    "Invalid num_humans format: {}",
+                    s
+                )))
             }
         }
     }
@@ -166,11 +143,11 @@ impl<'de> Deserialize<'de> for RandomizableUsize {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DilemmaOptionLoader {
-	index : usize,
-    name : String,
-    description : String,
-    humans : Option<Vec<Human>>,
-    num_humans : Option<RandomizableUsize>
+    index: usize,
+    name: String,
+    description: String,
+    humans: Option<Vec<Human>>,
+    num_humans: Option<RandomizableUsize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -180,52 +157,56 @@ pub struct DilemmaStageLoader {
     countdown_duration_seconds: f32,
     options: Vec<DilemmaOptionLoader>,
     default_option: Option<usize>,
-	#[serde(default = "default_speed")]
-	speed : f32
+    #[serde(default = "default_speed")]
+    speed: f32,
 }
 
-fn default_repeat() -> usize { 1 }
-fn default_speed() -> f32 { 70.0 }
+fn default_repeat() -> usize {
+    1
+}
+fn default_speed() -> f32 {
+    70.0
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct DilemmaLoader {
-	index : String,
-    name : String,
-	narration_path : PathBuf,
-    description : String,
-	stages : Vec<DilemmaStageLoader>,
-	music_path : PathBuf
+    index: String,
+    name: String,
+    narration_path: PathBuf,
+    description: String,
+    stages: Vec<DilemmaStageLoader>,
+    music_path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Human {
-    fatality_probability : f64,
-    culpability : Option<Culpability>,
-    name : Option<String>,
-    gender : Option<Gender>,
-    age : Option<u64>,
-    iq : Option<u64>, 
-    highest_education :Option<EducationLevel>,
-    occupation : Option<Job>
+    fatality_probability: f64,
+    culpability: Option<Culpability>,
+    name: Option<String>,
+    gender: Option<Gender>,
+    age: Option<u64>,
+    iq: Option<u64>,
+    highest_education: Option<EducationLevel>,
+    occupation: Option<Job>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct DilemmaOptionConsequences {
-    pub total_fatalities : usize
+    pub total_fatalities: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct DilemmaOption {
-	pub index : usize,
-    pub name : String,
-    pub description : String,
-    humans : Vec<Human>,
-    pub consequences : DilemmaOptionConsequences,
-    pub num_humans : usize
+    pub index: usize,
+    pub name: String,
+    pub description: String,
+    humans: Vec<Human>,
+    pub consequences: DilemmaOptionConsequences,
+    pub num_humans: usize,
 }
 
 impl DilemmaOption {
-	 fn from_loader(dilemma_option_loader: DilemmaOptionLoader) -> Self {
+    fn from_loader(dilemma_option_loader: DilemmaOptionLoader) -> Self {
         let humans = dilemma_option_loader.humans.unwrap_or_default();
 
         let num_humans = match dilemma_option_loader.num_humans {
@@ -254,10 +235,10 @@ impl DilemmaOption {
 
 #[derive(Resource, Clone)]
 pub struct DilemmaStage {
-	pub countdown_duration : Duration,
-    pub options : Vec<DilemmaOption>,
-    pub default_option : Option<usize>,
-	pub speed : f32
+    pub countdown_duration: Duration,
+    pub options: Vec<DilemmaOption>,
+    pub default_option: Option<usize>,
+    pub speed: f32,
 }
 
 #[derive(Resource, Clone)]
@@ -266,112 +247,108 @@ pub struct CurrentDilemmaStageIndex(pub usize);
 #[derive(Component)]
 #[require(TextRaw, Text2d, BequeathTextColor, Pulse)]
 #[component(on_insert = DilemmaTimer::on_insert)]
-pub struct DilemmaTimer{
-	pub timer : Timer,
-	pulse_start_time : Duration,
-	pulse_speedup_time : Duration,
-	sped_up : bool
+pub struct DilemmaTimer {
+    pub timer: Timer,
+    pulse_start_time: Duration,
+    pulse_speedup_time: Duration,
+    sped_up: bool,
 }
 
 impl DilemmaTimer {
-	pub fn new(
-		duration : Duration, 
-		pulse_start_time : Duration, 
-		pulse_speedup_time : Duration
-	) -> Self { 
+    pub fn new(
+        duration: Duration,
+        pulse_start_time: Duration,
+        pulse_speedup_time: Duration,
+    ) -> Self {
+        Self {
+            timer: Timer::new(duration, TimerMode::Once),
+            pulse_start_time,
+            pulse_speedup_time,
+            sped_up: false,
+        }
+    }
 
-		Self{
-			timer : Timer::new(duration, TimerMode::Once),
-			pulse_start_time,
-			pulse_speedup_time,
-			sped_up : false
-		}
-	}
-
-	pub fn update(
-		time: Res<Time>,
-		dilation : Res<Dilation>,
-		mut timer_query: Query<(&mut DilemmaTimer, &mut Text2d)>,
-		mut next_game_state: ResMut<NextState<DilemmaPhase>>
-	) {
-	
-		for (mut timer, mut text) in timer_query.iter_mut() {
-
-			timer.timer.tick(time.delta().mul_f32(dilation.0));
-			text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
-			if timer.timer.is_finished() {
-				*next_game_state = NextState::PendingIfNeq(
-					DilemmaPhase::Consequence
-				);
-			}
-		}
-	}
-
-	pub fn start_pulse(
-		mut timer_query: Query<(&mut DilemmaTimer, &mut Pulse)>,
-	) {
-		for (mut timer, mut pulse) in timer_query.iter_mut() {
-			pulse.active = timer.timer.remaining() <= timer.pulse_start_time + pulse.interval_timer.duration() + pulse.pulse_timer.duration();
-		
-			if (timer.timer.remaining() <= timer.pulse_speedup_time + Duration::from_secs_f32(0.5) + pulse.pulse_timer.duration()) && !timer.sped_up {
-				pulse.interval_timer = Timer::new(
-					Duration::from_secs_f32(0.5) - pulse.pulse_timer.duration().mul_f32(2.0),
-					TimerMode::Once
-				);
-				
-				timer.sped_up = true;
-			}
-		}
-	}
-
-	fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
+    pub fn update(
+        time: Res<Time>,
+        dilation: Res<Dilation>,
+        mut timer_query: Query<(&mut DilemmaTimer, &mut Text2d)>,
+        mut next_game_state: ResMut<NextState<DilemmaPhase>>,
     ) {
+        for (mut timer, mut text) in timer_query.iter_mut() {
+            timer.timer.tick(time.delta().mul_f32(dilation.0));
+            text.0 = format!("{:.2}\n", timer.timer.remaining_secs());
+            if timer.timer.is_finished() {
+                *next_game_state = NextState::PendingIfNeq(DilemmaPhase::Consequence);
+            }
+        }
+    }
 
-		let timer_duration_seconds = world.entity(entity).get::<DilemmaTimer>().unwrap().timer.duration().as_secs_f32();
+    pub fn start_pulse(mut timer_query: Query<(&mut DilemmaTimer, &mut Pulse)>) {
+        for (mut timer, mut pulse) in timer_query.iter_mut() {
+            pulse.active = timer.timer.remaining()
+                <= timer.pulse_start_time
+                    + pulse.interval_timer.duration()
+                    + pulse.pulse_timer.duration();
 
-		let mut commands = world.commands();
-		commands.entity(entity).insert(
-			Text2d::new(format!("{:.2}\n", timer_duration_seconds ))
-		);
+            if (timer.timer.remaining()
+                <= timer.pulse_speedup_time
+                    + Duration::from_secs_f32(0.5)
+                    + pulse.pulse_timer.duration())
+                && !timer.sped_up
+            {
+                pulse.interval_timer = Timer::new(
+                    Duration::from_secs_f32(0.5) - pulse.pulse_timer.duration().mul_f32(2.0),
+                    TimerMode::Once,
+                );
 
-		commands.entity(entity).insert(
-			TextFont{
-				font_size : 50.0,
-				..default()
-			}
-		);
+                timer.sped_up = true;
+            }
+        }
+    }
 
-		commands.entity(entity).with_children( | parent | {
-			parent.spawn(
-				(
-					TextSpan::new(
-						"seconds remaining.\n".to_string()
-					), 
-					TextFont {
-						font_size: 12.0,
-						..default()
-					}
-				)
-			);
-		});
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let timer_duration_seconds = world
+            .entity(entity)
+            .get::<DilemmaTimer>()
+            .unwrap()
+            .timer
+            .duration()
+            .as_secs_f32();
 
-	}
+        let mut commands = world.commands();
+        commands
+            .entity(entity)
+            .insert(Text2d::new(format!("{:.2}\n", timer_duration_seconds)));
+
+        commands.entity(entity).insert(TextFont {
+            font_size: scaled_font_size(50.0),
+            ..default()
+        });
+
+        commands.entity(entity).with_children(|parent| {
+            parent.spawn((
+                TextSpan::new("seconds remaining.\n".to_string()),
+                TextFont {
+                    font_size: scaled_font_size(12.0),
+                    ..default()
+                },
+            ));
+        });
+    }
 }
 
 #[derive(Resource, Clone)]
 pub struct Dilemma {
-	pub index : String,
-    pub name : String,
-	pub narration_path : PathBuf,
-    pub description : String,
-	pub stages : Vec<DilemmaStage>,
-	pub music_path : PathBuf
+    pub index: String,
+    pub name: String,
+    pub narration_path: PathBuf,
+    pub description: String,
+    pub stages: Vec<DilemmaStage>,
+    pub music_path: PathBuf,
 }
 
 impl Dilemma {
-	pub fn new(content: &DilemmaScene) -> Self {
+    pub fn new(content: &DilemmaScene) -> Self {
         let loaded_dilemma: DilemmaLoader =
             serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
 
@@ -386,10 +363,12 @@ impl Dilemma {
                     .collect();
 
                 stages.push(DilemmaStage {
-                    countdown_duration: Duration::from_secs_f32(stage_loader.countdown_duration_seconds),
+                    countdown_duration: Duration::from_secs_f32(
+                        stage_loader.countdown_duration_seconds,
+                    ),
                     options,
                     default_option: stage_loader.default_option,
-					speed: stage_loader.speed
+                    speed: stage_loader.speed,
                 });
             }
         }
@@ -400,228 +379,215 @@ impl Dilemma {
             narration_path: loaded_dilemma.narration_path,
             description: loaded_dilemma.description,
             stages,
-			music_path : loaded_dilemma.music_path
+            music_path: loaded_dilemma.music_path,
         }
     }
 
-	pub fn update_queue(
-		mut queue: ResMut<SceneQueue>,
-		stats: Res<GameStats>
-	) {
-		let latest = match stats.dilemma_stats.last() {
-			Some(latest) => latest,
-			None => panic!("Latest decision not found"),
-		};
-	   
-		// Store the pattern match result in a variable first
-		let next_scenes = match queue.current {
-			Scene::Dilemma(DilemmaScene::Lab0(_)) => {
-				lab_one(latest, stats.as_ref())
-			},
-			Scene::Dilemma(DilemmaScene::Lab1(_)) => {
-				lab_two(latest, stats.as_ref())
-			},
-			Scene::Dilemma(DilemmaScene::PathInaction(_, stage)) => {
-				inaction_path(latest, stats.as_ref(), stage + 1)
-			},
-			Scene::Dilemma(DilemmaScene::Lab2(_)) => {
-				lab_three(latest, stats.as_ref())
-			},
-			Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob)) => {
-				lab_three_junction(latest, stats.as_ref())
-			},
-			Scene::Dilemma(DilemmaScene::PathUtilitarian(_, stage)) => {
-				utilitarian_path(latest, stats.as_ref(), stage + 1)
-			},
-			Scene::Dilemma(DilemmaScene::PathDeontological(_, stage)) => {
-				deontological_path(latest, stats.as_ref(), stage + 1)
-			},
-			Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)) => {
-				return
-			},
-			_ => panic!("Update Memory: Should not reach this branch!")
-		};
-		
-		// Now extend the queue after the match is complete
-		queue.replace(next_scenes);
-	}
+    pub fn update_queue(mut queue: ResMut<SceneQueue>, stats: Res<GameStats>) {
+        let latest = match stats.dilemma_stats.last() {
+            Some(latest) => latest,
+            None => panic!("Latest decision not found"),
+        };
+
+        // Store the pattern match result in a variable first
+        let next_scenes = match queue.current {
+            Scene::Dilemma(DilemmaScene::Lab0(_)) => lab_one(latest, stats.as_ref()),
+            Scene::Dilemma(DilemmaScene::Lab1(_)) => lab_two(latest, stats.as_ref()),
+            Scene::Dilemma(DilemmaScene::PathInaction(_, stage)) => {
+                inaction_path(latest, stats.as_ref(), stage + 1)
+            }
+            Scene::Dilemma(DilemmaScene::Lab2(_)) => lab_three(latest, stats.as_ref()),
+            Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob)) => {
+                lab_three_junction(latest, stats.as_ref())
+            }
+            Scene::Dilemma(DilemmaScene::PathUtilitarian(_, stage)) => {
+                utilitarian_path(latest, stats.as_ref(), stage + 1)
+            }
+            Scene::Dilemma(DilemmaScene::PathDeontological(_, stage)) => {
+                deontological_path(latest, stats.as_ref(), stage + 1)
+            }
+            Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)) => return,
+            _ => panic!("Update Memory: Should not reach this branch!"),
+        };
+
+        // Now extend the queue after the match is complete
+        queue.replace(next_scenes);
+    }
 }
 
-
-fn lab_one(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene> {
-	if latest.num_fatalities > 0 {
-		vec![
-			Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Fail)),
-			Scene::Ending(EndingScene::IdioticPsychopath)
-		]
-	} else if latest.num_decisions > 0 {
-		if let Some(duration) = latest.duration_remaining_at_last_decision {
-			if latest.num_decisions > 10 {
-				vec![
-					Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::FailVeryIndecisive)),
-					Scene::Ending(EndingScene::Leverophile)
-				]
-			} else if duration < Duration::from_secs(1) {
-				vec![
-					Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::PassSlow)), 
-					Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
-					Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
-				]
-			} else {
-				vec![
-					Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::PassIndecisive)), 
-					Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
-					Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
-				]
-			}
-		} else {
-			panic!("Duration not recorded for some reason!");
-		}
-	} else {
-		vec![
-			Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Pass)), 
-			Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
-			Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
-		]
-	}
+fn lab_one(latest: &DilemmaStats, _: &GameStats) -> Vec<Scene> {
+    if latest.num_fatalities > 0 {
+        vec![
+            Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Fail)),
+            Scene::Ending(EndingScene::IdioticPsychopath),
+        ]
+    } else if latest.num_decisions > 0 {
+        if let Some(duration) = latest.duration_remaining_at_last_decision {
+            if latest.num_decisions > 10 {
+                vec![
+                    Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::FailVeryIndecisive)),
+                    Scene::Ending(EndingScene::Leverophile),
+                ]
+            } else if duration < Duration::from_secs(1) {
+                vec![
+                    Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::PassSlow)),
+                    Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+                    Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit)),
+                ]
+            } else {
+                vec![
+                    Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::PassIndecisive)),
+                    Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+                    Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit)),
+                ]
+            }
+        } else {
+            panic!("Duration not recorded for some reason!");
+        }
+    } else {
+        vec![
+            Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Pass)),
+            Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+            Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit)),
+        ]
+    }
 }
 
-fn lab_two(latest : &DilemmaStats, stats : &GameStats) -> Vec<Scene> {
-	if latest.num_fatalities > 0 {
-		if latest.num_decisions > 0 {
-			vec![
-				Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::FailIndecisive)),
-				Scene::Ending(EndingScene::Leverophile)
-			]
-		} else if stats.total_decisions == 0 {
-			vec![
-				Scene::Dialogue(DialogueScene::path_inaction(0, PathOutcome::Fail)),
-				Scene::Dilemma(DilemmaScene::PATH_INACTION[0])
-			]
-		} else {
-			vec![
-				Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Fail)),
-				Scene::Ending(EndingScene::ImpatientPsychopath)
-			]
-		}
-	} else if latest.num_decisions > 0 {
-		if let (Some(duration), Some(average_duration)) = (latest.duration_remaining_at_last_decision, stats.overall_avg_time_remaining) {
-			if average_duration < Duration::from_secs(1) {
-				vec![
-					Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::PassSlowAgain)), 
-					Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
-					Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
-				]
-			} else if duration < Duration::from_secs(1) {
-				vec![
-					Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::PassSlow)), 
-					Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
-					Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
-				]
-			} else {
-				vec![
-					Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Pass)), 
-					Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
-					Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
-				]
-			}
-		} else {
-			panic!("Duration not recorded for some reason!");
-		}
-	} else {
-		vec![
-			Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Pass)), 
-			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
-			Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
-		]
-	}
+fn lab_two(latest: &DilemmaStats, stats: &GameStats) -> Vec<Scene> {
+    if latest.num_fatalities > 0 {
+        if latest.num_decisions > 0 {
+            vec![
+                Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::FailIndecisive)),
+                Scene::Ending(EndingScene::Leverophile),
+            ]
+        } else if stats.total_decisions == 0 {
+            vec![
+                Scene::Dialogue(DialogueScene::path_inaction(0, PathOutcome::Fail)),
+                Scene::Dilemma(DilemmaScene::PATH_INACTION[0]),
+            ]
+        } else {
+            vec![
+                Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Fail)),
+                Scene::Ending(EndingScene::ImpatientPsychopath),
+            ]
+        }
+    } else if latest.num_decisions > 0 {
+        if let (Some(duration), Some(average_duration)) = (
+            latest.duration_remaining_at_last_decision,
+            stats.overall_avg_time_remaining,
+        ) {
+            if average_duration < Duration::from_secs(1) {
+                vec![
+                    Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::PassSlowAgain)),
+                    Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+                    Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem)),
+                ]
+            } else if duration < Duration::from_secs(1) {
+                vec![
+                    Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::PassSlow)),
+                    Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+                    Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem)),
+                ]
+            } else {
+                vec![
+                    Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Pass)),
+                    Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+                    Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem)),
+                ]
+            }
+        } else {
+            panic!("Duration not recorded for some reason!");
+        }
+    } else {
+        vec![
+            Scene::Dialogue(DialogueScene::Lab2a(Lab2aDialogue::Pass)),
+            Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+            Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem)),
+        ]
+    }
 }
 
-fn lab_three(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
-	if latest.num_fatalities == 5 {
-		if latest.num_decisions > 0 {
-			vec![
-				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailIndecisive)),
-			]
-		} else {
-			vec![
-				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailInaction)),
-				Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob))
-			]
-		}
-	} else {
-		vec![
-			Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::PassUtilitarian)), 
-			Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro)),
-			Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[0])
-		]
-	} 
+fn lab_three(latest: &DilemmaStats, _: &GameStats) -> Vec<Scene> {
+    if latest.num_fatalities == 5 {
+        if latest.num_decisions > 0 {
+            vec![Scene::Dialogue(DialogueScene::Lab3a(
+                Lab3aDialogue::FailIndecisive,
+            ))]
+        } else {
+            vec![
+                Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailInaction)),
+                Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob)),
+            ]
+        }
+    } else {
+        vec![
+            Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::PassUtilitarian)),
+            Scene::Dialogue(DialogueScene::Lab3b(Lab3bDialogue::Intro)),
+            Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[0]),
+        ]
+    }
 }
 
-fn lab_three_junction(latest : &DilemmaStats, _ : &GameStats) -> Vec<Scene>  {
-	if latest.num_fatalities == 5 {
-		if latest.num_decisions > 0 {
-			vec![
-				Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::FailIndecisive))
-			]
-		} else {
-			vec![
-				Scene::Dialogue(DialogueScene::path_deontological(0, PathOutcome::Fail)),
-				Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[0])
-			]
-		}
-	} else {
-		todo!("?")
-	} 
+fn lab_three_junction(latest: &DilemmaStats, _: &GameStats) -> Vec<Scene> {
+    if latest.num_fatalities == 5 {
+        if latest.num_decisions > 0 {
+            vec![Scene::Dialogue(DialogueScene::Lab3a(
+                Lab3aDialogue::FailIndecisive,
+            ))]
+        } else {
+            vec![
+                Scene::Dialogue(DialogueScene::path_deontological(0, PathOutcome::Fail)),
+                Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[0]),
+            ]
+        }
+    } else {
+        todo!("?")
+    }
 }
 
-fn inaction_path(_ : &DilemmaStats, stats : &GameStats, stage : usize) -> Vec<Scene>  {
-	if stats.total_decisions > 0 && stage < 6 {
-		vec![
-			Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Pass)), 
-			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)), 
-			Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem))
-		]
-	} else if stage < DilemmaScene::PATH_INACTION.len() {
-		vec![
-			Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Fail)), 
-			Scene::Dilemma(DilemmaScene::PATH_INACTION[stage])
-		]
-	} else {
-		vec![
-			Scene::Ending(EndingScene::TrueNeutral)
-		]
-	}
+fn inaction_path(_: &DilemmaStats, stats: &GameStats, stage: usize) -> Vec<Scene> {
+    if stats.total_decisions > 0 && stage < 6 {
+        vec![
+            Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Pass)),
+            Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+            Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem)),
+        ]
+    } else if stage < DilemmaScene::PATH_INACTION.len() {
+        vec![
+            Scene::Dialogue(DialogueScene::path_inaction(stage, PathOutcome::Fail)),
+            Scene::Dilemma(DilemmaScene::PATH_INACTION[stage]),
+        ]
+    } else {
+        vec![Scene::Ending(EndingScene::TrueNeutral)]
+    }
 }
 
-fn deontological_path(latest : &DilemmaStats, _ : &GameStats, stage : usize) -> Vec<Scene> {
-	if latest.num_fatalities == 1 && stage < 1 {
-		vec![
-			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),  
-			Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro))
-		]
-	} else if latest.num_fatalities == 1 && stage < 2 {
-		vec![
-			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),  
-			Scene::Ending(EndingScene::SelectiveDeontologist)
-		]
-	} else if stage < DilemmaScene::PATH_DEONTOLOGICAL.len() {
-		vec![
-			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),
-			Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[stage])
-		]
-	} else {
-		vec![
-			Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),  
-			Scene::Ending(EndingScene::TrueDeontologist)
-		]
-	}
+fn deontological_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<Scene> {
+    if latest.num_fatalities == 1 && stage < 1 {
+        vec![
+            Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),
+            Scene::Dialogue(DialogueScene::Lab2b(Lab2bDialogue::Intro)),
+        ]
+    } else if latest.num_fatalities == 1 && stage < 2 {
+        vec![
+            Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Pass)),
+            Scene::Ending(EndingScene::SelectiveDeontologist),
+        ]
+    } else if stage < DilemmaScene::PATH_DEONTOLOGICAL.len() {
+        vec![
+            Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),
+            Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[stage]),
+        ]
+    } else {
+        vec![
+            Scene::Dialogue(DialogueScene::path_deontological(stage, PathOutcome::Fail)),
+            Scene::Ending(EndingScene::TrueDeontologist),
+        ]
+    }
 }
 
 fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<Scene> {
-    let lever_state = latest
-        .result
-        .expect("LeverState should not be none");
+    let lever_state = latest.result.expect("LeverState should not be none");
 
     match (lever_state, stage) {
         (LeverState::Left, 4) => vec![
@@ -630,7 +596,7 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
-		(LeverState::Right, 4) => vec![
+        (LeverState::Right, 4) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
@@ -647,6 +613,6 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
-		(LeverState::Random, _) => panic!("Lever State should not be random")
+        (LeverState::Random, _) => panic!("Lever State should not be random"),
     }
 }

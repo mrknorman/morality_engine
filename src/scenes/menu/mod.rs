@@ -1,69 +1,61 @@
 use bevy::{audio::Volume, prelude::*};
-use enum_map::{
-    Enum, 
-    enum_map
-};
+use enum_map::{enum_map, Enum};
 
 use crate::{
-    data::states::MainState, entities::{
-        large_fonts::{
-            AsciiPlugin, 
-            AsciiString, TextEmotion
-        }, text::{
-            TextButton, 
-            TextRaw
-        }, track::Track, train::{
-            Train, 
-            TrainPlugin, 
-            content::TrainTypes
-        } 
-    }, style::{
-        ui::IOPlugin
-    }, systems::{
+    data::states::{MainState, PauseState},
+    entities::{
+        large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
+        text::{TextButton, TextRaw},
+        track::Track,
+        train::{content::TrainTypes, Train, TrainPlugin},
+    },
+    startup::{
+        menus::{self, MenuHost, MenuPage},
+        render::{MainCamera, OffscreenCamera},
+        system_menu,
+    },
+    style::ui::IOPlugin,
+    systems::{
         audio::{
-            BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet, continuous_audio
-        }, 
-        backgrounds::{
-            Background, 
-            BackgroundPlugin,
-            content::BackgroundTypes
-        }, 
-        colors::{
-            CLICKED_BUTTON,
-            DIM_BACKGROUND_COLOR, 
-            HOVERED_BUTTON,
-            MENU_COLOR,
-            ColorAnchor,
+            continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet,
+            DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet,
         },
-        interaction::{ 
-            ActionPallet, 
-            Clickable,
-            InputAction, 
-            InteractionPlugin,
-            InteractionVisualPalette,
-            InteractionVisualState,
-            Selectable,
-            SelectableMenu,
+        backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
+        colors::{ColorAnchor, CLICKED_BUTTON, DIM_BACKGROUND_COLOR, HOVERED_BUTTON, MENU_COLOR},
+        interaction::{
+            interaction_context_active, interaction_gate_allows, ActionPallet, Clickable,
+            InputAction, InteractionCapture, InteractionGate, InteractionPlugin, InteractionSystem,
+            InteractionVisualPalette, InteractionVisualState, Selectable, SelectableMenu,
         },
         time::Dilation,
-    }
+    },
 };
 
 use super::SceneQueue;
 
 const SYSTEM_MUSIC_PATH: &str = "./audio/music/the_last_decision.ogg";
+const SYSTEM_MENU_DIM_ALPHA: f32 = 0.8;
+const SYSTEM_MENU_DIM_SIZE: f32 = 6000.0;
+const SYSTEM_MENU_DIM_Z: f32 = -5.0;
 
 pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(MainState::Menu), MenuScene::setup);
         app.add_systems(
-            OnEnter(MainState::Menu), 
-            MenuScene::setup
+            Update,
+            (
+                update_main_menu_options_overlay_position,
+                play_menu_navigation_sound,
+            )
+                .chain()
+                .run_if(in_state(MainState::Menu)),
         );
         app.add_systems(
             Update,
-            play_menu_navigation_sound
-                .run_if(in_state(MainState::Menu))
+            open_main_menu_options_overlay
+                .after(InteractionSystem::Audio)
+                .run_if(in_state(MainState::Menu)),
         );
         if !app.is_plugin_added::<TrainPlugin>() {
             app.add_plugins(TrainPlugin);
@@ -78,15 +70,15 @@ impl Plugin for MenuScenePlugin {
             app.add_plugins(AsciiPlugin);
         }
         if !app.is_plugin_added::<BackgroundPlugin>() {
-			app.add_plugins(BackgroundPlugin);
-		}
+            app.add_plugins(BackgroundPlugin);
+        }
     }
 }
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuSounds {
-	Static,
-	Office,
+    Static,
+    Office,
     Click,
     Switch,
 }
@@ -111,108 +103,106 @@ struct MenuScene;
 #[derive(Component)]
 struct MenuSelectableList;
 
-impl MenuScene {
+#[derive(Component)]
+struct MainMenuInteractive;
 
-    const TITLE_TRANSLATION : Vec3 = Vec3::new(-380.0, 225.0, 1.0);
+#[derive(Component)]
+struct MenuOpenOptionsButton;
+
+#[derive(Component)]
+struct MainMenuOptionsOverlay;
+
+impl MenuScene {
+    const TITLE_TRANSLATION: Vec3 = Vec3::new(-380.0, 225.0, 1.0);
     const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
     const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 0.4);
-    const SIGNATURE_TRANSLATION : Vec3 = Vec3::new(0.0, -100.0, 1.0);
-    const OPTIONS_LIST_TRANSLATION : Vec3 = Vec3::new(0.0, -230.0, 1.0);
+    const SIGNATURE_TRANSLATION: Vec3 = Vec3::new(0.0, -100.0, 1.0);
+    const OPTIONS_LIST_TRANSLATION: Vec3 = Vec3::new(0.0, -230.0, 1.0);
 
     fn setup(
-        mut commands: Commands, 
-        mut queue : ResMut<SceneQueue>,
-        asset_server: Res<AssetServer>
-    ) { 
+        mut commands: Commands,
+        mut queue: ResMut<SceneQueue>,
+        asset_server: Res<AssetServer>,
+        existing_scene_query: Query<Entity, With<MenuScene>>,
+    ) {
+        for existing_scene in &existing_scene_query {
+            commands.entity(existing_scene).despawn_related::<Children>();
+            commands.entity(existing_scene).despawn();
+        }
+
         *queue = SceneQueue::default();
 
         let scene_entity = commands
-            .spawn(
-            (
+            .spawn((
                 queue.current,
                 MenuScene,
                 DespawnOnExit(MainState::Menu),
                 children![
                     (
                         BackgroundAudio,
-                        ContinuousAudioPallet::new(
-                            vec![
-                                ContinuousAudio{
-                                    key : MenuSounds::Static,
-                                    source : AudioPlayer::<AudioSource>(
-                                        asset_server.load(
-                                            "./audio/effects/static.ogg"
-                                        )
-                                    ), 
-                                    settings : PlaybackSettings{
-                                        volume : Volume::Linear(0.1),
-                                        ..continuous_audio()
-                                    },
-                                    dilatable : true
+                        ContinuousAudioPallet::new(vec![
+                            ContinuousAudio {
+                                key: MenuSounds::Static,
+                                source: AudioPlayer::<AudioSource>(
+                                    asset_server.load("./audio/effects/static.ogg")
+                                ),
+                                settings: PlaybackSettings {
+                                    volume: Volume::Linear(0.1),
+                                    ..continuous_audio()
                                 },
-                                ContinuousAudio{
-                                    key : MenuSounds::Office,
-                                    source : AudioPlayer::<AudioSource>(
-                                        asset_server.load(
-                                            "./audio/effects/office.ogg"
-                                        )
-                                    ), 
-                                    settings : PlaybackSettings{
-                                        volume : Volume::Linear(0.5),
-                                        ..continuous_audio()
-                                    },
-                                    dilatable : true
-                                }
-                            ]
-                        )
+                                dilatable: true
+                            },
+                            ContinuousAudio {
+                                key: MenuSounds::Office,
+                                source: AudioPlayer::<AudioSource>(
+                                    asset_server.load("./audio/effects/office.ogg")
+                                ),
+                                settings: PlaybackSettings {
+                                    volume: Volume::Linear(0.5),
+                                    ..continuous_audio()
+                                },
+                                dilatable: true
+                            }
+                        ])
                     ),
-                    (         
-                        Background::new(
-                            BackgroundTypes::Desert,	
-                            0.00002,
-                            -0.5
-                        ),
+                    (
+                        Background::new(BackgroundTypes::Desert, 0.00002, -0.5),
                         TextColor(DIM_BACKGROUND_COLOR)
                     ),
                     (
                         Track::new(600),
                         TextColor(DIM_BACKGROUND_COLOR),
-                        Transform::from_translation(Self::TRAIN_TRANSLATION + Self::TRACK_DISPLACEMENT)
+                        Transform::from_translation(
+                            Self::TRAIN_TRANSLATION + Self::TRACK_DISPLACEMENT
+                        )
                     ),
                     (
                         MusicAudio,
-                        AudioPlayer::<AudioSource>(asset_server.load(
-                            SYSTEM_MUSIC_PATH,
-                        )),
-                        PlaybackSettings{
-                            volume : Volume::Linear(0.3),
+                        AudioPlayer::<AudioSource>(asset_server.load(SYSTEM_MUSIC_PATH,)),
+                        PlaybackSettings {
+                            volume: Volume::Linear(0.3),
                             ..continuous_audio()
                         }
                     ),
                     (
                         TextEmotion::Happy,
-                        AsciiString(
-                            "THE TROLLEY\n  ALGORITHM".to_string()
-                        ),
+                        AsciiString("THE TROLLEY\n  ALGORITHM".to_string()),
                         TextColor(MENU_COLOR),
                         Transform::from_translation(Self::TITLE_TRANSLATION)
                     ),
-                    (                    
+                    (
                         Train(TrainTypes::SteamTrain),
                         Transform::from_translation(Self::TRAIN_TRANSLATION),
                         TextColor(MENU_COLOR),
-                    ), 
+                    ),
                     (
                         TextRaw,
-                        Text2d::new(
-                            "A game by Michael Norman"
-                        ),
+                        Text2d::new("A game by Michael Norman"),
                         Transform::from_translation(Self::SIGNATURE_TRANSLATION)
                     )
-                ]
-            ),
-        )
-        .id();
+                ],
+            ))
+            .id();
 
         let option_click_audio = || {
             TransientAudioPallet::new(vec![(
@@ -231,6 +221,7 @@ impl MenuScene {
             .spawn((
                 Name::new("menu_selectable_list"),
                 MenuSelectableList,
+                MainMenuInteractive,
                 SelectableMenu::new(
                     0,
                     vec![KeyCode::ArrowUp],
@@ -258,6 +249,7 @@ impl MenuScene {
         commands.entity(menu_list_entity).with_children(|parent| {
             parent.spawn((
                 Name::new("menu_start_option"),
+                MainMenuInteractive,
                 TextButton,
                 Text2d::new("Start Game"),
                 TextLayout {
@@ -289,6 +281,8 @@ impl MenuScene {
 
             parent.spawn((
                 Name::new("menu_options_option"),
+                MainMenuInteractive,
+                MenuOpenOptionsButton,
                 TextButton,
                 Text2d::new("Options"),
                 TextLayout {
@@ -309,7 +303,9 @@ impl MenuScene {
                 Selectable::new(menu_list_entity, 1),
                 ActionPallet::<MenuActions, MenuSounds>(enum_map!(
                     MenuActions::EnterGame => vec![],
-                    MenuActions::OpenOptions => vec![],
+                    MenuActions::OpenOptions => vec![
+                        InputAction::PlaySound(MenuSounds::Click),
+                    ],
                     MenuActions::ExitDesktop => vec![],
                 )),
                 option_click_audio(),
@@ -317,6 +313,7 @@ impl MenuScene {
 
             parent.spawn((
                 Name::new("menu_exit_option"),
+                MainMenuInteractive,
                 TextButton,
                 Text2d::new("Exit to Desktop"),
                 TextLayout {
@@ -349,17 +346,119 @@ impl MenuScene {
     }
 }
 
+fn get_menu_camera_center(
+    offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
+    main_camera_query: &Query<&GlobalTransform, With<MainCamera>>,
+) -> Option<Vec3> {
+    if let Ok(camera) = offscreen_camera_query.single() {
+        Some(camera.translation())
+    } else if let Ok(camera) = main_camera_query.single() {
+        Some(camera.translation())
+    } else {
+        None
+    }
+}
+
+fn open_main_menu_options_overlay(
+    mut commands: Commands,
+    mut options_query: Query<&mut Clickable<MenuActions>, With<MenuOpenOptionsButton>>,
+    existing_overlay: Query<(), With<MainMenuOptionsOverlay>>,
+    offscreen_camera_query: Query<&GlobalTransform, With<OffscreenCamera>>,
+    main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
+    asset_server: Res<AssetServer>,
+) {
+    if !existing_overlay.is_empty() {
+        return;
+    }
+
+    let mut should_open = false;
+    for mut clickable in &mut options_query {
+        if clickable.triggered {
+            clickable.triggered = false;
+            should_open = true;
+            break;
+        }
+    }
+
+    if !should_open {
+        return;
+    }
+
+    let Some(camera_translation) =
+        get_menu_camera_center(&offscreen_camera_query, &main_camera_query)
+    else {
+        return;
+    };
+
+    let menu_entity = menus::spawn_menu_root(
+        &mut commands,
+        &asset_server,
+        MenuHost::Main,
+        "main_menu_options_overlay",
+        Vec3::new(
+            camera_translation.x,
+            camera_translation.y,
+            system_menu::MENU_Z,
+        ),
+        MenuPage::Options,
+        InteractionGate::PauseMenuOnly,
+        (MainMenuOptionsOverlay, DespawnOnExit(MainState::Menu)),
+    );
+
+    commands.entity(menu_entity).with_children(|parent| {
+        parent.spawn((
+            Name::new("main_menu_options_dimmer"),
+            InteractionCapture,
+            Sprite::from_color(
+                Color::srgba(0.0, 0.0, 0.0, SYSTEM_MENU_DIM_ALPHA),
+                Vec2::splat(SYSTEM_MENU_DIM_SIZE),
+            ),
+            Transform::from_xyz(0.0, 0.0, SYSTEM_MENU_DIM_Z),
+        ));
+    });
+}
+
+fn update_main_menu_options_overlay_position(
+    offscreen_camera_query: Query<&GlobalTransform, With<OffscreenCamera>>,
+    main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
+    mut overlay_query: Query<&mut Transform, With<MainMenuOptionsOverlay>>,
+) {
+    let Some(camera_translation) =
+        get_menu_camera_center(&offscreen_camera_query, &main_camera_query)
+    else {
+        return;
+    };
+
+    for mut overlay_transform in &mut overlay_query {
+        overlay_transform.translation.x = camera_translation.x;
+        overlay_transform.translation.y = camera_translation.y;
+    }
+}
+
 fn play_menu_navigation_sound(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<(), With<InteractionCapture>>,
     menu_query: Query<
-        (Entity, &SelectableMenu, &TransientAudioPallet<MenuSounds>),
+        (
+            Entity,
+            &SelectableMenu,
+            &TransientAudioPallet<MenuSounds>,
+            Option<&InteractionGate>,
+        ),
         With<MenuSelectableList>,
     >,
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
 ) {
-    for (menu_entity, menu, pallet) in &menu_query {
+    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+
+    for (menu_entity, menu, pallet, gate) in &menu_query {
+        if !interaction_gate_allows(gate, interaction_captured) {
+            continue;
+        }
+
         let up_pressed = menu
             .up_keys
             .iter()

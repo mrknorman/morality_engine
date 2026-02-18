@@ -1,47 +1,26 @@
-use std::{time::Duration, vec};
-use bevy::{
-    prelude::*,
-    audio::Volume
-};
+use bevy::{audio::Volume, prelude::*};
 use content::{LoadingBarMessages, LoadingButtonMessages};
-use enum_map::{
-    enum_map, 
-    Enum
-};
+use enum_map::{enum_map, Enum};
+use std::{time::Duration, vec};
 
 use crate::{
-    data::states::GameState, entities::text::{
-        TextButton,
-        TextFrames 
-    }, style::{
-        common_ui::{
-            NextButton,
-            NextButtonConfig
-        }, 
-        ui::IOPlugin, 
-    }, systems::{
+    data::states::GameState,
+    entities::text::{TextButton, TextFrames},
+    style::{
+        common_ui::{NextButton, NextButtonConfig},
+        ui::IOPlugin,
+    },
+    systems::{
         audio::{
-            continuous_audio, 
-            one_shot_audio, 
-            ContinuousAudio, 
-            ContinuousAudioPallet, 
-            MusicAudio, 
-            NarrationAudio, 
-            OneShotAudio, 
-            OneShotAudioPallet, 
-            TransientAudio, 
-            TransientAudioPallet
-        }, cascade::{Cascade, CascadePlugin}, colors::{AlphaTranslation, DIM_BACKGROUND_COLOR}, inheritance::BequeathTextAlpha, interaction::{
-            ActionPallet, 
-            InputAction, 
-            InteractionPlugin
-        }, scheduling::{
-            TimerConfig, 
-            TimerPallet,
-            TimerStartCondition, 
-            TimingPlugin
-        }
-    }
+            continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, MusicAudio,
+            NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet,
+        },
+        cascade::{Cascade, CascadePlugin},
+        colors::{AlphaTranslation, DIM_BACKGROUND_COLOR},
+        inheritance::BequeathTextAlpha,
+        interaction::{ActionPallet, InputAction, InteractionPlugin},
+        scheduling::{TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin},
+    },
 };
 
 mod loading_bar;
@@ -51,25 +30,18 @@ use super::SceneQueue;
 
 pub mod content;
 
-
 pub struct LoadingScenePlugin;
 impl Plugin for LoadingScenePlugin {
     fn build(&self, app: &mut App) {
-
-        app.add_systems(
-            OnEnter(
-                GameState::Loading
-            ), 
-            LoadingScene::setup
-        )
-        .add_systems(
-            Update,
-            (
-                LoadingScene::spawn_delayed_children,
-                LoadingScene::update_button_text,
-            )
-                .run_if(in_state(GameState::Loading)),
-        );
+        app.add_systems(OnEnter(GameState::Loading), LoadingScene::setup)
+            .add_systems(
+                Update,
+                (
+                    LoadingScene::spawn_delayed_children,
+                    LoadingScene::update_button_text,
+                )
+                    .run_if(in_state(GameState::Loading)),
+            );
 
         if !app.is_plugin_added::<CascadePlugin>() {
             app.add_plugins(CascadePlugin);
@@ -91,7 +63,7 @@ impl Plugin for LoadingScenePlugin {
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadingActions {
-    ExitLoading
+    ExitLoading,
 }
 
 impl std::fmt::Display for LoadingActions {
@@ -100,20 +72,19 @@ impl std::fmt::Display for LoadingActions {
     }
 }
 
-
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadingSounds {
-	Hum,
-	Office,
-    Click
+    Hum,
+    Office,
+    Click,
 }
 
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadingEvents {
     Music,
-	Narration,
-	Button,
-    UpdateButton
+    Narration,
+    Button,
+    UpdateButton,
 }
 
 #[derive(Component)]
@@ -121,136 +92,95 @@ pub enum LoadingEvents {
 struct LoadingScene;
 
 impl LoadingScene {
-
-    fn setup(
-        mut commands: Commands,
-        queue : Res<SceneQueue>,
-        asset_server: Res<AssetServer>
-    ) {
-
+    fn setup(mut commands: Commands, queue: Res<SceneQueue>, asset_server: Res<AssetServer>) {
         commands.spawn((
             queue.current,
             LoadingScene,
             DespawnOnExit(GameState::Loading),
-            TimerPallet::new(
-                vec![
-                    (
-                        LoadingEvents::Music,
-                        TimerConfig::new(
-                            TimerStartCondition::Immediate, 
-                            2.0,
-                            None
-                        )
+            TimerPallet::new(vec![
+                (
+                    LoadingEvents::Music,
+                    TimerConfig::new(TimerStartCondition::Immediate, 2.0, None),
+                ),
+                (
+                    LoadingEvents::Narration,
+                    TimerConfig::new(TimerStartCondition::Immediate, 3.0, None),
+                ),
+                (
+                    LoadingEvents::Button,
+                    TimerConfig::new(TimerStartCondition::Immediate, 5.0, None),
+                ),
+                (
+                    LoadingEvents::UpdateButton,
+                    TimerConfig::new(TimerStartCondition::OnNarrationEnd, 0.5, Some(20.0)),
+                ),
+            ]),
+            ContinuousAudioPallet::new(vec![
+                ContinuousAudio {
+                    key: LoadingSounds::Hum,
+                    source: AudioPlayer::<AudioSource>(
+                        asset_server.load("./audio/effects/hum.ogg"),
                     ),
-                    (
-                        LoadingEvents::Narration,
-                        TimerConfig::new(
-                            TimerStartCondition::Immediate, 
-                            3.0,
-                            None
-                        )
-                    ),
-                    (
-                        LoadingEvents::Button,
-                        TimerConfig::new(
-                            TimerStartCondition::Immediate, 
-                            5.0,
-                            None
-                        )
-                    ),
-                    (
-                        LoadingEvents::UpdateButton,
-                        TimerConfig::new(
-                            TimerStartCondition::OnNarrationEnd, 
-                            0.5,
-                            Some(20.0)
-                        )
-                    )
-                ]
-            ),
-            ContinuousAudioPallet::new(
-                vec![
-                    ContinuousAudio{
-                        key : LoadingSounds::Hum,
-                        source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./audio/effects/hum.ogg"
-                        )),
-                        settings : PlaybackSettings{
-                            volume : Volume::Linear(0.1),
-                            ..continuous_audio()
-                        },
-                        dilatable : false
+                    settings: PlaybackSettings {
+                        volume: Volume::Linear(0.1),
+                        ..continuous_audio()
                     },
-                    ContinuousAudio{
-                        key : LoadingSounds::Office,
-                        source : AudioPlayer::<AudioSource>(asset_server.load(
-                            "./audio/effects/office.ogg"
-                        )),
-                        settings : PlaybackSettings{
-                            volume : Volume::Linear(0.5),
-                            ..continuous_audio()
-                        },
-                        dilatable : true
-                    }
-                ]
-            ),
-            OneShotAudioPallet::new(
-                vec![
-                    OneShotAudio{
-                        source: asset_server.load(
-                                "./audio/effects/startup_beep.ogg"
-                            ),
-                        persistent : true,
-                        ..default()
+                    dilatable: false,
+                },
+                ContinuousAudio {
+                    key: LoadingSounds::Office,
+                    source: AudioPlayer::<AudioSource>(
+                        asset_server.load("./audio/effects/office.ogg"),
+                    ),
+                    settings: PlaybackSettings {
+                        volume: Volume::Linear(0.5),
+                        ..continuous_audio()
                     },
-                ]
-            ),
-            children![
-                LoadingBar::load(
-                    LoadingBarMessages::Lab0intro
-                )
-            ]
+                    dilatable: true,
+                },
+            ]),
+            OneShotAudioPallet::new(vec![OneShotAudio {
+                source: asset_server.load("./audio/effects/startup_beep.ogg"),
+                persistent: true,
+                ..default()
+            }]),
+            children![LoadingBar::load(LoadingBarMessages::Lab0intro)],
         ));
     }
 
     fn spawn_delayed_children(
-            mut commands: Commands,
-            loading_query: Query<(Entity, &TimerPallet<LoadingEvents>), With<LoadingScene>>,
-            asset_server: Res<AssetServer>
-        ) {
-
+        mut commands: Commands,
+        loading_query: Query<(Entity, &TimerPallet<LoadingEvents>), With<LoadingScene>>,
+        asset_server: Res<AssetServer>,
+    ) {
         for (entity, timers) in loading_query.iter() {
             // Handle narration timer
 
             if timers.0[LoadingEvents::Narration].just_finished() {
-                commands.entity(entity).with_children(
-                    |parent| {
+                commands.entity(entity).with_children(|parent| {
                     parent.spawn((
                         NarrationAudio,
-                        AudioPlayer::<AudioSource>(asset_server.load(
-                            "./audio/effects/intro_lilly_elvenlabs.ogg", 
-                        )),
-                        PlaybackSettings{
-                            volume : Volume::Linear(1.0),
+                        AudioPlayer::<AudioSource>(
+                            asset_server.load("./audio/effects/intro_lilly_elvenlabs.ogg"),
+                        ),
+                        PlaybackSettings {
+                            volume: Volume::Linear(1.0),
                             ..one_shot_audio()
-                        }
+                        },
                     ));
                 });
             }
 
             if timers.0[LoadingEvents::Music].just_finished() {
-                commands.entity(entity).with_children(
-                    |parent| {
+                commands.entity(entity).with_children(|parent| {
                     parent.spawn((
                         MusicAudio,
-                        AudioPlayer::<AudioSource>(asset_server.load(
-                            "./audio/music/a_friend.ogg"
-                        )),
-                        PlaybackSettings{
-                            paused : false,
-                            volume : Volume::Linear(0.1),
+                        AudioPlayer::<AudioSource>(asset_server.load("./audio/music/a_friend.ogg")),
+                        PlaybackSettings {
+                            paused: false,
+                            volume: Volume::Linear(0.1),
                             ..continuous_audio()
-                        }
+                        },
                     ));
 
                     parent.spawn((
@@ -259,57 +189,44 @@ impl LoadingScene {
                         AlphaTranslation::new(
                             DIM_BACKGROUND_COLOR.alpha(),
                             Duration::from_secs_f32(1.0),
-                            false
+                            false,
                         ),
-                        TextColor(DIM_BACKGROUND_COLOR)
+                        TextColor(DIM_BACKGROUND_COLOR),
                     ));
                 });
             }
 
             // Handle button timer
             if timers.0[LoadingEvents::Button].just_finished() {
-                let button_messages = TextFrames::load(
-                    LoadingButtonMessages::Lab0intro.content()
-                );
+                let button_messages = TextFrames::load(LoadingButtonMessages::Lab0intro.content());
 
                 if let Ok(button_messages) = button_messages {
                     commands.entity(entity).with_children(|parent| {
-
                         let first_message = button_messages.frames[0].clone();
                         parent.spawn((
                             NextButton,
                             button_messages,
                             TextButton::new(
-                                vec![
-                                    LoadingActions::ExitLoading,
-                                ],
+                                vec![LoadingActions::ExitLoading],
                                 vec![KeyCode::Enter],
-                                first_message
+                                first_message,
                             ),
-                            ActionPallet::<LoadingActions, LoadingSounds>(
-                                enum_map!(
-                                    LoadingActions::ExitLoading => vec![
-                                        InputAction::NextScene,
-                                        InputAction::PlaySound(LoadingSounds::Click),
-                                    ]
-                                )
-                            ),
-                            TransientAudioPallet::new(
-                                vec![(
-                                    LoadingSounds::Click,
-                                    vec![
-                                        TransientAudio::new(
-                                            asset_server.load(
-                                                "./audio/effects/mech_click.ogg"
-                                            ), 
-                                            0.1, 
-                                            true,
-                                            1.0,
-                                            true
-                                        )
-                                    ]
-                                )]
-                            )
+                            ActionPallet::<LoadingActions, LoadingSounds>(enum_map!(
+                                LoadingActions::ExitLoading => vec![
+                                    InputAction::NextScene,
+                                    InputAction::PlaySound(LoadingSounds::Click),
+                                ]
+                            )),
+                            TransientAudioPallet::new(vec![(
+                                LoadingSounds::Click,
+                                vec![TransientAudio::new(
+                                    asset_server.load("./audio/effects/mech_click.ogg"),
+                                    0.1,
+                                    true,
+                                    1.0,
+                                    true,
+                                )],
+                            )]),
                         ));
                     });
                 }
@@ -339,7 +256,6 @@ impl LoadingScene {
         if timers.0[LoadingEvents::UpdateButton].just_finished() {
             let index = timers.0[LoadingEvents::UpdateButton].times_finished() as usize;
             if let Some(message) = frames.frames.get(index) {
-
                 text.0 = message.clone();
             }
         }

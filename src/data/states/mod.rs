@@ -1,21 +1,15 @@
 use bevy::prelude::*;
-use serde::{
-    Serialize, 
-    Deserialize
-};
-
+use serde::{Deserialize, Serialize};
 
 pub struct GameStatesPlugin;
 impl Plugin for GameStatesPlugin {
     fn build(&self, app: &mut App) {
-        app           
-        .init_state::<MainState>()
-        .add_sub_state::<GameState>()
-        .add_sub_state::<PauseState>()
-        .add_sub_state::<DilemmaPhase>();
+        app.init_state::<MainState>()
+            .add_sub_state::<GameState>()
+            .add_sub_state::<PauseState>()
+            .add_sub_state::<DilemmaPhase>();
     }
 }
-
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MainState {
@@ -25,15 +19,14 @@ pub enum MainState {
     Debug,
 }
 
-#[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash, Serialize, 
-    Deserialize)]
+#[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[source(MainState = MainState::InGame)]
 pub enum GameState {
     #[default]
     Loading,
     Dialogue,
     Dilemma,
-    Ending
+    Ending,
 }
 
 #[derive(Default, SubStates, Debug, Clone, PartialEq, Eq, Hash)]
@@ -53,7 +46,7 @@ pub enum DilemmaPhase {
     DilemmaTransition,
     Skip,
     Consequence,
-    Results
+    Results,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,11 +62,7 @@ impl StateVector {
         game: Option<GameState>,
         sub: Option<DilemmaPhase>,
     ) -> StateVector {
-        StateVector {
-            main,
-            game,
-            sub,
-        }
+        StateVector { main, game, sub }
     }
 
     pub fn set_state(
@@ -85,11 +74,11 @@ impl StateVector {
         if let Some(state) = &self.main {
             **next_main_state = NextState::PendingIfNeq(state.clone());
         }
-    
+
         if let Some(state) = &self.game {
             **next_game_state = NextState::PendingIfNeq(state.clone());
         }
-    
+
         if let Some(state) = &self.sub {
             **next_sub_state = NextState::PendingIfNeq(state.clone());
         }

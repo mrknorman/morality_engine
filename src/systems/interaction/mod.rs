@@ -1,100 +1,52 @@
-use std::{cmp::Ordering, collections::HashMap, hash::Hash};
-use enum_map::{
-    Enum, 
-    EnumArray,
-    EnumMap
+use crate::{
+    data::{
+        states::{DilemmaPhase, GameState, MainState, PauseState, StateVector},
+        stats::GameStats,
+    },
+    entities::{
+        large_fonts::{AsciiActions, AsciiSounds},
+        sprites::{
+            compound::Plus,
+            window::{Window, WindowActions, WindowSounds},
+        },
+        train::{TrainActions, TrainSounds},
+    },
+    scenes::{
+        dialogue::dialogue::{DialogueActions, DialogueSounds},
+        dilemma::{
+            lever::{Lever, LeverState},
+            phases::{
+                consequence::DilemmaConsequenceActions,
+                decision::{DecisionActions, LeverActions},
+                intro::DilemmaIntroActions,
+                results::DilemmaResultsActions,
+            },
+            DilemmaSounds,
+        },
+        ending::{EndingActions, EndingSounds},
+        loading::{LoadingActions, LoadingSounds},
+        menu::{MenuActions, MenuSounds},
+        Scene, SceneQueue,
+    },
+    startup::cursor::{CursorMode, CustomCursor},
+    systems::{
+        audio::{
+            AudioPlugin, AudioSystemsActive, DilatableAudio, TransientAudio, TransientAudioPallet,
+        },
+        colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON},
+        motion::Bounce,
+        time::Dilation,
+    },
 };
 use bevy::{
     app::AppExit,
+    camera::primitives::Aabb,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
-    camera::primitives::Aabb,
     window::{ClosingWindow, PrimaryWindow, WindowCloseRequested},
 };
-use crate::{
-    data::{
-        states::{
-            DilemmaPhase, 
-            GameState, 
-            MainState, 
-            PauseState,
-            StateVector
-        }, 
-        stats::GameStats
-    },
-    systems::{
-        audio::{
-            AudioPlugin,
-            AudioSystemsActive,
-            DilatableAudio,
-            TransientAudio,
-            TransientAudioPallet,
-        },
-        colors::{CLICKED_BUTTON, ColorAnchor, HOVERED_BUTTON},
-        motion::Bounce,
-        time::Dilation
-    }, 
-    entities::{
-        large_fonts::{
-            AsciiActions, 
-            AsciiSounds
-        },
-        sprites::{
-            compound::Plus,
-            window::{
-                Window,
-                WindowActions,
-                 WindowSounds
-                },
-        },
-        train::{
-            TrainActions,
-            TrainSounds
-        }
-    },
-    scenes::{
-        Scene,
-        SceneQueue,
-        dialogue::dialogue::{
-            DialogueActions, 
-            DialogueSounds
-        }, 
-        dilemma::{
-            lever::{
-                Lever,
-                LeverState,
-            },
-            phases::{
-                consequence::DilemmaConsequenceActions, 
-                decision::{
-                    DecisionActions, 
-                    LeverActions
-                }, 
-                intro::DilemmaIntroActions, 
-                results::DilemmaResultsActions
-            }, 
-            DilemmaSounds
-        },
-        ending::{
-            EndingActions, 
-            EndingSounds
-        }, 
-        loading::{
-            LoadingActions, 
-            LoadingSounds
-        },
-        menu::{
-            MenuActions, 
-            MenuSounds
-        }
-    }, 
-    startup::{
-        cursor::{
-            CursorMode, 
-            CustomCursor
-        }
-    }
-};
+use enum_map::{Enum, EnumArray, EnumMap};
+use std::{cmp::Ordering, collections::HashMap, hash::Hash};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum InteractionSystem {
@@ -118,7 +70,9 @@ macro_rules! system_entry {
         IntoSystem::into_system($system).in_set($label)
     };
     ($system:expr, $label:expr, after: $after:expr) => {
-        IntoSystem::into_system($system).in_set($label).after($after)
+        IntoSystem::into_system($system)
+            .in_set($label)
+            .after($after)
     };
 }
 
@@ -164,14 +118,17 @@ impl Plugin for InteractionPlugin {
             app.add_plugins(AudioPlugin);
         }
         app.add_message::<AdvanceDialogue>()
-            .init_resource::<InteractionAggregate >()
+            .init_resource::<InteractionAggregate>()
             .add_systems(Startup, activate_prerequisite_states)
             .add_systems(
                 Update,
                 (reset_clickable_aggregate, reset_interaction_visual_state)
                     .before(InteractionSystem::Clickable),
             )
-            .add_systems(Update, apply_interaction_visuals.after(InteractionSystem::Selectable));
+            .add_systems(
+                Update,
+                apply_interaction_visuals.after(InteractionSystem::Selectable),
+            );
 
         register_interaction_systems!(app, WindowActions, WindowSounds);
         register_interaction_systems!(app, MenuActions, MenuSounds);
@@ -187,13 +144,11 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, EndingActions, EndingSounds);
         register_interaction_systems!(app, OverlayMenuActions, OverlayMenuSounds);
         register_interaction_systems!(app, PauseMenuActions, PauseMenuSounds);
-
+        register_interaction_systems!(app, SystemMenuActions, SystemMenuSounds);
     }
 }
 
-fn activate_prerequisite_states(
-    mut audio_state: ResMut<NextState<AudioSystemsActive>>,
-) {
+fn activate_prerequisite_states(mut audio_state: ResMut<NextState<AudioSystemsActive>>) {
     audio_state.set(AudioSystemsActive::True);
 }
 
@@ -238,6 +193,23 @@ impl std::fmt::Display for PauseMenuActions {
     }
 }
 
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemMenuSounds {
+    Click,
+    Switch,
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemMenuActions {
+    Activate,
+}
+
+impl std::fmt::Display for SystemMenuActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InteractionGate {
     GameplayOnly,
@@ -251,27 +223,42 @@ impl Default for InteractionGate {
 }
 
 impl InteractionGate {
-    fn allows(self, paused: bool) -> bool {
+    fn allows(self, interaction_captured: bool) -> bool {
         match self {
-            Self::GameplayOnly => !paused,
-            Self::PauseMenuOnly => paused,
+            Self::GameplayOnly => !interaction_captured,
+            Self::PauseMenuOnly => interaction_captured,
         }
     }
 }
 
-pub fn interaction_gate_allows(gate: Option<&InteractionGate>, paused: bool) -> bool {
-    gate.copied().unwrap_or_default().allows(paused)
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub struct InteractionCapture;
+
+pub fn interaction_context_active(
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<(), With<InteractionCapture>>,
+) -> bool {
+    let paused = pause_state
+        .as_ref()
+        .is_some_and(|state| *state.get() == PauseState::Paused);
+    paused || !capture_query.is_empty()
+}
+
+pub fn interaction_gate_allows(gate: Option<&InteractionGate>, interaction_captured: bool) -> bool {
+    gate.copied()
+        .unwrap_or_default()
+        .allows(interaction_captured)
 }
 
 #[derive(Copy, Clone, Component)]
 pub struct ClickableCursorIcons {
-    pub on_hover : CursorMode,
+    pub on_hover: CursorMode,
 }
 
-impl Default for ClickableCursorIcons{
+impl Default for ClickableCursorIcons {
     fn default() -> Self {
-        Self{
-            on_hover : CursorMode::Clicker,
+        Self {
+            on_hover: CursorMode::Clicker,
         }
     }
 }
@@ -284,10 +271,9 @@ where
 {
     /// Keys used to look up actions in the ActionPallet.
     pub actions: Vec<T>,
-    pub region : Option<Vec2>,
+    pub region: Option<Vec2>,
     pub triggered: bool,
 }
-
 
 impl<T> Default for Clickable<T>
 where
@@ -295,9 +281,9 @@ where
 {
     fn default() -> Self {
         Self {
-            actions : vec![],
+            actions: vec![],
             triggered: false,
-            region : None
+            region: None,
         }
     }
 }
@@ -313,10 +299,10 @@ where
         }
     }
 
-    pub fn with_region(actions: Vec<T>, region : Vec2) -> Self {
+    pub fn with_region(actions: Vec<T>, region: Vec2) -> Self {
         Self {
             actions,
-            region : Some(region),
+            region: Some(region),
             ..default()
         }
     }
@@ -362,6 +348,7 @@ pub struct SelectableMenu {
     pub down_keys: Vec<KeyCode>,
     pub activate_keys: Vec<KeyCode>,
     pub wrap: bool,
+    pub activate_selected_on_any_click: bool,
 }
 
 impl Default for SelectableMenu {
@@ -372,6 +359,7 @@ impl Default for SelectableMenu {
             down_keys: vec![KeyCode::ArrowDown],
             activate_keys: vec![KeyCode::Enter],
             wrap: true,
+            activate_selected_on_any_click: true,
         }
     }
 }
@@ -390,6 +378,7 @@ impl SelectableMenu {
             down_keys,
             activate_keys,
             wrap,
+            activate_selected_on_any_click: true,
         }
     }
 }
@@ -405,6 +394,14 @@ impl Selectable {
     pub fn new(menu_entity: Entity, index: usize) -> Self {
         Self { menu_entity, index }
     }
+}
+
+#[derive(Component, Clone, Copy, Default)]
+pub struct OptionCycler {
+    pub left_triggered: bool,
+    pub right_triggered: bool,
+    pub at_min: bool,
+    pub at_max: bool,
 }
 
 #[derive(Component, Clone, Copy, Debug, Default)]
@@ -471,32 +468,35 @@ impl Default for InteractionState {
 #[derive(Component, Clone)]
 #[require(Clickable<T>, InteractionState)]
 #[component(on_insert = ClickablePong::<T>::on_insert)]
-pub struct ClickablePong<T> where
+pub struct ClickablePong<T>
+where
     T: Copy + Send + Sync + 'static,
 {
-    initial_state : usize,
+    initial_state: usize,
     /// The ping–pong index and cycle state.
     direction: PongDirection,
     /// A vector of key sets (each a Vec<T>) to cycle through.
     pub action_vector: Vec<Vec<T>>,
 }
 
-impl<T> Default for ClickablePong<T> where
+impl<T> Default for ClickablePong<T>
+where
     T: Copy + Send + Sync + 'static,
-{ 
+{
     fn default() -> Self {
-        Self{
-            initial_state : 0,
-            direction : PongDirection::Forward,
-            action_vector : vec![],
+        Self {
+            initial_state: 0,
+            direction: PongDirection::Forward,
+            action_vector: vec![],
         }
     }
 }
 
-impl<T: Clone> ClickablePong<T>  where
+impl<T: Clone> ClickablePong<T>
+where
     T: Copy + Send + Sync + 'static,
 {
-    pub fn new(action_vector: Vec<Vec<T>>, initial_state : usize) -> Self {
+    pub fn new(action_vector: Vec<Vec<T>>, initial_state: usize) -> Self {
         Self {
             initial_state,
             action_vector,
@@ -504,14 +504,11 @@ impl<T: Clone> ClickablePong<T>  where
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
             world.commands().entity(entity).insert((
-                Clickable{
-                    actions : pong.action_vector[pong.initial_state].clone(),
+                Clickable {
+                    actions: pong.action_vector[pong.initial_state].clone(),
                     ..default()
                 },
                 InteractionState(pong.initial_state),
@@ -536,11 +533,12 @@ where
 {
     PlaySound(S),
     ChangeState(StateVector),
+    #[allow(dead_code)]
     ChangePauseState(PauseState),
     NextScene,
     AdvanceDialogue(String),
     ChangeLeverState(LeverState),
-    ResetGame, 
+    ResetGame,
     ExitApplication,
     Bounce,
     Despawn(Option<Entity>),
@@ -643,31 +641,31 @@ macro_rules! handle_all_actions {
 /// Macro to apply a block to each of two optional components (Clickable and Pressable).
 macro_rules! handle_triggers {
     ($clickable:expr, $pressable:expr, $pallet:expr, $handle_ident:ident => $block:block) => {{
-         if let Some(mut $handle_ident) = $clickable {
-             let $handle_ident = &mut *$handle_ident;
-             $block
-         }
-         if let Some(mut $handle_ident) = $pressable {
-             let $handle_ident = &mut *$handle_ident;
-             $block
-         }
-    }}
+        if let Some(mut $handle_ident) = $clickable {
+            let $handle_ident = &mut *$handle_ident;
+            $block
+        }
+        if let Some(mut $handle_ident) = $pressable {
+            let $handle_ident = &mut *$handle_ident;
+            $block
+        }
+    }};
 }
 
 #[derive(Resource, Default)]
 pub struct InteractionAggregate {
-    option_to_click : Option<CursorMode>,
-    option_to_drag : bool,
-    is_dragging : bool
+    option_to_click: Option<CursorMode>,
+    option_to_drag: bool,
+    is_dragging: bool,
 }
 
 pub fn reset_clickable_aggregate(
-    mut aggregate : ResMut<InteractionAggregate>,
+    mut aggregate: ResMut<InteractionAggregate>,
     mut cursor: ResMut<CustomCursor>,
 ) {
     if aggregate.is_dragging {
         cursor.current_mode = CursorMode::Dragging;
-    } else if let Some(mode) = aggregate.option_to_click  {
+    } else if let Some(mode) = aggregate.option_to_click {
         cursor.current_mode = mode;
     } else if aggregate.option_to_drag {
         cursor.current_mode = CursorMode::Dragger;
@@ -678,9 +676,7 @@ pub fn reset_clickable_aggregate(
     *aggregate = InteractionAggregate::default();
 }
 
-pub fn reset_interaction_visual_state(
-    mut query: Query<&mut InteractionVisualState>,
-) {
+pub fn reset_interaction_visual_state(mut query: Query<&mut InteractionVisualState>) {
     for mut state in query.iter_mut() {
         state.clear_frame_state();
     }
@@ -719,35 +715,36 @@ pub fn apply_interaction_visuals(
 }
 
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
-        mouse_input: Res<ButtonInput<MouseButton>>,
-        pause_state: Option<Res<State<PauseState>>>,
-        mut aggregate : ResMut<InteractionAggregate>,
-        cursor : Res<CustomCursor>,
-        window_query: Query<(&Window, &Transform, &GlobalTransform), Without<TextSpan>>,
-        mut clickable_query: Query<
-            (
-                Entity,
-                Option<&Aabb>,
-                &Transform,
-                &GlobalTransform,
-                &ClickableCursorIcons,
-                Option<&InteractionGate>,
-                Option<&mut InteractionVisualState>,
-                &mut Clickable<T>
-            ),
-            Without<TextSpan>
-        >,
-        ) {
-    let paused = pause_state
-        .as_ref()
-        .is_some_and(|state| *state.get() == PauseState::Paused);
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<(), With<InteractionCapture>>,
+    mut aggregate: ResMut<InteractionAggregate>,
+    cursor: Res<CustomCursor>,
+    window_query: Query<(&Window, &Transform, &GlobalTransform), Without<TextSpan>>,
+    mut clickable_query: Query<
+        (
+            Entity,
+            Option<&Aabb>,
+            &Transform,
+            &GlobalTransform,
+            &ClickableCursorIcons,
+            Option<&InteractionGate>,
+            Option<&mut InteractionVisualState>,
+            &mut Clickable<T>,
+        ),
+        Without<TextSpan>,
+    >,
+) {
+    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
 
     // Reset click latches every frame so stale clicks cannot retrigger actions.
     for (_, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
         clickable.triggered = false;
     }
 
-    let Some(cursor_position) = cursor.position else { return };
+    let Some(cursor_position) = cursor.position else {
+        return;
+    };
 
     // Any clickable under a higher window surface is blocked, even if that
     // top window surface itself is not clickable.
@@ -774,8 +771,10 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     let mut hovered_top: Option<(Entity, f32, CursorMode)> = None;
 
-    for (entity, bound, transform, global_transform, icons, gate, _, clickable) in clickable_query.iter_mut() {
-        if !interaction_gate_allows(gate, paused) {
+    for (entity, bound, transform, global_transform, icons, gate, _, clickable) in
+        clickable_query.iter_mut()
+    {
+        if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -825,7 +824,8 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             }
         }
         if mouse_input.just_pressed(MouseButton::Left) {
-            if let Ok((_, _, _, _, _, _, visual_state, mut clickable)) = clickable_query.get_mut(entity)
+            if let Ok((_, _, _, _, _, _, visual_state, mut clickable)) =
+                clickable_query.get_mut(entity)
             {
                 clickable.triggered = true;
                 if let Some(mut visual_state) = visual_state {
@@ -839,6 +839,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 pub fn pressable_system<T: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<(), With<InteractionCapture>>,
     mut query: Query<(
         &mut Pressable<T>,
         &mut InteractionState,
@@ -846,16 +847,14 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
         Option<&mut InteractionVisualState>,
     )>,
 ) {
-    let paused = pause_state
-        .as_ref()
-        .is_some_and(|state| *state.get() == PauseState::Paused);
+    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
 
     for (mut pressable, mut state, gate, visual_state) in query.iter_mut() {
         let mut visual_state = visual_state;
         // Reset the triggered mapping each frame.
         pressable.triggered_mapping = None;
 
-        if !interaction_gate_allows(gate, paused) {
+        if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -863,7 +862,11 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
         for (i, mapping) in pressable.mappings.iter().enumerate() {
             // If any key in the mapping is just pressed, trigger this mapping.
             if mapping.allow_repeated_activation || state.0 == i {
-                if mapping.keys.iter().any(|&key| keyboard_input.just_pressed(key)) {
+                if mapping
+                    .keys
+                    .iter()
+                    .any(|&key| keyboard_input.just_pressed(key))
+                {
                     pressable.triggered_mapping = Some(i);
                     state.0 = i;
                     if let Some(ref mut visual_state) = visual_state {
@@ -881,6 +884,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<(), With<InteractionCapture>>,
     mut menus: Query<(Entity, &mut SelectableMenu, Option<&InteractionGate>)>,
     mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
@@ -905,9 +909,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         )>,
     )>,
 ) {
-    let paused = pause_state
-        .as_ref()
-        .is_some_and(|state| *state.get() == PauseState::Paused);
+    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
     #[derive(Clone, Copy)]
     struct SelectableCandidate {
         entity: Entity,
@@ -925,7 +927,8 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     }
 
     fn move_selection(indices: &[usize], current_index: usize, forward: bool, wrap: bool) -> usize {
-        let Some(current_position) = indices.iter().position(|&index| index == current_index) else {
+        let Some(current_position) = indices.iter().position(|&index| index == current_index)
+        else {
             return indices[0];
         };
         if forward {
@@ -950,7 +953,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     for (entity, selectable, bound, transform, global_transform, gate, clickable) in
         selectable_queries.p0().iter()
     {
-        if !interaction_gate_allows(gate, paused) {
+        if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -989,7 +992,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             continue;
         };
 
-        if !interaction_gate_allows(gate, paused) {
+        if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -1032,12 +1035,10 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             .any(|&key| keyboard_input.just_pressed(key));
 
         if up_pressed && !down_pressed {
-            menu.selected_index =
-                move_selection(&indices, menu.selected_index, false, menu.wrap);
+            menu.selected_index = move_selection(&indices, menu.selected_index, false, menu.wrap);
             pointer_state.0 = true;
         } else if down_pressed && !up_pressed {
-            menu.selected_index =
-                move_selection(&indices, menu.selected_index, true, menu.wrap);
+            menu.selected_index = move_selection(&indices, menu.selected_index, true, menu.wrap);
             pointer_state.0 = true;
         } else if !pointer_state.0 {
             if let Some(top_hovered) = candidates
@@ -1057,8 +1058,8 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             .activate_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
-        let force_selected_click = pointer_state.0 && mouse_input.just_pressed(MouseButton::Left);
-
+        let force_selected_click =
+            menu.activate_selected_on_any_click && mouse_input.just_pressed(MouseButton::Left);
         selection_state_by_menu.insert(
             *menu_entity,
             SelectionState {
@@ -1074,7 +1075,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     for (selectable, mut visual_state, _visual_palette, gate, mut clickable) in
         selectable_queries.p1().iter_mut()
     {
-        if !interaction_gate_allows(gate, paused) {
+        if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -1099,7 +1100,6 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             visual_state.pressed = is_selected;
         }
     }
-
 }
 
 /// -- Trigger Systems (Audio, State Change, etc.) --
@@ -1111,12 +1111,11 @@ pub fn trigger_audio<K, S>(
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
-        &TransientAudioPallet<S>
+        &TransientAudioPallet<S>,
     )>,
     mut audio: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1145,10 +1144,9 @@ pub fn trigger_bounce<K, S>(
         Option<&mut Clickable<K>>,
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
-        &mut Bounce
-    )>
-)
-where
+        &mut Bounce,
+    )>,
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1173,12 +1171,11 @@ pub fn trigger_next_scene<K, S>(
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
     )>,
-    mut queue : ResMut<SceneQueue>,
+    mut queue: ResMut<SceneQueue>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1216,7 +1213,6 @@ where
     }
 }
 
-
 pub fn trigger_state_change<K, S>(
     mut query: Query<(
         Entity,
@@ -1227,8 +1223,7 @@ pub fn trigger_state_change<K, S>(
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1257,8 +1252,7 @@ pub fn trigger_pause_state_change<K, S>(
         &ActionPallet<K, S>,
     )>,
     mut next_pause_state: ResMut<NextState<PauseState>>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1292,8 +1286,7 @@ pub fn trigger_exit_application<K, S>(
     >,
     mut close_requests: MessageWriter<WindowCloseRequested>,
     mut app_exit: MessageWriter<AppExit>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1322,8 +1315,7 @@ pub fn trigger_advance_dialogue<K, S>(
         &ActionPallet<K, S>,
     )>,
     mut event_writer: MessageWriter<AdvanceDialogue>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1345,8 +1337,8 @@ where
 }
 
 pub fn trigger_reset_game<K, S>(
-    mut queue : ResMut<SceneQueue>,
-    mut stats : ResMut<GameStats>,
+    mut queue: ResMut<SceneQueue>,
+    mut stats: ResMut<GameStats>,
     mut next_main_state: ResMut<NextState<MainState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
@@ -1356,8 +1348,7 @@ pub fn trigger_reset_game<K, S>(
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
     )>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1370,7 +1361,7 @@ where
                     *queue = SceneQueue::default();
                     *stats = GameStats::default();
                     StateVector::new(
-                        Some(MainState::Menu), 
+                        Some(MainState::Menu),
                         Some(GameState::Loading),
                         Some(DilemmaPhase::Intro)
                     ).set_state(
@@ -1384,7 +1375,6 @@ where
     }
 }
 
-
 pub fn trigger_despawn<K, S>(
     mut commands: Commands,
     mut query: Query<(
@@ -1393,8 +1383,7 @@ pub fn trigger_despawn<K, S>(
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
     )>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1419,8 +1408,7 @@ pub fn trigger_lever_state_change<K, S>(
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
     )>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1446,8 +1434,7 @@ pub fn trigger_debug_print<K, S>(
         Option<&mut Pressable<K>>,
         &ActionPallet<K, S>,
     )>,
-)
-where
+) where
     K: Copy + Enum + EnumArray<Vec<InputAction<S>>> + Clone + Send + Sync + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
@@ -1469,14 +1456,13 @@ pub fn update_pong<T: Send + Sync + Copy + 'static>(
         &mut Clickable<T>,
         &mut ClickablePong<T>,
         &mut InteractionState,
-        Option<&mut Pressable<T>>
+        Option<&mut Pressable<T>>,
     )>,
 ) {
     for (mut clickable, mut pong, mut state, pressable_opt) in query.iter_mut() {
-        if pressable_opt
-            .as_ref()
-            .map_or(clickable.triggered, |p| p.triggered_mapping.is_some() || clickable.triggered)
-        {
+        if pressable_opt.as_ref().map_or(clickable.triggered, |p| {
+            p.triggered_mapping.is_some() || clickable.triggered
+        }) {
             match pong.direction {
                 PongDirection::Forward => {
                     if state.0 >= pong.action_vector.len().saturating_sub(1) {
@@ -1501,19 +1487,16 @@ pub fn update_pong<T: Send + Sync + Copy + 'static>(
 }
 
 #[derive(Component)]
-pub struct ActionPallet<K, S>(
-    pub EnumMap<K, Vec<InputAction<S>>>
-)
+pub struct ActionPallet<K, S>(pub EnumMap<K, Vec<InputAction<S>>>)
 where
     K: Enum + EnumArray<Vec<InputAction<S>>> + Send + Sync + Clone + 'static,
     <K as EnumArray<Vec<InputAction<S>>>>::Array: Clone + Send + Sync,
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + 'static,
     <S as EnumArray<Vec<Entity>>>::Array: Clone + Send + Sync;
 
-
 pub struct DraggableRegion {
     pub region: Vec2,
-    pub offset: Vec2
+    pub offset: Vec2,
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -1543,7 +1526,7 @@ impl DraggableViewportBounds {
 pub struct Draggable {
     pub region: Option<DraggableRegion>,
     pub offset: Vec2,
-    pub dragging: bool
+    pub dragging: bool,
 }
 
 impl Default for Draggable {
@@ -1551,7 +1534,7 @@ impl Default for Draggable {
         Self {
             region: None,
             offset: Vec2::ZERO,
-            dragging: false
+            dragging: false,
         }
     }
 }
@@ -1561,6 +1544,7 @@ impl Draggable {
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
+        capture_query: Query<(), With<InteractionCapture>>,
         mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<
             (
@@ -1572,19 +1556,17 @@ impl Draggable {
                 Option<&DraggableViewportBounds>,
                 Option<&InteractionGate>,
             ),
-            Without<TextSpan>
+            Without<TextSpan>,
         >,
     ) {
-        let paused = pause_state
-            .as_ref()
-            .is_some_and(|state| *state.get() == PauseState::Paused);
+        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
 
         // Reset the option_to_drag flag at the beginning of the frame
         aggregate.option_to_drag = false;
 
-        if paused {
+        if interaction_captured {
             for (_, _, mut draggable, _, _, _, gate) in draggable_q.iter_mut() {
-                if !interaction_gate_allows(gate, paused) {
+                if !interaction_gate_allows(gate, interaction_captured) {
                     draggable.dragging = false;
                 }
             }
@@ -1606,7 +1588,7 @@ impl Draggable {
         for (entity, global_transform, mut draggable, transform, aabb, _, gate) in
             draggable_q.iter_mut()
         {
-            if !interaction_gate_allows(gate, paused) {
+            if !interaction_gate_allows(gate, interaction_captured) {
                 draggable.dragging = false;
                 continue;
             }
@@ -1711,14 +1693,14 @@ impl Draggable {
 pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: &Aabb) -> bool {
     // Get the transformation matrix
     let matrix = transform.to_matrix();
-   
+
     // Transform AABB corners to world space accounting for rotation
     let half_x = aabb.half_extents.x;
     let half_y = aabb.half_extents.y;
-    
-    // Convert Vec3A center to Vec3 
+
+    // Convert Vec3A center to Vec3
     let center = Vec3::new(aabb.center.x, aabb.center.y, aabb.center.z);
-   
+
     // Define the four corners of the AABB in local space
     let corners = [
         Vec3::new(-half_x, -half_y, 0.0), // bottom-left
@@ -1726,16 +1708,17 @@ pub fn is_cursor_within_bounds(cursor: Vec2, transform: &GlobalTransform, aabb: 
         Vec3::new(half_x, half_y, 0.0),   // top-right
         Vec3::new(-half_x, half_y, 0.0),  // top-left
     ];
-   
+
     // Transform corners to world space
-    let world_corners: Vec<Vec2> = corners.iter()
+    let world_corners: Vec<Vec2> = corners
+        .iter()
         .map(|corner| {
             // Apply transformation matrix including translation and rotation
             let transformed = matrix.transform_point3(*corner + center);
             Vec2::new(transformed.x, transformed.y)
         })
         .collect();
-   
+
     // Check if cursor is inside the transformed polygon
     is_point_in_polygon(cursor, &world_corners)
 }
@@ -1748,15 +1731,16 @@ pub fn is_cursor_within_region(
     region_offset: Vec2,
 ) -> bool {
     // Create a local transform for the region relative to the entity
-    let region_local_transform = Transform::from_translation(Vec3::new(region_offset.x, region_offset.y, 0.0));
-   
+    let region_local_transform =
+        Transform::from_translation(Vec3::new(region_offset.x, region_offset.y, 0.0));
+
     // Create a matrix that transforms from local space to world space
     let model_matrix = global_transform.to_matrix();
-   
+
     // Calculate half size
     let half_width = region_size.x / 2.0;
     let half_height = region_size.y / 2.0;
-    
+
     // Define the four corners of the region in local space (relative to region offset)
     let corners = [
         Vec3::new(-half_width, -half_height, 0.0), // bottom-left
@@ -1764,26 +1748,27 @@ pub fn is_cursor_within_region(
         Vec3::new(half_width, half_height, 0.0),   // top-right
         Vec3::new(-half_width, half_height, 0.0),  // top-left
     ];
-    
+
     // Transform corners to world space
-    let world_corners: Vec<Vec2> = corners.iter()
+    let world_corners: Vec<Vec2> = corners
+        .iter()
         .map(|corner| {
             // Apply scale from transform
             let scaled_corner = Vec3::new(
                 corner.x * transform.scale.x,
                 corner.y * transform.scale.y,
-                corner.z * transform.scale.z
+                corner.z * transform.scale.z,
             );
-            
+
             // Apply region offset
             let offset_corner = scaled_corner + region_local_transform.translation;
-            
+
             // Apply the full transformation matrix to get world position
             let transformed = model_matrix.transform_point3(offset_corner);
             Vec2::new(transformed.x, transformed.y)
         })
         .collect();
-    
+
     // Check if cursor is inside the transformed polygon
     is_point_in_polygon(cursor_position, &world_corners)
 }
@@ -1793,25 +1778,47 @@ fn is_point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
     if polygon.len() < 3 {
         return false;
     }
-    
+
     let mut inside = false;
     let mut j = polygon.len() - 1;
-    
+
     for i in 0..polygon.len() {
         let vi = polygon[i];
         let vj = polygon[j];
-        
+
         // Ray casting algorithm - count intersections
-        if ((vi.y > point.y) != (vj.y > point.y)) &&
-           (point.x < (vj.x - vi.x) * (point.y - vi.y) / (vj.y - vi.y) + vi.x)
+        if ((vi.y > point.y) != (vj.y > point.y))
+            && (point.x < (vj.x - vi.x) * (point.y - vi.y) / (vj.y - vi.y) + vi.x)
         {
             inside = !inside;
         }
-        
+
         j = i;
     }
-    
+
     inside
+}
+
+pub fn option_cycler_input_system(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut query: Query<(&InteractionVisualState, &mut OptionCycler)>,
+) {
+    let left_pressed = keyboard_input.just_pressed(KeyCode::ArrowLeft);
+    let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
+
+    for (visual_state, mut cycler) in query.iter_mut() {
+        cycler.left_triggered = false;
+        cycler.right_triggered = false;
+
+        if visual_state.selected {
+            if left_pressed && !cycler.at_min {
+                cycler.left_triggered = true;
+            }
+            if right_pressed && !cycler.at_max {
+                cycler.right_triggered = true;
+            }
+        }
+    }
 }
 
 pub fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {

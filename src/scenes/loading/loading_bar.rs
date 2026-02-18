@@ -1,42 +1,37 @@
 use std::time::Duration;
 
-use rand::Rng;
-use serde::Deserialize;
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
     sprite::Anchor,
     text::TextBounds,
 };
+use rand::Rng;
+use serde::Deserialize;
 
 use crate::{
-    systems::{
-        colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR},
-        time::Dilation
-    }, 
     entities::{
         sprites::compound::HollowRectangle,
-        text::TextFrames,
+        text::{scaled_font_size, TextFrames},
     },
-    scenes::loading::content::LoadingBarMessages
+    scenes::loading::content::LoadingBarMessages,
+    systems::{
+        colors::{HIGHLIGHT_COLOR, PRIMARY_COLOR},
+        time::Dilation,
+    },
 };
 
 pub struct LoadingBarPlugin;
 impl Plugin for LoadingBarPlugin {
     fn build(&self, app: &mut App) {
-
-        app
-        .init_state::<LoadingSystemsActive>()
-        .add_systems(Update, activate_systems)
-        .add_systems(
-            Update,
-            (
-                LoadingBar::fill,
-                LoadingBar::layout_info_text,
-            )
-            .chain()
-            .run_if(in_state(LoadingSystemsActive::True)),
-        );
+        app.init_state::<LoadingSystemsActive>()
+            .add_systems(Update, activate_systems)
+            .add_systems(
+                Update,
+                (LoadingBar::fill, LoadingBar::layout_info_text)
+                    .chain()
+                    .run_if(in_state(LoadingSystemsActive::True)),
+            );
     }
 }
 
@@ -44,12 +39,12 @@ impl Plugin for LoadingBarPlugin {
 pub enum LoadingSystemsActive {
     #[default]
     False,
-    True
+    True,
 }
 
 fn activate_systems(
     mut loading_state: ResMut<NextState<LoadingSystemsActive>>,
-    loading_query: Query<&LoadingBar>
+    loading_query: Query<&LoadingBar>,
 ) {
     loading_state.set(if loading_query.is_empty() {
         LoadingSystemsActive::False
@@ -72,7 +67,7 @@ pub struct LoadingBar {
     final_message: String,
     timer: Timer,
     index: usize,
-    finished : bool
+    finished: bool,
 }
 
 impl LoadingBar {
@@ -81,17 +76,13 @@ impl LoadingBar {
     const INFO_TEXT_SIDE_PADDING: f32 = 8.0;
     const INFO_TEXT_BAR_GAP: f32 = 6.0;
 
-    fn new(
-        prefix: String, 
-        final_message: String, 
-        timer_duration: Duration
-    ) -> Self {
+    fn new(prefix: String, final_message: String, timer_duration: Duration) -> Self {
         Self {
             prefix,
             final_message,
             timer: Timer::new(timer_duration, TimerMode::Once),
             index: 0,
-            finished: false
+            finished: false,
         }
     }
 
@@ -99,46 +90,43 @@ impl LoadingBar {
         (Self::BAR_WIDTH - 2.0 * Self::INFO_TEXT_SIDE_PADDING).max(1.0)
     }
 
-    pub fn load(loading_bar_messages : LoadingBarMessages) -> (LoadingBar, TextFrames) {
-        let config = LoadingBarConfig::from_file(loading_bar_messages).expect(
-            "Error reading Loading Bar configuration file!"
-        );
+    pub fn load(loading_bar_messages: LoadingBarMessages) -> (LoadingBar, TextFrames) {
+        let config = LoadingBarConfig::from_file(loading_bar_messages)
+            .expect("Error reading Loading Bar configuration file!");
 
         let mut rng: rand::prelude::ThreadRng = rand::rng();
 
-        let timer_duration: Duration = Duration::from_secs_f32(
-            rng.random_range(1.0..=2.0)
-        );
+        let timer_duration: Duration = Duration::from_secs_f32(rng.random_range(1.0..=2.0));
 
         (
             LoadingBar::new(config.prefix, config.final_message, timer_duration),
-            TextFrames::new(config.messages)
+            TextFrames::new(config.messages),
         )
     }
 
     pub fn fill(
         time: Res<Time>,
-        dilation : Res<Dilation>,
-        mut loading_query: Query<(&Children, &mut LoadingBar, &TextFrames)>,      
+        dilation: Res<Dilation>,
+        mut loading_query: Query<(&Children, &mut LoadingBar, &TextFrames)>,
         mut sprite_query: Query<&mut Sprite, With<ProgressIndicator>>,
         mut text_query: Query<Entity, With<LoadingText>>,
-        mut writer: Text2dWriter
+        mut writer: Text2dWriter,
     ) {
         let mut rng = rand::rng();
 
         for (children, mut bar, frames) in loading_query.iter_mut() {
-            if bar.timer.tick(time.delta().mul_f32(dilation.0)).just_finished() {
+            if bar
+                .timer
+                .tick(time.delta().mul_f32(dilation.0))
+                .just_finished()
+            {
                 bar.index += 1;
 
                 let secs = rng.random_range(0.5..=2.0) as f32;
-                bar.timer = Timer::new(
-                    Duration::from_secs_f32(secs), 
-                    TimerMode::Once
-                );
+                bar.timer = Timer::new(Duration::from_secs_f32(secs), TimerMode::Once);
 
                 // Update sprite (progress indicator)
                 for child in children.iter() {
-
                     if !bar.finished {
                         if let Ok(mut sprite) = sprite_query.get_mut(child) {
                             if let Some(custom_size) = &mut sprite.custom_size {
@@ -146,9 +134,9 @@ impl LoadingBar {
                                 custom_size.x = (custom_size.x + bar_size_increase).min(494.0);
                                 bar.finished = custom_size.x >= 494.0;
                             }
-                        }  
+                        }
                     }
-                        
+
                     if let Ok(entity) = text_query.get_mut(child) {
                         if !frames.frames.is_empty() {
                             if !bar.finished {
@@ -166,7 +154,12 @@ impl LoadingBar {
 
     fn layout_info_text(
         mut loading_text_query: Query<
-            (&mut TextBounds, &mut Transform, &mut TextLayout, &mut Anchor),
+            (
+                &mut TextBounds,
+                &mut Transform,
+                &mut TextLayout,
+                &mut Anchor,
+            ),
             With<LoadingText>,
         >,
     ) {
@@ -192,11 +185,7 @@ impl LoadingBar {
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
-
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (messages, prefix) = {
             let entity_ref = world.entity(entity);
             let messages: Option<Vec<String>> = entity_ref
@@ -214,57 +203,56 @@ impl LoadingBar {
         if let Some(messages) = messages {
             commands.entity(entity).with_children(|parent| {
                 // Spawn the loading bar components
-                parent.spawn((            
-                    Sprite{
-                        custom_size: Some(Vec2::ZERO),
-                        color : PRIMARY_COLOR,
-                        ..default()
-                    },
-                    Transform::default()
-                ));
-                
                 parent.spawn((
-                    LoadingText,
-                    Text2d::new(prefix.unwrap_or_default()),
-                    TextColor(PRIMARY_COLOR),
-                    TextFont{
-                        font_size : 12.0,
+                    Sprite {
+                        custom_size: Some(Vec2::ZERO),
+                        color: PRIMARY_COLOR,
                         ..default()
                     },
-                    TextBounds{
-                        width: Some(Self::info_text_width()),
-                        ..default()
-                    },
-                    Transform::from_xyz(
-                        -Self::BAR_WIDTH * 0.5 + Self::INFO_TEXT_SIDE_PADDING,
-                        Self::BAR_HEIGHT * 0.5 + Self::INFO_TEXT_BAR_GAP,
-                        0.0
-                    ),
-                    TextLayout{
-                        justify: Justify::Left,
-                        linebreak : LineBreak::WordBoundary,
-                        ..default()
-                    },
-                    Anchor::BOTTOM_LEFT,
-                )).with_children( |parent| {
-                    parent.spawn((
+                    Transform::default(),
+                ));
+
+                parent
+                    .spawn((
+                        LoadingText,
+                        Text2d::new(prefix.unwrap_or_default()),
+                        TextColor(PRIMARY_COLOR),
+                        TextFont {
+                            font_size: scaled_font_size(12.0),
+                            ..default()
+                        },
+                        TextBounds {
+                            width: Some(Self::info_text_width()),
+                            ..default()
+                        },
+                        Transform::from_xyz(
+                            -Self::BAR_WIDTH * 0.5 + Self::INFO_TEXT_SIDE_PADDING,
+                            Self::BAR_HEIGHT * 0.5 + Self::INFO_TEXT_BAR_GAP,
+                            0.0,
+                        ),
+                        TextLayout {
+                            justify: Justify::Left,
+                            linebreak: LineBreak::WordBoundary,
+                            ..default()
+                        },
+                        Anchor::BOTTOM_LEFT,
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn((
                             TextSpan::new(messages[0].clone()),
                             TextColor(PRIMARY_COLOR),
-                            TextFont{
-                                font_size : 12.0,
+                            TextFont {
+                                font_size: scaled_font_size(12.0),
                                 ..default()
                             },
-                        )
-                    );
-                }); 
-                
-                parent.spawn(
-                    HollowRectangle{
-                        dimensions : Vec2::new(Self::BAR_WIDTH, Self::BAR_HEIGHT),
-                        color : PRIMARY_COLOR,
-                        ..default()
-                    }
-                );
+                        ));
+                    });
+
+                parent.spawn(HollowRectangle {
+                    dimensions: Vec2::new(Self::BAR_WIDTH, Self::BAR_HEIGHT),
+                    color: PRIMARY_COLOR,
+                    ..default()
+                });
 
                 parent.spawn((
                     ProgressIndicator,
@@ -274,13 +262,10 @@ impl LoadingBar {
                         custom_size: Some(Vec2::new(0.0, 14.0)),
                         ..default()
                     },
-                    Transform::from_translation(
-                        Vec3::ZERO.with_x(-247.0)
-                    )
+                    Transform::from_translation(Vec3::ZERO.with_x(-247.0)),
                 ));
             });
         }
-
     }
 }
 
@@ -292,7 +277,7 @@ struct LoadingBarConfig {
 }
 
 impl LoadingBarConfig {
-    fn from_file(loading_bar_messages : LoadingBarMessages) -> Result<Self, serde_json::Error> {
+    fn from_file(loading_bar_messages: LoadingBarMessages) -> Result<Self, serde_json::Error> {
         serde_json::from_str(loading_bar_messages.content())
     }
 }

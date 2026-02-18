@@ -1,8 +1,5 @@
 use bevy::{
-    prelude::*,
-    shader::ShaderRef,
-    render::render_resource::AsBindGroup,
-    sprite_render::Material2d
+    prelude::*, render::render_resource::AsBindGroup, shader::ShaderRef, sprite_render::Material2d,
 };
 
 // This is the struct that will be passed to your shader
@@ -11,7 +8,7 @@ pub struct PulsingMaterial {
     #[uniform(0)]
     pub color: LinearRgba,
     #[uniform(1)]
-    pub phase: f32
+    pub phase: f32,
 }
 
 /// The Material2d trait is very configurable, but comes with sensible defaults for all methods.

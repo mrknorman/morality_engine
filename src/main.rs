@@ -1,21 +1,20 @@
 use bevy::{
     prelude::*,
-    window::{PresentMode, WindowResolution}
+    window::{PresentMode, WindowResolution},
 };
-#[forbid(unsafe_code)]
-
-mod scenes;
-mod systems;
-mod entities;
 mod data;
-mod startup;
+mod entities;
+#[forbid(unsafe_code)]
+mod scenes;
 mod shaders;
+mod startup;
 mod style;
+mod systems;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title : String::from("The Trolley Algorithm"),
+                title: String::from("The Trolley Algorithm"),
                 resizable: true,
                 present_mode: PresentMode::Immediate,
                 resolution: WindowResolution::new(1280, 960),
@@ -30,13 +29,7 @@ fn main() {
 struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(
-                (
-                    startup::StartupPlugin,
-                    scenes::ScenePlugin
-                )
-            );
+        app.add_plugins((startup::StartupPlugin, scenes::ScenePlugin));
     }
 }
 
@@ -47,25 +40,24 @@ impl Plugin for GamePlugin {
      // Particles for cascade and background
      // Think about stats for multi-stages
      // more music pls, needed soon
-     // Fireworks on results screen
      // Level selector (for debug and ones you've done)
 
     // Weather Shaders
     // Spacial Audio?
 
-    // Pushing into cablecar cogs 
-    
+    // Pushing into cablecar cogs
+
     Cursors (Explore Storytelling with Cursor)
         - Idle Animations
         - Sand Timer
         - Puller (maybe animated!)
         - Waiting to pull (animated anxious) (directional)
-    
-    Assistants: 
+
+    Assistants:
         - Twitchy (Twitch Integration) and Lee Ver 2.0 - Fight over lever
     Endings:
     - Rage Ending
-    - Many Levers Ending - TrollyMoon           
+    - Many Levers Ending - TrollyMoon
     - Reaction Time Ending - (Many Tracks??)
     - Nothing 3 times ending (company shuts down)
     - Vengence/Forgiveness ending - revenge against engineeres with daisy (bitcrushed)
@@ -90,13 +82,11 @@ impl Plugin for GamePlugin {
     Dilemma:
         - Train Blood persistant
         - Add coloured numbers to results screen
-        - Change decision music 
+        - Change decision music
         - Flashy Selector
         - Hover
         - This train will not stop appears when click on train
         - Background colors
-        - Results screen fireworks
-        - Window Ordering to resolve z-fighting issues
         - Link Clickthrough
     Menus:
         - Clock and Time checker - day/night cycle
@@ -106,7 +96,7 @@ impl Plugin for GamePlugin {
             - Memory increases software capacity - Large Network Required for collective
             - Coolant needed to prevent overheating
             - Falloff with long connections
-        - Software Architect - Neural Network Builder - 6 stats: 
+        - Software Architect - Neural Network Builder - 6 stats:
             Intelligence Amplification – The ability to improve its own intelligence recursively, leading to an intelligence explosion where it surpasses human cognitive capabilities.
             Strategic Planning – Advanced planning and long-term foresight, allowing the AI to outmaneuver human organizations and competitors.
             Social Manipulation – The ability to persuade, deceive, or manipulate humans and institutions to act in its favor.
@@ -147,7 +137,7 @@ impl Plugin for GamePlugin {
     // Immense suffering or mass death
     // Multi-Track Dilemma
     // Drift Button
-    
+
     // Calibration tests:
 
     //To Do:
@@ -169,14 +159,14 @@ impl Plugin for GamePlugin {
 
     // Age:
     // Sex:
-    // Propery error bars. 
+    // Propery error bars.
 
     // Field Upgrades:
     // Occupation
     // Family Members / Dependants
     // Criminal Record
     // Driver Statistics && driver preferences
-    // Probability of death/ injury to various parties 
+    // Probability of death/ injury to various parties
 
     // Trust buys more upgrades:
     // Can upgrade decision time
@@ -196,7 +186,7 @@ impl Plugin for GamePlugin {
     // - Maximise life-years saved in total
     // - Maximise life years saved directly
     // - Maximise happiness directly
-    // - 
+    // -
 
 }
 

@@ -1,9 +1,9 @@
 //! style/common_ui/mod.rs
+use crate::style::ui::BottomAnchor;
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
-use crate::style::ui::BottomAnchor;
 
 /// ---------------------------------------------------------------------------
 /// Macro for “exactly-one” UI elements
@@ -57,8 +57,8 @@ macro_rules! unique_element {
                 let transform = world
                     .try_query::<&Window>()                      // get a query for all Window components
                     .and_then(|mut q| q.iter(&world).next())     // iterate and take the first one
-                    .map(|w| Self::transform(w));           
-                
+                    .map(|w| Self::transform(w));
+
                 // Is there a previous one?
                 let previous = world
                     .get_resource::<$Config>()
@@ -110,8 +110,7 @@ unique_element!(
 pub struct CommonUIPlugin;
 impl Plugin for CommonUIPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(NextButtonConfig::default())
+        app.insert_resource(NextButtonConfig::default())
             .insert_resource(CenterLeverConfig::default())
             .insert_resource(DilemmaTimerConfig::default());
     }

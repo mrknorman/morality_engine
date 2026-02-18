@@ -1,86 +1,65 @@
 use bevy::prelude::*;
 
 use crate::{
-    data::states::{
-        DilemmaPhase, 
-        GameState
-    }, 
-    entities::{
-        person::BloodSprite, 
-        train::Train
-    }, 
+    data::states::{DilemmaPhase, GameState},
+    entities::{person::BloodSprite, train::Train},
     scenes::dilemma::{
-        content::DilemmaScene, 
-        dilemma::{DilemmaStage, CurrentDilemmaStageIndex},
-        junction::Junction, 
-        lever::{
-            Lever, 
-            LeverState
-        }
-    }, systems::{
-        backgrounds::{
-            Background, 
-            BackgroundSystems
-        }, 
-        colors::{
-            AlphaTranslation, 
-            ColorTranslation
-        }, 
-        motion:: PointToPointTranslation, 
-        physics::{
-            CameraVelocity, 
-            ExplodedGlyph, 
-            Velocity
-        }
-    }
+        content::DilemmaScene,
+        dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
+        junction::Junction,
+        lever::{Lever, LeverState},
+    },
+    systems::{
+        backgrounds::{Background, BackgroundSystems},
+        colors::{AlphaTranslation, ColorTranslation},
+        motion::PointToPointTranslation,
+        physics::{CameraVelocity, ExplodedGlyph, Velocity},
+    },
 };
 
 pub struct DilemmaTransitionPlugin;
 impl Plugin for DilemmaTransitionPlugin {
     fn build(&self, app: &mut App) {
-        app
-		.add_systems(
-			OnEnter(DilemmaPhase::DilemmaTransition), 
-			(setup, update_viscera_speeds, update_lever).chain()
-		)
-		.add_systems(
-			Update,
-			trigger_exit
-			.run_if(in_state(GameState::Dilemma))
-			.run_if(in_state(DilemmaPhase::DilemmaTransition)),
-		)
+        app.add_systems(
+            OnEnter(DilemmaPhase::DilemmaTransition),
+            (setup, update_viscera_speeds, update_lever).chain(),
+        )
         .add_systems(
-            OnExit(DilemmaPhase::DilemmaTransition),
-            stop_viscera
-        );
+            Update,
+            trigger_exit
+                .run_if(in_state(GameState::Dilemma))
+                .run_if(in_state(DilemmaPhase::DilemmaTransition)),
+        )
+        .add_systems(OnExit(DilemmaPhase::DilemmaTransition), stop_viscera);
     }
 }
 
 fn update_lever(
-        stage : Res<DilemmaStage>,
-        index : Res<CurrentDilemmaStageIndex>,
-        mut lever : ResMut<Lever>
-    ) {
-    if index.0 == 0 {                
+    stage: Res<DilemmaStage>,
+    index: Res<CurrentDilemmaStageIndex>,
+    mut lever: ResMut<Lever>,
+) {
+    if index.0 == 0 {
         lever.0 = match stage.default_option {
             None => LeverState::Random,
             Some(ref option) if *option == 0 => LeverState::Left,
-            Some(_) => LeverState::Right
+            Some(_) => LeverState::Right,
         };
     }
 }
 
 fn setup(
-    stage : Res<DilemmaStage>,
-    index : Res<CurrentDilemmaStageIndex>,
-    lever :  Res<Lever>,
+    stage: Res<DilemmaStage>,
+    index: Res<CurrentDilemmaStageIndex>,
+    lever: Res<Lever>,
     systems: Res<BackgroundSystems>,
-    mut commands : Commands,
-    mut background_query : Query<(Entity, &mut Background)>,
-    mut train_query : Query<(Entity, &mut Velocity, &Transform), (With<Train>, Without<Junction>)>,
+    mut commands: Commands,
+    mut background_query: Query<(Entity, &mut Background)>,
+    mut train_query: Query<(Entity, &mut Velocity, &Transform), (With<Train>, Without<Junction>)>,
     mut junction_query: Query<(Entity, &Transform), (With<Junction>, Without<Train>)>,
-) {         
-    let (transition_duration, train_x_displacement, main_track_translation_start, _) = DilemmaScene::generate_common_parameters(&stage);
+) {
+    let (transition_duration, train_x_displacement, main_track_translation_start, _) =
+        DilemmaScene::generate_common_parameters(&stage);
 
     let option_value = if index.0 == 0 {
         stage.default_option.clone()
@@ -88,28 +67,21 @@ fn setup(
         lever.0.to_int()
     };
 
-    let initial_color = option_value
-        .map_or(Color::WHITE, |i| DilemmaScene::TRACK_COLORS[i]);
+    let initial_color = option_value.map_or(Color::WHITE, |i| DilemmaScene::TRACK_COLORS[i]);
 
-    commands.spawn(
-(
-            DespawnOnExit(GameState::Dilemma),
-            Junction{
-                stage : stage.clone()
-            },
-            ColorTranslation::new(
-                initial_color,
-                transition_duration,
-                false
-            ),
-            PointToPointTranslation::new(
-                main_track_translation_start,
-                DilemmaScene::MAIN_TRACK_TRANSLATION_END,
-                transition_duration,
-                false
-            )
-        )
-    );
+    commands.spawn((
+        DespawnOnExit(GameState::Dilemma),
+        Junction {
+            stage: stage.clone(),
+        },
+        ColorTranslation::new(initial_color, transition_duration, false),
+        PointToPointTranslation::new(
+            main_track_translation_start,
+            DilemmaScene::MAIN_TRACK_TRANSLATION_END,
+            transition_duration,
+            false,
+        ),
+    ));
 
     let mut train_transform = Transform::default();
     let mut train_velocity = Vec3::ZERO;
@@ -121,46 +93,39 @@ fn setup(
             transform.translation,
             DilemmaScene::TRAIN_INITIAL_POSITION + train_x_displacement,
             transition_duration,
-            false
+            false,
         ));
     }
     for (entity, transform) in junction_query.iter_mut() {
-
         let displacement = transform.translation - train_transform.translation;
-        commands.entity(entity).insert(
-            PointToPointTranslation::new(
-                transform.translation,
-                DilemmaScene::TRAIN_INITIAL_POSITION + train_x_displacement + displacement - Vec3::ZERO.with_x(train_velocity.x * transition_duration.as_secs_f32()),
-                transition_duration,
-                false
-            )
-        );
+        commands.entity(entity).insert(PointToPointTranslation::new(
+            transform.translation,
+            DilemmaScene::TRAIN_INITIAL_POSITION + train_x_displacement + displacement
+                - Vec3::ZERO.with_x(train_velocity.x * transition_duration.as_secs_f32()),
+            transition_duration,
+            false,
+        ));
     }
-    
+
     for (entity, mut background) in background_query.iter_mut() {
-        commands.entity(entity).insert(
-            AlphaTranslation {
-                initial_alpha : 0.0,
-                final_alpha : 1.0,
-                timer : Timer::new(
-                    transition_duration,
-                    TimerMode::Once
-                )
-            }
-        );
+        commands.entity(entity).insert(AlphaTranslation {
+            initial_alpha: 0.0,
+            final_alpha: 1.0,
+            timer: Timer::new(transition_duration, TimerMode::Once),
+        });
         background.speed = -stage.speed * stage.countdown_duration.as_secs_f32() / 350.0;
         commands.run_system(systems.0["update_background_speeds"]);
     }
 }
 
 fn trigger_exit(
-    stage : Res<DilemmaStage>,
+    stage: Res<DilemmaStage>,
     systems: Res<BackgroundSystems>,
-    mut commands : Commands,
+    mut commands: Commands,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
-    mut train_query : Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
+    mut train_query: Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
     mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
-    mut background_query : Query<&mut Background>
+    mut background_query: Query<&mut Background>,
 ) {
     let mut all_translations_finished = true;
     for translation in train_query.iter_mut() {
@@ -175,28 +140,30 @@ fn trigger_exit(
             background.speed = 0.0;
             commands.run_system(systems.0["update_background_speeds"]);
         }
-        
-        *next_sub_state = NextState::PendingIfNeq(
-            DilemmaPhase::Decision
-        );
+
+        *next_sub_state = NextState::PendingIfNeq(DilemmaPhase::Decision);
 
         for mut translation in train_query.iter_mut() {
             translation.initial_position = translation.final_position;
-            translation.final_position = DilemmaScene::TRAIN_INITIAL_POSITION + Vec3::new(-50.0, 0.0, 0.0);
-            translation.timer = Timer::new(
-                stage.countdown_duration,
-                TimerMode::Once
-            );
+            translation.final_position =
+                DilemmaScene::TRAIN_INITIAL_POSITION + Vec3::new(-50.0, 0.0, 0.0);
+            translation.timer = Timer::new(stage.countdown_duration, TimerMode::Once);
         }
     }
 }
 
 pub fn update_viscera_speeds(
-    stage : Res<DilemmaStage>,
-    mut sprites: Query<(&mut CameraVelocity, &Transform), Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
+    stage: Res<DilemmaStage>,
+    mut sprites: Query<
+        (&mut CameraVelocity, &Transform),
+        Or<(With<BloodSprite>, With<ExplodedGlyph>)>,
+    >,
 ) {
-    for (mut velocity, transform) in &mut sprites {            
-        let x_speed = transform.translation.z.powf(0.3) * -stage.speed * stage.countdown_duration.as_secs_f32() * 3.0;
+    for (mut velocity, transform) in &mut sprites {
+        let x_speed = transform.translation.z.powf(0.3)
+            * -stage.speed
+            * stage.countdown_duration.as_secs_f32()
+            * 3.0;
         velocity.0.x = x_speed;
     }
 }
@@ -204,7 +171,7 @@ pub fn update_viscera_speeds(
 pub fn stop_viscera(
     mut sprites: Query<&mut CameraVelocity, Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
 ) {
-    for mut velocity in &mut sprites {            
+    for mut velocity in &mut sprites {
         velocity.0.x = 0.0;
     }
 }

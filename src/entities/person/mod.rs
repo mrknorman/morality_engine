@@ -1,5 +1,8 @@
 use bevy::{
-    ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, camera::primitives::Aabb, sprite::Anchor
+    camera::primitives::Aabb,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    sprite::Anchor,
 };
 use enum_map::Enum;
 use rand::Rng;
@@ -9,11 +12,18 @@ use crate::{
     data::{rng::GlobalRng, states::DilemmaPhase},
     entities::text::TextSprite,
     systems::{
-        audio::{DilatableAudio, TransientAudio, TransientAudioPallet}, interaction::world_aabb, motion::Bounce, physics::{ Gravity, PhysicsPlugin, Velocity, Volatile}, time::Dilation
+        audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
+        interaction::world_aabb,
+        motion::Bounce,
+        physics::{Gravity, PhysicsPlugin, Velocity, Volatile},
+        time::Dilation,
     },
 };
 
-use super::{text::{CharacterSprite, GlyphString}, train::{Train, TrainSounds}};
+use super::{
+    text::{CharacterSprite, GlyphString},
+    train::{Train, TrainSounds},
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Plugin plumbing
@@ -39,12 +49,12 @@ impl Plugin for PersonPlugin {
                     PersonSprite::alert,
                     Emoticon::animate,
                 )
-                .run_if(in_state(PersonSystemsActive::True))
-                .run_if(
-                    in_state(DilemmaPhase::Decision)
-                        .or(in_state(DilemmaPhase::Consequence))
-                        .or(in_state(DilemmaPhase::Skip)),
-                ),
+                    .run_if(in_state(PersonSystemsActive::True))
+                    .run_if(
+                        in_state(DilemmaPhase::Decision)
+                            .or(in_state(DilemmaPhase::Consequence))
+                            .or(in_state(DilemmaPhase::Skip)),
+                    ),
             )
             .add_systems(
                 Update,
@@ -93,18 +103,16 @@ fn default_person_anchor() -> Anchor {
 #[derive(Component)]
 pub struct BloodSprite(pub u8);
 
-
-
 #[derive(Component)]
 #[require(Anchor = default_person_anchor(), Gravity, TextSprite, Bounce, Visibility, Volatile)]
 #[component(on_insert = PersonSprite::on_insert)]
-pub struct PersonSprite { 
-    pub in_danger: bool 
+pub struct PersonSprite {
+    pub in_danger: bool,
 }
 
 impl Default for PersonSprite {
-    fn default() -> Self { 
-        Self { in_danger: false } 
+    fn default() -> Self {
+        Self { in_danger: false }
     }
 }
 #[derive(Component)]
@@ -123,7 +131,7 @@ impl PersonSprite {
         // Attach the glyph string; the GlyphString::on_insert hook does the rest
         world.commands().entity(entity).insert(GlyphString {
             text: PERSON.to_string(),
-            depth: Self::PERSON_DEPTH
+            depth: Self::PERSON_DEPTH,
         });
     }
 
@@ -145,8 +153,11 @@ impl PersonSprite {
                 let (t_min, t_max) = world_aabb(t_box, t_tf);
 
                 // 2D overlap check (X/Y only)
-                if v_min.x <= t_max.x && v_max.x >= t_min.x &&
-                   v_min.y <= t_max.y && v_max.y >= t_min.y {
+                if v_min.x <= t_max.x
+                    && v_max.x >= t_min.x
+                    && v_min.y <= t_max.y
+                    && v_max.y >= t_min.y
+                {
                     volatile.trigger_explosion(
                         v_tf.translation(),
                         v_vel_opt.map_or(Vec3::ZERO, |v| v.0),
@@ -166,7 +177,11 @@ impl PersonSprite {
         mut char_q: Query<(&mut Text2d, &CharacterSprite)>,
     ) {
         for (children, bounce) in parent_q.iter_mut() {
-            let template = if bounce.enacting { PERSON_IN_DANGER } else { PERSON };
+            let template = if bounce.enacting {
+                PERSON_IN_DANGER
+            } else {
+                PERSON
+            };
 
             for (row, line) in template.lines().enumerate() {
                 for (col, ch) in line.chars().enumerate() {
@@ -235,7 +250,16 @@ impl PersonSprite {
         dilation: Res<Dilation>,
         mut rng: ResMut<GlobalRng>,
         mut audio_q: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
-        train_q: Query<(Entity, &Aabb, &GlobalTransform, &Velocity, Option<&TransientAudioPallet<TrainSounds>>), With<Train>>,
+        train_q: Query<
+            (
+                Entity,
+                &Aabb,
+                &GlobalTransform,
+                &Velocity,
+                Option<&TransientAudioPallet<TrainSounds>>,
+            ),
+            With<Train>,
+        >,
     ) {
         const RESTITUTION: f32 = 0.8;
         const TRAIN_SHARE: f32 = 0.8;
@@ -243,7 +267,14 @@ impl PersonSprite {
         const FRONT_BONUS: f32 = 0.8;
         const RANDOM_FAN: f32 = 1.0;
 
-        let mut trains_data: Vec<(Vec3, Vec3, Vec3, Vec3, Option<&TransientAudioPallet<TrainSounds>>, Entity)> = Vec::new();
+        let mut trains_data: Vec<(
+            Vec3,
+            Vec3,
+            Vec3,
+            Vec3,
+            Option<&TransientAudioPallet<TrainSounds>>,
+            Entity,
+        )> = Vec::new();
         for (train_entity, box_local, tf, vel, pallet) in train_q.iter() {
             let (min, max) = world_aabb(box_local, tf);
             trains_data.push((min, max, vel.0, tf.translation(), pallet, train_entity));
@@ -259,9 +290,13 @@ impl PersonSprite {
 
             for &(t_min, t_max, train_vel, t_centre, pallet, train_entity) in &trains_data {
                 // AABB overlap check (3D)
-                if d_min.x > t_max.x || d_max.x < t_min.x ||
-                   d_min.y > t_max.y || d_max.y < t_min.y ||
-                   d_min.z > t_max.z || d_max.z < t_min.z {
+                if d_min.x > t_max.x
+                    || d_max.x < t_min.x
+                    || d_min.y > t_max.y
+                    || d_max.y < t_min.y
+                    || d_min.z > t_max.z
+                    || d_max.z < t_min.z
+                {
                     continue;
                 }
 
@@ -336,7 +371,15 @@ impl PersonSprite {
             Without<IgnoreTrainCollision>,
         >,
         mut rng: ResMut<GlobalRng>,
-        sprite_q: Query<(Entity, &Aabb, &GlobalTransform), (With<CharacterSprite>, Without<Bloodied>, Without<Gravity>, Without<BloodSprite>)>
+        sprite_q: Query<
+            (Entity, &Aabb, &GlobalTransform),
+            (
+                With<CharacterSprite>,
+                Without<Bloodied>,
+                Without<Gravity>,
+                Without<BloodSprite>,
+            ),
+        >,
     ) {
         let mut part_data: Vec<(Vec3, Vec3, Vec3, Entity)> = Vec::new();
         for (entity, box_local, tf) in sprite_q.iter() {
@@ -352,12 +395,12 @@ impl PersonSprite {
             let (d_min, d_max) = world_aabb(d_box, d_tf);
 
             for &(t_min, t_max, _, entity) in &part_data {
-                if d_min.x > t_max.x || d_max.x < t_min.x ||
-                   d_min.y > t_max.y || d_max.y < t_min.y {
+                if d_min.x > t_max.x || d_max.x < t_min.x || d_min.y > t_max.y || d_max.y < t_min.y
+                {
                     continue;
                 }
 
-                let tint_shade: f32 = rng.random_range(0.0..= blood.0 as f32);
+                let tint_shade: f32 = rng.random_range(0.0..=blood.0 as f32);
 
                 if let Ok(mut e) = commands.get_entity(entity) {
                     e.insert(TextColor(Color::srgba(3.0, tint_shade, tint_shade, 1.0)));

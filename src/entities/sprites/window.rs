@@ -10,13 +10,11 @@ use enum_map::{enum_map, Enum};
 
 use crate::{
     entities::sprites::compound::*,
+    entities::text::scaled_font_size,
     startup::{cursor::CustomCursor, render::MainCamera},
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
-        colors::{
-            ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON,
-            PRIMARY_COLOR,
-        },
+        colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
         interaction::{
             ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
             InputAction, InteractionVisualPalette, InteractionVisualState,
@@ -416,12 +414,7 @@ impl Window {
         parent_globals: Query<&GlobalTransform>,
         mut draggables: Query<&mut Draggable>,
         mut windows: ParamSet<(
-            Query<(
-                Entity,
-                &Window,
-                &GlobalTransform,
-                Option<&ChildOf>,
-            )>,
+            Query<(Entity, &Window, &GlobalTransform, Option<&ChildOf>)>,
             Query<(
                 Entity,
                 &mut Window,
@@ -550,8 +543,15 @@ impl Window {
 
         {
             let mut writable_windows = windows.p1();
-            let Ok((_, mut window, mut window_transform, window_global, parent, metrics, overflow_policy)) =
-                writable_windows.get_mut(state.window_entity)
+            let Ok((
+                _,
+                mut window,
+                mut window_transform,
+                window_global,
+                parent,
+                metrics,
+                overflow_policy,
+            )) = writable_windows.get_mut(state.window_entity)
             else {
                 commands
                     .entity(state.window_entity)
@@ -567,7 +567,8 @@ impl Window {
                 ResizeCorner::BottomLeft => state.fixed_x_world - cursor_position.x,
                 ResizeCorner::BottomRight => cursor_position.x - state.fixed_x_world,
             };
-            let unclamped_height = state.fixed_top_y_world - window.header_height - cursor_position.y;
+            let unclamped_height =
+                state.fixed_top_y_world - window.header_height - cursor_position.y;
             let clamped_inner = Self::clamp_inner_size(
                 Vec2::new(unclamped_width, unclamped_height),
                 min_inner,
@@ -594,7 +595,8 @@ impl Window {
                 window_transform.translation.x = desired_center_local.x;
                 window_transform.translation.y = desired_center_local.y;
             } else {
-                let correction_world = desired_center_world - window_global.translation().truncate();
+                let correction_world =
+                    desired_center_world - window_global.translation().truncate();
                 if correction_world.length_squared() > 0.000001 {
                     root_correction = Some((root_entity, correction_world));
                 }
@@ -616,14 +618,18 @@ impl Window {
 
         if let Some((root_entity, correction_world)) = root_correction {
             if let Ok((mut root_transform, root_parent)) = windows.p2().get_mut(root_entity) {
-                let correction_local =
-                    Self::world_delta_to_parent_local(correction_world, root_parent, &parent_globals);
+                let correction_local = Self::world_delta_to_parent_local(
+                    correction_world,
+                    root_parent,
+                    &parent_globals,
+                );
                 root_transform.translation.x += correction_local.x;
                 root_transform.translation.y += correction_local.y;
             }
         }
 
-        if let Some((root_entity, edge_center_local, new_width, header_height)) = drag_region_update {
+        if let Some((root_entity, edge_center_local, new_width, header_height)) = drag_region_update
+        {
             if let Ok(mut draggable) = draggables.get_mut(root_entity) {
                 let edge_padding = 10.0;
                 draggable.region = Some(DraggableRegion {
@@ -721,10 +727,7 @@ impl Window {
             let half_w = window.boundary.dimensions.x * 0.5;
             let half_h = window.boundary.dimensions.y * 0.5;
 
-            let min_window_center = Vec2::new(
-                viewport_min.x + half_w,
-                viewport_min.y + half_h,
-            );
+            let min_window_center = Vec2::new(viewport_min.x + half_w, viewport_min.y + half_h);
             let max_window_center = Vec2::new(
                 viewport_max.x - half_w,
                 viewport_max.y - (half_h + window.header_height),
@@ -822,9 +825,7 @@ impl Window {
 
         let mut world_points = Vec::with_capacity(corners.len());
         for corner in corners {
-            let world = camera
-                .viewport_to_world_2d(camera_transform, corner)
-                .ok()?;
+            let world = camera.viewport_to_world_2d(camera_transform, corner).ok()?;
             world_points.push(world);
         }
 
@@ -997,7 +998,7 @@ impl Window {
                         Text2d(title.text.clone()),
                         TextColor(PRIMARY_COLOR),
                         TextFont {
-                            font_size: 12.0,
+                            font_size: scaled_font_size(12.0),
                             ..default()
                         },
                         Anchor::CENTER_LEFT,

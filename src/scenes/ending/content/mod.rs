@@ -1,15 +1,14 @@
 use bevy::prelude::*;
 
-
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 #[require(Transform, Visibility)]
-pub enum EndingScene{
+pub enum EndingScene {
     IdioticPsychopath,
     ImpatientPsychopath,
     Leverophile,
     SelectiveDeontologist,
     TrueDeontologist,
-    TrueNeutral
+    TrueNeutral,
 }
 
 impl EndingScene {
@@ -20,7 +19,7 @@ impl EndingScene {
             Self::Leverophile => include_str!("./lab/leverophile.json"),
             Self::SelectiveDeontologist => include_str!("./lab/selective_deontologist.json"),
             Self::TrueDeontologist => include_str!("./lab/true_deontologist.json"),
-            Self::TrueNeutral => include_str!("./lab/true_neutral.json")
+            Self::TrueNeutral => include_str!("./lab/true_neutral.json"),
         }
     }
 }

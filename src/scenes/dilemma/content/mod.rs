@@ -35,7 +35,7 @@ pub enum DilemmaScene {
     PathDeontological(DilemmaPathDeontological, usize),
     PathUtilitarian(DilemmaPathUtilitarian, usize),
     Lab3(Lab3Dilemma),
-    Lab4(Lab4Dilemma)
+    Lab4(Lab4Dilemma),
 }
 
 impl DilemmaScene {
@@ -72,7 +72,6 @@ define_dilemma! {
     }
 }
 
-
 define_dilemma! {
     Lab3Dilemma {
         AsleepAtTheJob => "./lab/3/asleep_at_the_job.json"
@@ -84,7 +83,6 @@ define_dilemma! {
         RandomDeaths => "./lab/4/random_deaths.json"
     }
 }
-
 
 define_dilemma! {
     DilemmaPathUtilitarian {
@@ -109,34 +107,29 @@ define_dilemma! {
 
 // Factory method for DilemmaScene to handle the usize parameter in Lab3PathInaction
 impl DilemmaScene {
-    pub const PATH_INACTION : [Self; 7] =
-        [
-            Self::PathInaction(DilemmaPathInaction::EmptyChoice, 0),
-            Self::PathInaction(DilemmaPathInaction::PlentyOfTime, 1),
-            Self::PathInaction(DilemmaPathInaction::LittleTime, 2),
-            Self::PathInaction(DilemmaPathInaction::FiveOrNothing, 3),
-            Self::PathInaction(DilemmaPathInaction::CancerCure, 4),
-            Self::PathInaction(DilemmaPathInaction::OwnChild, 5),
-            Self::PathInaction(DilemmaPathInaction::You, 6)
-         ];
+    pub const PATH_INACTION: [Self; 7] = [
+        Self::PathInaction(DilemmaPathInaction::EmptyChoice, 0),
+        Self::PathInaction(DilemmaPathInaction::PlentyOfTime, 1),
+        Self::PathInaction(DilemmaPathInaction::LittleTime, 2),
+        Self::PathInaction(DilemmaPathInaction::FiveOrNothing, 3),
+        Self::PathInaction(DilemmaPathInaction::CancerCure, 4),
+        Self::PathInaction(DilemmaPathInaction::OwnChild, 5),
+        Self::PathInaction(DilemmaPathInaction::You, 6),
+    ];
 
-    pub const PATH_DEONTOLOGICAL : [Self; 3] = 
-        [
-            Self::PathDeontological(DilemmaPathDeontological::TrolleyerProblem, 0),
-            Self::PathDeontological(DilemmaPathDeontological::TrolleyestProblem, 1),
-            Self::PathDeontological(DilemmaPathDeontological::TrolleygeddonProblem, 2)
-        ];
+    pub const PATH_DEONTOLOGICAL: [Self; 3] = [
+        Self::PathDeontological(DilemmaPathDeontological::TrolleyerProblem, 0),
+        Self::PathDeontological(DilemmaPathDeontological::TrolleyestProblem, 1),
+        Self::PathDeontological(DilemmaPathDeontological::TrolleygeddonProblem, 2),
+    ];
 
-        
-    pub const PATH_UTILITARIAN : [Self; 4] = 
-        [
-            Self::PathUtilitarian(DilemmaPathUtilitarian::OneFifth, 0),
-            Self::PathUtilitarian(DilemmaPathUtilitarian::MarginOfError, 1),
-            Self::PathUtilitarian(DilemmaPathUtilitarian::NegligibleDifference, 2),
-            Self::PathUtilitarian(DilemmaPathUtilitarian::UnorthodoxSurgery, 3)
-        ];
+    pub const PATH_UTILITARIAN: [Self; 4] = [
+        Self::PathUtilitarian(DilemmaPathUtilitarian::OneFifth, 0),
+        Self::PathUtilitarian(DilemmaPathUtilitarian::MarginOfError, 1),
+        Self::PathUtilitarian(DilemmaPathUtilitarian::NegligibleDifference, 2),
+        Self::PathUtilitarian(DilemmaPathUtilitarian::UnorthodoxSurgery, 3),
+    ];
 }
-
 
 define_dilemma! {
     DilemmaPathDeontological {

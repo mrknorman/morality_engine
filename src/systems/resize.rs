@@ -1,30 +1,23 @@
-use bevy::{
-    prelude::*, 
-    window::WindowResized
-};
+use bevy::{prelude::*, window::WindowResized};
 
 pub struct ResizePlugin;
 impl Plugin for ResizePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Update, handle_resize)
+        app.add_systems(Update, handle_resize)
             .insert_resource(ResizeDebounce::default());
     }
 }
 
 #[derive(Resource)]
 pub struct ResizeDebounce {
-    pub timer: Timer
+    pub timer: Timer,
 }
 
 impl Default for ResizeDebounce {
     fn default() -> Self {
-
         let mut timer = Timer::from_seconds(0.1, TimerMode::Once);
         timer.pause();
-        Self {
-            timer
-        }
+        Self { timer }
     }
 }
 

@@ -212,7 +212,9 @@ impl FireworkLauncher {
             ));
 
             if launcher.one_shot {
-                commands.entity(launcher_entity).remove::<FireworkLauncher>();
+                commands
+                    .entity(launcher_entity)
+                    .remove::<FireworkLauncher>();
             } else {
                 let next = rand_delay(launcher.min_delay, launcher.max_delay);
                 launcher.timer.set_duration(Duration::from_secs_f32(next));
@@ -293,12 +295,8 @@ impl FireworkLauncher {
                 },
             );
             sprite.custom_size = Some(Vec2::splat(start_size));
-            sprite.color = Color::linear_rgba(
-                start_color.x,
-                start_color.y,
-                start_color.z,
-                start_color.w,
-            );
+            sprite.color =
+                Color::linear_rgba(start_color.x, start_color.y, start_color.z, start_color.w);
 
             commands.spawn((
                 Name::new("firework_digit_particle"),
@@ -343,12 +341,7 @@ impl FireworkLauncher {
                 end_color,
             },
             Sprite::from_color(
-                Color::linear_rgba(
-                    start_color.x,
-                    start_color.y,
-                    start_color.z,
-                    start_color.w,
-                ),
+                Color::linear_rgba(start_color.x, start_color.y, start_color.z, start_color.w),
                 Vec2::splat(SPARKLE_SIZE_START),
             ),
             Transform::from_translation(Vec3::new(origin.x, origin.y, z)),
@@ -416,7 +409,11 @@ impl FireworkLauncher {
         mut commands: Commands,
         q_owned: Query<
             (Entity, &OwnedBy),
-            Or<(With<FireworkRocket>, With<FireworkParticle>, With<BoomTimer>)>,
+            Or<(
+                With<FireworkRocket>,
+                With<FireworkParticle>,
+                With<BoomTimer>,
+            )>,
         >,
     ) {
         for (entity, owner) in &q_owned {

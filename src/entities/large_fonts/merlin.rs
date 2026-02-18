@@ -1,21 +1,21 @@
 use phf::phf_map;
 
 pub fn get_letter(keyword: char) -> String {
-   // If MERLIN.get(keyword) returns Option<&'static str>:
-   MERLIN.get(&keyword).map_or_else(
-       || { 
-           eprintln!("Warning: No letter found for '{}'", keyword); 
-           DEFAULT.to_string() 
-       },
-       |s| s.to_string()
-   )
+    // If MERLIN.get(keyword) returns Option<&'static str>:
+    MERLIN.get(&keyword).map_or_else(
+        || {
+            eprintln!("Warning: No letter found for '{}'", keyword);
+            DEFAULT.to_string()
+        },
+        |s| s.to_string(),
+    )
 }
 
-pub fn get_vector(text : String) -> Vec<String> {
-   text.chars().map(|c| get_letter(c)).collect()
+pub fn get_vector(text: String) -> Vec<String> {
+    text.chars().map(|c| get_letter(c)).collect()
 }
 
-const DEFAULT : &str = r#"Merlin set missing character!
+const DEFAULT: &str = r#"Merlin set missing character!
              
              
              
@@ -24,8 +24,8 @@ const DEFAULT : &str = r#"Merlin set missing character!
              
              "#;
 
-static MERLIN : phf::Map<char, &'static str> = phf_map! {
-'A' => r#"      __      
+static MERLIN: phf::Map<char, &'static str> = phf_map! {
+'A' => r#"      __
      /""\     
     /    \    
    /' /\  \   
@@ -34,7 +34,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (___/    \___)
               "#,
 
-'B' => r#"_______   
+'B' => r#"_______
 |   _  "\  
 (. |_)  :) 
 |:     \/  
@@ -43,7 +43,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_______/  
            "#,
 
-'C' => r#"  ______   
+'C' => r#"  ______
  /" _  "\  
 (: ( \___) 
  \/ \      
@@ -52,7 +52,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______) 
            "#,
 
-'D' => r#" ________   
+'D' => r#" ________
 |"      "\  
 (.  ___  :) 
 |: \   ) || 
@@ -61,7 +61,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (________/  
             "#,
 
-'E' => r#"  _______   
+'E' => r#"  _______
  /"     "| 
 (: ______) 
  \/    |   
@@ -70,7 +70,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______) 
            "#,
 
-'F' => r#"  _______  
+'F' => r#"  _______
  /"     "| 
 (: ______) 
  \/    |   
@@ -79,7 +79,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \__/      
            "#,
 
-'G' => r#"  _______   
+'G' => r#"  _______
  /" _   "|  
 (: ( \___)  
  \/ \       
@@ -88,7 +88,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______)  
             "#,
 
-'H' => r#"  __    __   
+'H' => r#"  __    __
  /" |  | "\  
 (:  (__)  :) 
  \/      \/  
@@ -97,7 +97,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \__|  |__/  
              "#,
 
-'I' => r#"  __     
+'I' => r#"  __
  |" \   
  ||  |  
  |:  |  
@@ -106,7 +106,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (__\_|_)
       "#,
 
-'J' => r#"      ___ 
+'J' => r#"      ___
      |"  |
      ||  |
      |:  |
@@ -115,7 +115,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_______/ 
          "#,
 
-'K' => r#" __   ___  
+'K' => r#" __   ___
 |/"| /  ") 
 (: |/   /  
 |    __/   
@@ -124,7 +124,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (__|  \__) 
            "#,
 
-'L' => r#" ___       
+'L' => r#" ___
 |"  |      
 ||  |      
 |:  |      
@@ -133,7 +133,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______) 
            "#,
 
-'M' => r#" ___      ___ 
+'M' => r#" ___      ___
 |"  \    /"  |
  \   \  //   |
  /\\  \/.    |
@@ -142,7 +142,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 |___|\__/|___|
               "#,
 
-'N' => r#" _____  ___  
+'N' => r#" _____  ___
 (\"   \|"  \  
 |.\\   \    | 
 |: \.   \\  | 
@@ -151,7 +151,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \___|\____\) 
               "#,
 
-'O' => r#"     ______  
+'O' => r#"     ______
     /    " \   
    // ____  \  
   /  /    ) :) 
@@ -160,7 +160,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
    \"_____/    
                "#,
 
-'P' => r#"   _______   
+'P' => r#"   _______
   |   __ "\  
   (. |__) :) 
   |:  ____/  
@@ -169,7 +169,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_______)    
              "#,
 
-'Q' => r#"    ______    
+'Q' => r#"    ______
    /    " \   
   // ____  \  
  /  /    )  ) 
@@ -178,7 +178,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   \"____/\__\ 
               "#,
 
-'R' => r#"  _______  
+'R' => r#"  _______
  /"      \  
 |:        | 
 |_____/   ) 
@@ -187,7 +187,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 |__|  \___) 
             "#,
 
-'S' => r#"  ________  
+'S' => r#"  ________
  /"       ) 
 (:   \___/  
  \___  \    
@@ -196,7 +196,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_______/   
             "#,
 
-'T' => r#" ___________ 
+'T' => r#" ___________
 ("     _   ")
  )__/  \\__/ 
     \\_ /    
@@ -205,7 +205,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
      \__|    
              "#,
 
-'U' => r#" ____  ____  
+'U' => r#" ____  ____
 ("  _||_ " | 
 |   (  ) : | 
 (:  |  | . ) 
@@ -214,7 +214,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (__________) 
              "#,
 
-'V' => r#" ___      ___ 
+'V' => r#" ___      ___
 |"  \    /"  |
  \   \  //  / 
   \\  \/. ./  
@@ -223,7 +223,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
      \__/     
               "#,
 
-'W' => r#" __   __  ___ 
+'W' => r#" __   __  ___
 |"  |/  \|  "|
 |'  /    \:  |
 |: /'        |
@@ -232,7 +232,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 |___/    \___|
               "#,
 
-'X' => r#" ___  ___  
+'X' => r#" ___  ___
 |"  \/"  | 
  \   \  /  
   \\  \/   
@@ -241,7 +241,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 |___/\___| 
            "#,
 
-'Y' => r#" ___  ___  
+'Y' => r#" ___  ___
 |"  \/"  | 
  \   \  /  
   \\  \/   
@@ -250,7 +250,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 |___/      
            "#,
 
-'Z' => r#" ________   
+'Z' => r#" ________
 ("      "\  
  \___/   :) 
    /  ___/  
@@ -259,7 +259,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   \_______) 
             "#,
 
-'0' => r#"    ______    
+'0' => r#"    ______
    /    " \   
   // ____  \  
  /  /    ) :) 
@@ -268,7 +268,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   \"_____/    
               "#,
 
-'1' => r#"   ____    
+'1' => r#"   ____
   /  " \   
  /__|| |   
     |: |   
@@ -277,7 +277,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  (_______) 
            "#,
 
-'2' => r#"  _______    
+'2' => r#"  _______
  /"     "\   
 (__/\    :)  
     / ___/   
@@ -286,7 +286,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
    \_______) 
              "#,
 
-'3' => r#"  _______  
+'3' => r#"  _______
  /" __   ) 
 (__/ _) ./ 
     /  //  
@@ -295,7 +295,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______) 
            "#,
 
-'4' => r#" ___  ___    
+'4' => r#" ___  ___
 (: "||_  |   
 |  (__) :|   
  \____  ||   
@@ -304,7 +304,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
    (_______) 
              "#,
 
-'5' => r#"   ________  
+'5' => r#"   ________
   /"      ") 
  (:   //\_/  
   \___ \     
@@ -313,7 +313,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_______/    
              "#,
 
-'6' => r#"    ___     
+'6' => r#"    ___
    /. ")    
   /:  /     
  //  /___   
@@ -322,7 +322,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______/  
             "#,
 
-'7' => r#" _________  
+'7' => r#" _________
 ("       "\ 
  \___/   :/ 
     /   //  
@@ -331,7 +331,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   \_______) 
             "#,
 
-'8' => r#"  _______   
+'8' => r#"  _______
  /"  _  \\  
 |:  _ /  :| 
  \___/___/  
@@ -340,7 +340,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \_______/  
             "#,
 
-'9' => r#"  _______    
+'9' => r#"  _______
  /" _   "\   
 (: (_/  :|   
  \____/ |)   
@@ -349,7 +349,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   (________) 
              "#,
 
-'?' => r#" ________   
+'?' => r#" ________
 ("      "\  
  \___/   :) 
    /  ___/  
@@ -358,7 +358,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   (___)     
             "#,
 
-'!' => r#"    ___  
+'!' => r#"    ___
    |"  | 
    ||  | 
    |:  | 
@@ -367,7 +367,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_____/  
          "#,
 
-'"' =>  r#"  ____ _____  
+'"' =>  r#"  ____ _____
  ))_ ")))_ ") 
 (____((____(  
               
@@ -376,7 +376,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
               
               "#,
 
-'%' => r#"  ____  ___   
+'%' => r#"  ____  ___
  ))_ ")/"  |  
 (____(/  //   
      /'  /    
@@ -385,7 +385,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   |___/(____( 
               "#,
 
-'^' => r#"   __    
+'^' => r#"   __
   /""\   
  //   \  
 /'_/\_\\ 
@@ -394,7 +394,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
          
          "#,
 
-'(' =>  r#"    ____  
+'(' =>  r#"    ____
    /   ") 
   /. __/  
  // /     
@@ -403,7 +403,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
   \"__/   
           "#,
 
-')' => r#"  ____    
+')' => r#"  ____
  (  " \   
   \__. \  
      ) :) 
@@ -412,7 +412,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (____/    
           "#,
 
-'[' => r#"  ________  
+'[' => r#"  ________
  /"      ") 
 (:   \___/  
 //   /      
@@ -421,7 +421,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
  \________) 
             "#,
 
-']' => r#" ________   
+']' => r#" ________
 ("      "\  
  \___/   :) 
      \   \\ 
@@ -430,7 +430,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (________/  
             "#,
 
-'=' => r#"  _______  
+'=' => r#"  _______
  ))_    ") 
 (_______(  
  ________  
@@ -439,7 +439,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
            
            "#,
 
-':' => r#"  ____  
+':' => r#"  ____
  ))_ ") 
 (____(  
  _____  
@@ -448,7 +448,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
         
         "#,
 
-';' => r#"   ____  
+';' => r#"   ____
   ))_ ") 
  (____(  
   ____   
@@ -457,7 +457,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
          
          "#,
 
-',' => r#"         
+',' => r#"
          
          
          
@@ -466,7 +466,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_____/  
          "#,
 
-'.' => r#"         
+'.' => r#"
          
          
          
@@ -475,7 +475,7 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 (_____(  
          "#,
 
-'\'' => r#"  ____  
+'\'' => r#"  ____
  ))_ ") 
 (____(  
         
@@ -483,8 +483,8 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
         
         
         "#,
-       
-' ' => r#"      
+
+' ' => r#"
       
       
 
@@ -493,12 +493,3 @@ static MERLIN : phf::Map<char, &'static str> = phf_map! {
 
       "#
 };
-
-
-
-                       
-           
-
-
-           
-

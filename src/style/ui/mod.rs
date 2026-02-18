@@ -1,7 +1,5 @@
 //! style/io/mod.rs
-use bevy::{
-    prelude::*, window::PrimaryWindow,
-};
+use bevy::{prelude::*, window::PrimaryWindow};
 
 /// ---------------------------------------------------------------------------
 ///     State that turns anchor systems on/off
@@ -13,11 +11,7 @@ pub enum IOSystemsActive {
     True,
 }
 
-fn activate_systems(
-    mut next: ResMut<NextState<IOSystemsActive>>,
-    anchors: Query<&BottomAnchor>,
-) {
-
+fn activate_systems(mut next: ResMut<NextState<IOSystemsActive>>, anchors: Query<&BottomAnchor>) {
     // “Any anchors alive?”  →  True else False
     next.set(if !anchors.is_empty() {
         IOSystemsActive::True
@@ -32,15 +26,11 @@ fn activate_systems(
 pub struct IOPlugin;
 impl Plugin for IOPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_state::<IOSystemsActive>()
+        app.init_state::<IOSystemsActive>()
             .add_systems(Update, activate_systems)
             .add_systems(
                 Update,
-                
-                    BottomAnchor::update
-                
-                .run_if(in_state(IOSystemsActive::True)),
+                BottomAnchor::update.run_if(in_state(IOSystemsActive::True)),
             );
     }
 }
@@ -70,7 +60,7 @@ impl BottomAnchor {
 
         for (anchor, mut transform, parent) in &mut query {
             let mut y = base_y + anchor.distance;
-            
+
             if let Some(child_of) = parent {
                 if let Ok(p) = parents.get(child_of.parent()) {
                     y -= p.translation.y; // offset by parent

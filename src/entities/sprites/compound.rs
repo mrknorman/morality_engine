@@ -1,5 +1,8 @@
-use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
 use crate::systems::colors::PRIMARY_COLOR;
+use bevy::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum CompoundSystem {
@@ -9,15 +12,15 @@ pub enum CompoundSystem {
 pub struct CompoundPlugin;
 impl Plugin for CompoundPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
-                Update,
-                (
-                    propagate_changes::<HollowRectangle>,
-                    propagate_changes::<Plus>,
-                    BorderedRectangle::propagate_changes,
-                ).in_set(CompoundSystem::Propagate)
-            );
+        app.add_systems(
+            Update,
+            (
+                propagate_changes::<HollowRectangle>,
+                propagate_changes::<Plus>,
+                BorderedRectangle::propagate_changes,
+            )
+                .in_set(CompoundSystem::Propagate),
+        );
     }
 }
 
@@ -25,7 +28,7 @@ impl Plugin for CompoundPlugin {
 pub trait AssembleShape {
     type Side: Component + Default;
 
-    fn color(&self) -> Color;    
+    fn color(&self) -> Color;
     fn color_mut(&mut self) -> &mut Color;
 
     // Default color setter implementation.
@@ -41,15 +44,17 @@ pub trait AssembleShape {
     // Default method to create sprite bundles for the sides.
     fn assemble(&self) -> impl Iterator<Item = (Sprite, Transform, Self::Side)> {
         let color = self.color();
-        self.updates().into_iter().map(move |(size, pos)| (
-            Sprite {
-                custom_size: Some(size),
-                color,
-                ..default()
-            },
-            Transform::from_translation(pos),
-            Self::Side::default(),
-        ))
+        self.updates().into_iter().map(move |(size, pos)| {
+            (
+                Sprite {
+                    custom_size: Some(size),
+                    color,
+                    ..default()
+                },
+                Transform::from_translation(pos),
+                Self::Side::default(),
+            )
+        })
     }
 }
 
@@ -94,10 +99,7 @@ impl Default for RectangleSides {
 }
 
 impl HollowRectangle {
-    fn on_insert(
-        mut world: DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let shape = {
             if let Some(shape) = world.entity(entity).get::<Self>() {
                 shape.clone()
@@ -105,9 +107,11 @@ impl HollowRectangle {
                 return;
             }
         };
-        
+
         world.commands().entity(entity).with_children(|parent| {
-            shape.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
+            shape.assemble().for_each(|sprite_bundle| {
+                parent.spawn(sprite_bundle);
+            });
         });
     }
 }
@@ -155,7 +159,7 @@ impl AssembleShape for HollowRectangle {
         let half_width = width / 2.0;
         let half_height = height / 2.0;
         let mut updates = Vec::new();
-        
+
         if self.sides.top {
             updates.push((Vec2::new(width, thickness), Vec3::ZERO.with_y(half_height)));
         }
@@ -181,10 +185,7 @@ pub struct Plus {
 }
 
 impl Plus {
-    fn on_insert(
-        mut world: DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let shape = {
             if let Some(shape) = world.entity(entity).get::<Self>() {
                 shape.clone()
@@ -192,9 +193,11 @@ impl Plus {
                 return;
             }
         };
-        
+
         world.commands().entity(entity).with_children(|parent| {
-            shape.assemble().for_each(|sprite_bundle| { parent.spawn(sprite_bundle); });
+            shape.assemble().for_each(|sprite_bundle| {
+                parent.spawn(sprite_bundle);
+            });
         });
     }
 }
@@ -204,7 +207,7 @@ pub struct PlusSide;
 
 impl AssembleShape for Plus {
     type Side = PlusSide;
-    
+
     fn color(&self) -> Color {
         self.color
     }
@@ -235,7 +238,9 @@ pub struct BorderedRectangle {
 
 impl Default for BorderedRectangle {
     fn default() -> Self {
-        Self { boundary: HollowRectangle::default() }
+        Self {
+            boundary: HollowRectangle::default(),
+        }
     }
 }
 
@@ -257,12 +262,12 @@ impl BorderedRectangle {
             if let Ok(children) = children_query.get(entity) {
                 let width = bordered_rectangle.boundary.dimensions.x;
                 let height = bordered_rectangle.boundary.dimensions.y;
-                
+
                 for child in children.iter() {
                     if let Ok(mut mesh2d) = background_query.get_mut(child) {
                         mesh2d.0 = meshes.add(Mesh::from(Rectangle::new(width, height)));
                     }
-                    
+
                     if let Ok(mut hollow_rectangle) = border_query.get_mut(child) {
                         *hollow_rectangle = bordered_rectangle.boundary;
                     }
@@ -271,10 +276,7 @@ impl BorderedRectangle {
         }
     }
 
-    fn on_insert(
-        mut world: DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (boundary, width, height) = {
             if let Some(bordered_rectangle) = world.entity(entity).get::<BorderedRectangle>() {
                 (
@@ -286,14 +288,14 @@ impl BorderedRectangle {
                 return;
             }
         };
-        
+
         let (mesh_handle, material_handle) = {
             let mut meshes = world.resource_mut::<Assets<Mesh>>();
             let mesh_handle = meshes.add(Mesh::from(Rectangle::new(width, height)));
-            
+
             let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
             let material_handle = materials.add(Color::BLACK);
-            
+
             (mesh_handle, material_handle)
         };
 
@@ -303,11 +305,8 @@ impl BorderedRectangle {
                 Mesh2d(mesh_handle),
                 MeshMaterial2d(material_handle),
             ));
-            
-            parent.spawn((
-                RectangleBorder,
-                boundary
-            ));
+
+            parent.spawn((RectangleBorder, boundary));
         });
     }
 }

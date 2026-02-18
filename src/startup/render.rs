@@ -1,41 +1,52 @@
 use bevy::{
-    asset::RenderAssetUsages, camera::{
-        RenderTarget, 
-        visibility::RenderLayers
-    }, color::palettes::css::BLACK, core_pipeline::tonemapping::Tonemapping, image::ImageSampler, post_process::bloom::Bloom, prelude::*, render::{
+    asset::RenderAssetUsages,
+    camera::{visibility::RenderLayers, RenderTarget},
+    color::palettes::css::BLACK,
+    core_pipeline::tonemapping::Tonemapping,
+    image::ImageSampler,
+    post_process::bloom::Bloom,
+    prelude::*,
+    render::{
         render_resource::{
-            AddressMode, AsBindGroup, Extent3d, FilterMode, SamplerDescriptor, ShaderType, TextureDimension, TextureFormat, TextureUsages
-        }, view::Hdr, 
-    }, shader::ShaderRef, sprite_render::{Material2d, Material2dPlugin}, window::{
-        PrimaryWindow, 
-        WindowResized
-    }, time::Real
+            AddressMode, AsBindGroup, Extent3d, FilterMode, SamplerDescriptor, ShaderType,
+            TextureDimension, TextureFormat, TextureUsages,
+        },
+        view::Hdr,
+    },
+    shader::ShaderRef,
+    sprite_render::{Material2d, Material2dPlugin},
+    time::Real,
+    window::{PrimaryWindow, WindowResized},
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 enum StartUpOrder {
     SetUpRenderTarget,
-    ScanLineSetup
+    ScanLineSetup,
 }
 
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
-        .add_systems(Startup, (
-            RenderTargetHandle::setup
-                .in_set(StartUpOrder::SetUpRenderTarget),
-            ScanLinesMaterial::setup
-                .in_set(StartUpOrder::ScanLineSetup)
-                .after(StartUpOrder::SetUpRenderTarget),
-            setup_cameras
-                .after(StartUpOrder::ScanLineSetup)
-        )).add_systems(Update, (
-            ScanLinesMaterial::update, 
-            ScanLinesMaterial::update_scan_mesh,
-            RenderTargetHandle::update,
-        ));
+        app.add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
+            .add_systems(
+                Startup,
+                (
+                    RenderTargetHandle::setup.in_set(StartUpOrder::SetUpRenderTarget),
+                    ScanLinesMaterial::setup
+                        .in_set(StartUpOrder::ScanLineSetup)
+                        .after(StartUpOrder::SetUpRenderTarget),
+                    setup_cameras.after(StartUpOrder::ScanLineSetup),
+                ),
+            )
+            .add_systems(
+                Update,
+                (
+                    ScanLinesMaterial::update,
+                    ScanLinesMaterial::update_scan_mesh,
+                    RenderTargetHandle::update,
+                ),
+            );
     }
 }
 
@@ -45,9 +56,9 @@ pub struct MainCamera;
 const USE_POST_PROCESS: bool = true;
 
 fn setup_cameras(
-    mut commands: Commands,         
+    mut commands: Commands,
     mut clear_color: ResMut<ClearColor>,
-    render_target: Res<RenderTargetHandle>
+    render_target: Res<RenderTargetHandle>,
 ) {
     clear_color.0 = BLACK.into();
 
@@ -58,7 +69,7 @@ fn setup_cameras(
             OffscreenCamera,
             RenderLayers::layer(0),
             Hdr,
-            RenderTarget::Image(render_target.0.clone().into())
+            RenderTarget::Image(render_target.0.clone().into()),
         ));
 
         // Main (window) camera: renders only the fullscreen quad (post‑processing) to the window.
@@ -84,7 +95,6 @@ fn setup_cameras(
     }
 }
 
-
 #[derive(Component)]
 pub struct OffscreenCamera;
 
@@ -101,11 +111,7 @@ impl Default for RenderTargetHandle {
 struct ScanMesh;
 
 impl RenderTargetHandle {
-    fn setup(
-        mut commands: Commands,
-        window: Single<&Window>,
-        mut images: ResMut<Assets<Image>>,
-    ) {
+    fn setup(mut commands: Commands, window: Single<&Window>, mut images: ResMut<Assets<Image>>) {
         let width = window.resolution.width() as u32;
         let height = window.resolution.height() as u32;
         let size = Extent3d {
@@ -113,12 +119,12 @@ impl RenderTargetHandle {
             height,
             depth_or_array_layers: 1,
         };
-    
+
         // Calculate the exact buffer size needed
         let pixel_size_bytes = 16; // Rgba32Float = 4 channels × 4 bytes
         let buffer_size = (width * height * pixel_size_bytes as u32) as usize;
         let clear_color = vec![0u8; buffer_size];
-        
+
         let mut image = Image::new_fill(
             size,
             TextureDimension::D2,
@@ -126,10 +132,11 @@ impl RenderTargetHandle {
             TextureFormat::Rgba32Float,
             RenderAssetUsages::default(),
         );
-    
-        image.texture_descriptor.usage =
-            TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
-    
+
+        image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
+            | TextureUsages::COPY_DST
+            | TextureUsages::RENDER_ATTACHMENT;
+
         let image_handle = images.add(image);
         commands.insert_resource(RenderTargetHandle(image_handle));
     }
@@ -150,21 +157,21 @@ impl RenderTargetHandle {
             // Get a mutable reference to the current image, if it exists:
             if let Some(image) = images.get_mut(&render_target.0) {
                 // If the size doesn't match, recreate the image
-                if image.texture_descriptor.size.width != new_width ||
-                    image.texture_descriptor.size.height != new_height
+                if image.texture_descriptor.size.width != new_width
+                    || image.texture_descriptor.size.height != new_height
                 {
                     let new_size = Extent3d {
                         width: new_width,
                         height: new_height,
                         depth_or_array_layers: 1,
                     };
-                    
+
                     // Calculate the exact buffer size needed based on the format and dimensions
                     // For Rgba32Float, each pixel needs 16 bytes (4 channels × 4 bytes per float)
                     let pixel_size_bytes = 16; // Rgba32Float = 4 channels × 4 bytes
                     let buffer_size = (new_width * new_height * pixel_size_bytes as u32) as usize;
                     let clear_color = vec![0u8; buffer_size];
-                    
+
                     // Create a new image filled with the clear color.
                     let mut new_image = Image::new_fill(
                         new_size,
@@ -193,12 +200,14 @@ impl ScanLinesMaterial {
         mut meshes: ResMut<Assets<Mesh>>,
         window: Single<&Window>,
     ) {
-
         // Get the primary window's resolution
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
 
         // Create a fullscreen quad mesh.
-        let mesh = meshes.add(Mesh::from(Rectangle::new(window.resolution.width(), window.resolution.height())));
+        let mesh = meshes.add(Mesh::from(Rectangle::new(
+            window.resolution.width(),
+            window.resolution.height(),
+        )));
 
         // Create our custom material with initial parameters.
         let material: Handle<ScanLinesMaterial> = materials.add(ScanLinesMaterial {
@@ -217,7 +226,7 @@ impl ScanLinesMaterial {
             RenderLayers::layer(1), // Only sees the post-process quad
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            ScanMesh
+            ScanMesh,
         ));
     }
 
@@ -226,21 +235,21 @@ impl ScanLinesMaterial {
         window: Single<&Window, With<PrimaryWindow>>,
         time: Res<Time<Real>>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
-    ) {        
+    ) {
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
         for (_id, material) in materials.iter_mut() {
             material.scan_line.resolution = window_resolution;
             material.scan_line.real_time = time.elapsed_secs();
         }
     }
-    
+
     fn update_scan_mesh(
         window: Single<&Window, (With<PrimaryWindow>, Changed<Window>)>,
         mut meshes: ResMut<Assets<Mesh>>,
         scan_mesh_query: Query<&Mesh2d, With<ScanMesh>>,
     ) {
         let new_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
-    
+
         for mesh_handle in scan_mesh_query.iter() {
             if let Some(mesh) = meshes.get_mut(mesh_handle) {
                 // Rebuild the mesh as a fullscreen quad with the new dimensions.
@@ -249,9 +258,7 @@ impl ScanLinesMaterial {
             }
         }
     }
-
 }
-
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 struct ScanLinesMaterial {
@@ -281,7 +288,7 @@ impl Material2d for ScanLinesMaterial {
 
 pub fn convert_to_hdr(base_image: &Image, boost: f32) -> Image {
     // Texture geometry -------------------------------------------------------
-    let width  = base_image.texture_descriptor.size.width;
+    let width = base_image.texture_descriptor.size.width;
     let height = base_image.texture_descriptor.size.height;
 
     let size = Extent3d {
@@ -291,14 +298,15 @@ pub fn convert_to_hdr(base_image: &Image, boost: f32) -> Image {
     };
 
     // One RGBA32-float pixel = 4 channels × 4 bytes
-    let mut hdr_data =
-        Vec::with_capacity(width as usize * height as usize * 4 /*channels*/ * 4 /*bytes*/);
+    let mut hdr_data = Vec::with_capacity(
+        width as usize * height as usize * 4 /*channels*/ * 4, /*bytes*/
+    );
 
     // ------------------------------------------------------------------------
     let src_data = base_image
         .data
         .as_ref()
-        .expect("Image has no CPU-side data");     // <-- unwrap the Option
+        .expect("Image has no CPU-side data"); // <-- unwrap the Option
 
     // Convert every 8-bit sRGB texel to linear f32, apply the boost factor
     for chunk in src_data.chunks(4) {
@@ -308,7 +316,7 @@ pub fn convert_to_hdr(base_image: &Image, boost: f32) -> Image {
         let r = (r as f32 / 255.0) * boost;
         let g = (g as f32 / 255.0) * boost;
         let b = (b as f32 / 255.0) * boost;
-        let a =  a as f32 / 255.0; // usually you leave alpha un-boosted
+        let a = a as f32 / 255.0; // usually you leave alpha un-boosted
 
         hdr_data.extend_from_slice(&r.to_le_bytes());
         hdr_data.extend_from_slice(&g.to_le_bytes());
@@ -335,9 +343,9 @@ pub fn convert_to_hdr(base_image: &Image, boost: f32) -> Image {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
-            mag_filter:     FilterMode::Linear,
-            min_filter:     FilterMode::Linear,
-            mipmap_filter:  FilterMode::Linear,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Linear,
             ..default()
         }
         .into(),

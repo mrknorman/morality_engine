@@ -36,7 +36,7 @@ pub enum DialogueScene {
     Lab2b(Lab2bDialogue),
     Lab3a(Lab3aDialogue),
     Lab3b(Lab3bDialogue),
-    Lab4(Lab4Dialogue)
+    Lab4(Lab4Dialogue),
 }
 
 impl DialogueScene {
@@ -49,21 +49,26 @@ impl DialogueScene {
             Self::Lab2b(dialogue) => dialogue.content(),
             Self::Lab3a(dialogue) => dialogue.content(),
             Self::Lab3b(dialogue) => dialogue.content(),
-            Self::Lab4(dialogue) => dialogue.content()
+            Self::Lab4(dialogue) => dialogue.content(),
         }
     }
 
     pub fn path_inaction(number: usize, outcome: PathOutcome) -> Self {
-        Self::Lab2a(Lab2aDialogue::PathInaction(InactionPath::new(number, outcome)))
+        Self::Lab2a(Lab2aDialogue::PathInaction(InactionPath::new(
+            number, outcome,
+        )))
     }
 
     pub fn path_deontological(number: usize, outcome: PathOutcome) -> Self {
-        Self::Lab3a(Lab3aDialogue::DeontologicalPath(DeontologicalPath::new(number, outcome)))
+        Self::Lab3a(Lab3aDialogue::DeontologicalPath(DeontologicalPath::new(
+            number, outcome,
+        )))
     }
 
-    
     pub fn path_utilitarian(number: usize, outcome: PathOutcome) -> Self {
-        Self::Lab4(Lab4Dialogue::UtilitarianPath(UtilitarianPath::new(number, outcome)))
+        Self::Lab4(Lab4Dialogue::UtilitarianPath(UtilitarianPath::new(
+            number, outcome,
+        )))
     }
 }
 
@@ -110,7 +115,7 @@ define_dialogue! {
 // Define outcome enum for more flexibility
 pub enum PathOutcome {
     Pass,
-    Fail
+    Fail,
 }
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
@@ -125,13 +130,13 @@ impl InactionPath {
         assert!(number <= 6, "Path number must be less than 6");
         Self { number, outcome }
     }
-    
+
     // Helper to get the JSON content based on path parameters
     fn get_json_content(&self) -> &'static str {
         match (&self.outcome, self.number) {
             // All Pass outcomes point to path 7/pass.json
             (PathOutcome::Pass, _) => include_str!("./lab/2/path_inaction/6/pass.json"),
-            
+
             // Fail outcomes go to their respective path number
             (PathOutcome::Fail, 0) => include_str!("./lab/2/path_inaction/0/fail.json"),
             (PathOutcome::Fail, 1) => include_str!("./lab/2/path_inaction/1/fail.json"),
@@ -140,7 +145,7 @@ impl InactionPath {
             (PathOutcome::Fail, 4) => include_str!("./lab/2/path_inaction/4/fail.json"),
             (PathOutcome::Fail, 5) => include_str!("./lab/2/path_inaction/5/fail.json"),
             (PathOutcome::Fail, 6) => include_str!("./lab/2/path_inaction/6/fail.json"),
-            
+
             _ => unreachable!("Invalid path configuration"),
         }
     }
@@ -172,19 +177,19 @@ impl DeontologicalPath {
         assert!(number <= 4, "Path number must be less than 4");
         Self { number, outcome }
     }
-    
+
     // Helper to get the JSON content based on path parameters
     fn get_json_content(&self) -> &'static str {
         match (&self.outcome, self.number) {
             // All Pass outcomes point to path 7/pass.json
             (PathOutcome::Pass, _) => include_str!("./lab/3/path_deontological/pass.json"),
-            
+
             // Fail outcomes go to their respective path number
             (PathOutcome::Fail, 0) => include_str!("./lab/3/path_deontological/0/fail.json"),
             (PathOutcome::Fail, 1) => include_str!("./lab/3/path_deontological/1/fail.json"),
             (PathOutcome::Fail, 2) => include_str!("./lab/3/path_deontological/2/fail.json"),
             (PathOutcome::Fail, 3) => include_str!("./lab/3/path_deontological/3/fail.json"),
-            
+
             _ => unreachable!("Invalid path configuration"),
         }
     }
@@ -195,7 +200,7 @@ pub enum Lab3aDialogue {
     FailIndecisive,
     FailInaction,
     PassUtilitarian,
-    DeontologicalPath(DeontologicalPath)
+    DeontologicalPath(DeontologicalPath),
 }
 
 impl DialogueProvider for Lab3aDialogue {
@@ -218,14 +223,14 @@ define_dialogue! {
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub enum Lab4Dialogue {
     UtilitarianPath(UtilitarianPath),
-    Outro
+    Outro,
 }
 
 impl DialogueProvider for Lab4Dialogue {
     fn content(&self) -> &'static str {
         match self {
             Self::UtilitarianPath(path) => path.get_json_content(),
-            Self::Outro => include_str!("./lab/4/outro.json")
+            Self::Outro => include_str!("./lab/4/outro.json"),
         }
     }
 }
@@ -237,13 +242,12 @@ pub struct UtilitarianPath {
     outcome: PathOutcome,
 }
 
-
 impl UtilitarianPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
         assert!(number <= 5, "Path number must be less than 5");
         Self { number, outcome }
     }
-    
+
     // Helper to get the JSON content based on path parameters
     fn get_json_content(&self) -> &'static str {
         match (&self.outcome, self.number) {
@@ -260,7 +264,7 @@ impl UtilitarianPath {
 
             (PathOutcome::Pass, 4) => include_str!("./lab/4/path_utilitarian/4/pass.json"),
             (PathOutcome::Fail, 4) => include_str!("./lab/4/path_utilitarian/4/fail.json"),
-            
+
             _ => unreachable!("Invalid path configuration"),
         }
     }

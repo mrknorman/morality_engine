@@ -1,19 +1,19 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use bevy::{
-    ecs::{
-        lifecycle::HookContext,
-        system::SystemId, 
-        world::DeferredWorld
-    }, prelude::*, sprite::Anchor, text::LineBreak, window::PrimaryWindow
+    ecs::{lifecycle::HookContext, system::SystemId, world::DeferredWorld},
+    prelude::*,
+    sprite::Anchor,
+    text::LineBreak,
+    window::PrimaryWindow,
 };
 
 use crate::{
-    systems::physics::CameraVelocity, 
-    entities::text::TextSprite,
-    data::rng::GlobalRng
+    data::rng::GlobalRng,
+    entities::text::{scaled_font_size, TextSprite},
+    systems::physics::CameraVelocity,
 };
 
 pub mod content;
@@ -26,22 +26,19 @@ use super::resize::ResizeDebounce;
 pub enum BackgroundSystemsActive {
     #[default]
     False,
-    True
+    True,
 }
 
 // Plugin for background implementation
 pub struct BackgroundPlugin;
 impl Plugin for BackgroundPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_state::<BackgroundSystemsActive>()
+        app.init_state::<BackgroundSystemsActive>()
             .add_systems(Update, toggle_background_systems)
             .add_systems(
                 Update,
-                (
-                    BackgroundSprite::wrap_sprites,
-                    Background::resize
-                ).run_if(in_state(BackgroundSystemsActive::True))
+                (BackgroundSprite::wrap_sprites, Background::resize)
+                    .run_if(in_state(BackgroundSystemsActive::True)),
             )
             .init_resource::<BackgroundSystems>();
     }
@@ -50,14 +47,14 @@ impl Plugin for BackgroundPlugin {
 // Activates or deactivates systems based on whether background entities exist
 fn toggle_background_systems(
     mut state: ResMut<NextState<BackgroundSystemsActive>>,
-    backgrounds: Query<&Background>
+    backgrounds: Query<&Background>,
 ) {
     let new_state = if backgrounds.is_empty() {
         BackgroundSystemsActive::False
     } else {
         BackgroundSystemsActive::True
     };
-    
+
     state.set(new_state);
 }
 
@@ -68,12 +65,12 @@ pub struct BackgroundSystems(pub HashMap<String, SystemId>);
 impl FromWorld for BackgroundSystems {
     fn from_world(world: &mut World) -> Self {
         let mut systems = HashMap::new();
-        
+
         systems.insert(
             "update_background_speeds".into(),
-            world.register_system(Background::update_speeds)
+            world.register_system(Background::update_speeds),
         );
-        
+
         BackgroundSystems(systems)
     }
 }
@@ -83,7 +80,7 @@ impl FromWorld for BackgroundSystems {
 pub struct BackgroundSpriteType {
     name: String,
     frequency: f32,
-    lods: Vec<String>
+    lods: Vec<String>,
 }
 
 // Main background component
@@ -93,16 +90,12 @@ pub struct BackgroundSpriteType {
 pub struct Background {
     sprites: Vec<BackgroundSpriteType>,
     pub density: f32,
-    pub speed: f32
+    pub speed: f32,
 }
 
 impl Background {
     /// Creates a new Background with the given type, density, and speed
-    pub fn new(
-        background_type: BackgroundTypes,
-        density: f32,
-        speed: f32,
-    ) -> Self {
+    pub fn new(background_type: BackgroundTypes, density: f32, speed: f32) -> Self {
         let sprites: Vec<BackgroundSpriteType> = serde_json::from_str(background_type.content())
             .unwrap_or_else(|err| {
                 panic!("Failed to parse background JSON: {}", err);
@@ -136,10 +129,10 @@ impl Background {
         mut sprites: Query<(&mut CameraVelocity, &Transform), Without<Background>>,
     ) {
         let screen_height = window.height();
-    
+
         for (children, background) in &backgrounds {
             let parent_speed = background.speed;
-            
+
             for &child_entity in children {
                 if let Ok((mut velocity, transform)) = sprites.get_mut(child_entity) {
                     let distance_from_bottom = (screen_height - transform.translation.y).max(0.0);
@@ -150,23 +143,22 @@ impl Background {
         }
     }
 
-    fn on_insert(
-        mut world : DeferredWorld,
-        HookContext{entity, ..} : HookContext
-    ) {
-
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let entity_ref = world.entity(entity);
-        let Some(background) = entity_ref.get::<Background>().cloned() else { return };
+        let Some(background) = entity_ref.get::<Background>().cloned() else {
+            return;
+        };
         let color = entity_ref.get::<TextColor>().cloned();
 
         let Some(window) = world
-            .try_query::<&Window>()                      // get a query for all Window components
-                .and_then(|mut q| q.iter(&world).next())     // iterate and take the first one
-                .cloned()                                    // clone the Window so we can use it after borrow ends
-            else {
-                warn!("No window found! Cannot spawn.");
-                return;
-            };
+            .try_query::<&Window>() // get a query for all Window components
+            .and_then(|mut q| q.iter(&world).next()) // iterate and take the first one
+            .cloned()
+        // clone the Window so we can use it after borrow ends
+        else {
+            warn!("No window found! Cannot spawn.");
+            return;
+        };
 
         let screen_width = window.width() / 2.0 + 100.0;
         let screen_height = window.height();
@@ -187,7 +179,7 @@ impl Background {
         let mut sprite_configs = Vec::new();
         {
             let mut rng = world.resource_mut::<GlobalRng>();
-            
+
             // Pre-generate all random positions for all sprites
             for sprite_type in &background.sprites {
                 let num_lods = sprite_type.lods.len() as f32;
@@ -196,25 +188,32 @@ impl Background {
                 for (i, lod) in sprite_type.lods.iter().enumerate() {
                     let d0 = i as f32 * size_per_range;
                     let d1 = (i as f32 + 1.0) * size_per_range;
-                    
-                    let raw_density = background.density * sprite_type.frequency * (d1.powi(2) - d0.powi(2));
+
+                    let raw_density =
+                        background.density * sprite_type.frequency * (d1.powi(2) - d0.powi(2));
                     let density = raw_density.round() as i32;
 
                     for _ in 0..density {
-                        let x_range = rng.uniform.random_range(-screen_width..screen_width + SPAWN_VARIANCE);
+                        let x_range = rng
+                            .uniform
+                            .random_range(-screen_width..screen_width + SPAWN_VARIANCE);
                         let y_in_range = rng.uniform.random_range(d0..d1);
                         let y_range = y_in_range - (screen_height / 2.0);
-                        let random_offset = rng.uniform.random_range(screen_width..screen_width + SPAWN_VARIANCE);
+                        let random_offset = rng
+                            .uniform
+                            .random_range(screen_width..screen_width + SPAWN_VARIANCE);
 
                         let translation = Vec3::new(x_range, y_range, 0.0);
                         let scale_factor = perspective_scale(translation.y);
-                        
+
                         sprite_configs.push((
                             translation,
                             scale_factor,
                             random_offset,
                             lod.clone(),
-                            (screen_height / 2.0 - y_range).max(0.0) * background.speed * scale_factor
+                            (screen_height / 2.0 - y_range).max(0.0)
+                                * background.speed
+                                * scale_factor,
                         ));
                     }
                 }
@@ -242,7 +241,7 @@ impl Background {
                         ..Default::default()
                     },
                     TextFont {
-                        font_size: 12.0,
+                        font_size: scaled_font_size(12.0),
                         ..default()
                     },
                     TextLayout {
@@ -257,7 +256,6 @@ impl Background {
                 }
             });
         }
-
     }
 }
 
@@ -268,7 +266,7 @@ const SPAWN_VARIANCE: f32 = 100.0;
 #[require(TextSprite)]
 pub struct BackgroundSprite {
     screen_width: f32,
-    random_offset: f32
+    random_offset: f32,
 }
 
 impl BackgroundSprite {

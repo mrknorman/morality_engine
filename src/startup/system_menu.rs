@@ -4,12 +4,15 @@ use enum_map::{Enum, EnumArray};
 use crate::{
     entities::{
         sprites::compound::HollowRectangle,
-        text::{TextButton, TextRaw},
+        text::{scaled_font_size, TextButton, TextRaw},
     },
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, SYSTEM_MENU_COLOR},
-        interaction::{InteractionVisualPalette, InteractionVisualState, Selectable, SelectableMenu},
+        interaction::{
+            InteractionVisualPalette, InteractionVisualState, OptionCycler, Selectable,
+            SelectableMenu,
+        },
     },
 };
 
@@ -17,15 +20,12 @@ pub const PANEL_WIDTH: f32 = 420.0;
 pub const BORDER_MARGIN: f32 = 18.0;
 pub const BORDER_THICKNESS: f32 = 2.0;
 pub const MENU_Z: f32 = 920.0;
-pub const TITLE_FONT_SIZE: f32 = 24.0;
-pub const HINT_FONT_SIZE: f32 = 14.0;
-const OPTION_FONT_SIZE: f32 = 16.0;
-const OPTION_SELECTED_FONT_SIZE: f32 = 17.5;
+pub const TITLE_FONT_SIZE: f32 = scaled_font_size(24.0);
+pub const HINT_FONT_SIZE: f32 = scaled_font_size(14.0);
+const OPTION_FONT_SIZE: f32 = scaled_font_size(16.0);
+const OPTION_SELECTED_FONT_SIZE: f32 = scaled_font_size(17.5);
 const OPTION_FONT_WEIGHT: FontWeight = FontWeight::NORMAL;
 const OPTION_SELECTED_FONT_WEIGHT: FontWeight = FontWeight::BOLD;
-const SELECTION_HIGHLIGHT_WIDTH: f32 = 290.0;
-const SELECTION_HIGHLIGHT_HEIGHT: f32 = 28.0;
-const SELECTION_HIGHLIGHT_Z: f32 = -0.05;
 const SELECTION_INDICATOR_WIDTH: f32 = 16.0;
 const SELECTION_INDICATOR_HEIGHT: f32 = 20.0;
 const SELECTION_INDICATOR_X: f32 = 132.0;
@@ -40,11 +40,39 @@ pub struct SystemMenuOption;
 #[derive(Component)]
 pub struct SystemMenuSelectionIndicator;
 
-#[derive(Component)]
-pub struct SystemMenuSelectionHighlight;
+#[derive(Component, Clone, Copy)]
+pub struct SystemMenuSelectionIndicatorOffset(pub f32);
 
 #[derive(Component)]
 pub struct SystemMenuSelectionIndicatorsAttached;
+
+#[derive(Component)]
+pub struct SystemMenuNoSelectionIndicators;
+
+#[derive(Component, Clone, Copy)]
+pub struct SystemMenuSelectionBarStyle {
+    pub offset: Vec3,
+    pub size: Vec2,
+    pub color: Color,
+}
+
+#[derive(Component)]
+pub struct SystemMenuSelectionBar;
+
+#[derive(Component)]
+pub struct SystemMenuSelectionBarsAttached;
+
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub enum SystemMenuCycleArrow {
+    Left,
+    Right,
+}
+
+#[derive(Component)]
+pub struct SystemMenuCycleArrowsAttached;
+
+#[derive(Component, Clone, Copy)]
+pub struct SystemMenuCycleArrowOffset(pub f32);
 
 #[derive(Clone, Copy)]
 pub struct SystemMenuLayout {
@@ -80,6 +108,16 @@ pub struct SystemMenuOptionBundle {
 
 impl SystemMenuOptionBundle {
     pub fn new(label: impl Into<String>, y: f32, menu_entity: Entity, index: usize) -> Self {
+        Self::new_at(label, 0.0, y, menu_entity, index)
+    }
+
+    pub fn new_at(
+        label: impl Into<String>,
+        x: f32,
+        y: f32,
+        menu_entity: Entity,
+        index: usize,
+    ) -> Self {
         Self {
             option: SystemMenuOption,
             text_button: TextButton,
@@ -98,11 +136,11 @@ impl SystemMenuOptionBundle {
             visual_state: InteractionVisualState::default(),
             visual_palette: InteractionVisualPalette::new(
                 SYSTEM_MENU_COLOR,
-                Color::BLACK,
-                Color::BLACK,
-                Color::BLACK,
+                SYSTEM_MENU_COLOR,
+                SYSTEM_MENU_COLOR,
+                SYSTEM_MENU_COLOR,
             ),
-            transform: Transform::from_xyz(0.0, y, 1.0),
+            transform: Transform::from_xyz(x, y, 1.0),
             selectable: Selectable::new(menu_entity, index),
         }
     }
@@ -113,41 +151,38 @@ pub fn ensure_selection_indicators(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     option_query: Query<
-        Entity,
+        (Entity, Option<&SystemMenuSelectionIndicatorOffset>),
         (
             With<SystemMenuOption>,
+            Without<SystemMenuNoSelectionIndicators>,
             Without<SystemMenuSelectionIndicatorsAttached>,
         ),
     >,
 ) {
     let triangle_mesh = meshes.add(Mesh::from(Triangle2d::new(
-        Vec2::new(-SELECTION_INDICATOR_WIDTH * 0.5, SELECTION_INDICATOR_HEIGHT * 0.5),
-        Vec2::new(-SELECTION_INDICATOR_WIDTH * 0.5, -SELECTION_INDICATOR_HEIGHT * 0.5),
+        Vec2::new(
+            -SELECTION_INDICATOR_WIDTH * 0.5,
+            SELECTION_INDICATOR_HEIGHT * 0.5,
+        ),
+        Vec2::new(
+            -SELECTION_INDICATOR_WIDTH * 0.5,
+            -SELECTION_INDICATOR_HEIGHT * 0.5,
+        ),
         Vec2::new(SELECTION_INDICATOR_WIDTH * 0.5, 0.0),
     )));
 
-    for option_entity in option_query.iter() {
+    for (option_entity, indicator_offset) in option_query.iter() {
+        let indicator_x = indicator_offset.map_or(SELECTION_INDICATOR_X, |offset| offset.0);
         let left_material = materials.add(ColorMaterial::from(Color::BLACK));
         let right_material = materials.add(ColorMaterial::from(Color::BLACK));
 
         commands.entity(option_entity).with_children(|parent| {
             parent.spawn((
-                Name::new("system_menu_selection_highlight"),
-                SystemMenuSelectionHighlight,
-                Sprite::from_color(
-                    SYSTEM_MENU_COLOR,
-                    Vec2::new(SELECTION_HIGHLIGHT_WIDTH, SELECTION_HIGHLIGHT_HEIGHT),
-                ),
-                Transform::from_xyz(0.0, 0.0, SELECTION_HIGHLIGHT_Z),
-                Visibility::Hidden,
-            ));
-
-            parent.spawn((
                 Name::new("system_menu_selected_indicator_left"),
                 SystemMenuSelectionIndicator,
                 Mesh2d(triangle_mesh.clone()),
                 MeshMaterial2d(left_material),
-                Transform::from_xyz(-SELECTION_INDICATOR_X, 0.0, SELECTION_INDICATOR_Z),
+                Transform::from_xyz(-indicator_x, 0.0, SELECTION_INDICATOR_Z),
                 Visibility::Hidden,
             ));
 
@@ -156,7 +191,7 @@ pub fn ensure_selection_indicators(
                 SystemMenuSelectionIndicator,
                 Mesh2d(triangle_mesh.clone()),
                 MeshMaterial2d(right_material),
-                Transform::from_xyz(SELECTION_INDICATOR_X, 0.0, SELECTION_INDICATOR_Z)
+                Transform::from_xyz(indicator_x, 0.0, SELECTION_INDICATOR_Z)
                     .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
                 Visibility::Hidden,
             ));
@@ -169,27 +204,11 @@ pub fn ensure_selection_indicators(
 }
 
 pub fn update_selection_indicators(
-    option_query: Query<
-        (&InteractionVisualState, &InteractionVisualPalette),
-        With<SystemMenuOption>,
-    >,
-    mut option_text_query: Query<
-        (&InteractionVisualState, &mut TextFont),
-        With<SystemMenuOption>,
-    >,
-    mut highlight_query: Query<
-        (&ChildOf, &mut Visibility),
-        (
-            With<SystemMenuSelectionHighlight>,
-            Without<SystemMenuSelectionIndicator>,
-        ),
-    >,
+    option_query: Query<&InteractionVisualState, With<SystemMenuOption>>,
+    mut option_text_query: Query<(&InteractionVisualState, &mut TextFont), With<SystemMenuOption>>,
     mut indicator_query: Query<
         (&ChildOf, &mut Visibility, &MeshMaterial2d<ColorMaterial>),
-        (
-            With<SystemMenuSelectionIndicator>,
-            Without<SystemMenuSelectionHighlight>,
-        ),
+        With<SystemMenuSelectionIndicator>,
     >,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -207,21 +226,8 @@ pub fn update_selection_indicators(
         };
     }
 
-    for (parent, mut visibility) in highlight_query.iter_mut() {
-        let Ok((state, _)) = option_query.get(parent.parent()) else {
-            continue;
-        };
-
-        let highlighted = state.pressed || state.selected || state.hovered;
-        *visibility = if highlighted {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-    }
-
     for (parent, mut visibility, material_handle) in indicator_query.iter_mut() {
-        let Ok((state, palette)) = option_query.get(parent.parent()) else {
+        let Ok(state) = option_query.get(parent.parent()) else {
             continue;
         };
 
@@ -229,11 +235,66 @@ pub fn update_selection_indicators(
         if highlighted {
             *visibility = Visibility::Visible;
             if let Some(material) = materials.get_mut(material_handle.0.id()) {
-                material.color = palette.pressed_color;
+                material.color = SYSTEM_MENU_COLOR;
             }
         } else {
             *visibility = Visibility::Hidden;
         }
+    }
+}
+
+pub fn ensure_selection_bars(
+    mut commands: Commands,
+    option_query: Query<
+        (Entity, &SystemMenuSelectionBarStyle),
+        (
+            With<SystemMenuOption>,
+            Without<SystemMenuSelectionBarsAttached>,
+        ),
+    >,
+) {
+    for (option_entity, style) in option_query.iter() {
+        commands.entity(option_entity).with_children(|parent| {
+            parent.spawn((
+                Name::new("system_menu_selection_bar"),
+                SystemMenuSelectionBar,
+                Sprite::from_color(style.color, style.size),
+                Transform::from_translation(style.offset),
+                Visibility::Hidden,
+            ));
+        });
+
+        commands
+            .entity(option_entity)
+            .insert(SystemMenuSelectionBarsAttached);
+    }
+}
+
+pub fn update_selection_bars(
+    option_query: Query<
+        (&InteractionVisualState, &SystemMenuSelectionBarStyle),
+        With<SystemMenuOption>,
+    >,
+    mut bar_query: Query<
+        (&ChildOf, &mut Visibility, &mut Sprite, &mut Transform),
+        With<SystemMenuSelectionBar>,
+    >,
+) {
+    for (parent, mut visibility, mut sprite, mut transform) in bar_query.iter_mut() {
+        let Ok((state, style)) = option_query.get(parent.parent()) else {
+            continue;
+        };
+
+        sprite.color = style.color;
+        sprite.custom_size = Some(style.size);
+        transform.translation = style.offset;
+
+        let highlighted = state.pressed || state.selected || state.hovered;
+        *visibility = if highlighted {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 
@@ -309,19 +370,23 @@ where
         .id()
 }
 
-pub fn spawn_chrome(
+pub fn spawn_chrome_with_marker<M>(
     commands: &mut Commands,
     menu_entity: Entity,
     name_prefix: &str,
     title: &str,
     hint: &str,
     layout: SystemMenuLayout,
-) {
+    marker: M,
+) where
+    M: Component + Clone,
+{
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((
             Name::new(format!("{name_prefix}_panel")),
             Sprite::from_color(Color::BLACK, layout.panel_size),
             Transform::from_xyz(0.0, 0.0, 0.0),
+            marker.clone(),
         ));
         parent.spawn((
             Name::new(format!("{name_prefix}_panel_border")),
@@ -335,6 +400,7 @@ pub fn spawn_chrome(
                 ..default()
             },
             Transform::from_xyz(0.0, 0.0, 0.5),
+            marker.clone(),
         ));
         parent.spawn((
             Name::new(format!("{name_prefix}_title")),
@@ -347,6 +413,7 @@ pub fn spawn_chrome(
             TextColor(SYSTEM_MENU_COLOR),
             Anchor::CENTER,
             Transform::from_xyz(0.0, layout.title_y, 1.0),
+            marker.clone(),
         ));
         parent.spawn((
             Name::new(format!("{name_prefix}_hint")),
@@ -359,6 +426,7 @@ pub fn spawn_chrome(
             TextColor(SYSTEM_MENU_COLOR),
             Anchor::CENTER,
             Transform::from_xyz(0.0, layout.hint_y, 1.0),
+            marker,
         ));
     });
 }
@@ -394,6 +462,104 @@ pub fn play_navigation_sound<S, F>(
                 dilation,
                 audio_query,
             );
+        }
+    }
+}
+
+const CYCLE_ARROW_WIDTH: f32 = 12.0;
+const CYCLE_ARROW_HEIGHT: f32 = 16.0;
+const CYCLE_ARROW_Z: f32 = 0.2;
+// How far left/right of the value column center to place each arrow.
+// The offset value passed via SystemMenuCycleArrowOffset is the center of the value column.
+const CYCLE_ARROW_SPREAD: f32 = 120.0;
+
+pub fn ensure_cycle_arrows(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    option_query: Query<
+        (Entity, &SystemMenuCycleArrowOffset),
+        (
+            With<OptionCycler>,
+            With<SystemMenuOption>,
+            Without<SystemMenuCycleArrowsAttached>,
+        ),
+    >,
+) {
+    // Left-pointing triangle (points left)
+    let left_mesh = meshes.add(Mesh::from(Triangle2d::new(
+        Vec2::new(CYCLE_ARROW_WIDTH * 0.5, CYCLE_ARROW_HEIGHT * 0.5),
+        Vec2::new(CYCLE_ARROW_WIDTH * 0.5, -CYCLE_ARROW_HEIGHT * 0.5),
+        Vec2::new(-CYCLE_ARROW_WIDTH * 0.5, 0.0),
+    )));
+
+    // Right-pointing triangle (points right)
+    let right_mesh = meshes.add(Mesh::from(Triangle2d::new(
+        Vec2::new(-CYCLE_ARROW_WIDTH * 0.5, CYCLE_ARROW_HEIGHT * 0.5),
+        Vec2::new(-CYCLE_ARROW_WIDTH * 0.5, -CYCLE_ARROW_HEIGHT * 0.5),
+        Vec2::new(CYCLE_ARROW_WIDTH * 0.5, 0.0),
+    )));
+
+    for (option_entity, arrow_offset) in option_query.iter() {
+        let center_x = arrow_offset.0;
+        let left_material = materials.add(ColorMaterial::from(Color::BLACK));
+        let right_material = materials.add(ColorMaterial::from(Color::BLACK));
+
+        commands.entity(option_entity).with_children(|parent| {
+            parent.spawn((
+                Name::new("system_menu_cycle_arrow_left"),
+                SystemMenuCycleArrow::Left,
+                Mesh2d(left_mesh.clone()),
+                MeshMaterial2d(left_material),
+                Transform::from_xyz(center_x - CYCLE_ARROW_SPREAD, 0.0, CYCLE_ARROW_Z),
+                Visibility::Hidden,
+            ));
+
+            parent.spawn((
+                Name::new("system_menu_cycle_arrow_right"),
+                SystemMenuCycleArrow::Right,
+                Mesh2d(right_mesh.clone()),
+                MeshMaterial2d(right_material),
+                Transform::from_xyz(center_x + CYCLE_ARROW_SPREAD, 0.0, CYCLE_ARROW_Z),
+                Visibility::Hidden,
+            ));
+        });
+
+        commands
+            .entity(option_entity)
+            .insert(SystemMenuCycleArrowsAttached);
+    }
+}
+
+pub fn update_cycle_arrows(
+    option_query: Query<(&InteractionVisualState, &OptionCycler), With<SystemMenuOption>>,
+    mut arrow_query: Query<(
+        &ChildOf,
+        &SystemMenuCycleArrow,
+        &mut Visibility,
+        &MeshMaterial2d<ColorMaterial>,
+    )>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    for (parent, arrow_side, mut visibility, material_handle) in arrow_query.iter_mut() {
+        let Ok((state, cycler)) = option_query.get(parent.parent()) else {
+            continue;
+        };
+
+        let highlighted = state.pressed || state.selected || state.hovered;
+
+        let arrow_allowed = match arrow_side {
+            SystemMenuCycleArrow::Left => !cycler.at_min,
+            SystemMenuCycleArrow::Right => !cycler.at_max,
+        };
+
+        if highlighted && arrow_allowed {
+            *visibility = Visibility::Visible;
+            if let Some(material) = materials.get_mut(material_handle.0.id()) {
+                material.color = SYSTEM_MENU_COLOR;
+            }
+        } else {
+            *visibility = Visibility::Hidden;
         }
     }
 }

@@ -1,4 +1,8 @@
-use bevy::{asset::RenderAssetUsages, image::{CompressedImageFormats, ImageSampler, ImageType}, prelude::*};
+use bevy::{
+    asset::RenderAssetUsages,
+    image::{CompressedImageFormats, ImageSampler, ImageType},
+    prelude::*,
+};
 
 const DIGITS_PNG: &[u8] = include_bytes!("content/digits.png");
 
@@ -15,7 +19,8 @@ impl FromWorld for DigitSheet {
             /*is_srgb=*/ true,
             ImageSampler::nearest(),
             RenderAssetUsages::default(),
-        ).expect("decode digits spritesheet");
+        )
+        .expect("decode digits spritesheet");
         DigitSheet(images.add(img))
     }
 }
