@@ -131,6 +131,25 @@ pub enum TrainSounds {
 }
 
 impl Train {
+    const BASE_TRAIN_HEIGHT: f32 = 32.0; // 3 glyph lines
+    const BASE_TRAIN_WIDTH: f32 = 30.0; // side-to-side depth
+    const BASE_CARRIAGE_STEP_X: f32 = 85.0;
+    const BASE_CARRIAGE_HEADROOM_X: f32 = 110.0;
+    const BASE_AABB_CENTER_STEP_X: f32 = 42.5;
+    const BASE_CARRIAGE_Y: f32 = -46.0;
+    const BASE_TRACK_ALIGNMENT_OFFSET_Y: f32 = -30.0;
+    const BASE_SMOKE_X: f32 = -35.0;
+    const BASE_SMOKE_Y: f32 = 32.0;
+    const BASE_BURNING_SMOKE_Y: f32 = 100.0;
+
+    pub const fn track_alignment_offset_y() -> f32 {
+        scaled_text_units(Self::BASE_TRACK_ALIGNMENT_OFFSET_Y)
+    }
+
+    const fn carriage_baseline_y() -> f32 {
+        scaled_text_units(Self::BASE_CARRIAGE_Y)
+    }
+
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         // Get GlobalRng first, before other borrows
         let mut rng_option = None;
@@ -222,13 +241,13 @@ impl Train {
             }
         };
 
-        let train_height = scaled_text_units(32.0); // 3 glyph lines
-        let train_width = scaled_text_units(30.0); // side-to-side depth
+        let train_height = scaled_text_units(Self::BASE_TRAIN_HEIGHT);
+        let train_width = scaled_text_units(Self::BASE_TRAIN_WIDTH);
 
-        let len_x = scaled_text_units(85.0) * (carriages.len() as f32 - 1.0)
-            + scaled_text_units(110.0); // whole train
+        let len_x = scaled_text_units(Self::BASE_CARRIAGE_STEP_X) * (carriages.len() as f32 - 1.0)
+            + scaled_text_units(Self::BASE_CARRIAGE_HEADROOM_X); // whole train
         let centre = Vec3::new(
-            -(carriages.len() as f32 - 1.0) * scaled_text_units(42.5),
+            -(carriages.len() as f32 - 1.0) * scaled_text_units(Self::BASE_AABB_CENTER_STEP_X),
             0.0,
             0.0,
         );
@@ -290,11 +309,10 @@ impl Train {
             ));
         }
 
-        let mut carriage_translation = Vec3::new(0.0, scaled_text_units(-46.0), 0.0);
+        let mut carriage_translation = Vec3::new(0.0, Self::carriage_baseline_y(), 0.0);
         commands.entity(entity).with_children(|parent| {
             for carriage in carriages.clone() {
                 let mut transform = Transform::from_translation(carriage_translation);
-
                 if train_state == TrainState::Wrecked {
                     // Add random rotation between 0 and 20 degrees for wrecked carriages (except first)
                     let random_rotation = rng.random_range(-FRAC_PI_4..FRAC_PI_4);
@@ -324,7 +342,7 @@ impl Train {
                     carriage_translation.x -=
                         rng.random_range(scaled_text_units(70.0)..scaled_text_units(100.0));
                 } else {
-                    carriage_translation.x -= scaled_text_units(85.0);
+                    carriage_translation.x -= scaled_text_units(Self::BASE_CARRIAGE_STEP_X);
                 }
             }
 
@@ -334,7 +352,11 @@ impl Train {
                     TextSprite,
                     Text2d(smoke_frames[0].clone()),
                     TextFrames::new(smoke_frames),
-                    Transform::from_xyz(scaled_text_units(-35.0), scaled_text_units(32.0), 0.1),
+                    Transform::from_xyz(
+                        scaled_text_units(Self::BASE_SMOKE_X),
+                        scaled_text_units(Self::BASE_SMOKE_Y),
+                        0.1,
+                    ),
                     color,
                     ColorAnchor(color.0),
                 ));
@@ -344,9 +366,9 @@ impl Train {
 
                 // Define the X positions and the corresponding indices in burning_frames.
                 let spawn_data = [
-                    (scaled_text_units(-35.0), 0),
+                    (scaled_text_units(Self::BASE_SMOKE_X), 0),
                     (0.0, 3),
-                    (scaled_text_units(35.0), 6),
+                    (scaled_text_units(-Self::BASE_SMOKE_X), 6),
                 ];
 
                 for (x, idx) in spawn_data {
@@ -357,7 +379,7 @@ impl Train {
                         Text2d(frame),
                         // Clone the text_frames for each spawn if needed.
                         text_frames.clone(),
-                        Transform::from_xyz(x, scaled_text_units(100.0), 0.1),
+                        Transform::from_xyz(x, scaled_text_units(Self::BASE_BURNING_SMOKE_Y), 0.1),
                         color,
                         ColorAnchor(color.0),
                     ));

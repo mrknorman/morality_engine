@@ -25,8 +25,8 @@ use crate::{
         interaction::{
             interaction_context_active, interaction_gate_allows, option_cycler_input_system,
             Clickable, InteractionCapture, InteractionGate, InteractionSystem,
-            InteractionVisualState, OptionCycler, Selectable, SelectableMenu, SystemMenuActions,
-            SystemMenuSounds,
+            InteractionVisualState, OptionCycler, Selectable, SelectableClickActivation,
+            SelectableMenu, SystemMenuActions, SystemMenuSounds,
         },
         time::Dilation,
     },
@@ -789,16 +789,13 @@ fn spawn_video_modal_base(
                     VideoModalRoot,
                     gate,
                     system_menu::switch_audio_pallet(asset_server, SystemMenuSounds::Switch),
-                    SelectableMenu {
-                        activate_selected_on_any_click: false,
-                        ..SelectableMenu::new(
-                            0,
-                            vec![KeyCode::ArrowLeft, KeyCode::ArrowUp],
-                            vec![KeyCode::ArrowRight, KeyCode::ArrowDown],
-                            vec![KeyCode::Enter],
-                            true,
-                        )
-                    },
+                    SelectableMenu::new(
+                        0,
+                        vec![KeyCode::ArrowLeft, KeyCode::ArrowUp],
+                        vec![KeyCode::ArrowRight, KeyCode::ArrowDown],
+                        vec![KeyCode::Enter],
+                        true,
+                    ),
                     marker,
                     Transform::from_xyz(0.0, 0.0, VIDEO_MODAL_PANEL_Z),
                 ))
@@ -966,7 +963,7 @@ fn spawn_exit_unsaved_modal(
         VideoModalButton::ExitWithoutSaving,
         0,
         -VIDEO_MODAL_OPTIONS_SPREAD_X,
-        "EXIT WITHOUT SAVING [y]",
+        "EXIT [y]",
     );
     spawn_video_modal_option(
         commands,
@@ -1025,16 +1022,14 @@ fn spawn_page_content(
                     VideoResolutionDropdown,
                     gate,
                     system_menu::switch_audio_pallet(asset_server, SystemMenuSounds::Switch),
-                    SelectableMenu {
-                        activate_selected_on_any_click: false,
-                        ..SelectableMenu::new(
-                            0,
-                            vec![KeyCode::ArrowUp],
-                            vec![KeyCode::ArrowDown],
-                            vec![KeyCode::Enter],
-                            true,
-                        )
-                    },
+                    SelectableMenu::new(
+                        0,
+                        vec![KeyCode::ArrowUp],
+                        vec![KeyCode::ArrowDown],
+                        vec![KeyCode::Enter],
+                        true,
+                    )
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
                     Sprite::from_color(
                         Color::BLACK,
                         Vec2::new(VIDEO_RESOLUTION_DROPDOWN_WIDTH, dropdown_height),

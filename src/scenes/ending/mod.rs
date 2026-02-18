@@ -96,9 +96,10 @@ impl std::fmt::Display for EndingActions {
 }
 
 impl EndingScene {
-    const TITLE_TRANSLATION: Vec3 = Vec3::new(-380.0, 225.0, 0.5);
+    const TITLE_TRANSLATION: Vec3 = Vec3::new(0.0, 225.0, 0.5);
     const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
-    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 0.5);
+    const TRACK_DISPLACEMENT: Vec3 =
+        Vec3::new(-120.0, Train::track_alignment_offset_y(), 0.5);
     const RESULTS_TRANSLATION: Vec3 = Vec3::new(220.0, 130.0, 1.0);
 
     fn setup(

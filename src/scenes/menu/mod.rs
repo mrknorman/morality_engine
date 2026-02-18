@@ -25,7 +25,8 @@ use crate::{
         interaction::{
             interaction_context_active, interaction_gate_allows, ActionPallet, Clickable,
             InputAction, InteractionCapture, InteractionGate, InteractionPlugin, InteractionSystem,
-            InteractionVisualPalette, InteractionVisualState, Selectable, SelectableMenu,
+            InteractionVisualPalette, InteractionVisualState, Selectable, SelectableClickActivation,
+            SelectableMenu,
         },
         time::Dilation,
     },
@@ -113,9 +114,10 @@ struct MenuOpenOptionsButton;
 struct MainMenuOptionsOverlay;
 
 impl MenuScene {
-    const TITLE_TRANSLATION: Vec3 = Vec3::new(-380.0, 225.0, 1.0);
+    const TITLE_TRANSLATION: Vec3 = Vec3::new(0.0, 225.0, 1.0);
     const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
-    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, -30.0, 0.4);
+    const TRACK_DISPLACEMENT: Vec3 =
+        Vec3::new(-120.0, Train::track_alignment_offset_y(), 0.4);
     const SIGNATURE_TRANSLATION: Vec3 = Vec3::new(0.0, -100.0, 1.0);
     const OPTIONS_LIST_TRANSLATION: Vec3 = Vec3::new(0.0, -230.0, 1.0);
 
@@ -228,7 +230,8 @@ impl MenuScene {
                     vec![KeyCode::ArrowDown],
                     vec![KeyCode::Enter],
                     true,
-                ),
+                )
+                .with_click_activation(SelectableClickActivation::HoveredOnly),
                 TransientAudioPallet::new(vec![(
                     MenuSounds::Switch,
                     vec![TransientAudio::new(

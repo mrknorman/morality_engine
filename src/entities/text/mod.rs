@@ -170,7 +170,7 @@ const BASE_CHAR_WIDTH: f32 = 7.0;
 const BASE_LINE_HEIGHT: f32 = 16.0;
 const BASE_TEXT_WIDTH_PER_CHAR: f32 = 7.92;
 const BASE_TEXT_HEIGHT_PER_LINE: f32 = 12.0;
-pub const GLOBAL_TEXT_SCALE: f32 = 1.5;
+pub const GLOBAL_TEXT_SCALE: f32 = 1.0;
 
 #[inline]
 pub const fn scaled_font_size(size: f32) -> f32 {

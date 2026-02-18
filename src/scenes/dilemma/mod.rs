@@ -102,7 +102,11 @@ impl Plugin for DilemmaScenePlugin {
 
 impl DilemmaScene {
     const TRAIN_INITIAL_POSITION: Vec3 = Vec3::new(120.0, -10.0, 1.0);
-    const MAIN_TRACK_TRANSLATION_END: Vec3 = Vec3::new(0.0, -40.0, 0.0);
+    const MAIN_TRACK_TRANSLATION_END: Vec3 = Vec3::new(
+        0.0,
+        Self::TRAIN_INITIAL_POSITION.y + Train::track_alignment_offset_y(),
+        0.0,
+    );
     const TRACK_COLORS: [Color; 2] = [OPTION_1_COLOR, OPTION_2_COLOR];
 
     fn setup(mut commands: Commands, queue: Res<SceneQueue>, asset_server: Res<AssetServer>) {
@@ -146,7 +150,7 @@ impl DilemmaScene {
                         duration: transition_duration,
                         paused: true
                     },
-                    Transform::from_xyz(-400.0, 300.0, 1.0)
+                    Transform::from_xyz(0.0, 300.0, 1.0)
                 ),
                 (
                     TextWindow {

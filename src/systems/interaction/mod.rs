@@ -348,7 +348,14 @@ pub struct SelectableMenu {
     pub down_keys: Vec<KeyCode>,
     pub activate_keys: Vec<KeyCode>,
     pub wrap: bool,
-    pub activate_selected_on_any_click: bool,
+    pub click_activation: SelectableClickActivation,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SelectableClickActivation {
+    #[default]
+    SelectedOnAnyClick,
+    HoveredOnly,
 }
 
 impl Default for SelectableMenu {
@@ -359,7 +366,7 @@ impl Default for SelectableMenu {
             down_keys: vec![KeyCode::ArrowDown],
             activate_keys: vec![KeyCode::Enter],
             wrap: true,
-            activate_selected_on_any_click: true,
+            click_activation: SelectableClickActivation::SelectedOnAnyClick,
         }
     }
 }
@@ -378,8 +385,13 @@ impl SelectableMenu {
             down_keys,
             activate_keys,
             wrap,
-            activate_selected_on_any_click: true,
+            click_activation: SelectableClickActivation::SelectedOnAnyClick,
         }
+    }
+
+    pub fn with_click_activation(mut self, click_activation: SelectableClickActivation) -> Self {
+        self.click_activation = click_activation;
+        self
     }
 }
 
@@ -1058,8 +1070,8 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             .activate_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
-        let force_selected_click =
-            menu.activate_selected_on_any_click && mouse_input.just_pressed(MouseButton::Left);
+        let force_selected_click = menu.click_activation == SelectableClickActivation::SelectedOnAnyClick
+            && mouse_input.just_pressed(MouseButton::Left);
         selection_state_by_menu.insert(
             *menu_entity,
             SelectionState {
