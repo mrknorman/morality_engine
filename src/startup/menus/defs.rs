@@ -214,7 +214,7 @@ pub(super) enum VideoResolutionDropdownValueArrowSide {
 #[derive(Component)]
 pub(super) struct VideoResolutionDropdownValueArrowAttached;
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum VideoModalButton {
     ApplyKeep,
     ApplyRevert,

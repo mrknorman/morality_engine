@@ -40,6 +40,15 @@ pub use defs::{
 };
 use defs::*;
 
+#[derive(Message, Clone, Debug)]
+enum MenuIntent {
+    TriggerCommand {
+        menu_entity: Entity,
+        command: MenuCommand,
+    },
+    TriggerModalButton(VideoModalButton),
+}
+
 fn any_resolution_dropdown_open(
     dropdown_query: &Query<&Visibility, With<VideoResolutionDropdown>>,
 ) -> bool {
@@ -918,6 +927,47 @@ fn close_video_modals(commands: &mut Commands, modal_query: &Query<Entity, With<
     }
 }
 
+fn apply_menu_intents(
+    mut menu_intents: MessageReader<MenuIntent>,
+    mut option_query: Query<(
+        &Selectable,
+        &MenuOptionCommand,
+        &mut Clickable<SystemMenuActions>,
+    )>,
+    mut modal_button_query: Query<(&VideoModalButton, &mut Clickable<SystemMenuActions>)>,
+) {
+    let mut command_intents: Vec<(Entity, MenuCommand)> = Vec::new();
+    let mut modal_button_intents: Vec<VideoModalButton> = Vec::new();
+
+    for intent in menu_intents.read() {
+        match intent {
+            MenuIntent::TriggerCommand {
+                menu_entity,
+                command,
+            } => command_intents.push((*menu_entity, command.clone())),
+            MenuIntent::TriggerModalButton(button) => modal_button_intents.push(*button),
+        }
+    }
+
+    for (menu_entity, command) in command_intents {
+        for (selectable, option_command, mut clickable) in option_query.iter_mut() {
+            if selectable.menu_entity == menu_entity && option_command.0 == command {
+                clickable.triggered = true;
+                break;
+            }
+        }
+    }
+
+    for target_button in modal_button_intents {
+        for (button, mut clickable) in modal_button_query.iter_mut() {
+            if *button == target_button {
+                clickable.triggered = true;
+                break;
+            }
+        }
+    }
+}
+
 fn handle_video_modal_shortcuts(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
@@ -931,11 +981,7 @@ fn handle_video_modal_shortcuts(
         ),
         With<VideoModalRoot>,
     >,
-    mut button_query: Query<(
-        &ChildOf,
-        &VideoModalButton,
-        &mut Clickable<SystemMenuActions>,
-    )>,
+    mut menu_intents: MessageWriter<MenuIntent>,
 ) {
     let yes_pressed = keyboard_input.just_pressed(KeyCode::KeyY);
     let no_pressed = keyboard_input.just_pressed(KeyCode::KeyN);
@@ -947,7 +993,7 @@ fn handle_video_modal_shortcuts(
     }
 
     let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
-    for (modal_entity, is_apply_modal, is_exit_modal, gate) in modal_query.iter() {
+    for (_, is_apply_modal, is_exit_modal, gate) in modal_query.iter() {
         if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
@@ -976,11 +1022,7 @@ fn handle_video_modal_shortcuts(
             continue;
         };
 
-        for (parent, button, mut clickable) in button_query.iter_mut() {
-            if parent.parent() == modal_entity {
-                clickable.triggered = *button == target_button;
-            }
-        }
+        menu_intents.write(MenuIntent::TriggerModalButton(target_button));
         break;
     }
 }
@@ -1433,11 +1475,7 @@ fn handle_menu_shortcuts(
     mut settings: ResMut<VideoSettingsState>,
     modal_query: Query<(), With<VideoModalRoot>>,
     menu_query: Query<(Entity, &MenuStack, &MenuRoot)>,
-    mut option_query: Query<(
-        &Selectable,
-        &MenuOptionCommand,
-        &mut Clickable<SystemMenuActions>,
-    )>,
+    mut menu_intents: MessageWriter<MenuIntent>,
 ) {
     if any_video_modal_open(&modal_query) || settings.dropdown_open_menu.is_some() {
         return;
@@ -1490,12 +1528,10 @@ fn handle_menu_shortcuts(
     }
 
     for (menu_entity, command) in pending_shortcuts {
-        for (selectable, option_command, mut clickable) in option_query.iter_mut() {
-            if selectable.menu_entity == menu_entity && option_command.0 == command {
-                clickable.triggered = true;
-                break;
-            }
-        }
+        menu_intents.write(MenuIntent::TriggerCommand {
+            menu_entity,
+            command,
+        });
     }
 }
 
@@ -1957,22 +1993,31 @@ pub struct MenusPlugin;
 
 impl Plugin for MenusPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<VideoSettingsState>();
+        app.init_resource::<VideoSettingsState>()
+            .add_message::<MenuIntent>();
         app.add_systems(
             Update,
             (
                 initialize_video_settings_from_window,
                 sync_option_cycler_bounds,
                 option_cycler_input_system,
+                play_menu_navigation_sound,
+                handle_menu_shortcuts,
+                handle_resolution_dropdown_keyboard_navigation,
+                apply_menu_intents,
                 handle_video_modal_button_commands,
                 handle_resolution_dropdown_item_commands,
                 close_resolution_dropdown_on_outside_click,
                 update_apply_confirmation_countdown,
-                play_menu_navigation_sound,
-                handle_menu_shortcuts,
-                handle_resolution_dropdown_keyboard_navigation,
                 handle_menu_option_commands,
                 handle_option_cycler_commands,
+            )
+                .chain()
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            (
                 sync_video_table_values,
                 sync_resolution_dropdown_items,
                 system_menu::ensure_selection_indicators,
@@ -1983,13 +2028,14 @@ impl Plugin for MenusPlugin {
                 system_menu::update_cycle_arrows,
             )
                 .chain()
+                .after(handle_option_cycler_commands)
                 .after(InteractionSystem::Selectable),
         );
         app.add_systems(
             Update,
             handle_video_modal_shortcuts
                 .after(option_cycler_input_system)
-                .before(handle_video_modal_button_commands)
+                .before(apply_menu_intents)
                 .after(InteractionSystem::Selectable),
         );
         app.add_systems(
