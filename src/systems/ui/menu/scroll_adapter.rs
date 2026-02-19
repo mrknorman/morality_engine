@@ -214,7 +214,6 @@ mod tests {
             content_extent: 240.0,
             viewport_extent: 120.0,
             max_offset: 120.0,
-            velocity: 0.0,
         };
         focus_scroll_offset_to_row(&mut state, 3, 40.0, 0.0);
         assert_eq!(state.offset_px, 40.0);
@@ -227,7 +226,6 @@ mod tests {
             content_extent: 240.0,
             viewport_extent: 120.0,
             max_offset: 120.0,
-            velocity: 0.0,
         };
         focus_scroll_offset_to_row(&mut state, 1, 40.0, 0.0);
         assert_eq!(state.offset_px, 40.0);
@@ -240,7 +238,6 @@ mod tests {
             content_extent: 380.0,
             viewport_extent: 267.0,
             max_offset: 113.0,
-            velocity: 0.0,
         };
         focus_scroll_offset_to_row(&mut state, 7, 40.0, 60.0);
         assert!((state.offset_px - 113.0).abs() < 0.001);
@@ -253,7 +250,6 @@ mod tests {
             content_extent: 380.0,
             viewport_extent: 267.0,
             max_offset: 113.0,
-            velocity: 0.0,
         };
         assert!(!row_visible_in_viewport(&state, 7, 40.0, 60.0));
         assert!(row_visible_in_viewport(&state, 3, 40.0, 60.0));
@@ -293,7 +289,6 @@ mod tests {
                     content_extent: 500.0,
                     viewport_extent: 240.0,
                     max_offset: 260.0,
-                    velocity: 0.0,
                 },
                 ScrollFocusFollowLock {
                     manual_override: true,
