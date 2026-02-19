@@ -1,14 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use bevy::{
-    asset::RenderAssetUsages,
-    camera::{visibility::RenderLayers, ClearColorConfig, RenderTarget},
     input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
-    render::{
-        render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages},
-        view::Hdr,
-    },
+    render::render_resource::TextureFormat,
 };
 
 use crate::{
@@ -26,13 +21,18 @@ use crate::{
 };
 
 mod geometry;
+mod lifecycle;
 mod scrollbar_math;
 #[cfg(test)]
 mod tests;
 
 use self::geometry::{
     axis_extent, axis_value_vec2, axis_value_vec3, clamp_scroll_state, edge_auto_scroll_delta,
-    viewport_texture_size,
+};
+use self::lifecycle::{
+    cleanup_scroll_layer_pool, ensure_scrollable_render_targets,
+    ensure_scrollable_runtime_entities, sync_scroll_content_layers,
+    sync_scrollable_render_entities, sync_scrollable_render_targets,
 };
 use self::scrollbar_math::scrollbar_click_region;
 pub use self::geometry::cursor_in_edge_auto_scroll_zone;
@@ -287,239 +287,6 @@ impl Plugin for ScrollPlugin {
                 .chain()
                 .after(InteractionSystem::Selectable),
         );
-    }
-}
-
-fn create_scroll_target_image(size_px: UVec2, format: TextureFormat) -> Image {
-    let size = Extent3d {
-        width: size_px.x,
-        height: size_px.y,
-        depth_or_array_layers: 1,
-    };
-    let mut image = Image::new_fill(
-        size,
-        TextureDimension::D2,
-        &[0u8; 16],
-        format,
-        RenderAssetUsages::default(),
-    );
-    image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
-        | TextureUsages::COPY_DST
-        | TextureUsages::RENDER_ATTACHMENT;
-    image
-}
-
-fn cleanup_scroll_layer_pool(
-    mut layer_pool: ResMut<ScrollLayerPool>,
-    root_query: Query<Entity, With<ScrollableRoot>>,
-) {
-    let live_roots: HashSet<Entity> = root_query.iter().collect();
-    layer_pool.release_stale_roots(&live_roots);
-}
-
-fn ensure_scrollable_render_targets(
-    mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
-    mut layer_pool: ResMut<ScrollLayerPool>,
-    render_settings: Res<ScrollRenderSettings>,
-    root_query: Query<
-        (Entity, &ScrollableRoot, &ScrollableViewport),
-        (With<ScrollableRoot>, Without<ScrollableRenderTarget>),
-    >,
-) {
-    let mut roots: Vec<(Entity, UVec2)> = root_query
-        .iter()
-        .filter_map(|(entity, root, viewport)| {
-            matches!(root.backend, ScrollBackend::RenderToTexture)
-                .then_some((entity, viewport_texture_size(viewport.size)))
-        })
-        .collect();
-    roots.sort_by_key(|(entity, _)| entity.to_bits());
-
-    for (root_entity, size_px) in roots {
-        let Some(layer) = layer_pool.layer_for_root(root_entity) else {
-            warn!(
-                "No free scroll render layers available for root {:?}; skipping RTT setup",
-                root_entity
-            );
-            continue;
-        };
-        let format = render_settings.target_format;
-        let image = images.add(create_scroll_target_image(size_px, format));
-        commands.entity(root_entity).insert(ScrollableRenderTarget {
-            image,
-            size_px,
-            layer,
-            format,
-        });
-    }
-}
-
-fn sync_scrollable_render_targets(
-    mut images: ResMut<Assets<Image>>,
-    render_settings: Res<ScrollRenderSettings>,
-    mut root_query: Query<
-        (&ScrollableRoot, &ScrollableViewport, &mut ScrollableRenderTarget),
-        With<ScrollableRoot>,
-    >,
-) {
-    let required_format = render_settings.target_format;
-    for (root, viewport, mut render_target) in root_query.iter_mut() {
-        if !matches!(root.backend, ScrollBackend::RenderToTexture) {
-            continue;
-        }
-        let required_size = viewport_texture_size(viewport.size);
-        if render_target.size_px == required_size && render_target.format == required_format {
-            continue;
-        }
-
-        render_target.size_px = required_size;
-        render_target.format = required_format;
-        render_target.image = images.add(create_scroll_target_image(required_size, required_format));
-    }
-}
-
-fn ensure_scrollable_runtime_entities(
-    mut commands: Commands,
-    root_query: Query<(Entity, &ScrollableRenderTarget, Option<&Children>), With<ScrollableRoot>>,
-    camera_marker_query: Query<(), With<ScrollableContentCamera>>,
-    surface_marker_query: Query<(), With<ScrollableSurface>>,
-) {
-    for (root_entity, render_target, children) in root_query.iter() {
-        let mut has_camera = false;
-        let mut has_surface = false;
-
-        if let Some(children) = children {
-            for child in children.iter() {
-                if camera_marker_query.get(child).is_ok() {
-                    has_camera = true;
-                }
-                if surface_marker_query.get(child).is_ok() {
-                    has_surface = true;
-                }
-            }
-        }
-
-        if !has_camera {
-            commands.entity(root_entity).with_children(|parent| {
-                parent.spawn((
-                    Name::new("scrollable_content_camera"),
-                    Camera2d,
-                    ScrollableContentCamera { root: root_entity },
-                    RenderLayers::layer(render_target.layer as usize),
-                    Hdr,
-                    Camera {
-                        clear_color: ClearColorConfig::Custom(Color::NONE),
-                        ..default()
-                    },
-                    RenderTarget::Image(render_target.image.clone().into()),
-                    Transform::from_xyz(0.0, 0.0, SCROLL_CAMERA_Z),
-                ));
-            });
-        }
-
-        if !has_surface {
-            commands.entity(root_entity).with_children(|parent| {
-                parent.spawn((
-                    Name::new("scrollable_surface"),
-                    ScrollableSurface { root: root_entity },
-                    Sprite::from_image(render_target.image.clone()),
-                    Transform::from_xyz(0.0, 0.0, SCROLL_SURFACE_Z),
-                ));
-            });
-        }
-    }
-}
-
-fn sync_scrollable_render_entities(
-    root_query: Query<(Entity, &ScrollableViewport, &ScrollableRenderTarget), With<ScrollableRoot>>,
-    mut camera_query: Query<
-        (
-            &ScrollableContentCamera,
-            &mut Camera,
-            &mut RenderLayers,
-            &mut RenderTarget,
-        ),
-    >,
-    mut surface_query: Query<(&ScrollableSurface, &mut Sprite, &mut Transform, &mut Visibility)>,
-) {
-    let mut root_map = HashMap::new();
-    for (root_entity, viewport, render_target) in root_query.iter() {
-        root_map.insert(
-            root_entity,
-            (viewport.size, render_target.image.clone(), render_target.layer),
-        );
-    }
-
-    for (marker, mut camera, mut layers, mut target) in camera_query.iter_mut() {
-        let Some((_, image, layer)) = root_map.get(&marker.root) else {
-            continue;
-        };
-        *layers = RenderLayers::layer(*layer as usize);
-        *target = RenderTarget::Image(image.clone().into());
-        camera.clear_color = ClearColorConfig::Custom(Color::NONE);
-    }
-
-    for (marker, mut sprite, mut transform, mut visibility) in surface_query.iter_mut() {
-        let Some((size, image, _)) = root_map.get(&marker.root) else {
-            continue;
-        };
-        if sprite.image != *image {
-            sprite.image = image.clone();
-        }
-        sprite.custom_size = Some(*size);
-        transform.translation.z = SCROLL_SURFACE_Z;
-        *visibility = if size.x <= 0.0 || size.y <= 0.0 {
-            Visibility::Hidden
-        } else {
-            Visibility::Visible
-        };
-    }
-}
-
-fn sync_scroll_content_layers(
-    mut commands: Commands,
-    root_query: Query<(Entity, &ScrollableRenderTarget), With<ScrollableRoot>>,
-    content_query: Query<Entity, (With<ScrollableContent>, With<ChildOf>)>,
-    content_parent_query: Query<&ChildOf, With<ScrollableContent>>,
-    children_query: Query<&Children>,
-    layer_query: Query<(Option<&RenderLayers>, Option<&ScrollLayerManaged>)>,
-) {
-    let layer_by_root: HashMap<Entity, u8> = root_query
-        .iter()
-        .map(|(entity, target)| (entity, target.layer))
-        .collect();
-
-    for content_entity in content_query.iter() {
-        let Ok(parent) = content_parent_query.get(content_entity) else {
-            continue;
-        };
-        let Some(layer) = layer_by_root.get(&parent.parent()).copied() else {
-            continue;
-        };
-        let target_layers = RenderLayers::layer(layer as usize);
-        let mut stack = vec![content_entity];
-        while let Some(entity) = stack.pop() {
-            let Ok((existing_layers, managed)) = layer_query.get(entity) else {
-                continue;
-            };
-            let should_manage = entity == content_entity || managed.is_some() || existing_layers.is_none();
-            if should_manage {
-                let already_synced = managed.is_some_and(|_| {
-                    existing_layers.is_some_and(|existing_layers| *existing_layers == target_layers)
-                });
-                if !already_synced {
-                    commands
-                        .entity(entity)
-                        .insert((target_layers.clone(), ScrollLayerManaged));
-                }
-            }
-            if let Ok(children) = children_query.get(entity) {
-                for child in children.iter() {
-                    stack.push(child);
-                }
-            }
-        }
     }
 }
 
