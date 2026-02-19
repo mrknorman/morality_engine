@@ -5,7 +5,7 @@ Status legend:
 - `[-]` in progress
 - `[x]` completed
 
-Last updated: 2026-02-18
+Last updated: 2026-02-19
 
 ## Constraints (locked)
 1. Max composability: UI pieces must be reusable primitives.
@@ -64,17 +64,17 @@ Last updated: 2026-02-18
 ### Stage 10: Query Safety + Test Hardening
 - [x] Full disjoint-query audit with explicit contracts.
 - [x] Add reducer tests and interaction regression tests.
-- [ ] Validate no B0001 panics under stress.
+- [x] Validate no B0001 panics under stress.
 
 ### Stage 11: Documentation Completion
 - [ ] Document `clickable`, `selectable_menu`, layer manager, dropdown, tabs, composition patterns.
 - [ ] Add extension recipes to prevent repeat code.
 
 ### Stage 12: Runtime Stress Validation (Close Stage 10)
-- [ ] Run interactive stress pass on GPU-capable runtime (rapid keyboard+mouse mixing across main/options/video/dropdown/modal).
-- [ ] Confirm no B0001 panics under stress.
-- [ ] Capture repro + logs if any panic occurs and patch immediately.
-- [ ] Mark Stage 10 fully complete after clean stress run.
+- [x] Run interactive stress pass on GPU-capable runtime (rapid keyboard+mouse mixing across main/options/video/dropdown/modal).
+- [x] Confirm no B0001 panics under stress.
+- [x] Capture repro + logs if any panic occurs and patch immediately.
+- [x] Mark Stage 10 fully complete after clean stress run.
 
 Stage 12 execution checklist (repeatable):
 - [x] Preflight compile/test completed:
@@ -82,13 +82,13 @@ Stage 12 execution checklist (repeatable):
   `cargo test -- --nocapture`
 - [x] Runtime launch command validated:
   `RUST_BACKTRACE=1 cargo run --features debug_tools`
-- [ ] Interactive stress script on GPU-capable runtime:
+- [x] Interactive stress script on GPU-capable runtime:
   1. Main menu: rapid `Up/Down + mouse hover + click` for 30-60s.
   2. Options -> Video: rapid tab/footer/options transitions with mixed keyboard/mouse for 60s.
   3. Dropdowns: open/close via `Right/Left`, number shortcuts, hover+click churn for 60s.
   4. Modals: trigger apply/unsaved-exit modals, alternate keyboard and mouse confirms/cancels for 60s.
   5. Pause path: repeat steps in paused in-game context and confirm layered gating/dimming remains correct.
-- [ ] Log capture and acceptance:
+- [x] Log capture and acceptance:
   - Run with log capture: `RUST_BACKTRACE=1 cargo run --features debug_tools 2>&1 | tee stage12_stress.log`
   - Pass when no `error[B0001]` and no panic occurs during/after stress script.
   - On failure, keep log + exact action sequence and patch immediately before proceeding.
@@ -122,6 +122,54 @@ Stage 12 execution checklist (repeatable):
 - [x] Integrate `DiscreteSlider` for suitable scalable options (off/low/medium/high patterns).
 - [ ] Design and implement scrollable middle options panel (selection-safe, owner/layer-safe, no focus loss).
 - [ ] Expand video/CRT options after scroll support lands.
+
+Stage 17 scrollable primitive implementation plan:
+- [ ] Stage 17.1: Render-to-texture architecture contract
+  - Define reusable primitives:
+    `ScrollableRoot`, `ScrollableViewport`, `ScrollableContentCamera`,
+    `ScrollableRenderTarget`, `ScrollableItem`, `ScrollState`.
+  - Keep owner-scoped integration (`UiLayer.owner`, `InteractionGate`) and
+    deterministic arbitration contract with `SelectableMenu`.
+  - Define backend enum now (`ScrollRenderBackend::RenderToTexture`) so future
+    fallback/alternative backends are additive, not breaking.
+- [ ] Stage 17.2: Render target + camera lifecycle
+  - Add per-scroll-root render target allocation with pooling/reuse
+    (`Assets<Image>` handles keyed by root entity + size).
+  - Spawn dedicated content camera per root targeting that image.
+  - Assign dedicated `RenderLayers` for scroll content (separate from main
+    world layers `0/1` used by CRT pipeline).
+  - Handle resize/rebuild when viewport dimensions change.
+- [ ] Stage 17.3: Viewport surface composition
+  - Render scroll output as a world-space sprite/quad in the menu tree.
+  - Guarantee strict clipping by texture bounds (no overdraw into neighbors).
+  - Ensure visual order/z is stable with borders/text/glow and existing CRT pass
+    (single global CRT application only).
+- [ ] Stage 17.4: Scroll state reducer and motion model
+  - Implement pure reducer for `ScrollState`:
+    `offset_px`, `content_extent`, `viewport_extent`, `max_offset`,
+    optional `velocity`, optional `snap_mode`.
+  - Typed intents: wheel, keyboard step/page/home/end, drag scrollbar thumb,
+    focus-follow.
+  - Clamp and deterministic ordering guarantees under mixed input.
+- [ ] Stage 17.5: Input + interaction mapping on RTT content
+  - Map cursor from viewport-local coordinates to content-local coordinates.
+  - Resolve hovered/pressed item by deterministic index/key mapping.
+  - Keep arrow keys/enter/backspace semantics aligned with menu systems.
+  - Ensure row/name/value click behavior parity with non-scroll menus.
+- [ ] Stage 17.6: Reusable adapters
+  - `ScrollableTableAdapter` for table-based menus (row heights, row keys).
+  - `ScrollableListAdapter<T>` for generic lists outside settings menus.
+  - Focus-follow hook: selected index auto-scrolls into visible range.
+- [ ] Stage 17.7: Performance and safety hardening
+  - Add texture budget controls (max active targets, downscale policy if needed).
+  - Add camera/target cleanup on despawn to avoid leaks.
+  - Document query disjointness and enforce `ParamSet`/`Without` where needed
+    to prevent B0001.
+- [ ] Stage 17.8: Validation + rollout
+  - Unit tests for reducer math and coordinate mapping.
+  - Integration tests for mixed keyboard/mouse scroll + selection + dropdown/modal layering.
+  - Pilot rollout in Video middle options panel, then one secondary context,
+    then expand video/CRT option count.
 
 ### Stage 18: UI Cleanup and Redundancy Pass
 - [ ] Remove dead/redundant UI code paths introduced during refactor stages.
@@ -255,10 +303,9 @@ Stage 12 execution checklist (repeatable):
   `src/systems/ui/selector.rs`, tab click-layer arbitration coverage in
   `src/systems/ui/tabs.rs` and `src/systems/ui/layer.rs`, and full
   `cargo test` currently passes with no new failures.
-- Stage 10 runtime validation note:
-  interactive stress validation for B0001 remains pending on a GPU-capable
-  runtime; local sandbox `cargo run` exits at renderer init with
-  `Unable to find a GPU!`.
+- Stage 10 runtime validation note (2026-02-19):
+  interactive stress validation completed on GPU-capable runtime and no
+  `error[B0001]` panics were observed during mixed input stress paths.
 - Process checkpoint (2026-02-18): direction is correct and aligned with constraints
   (owner-scoped layers, reusable dropdown/tabs, reducer split), but two hotspots remain:
   `src/startup/menus/mod.rs` is still a very large integration surface and
@@ -268,10 +315,9 @@ Stage 12 execution checklist (repeatable):
   execution stages (12-19) covering runtime stress closure, UI module realignment,
   primitive extraction, JSON schema, known bug sprint, discrete slider + scrolling,
   redundancy cleanup, and documentation/test-stack rollout.
-- Stage 12 progress checkpoint (2026-02-18):
-  preflight and runtime launch command are verified, but interactive stress completion
-  is blocked in this sandbox by renderer init panic (`Unable to find a GPU!`).
-  Stage 10 final closure remains pending the GPU-capable stress run in the checklist above.
+- Stage 12 completion checkpoint (2026-02-19):
+  GPU-capable runtime stress pass completed across main/options/video/dropdown/modal
+  and pause-layer paths; Stage 10 closure criteria marked complete.
 - Stage 13 progress checkpoint (2026-02-18):
   menu implementation modules were moved from `src/startup/menus/` to
   `src/systems/ui/menu/` (UI-domain ownership), `src/systems/ui/mod.rs`
