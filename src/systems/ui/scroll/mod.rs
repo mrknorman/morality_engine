@@ -45,6 +45,19 @@ const SCROLLBAR_THUMB_Z: f32 = 0.02;
 const SCROLLBAR_HITBOX_CROSS_AXIS_PAD_PX: f32 = 14.0;
 const SCROLLBAR_HITBOX_MAIN_AXIS_PAD_PX: f32 = 6.0;
 
+#[derive(Resource, Clone, Copy, Debug)]
+pub struct ScrollRenderSettings {
+    pub target_format: TextureFormat,
+}
+
+impl Default for ScrollRenderSettings {
+    fn default() -> Self {
+        Self {
+            target_format: TextureFormat::Rgba16Float,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScrollBackend {
     RenderToTexture,
@@ -132,6 +145,7 @@ struct ScrollableRenderTarget {
     image: Handle<Image>,
     size_px: UVec2,
     layer: u8,
+    format: TextureFormat,
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -237,7 +251,9 @@ pub struct ScrollPlugin;
 
 impl Plugin for ScrollPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ScrollLayerPool>().add_systems(
+        app.init_resource::<ScrollLayerPool>()
+            .init_resource::<ScrollRenderSettings>()
+            .add_systems(
             Update,
             (
                 cleanup_scroll_layer_pool,
@@ -332,7 +348,7 @@ fn viewport_texture_size(size: Vec2) -> UVec2 {
     UVec2::new(width, height)
 }
 
-fn create_scroll_target_image(size_px: UVec2) -> Image {
+fn create_scroll_target_image(size_px: UVec2, format: TextureFormat) -> Image {
     let size = Extent3d {
         width: size_px.x,
         height: size_px.y,
@@ -342,7 +358,7 @@ fn create_scroll_target_image(size_px: UVec2) -> Image {
         size,
         TextureDimension::D2,
         &[0u8; 16],
-        TextureFormat::Rgba32Float,
+        format,
         RenderAssetUsages::default(),
     );
     image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
@@ -370,6 +386,7 @@ fn ensure_scrollable_render_targets(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut layer_pool: ResMut<ScrollLayerPool>,
+    render_settings: Res<ScrollRenderSettings>,
     root_query: Query<
         (Entity, &ScrollableRoot, &ScrollableViewport),
         (With<ScrollableRoot>, Without<ScrollableRenderTarget>),
@@ -392,33 +409,38 @@ fn ensure_scrollable_render_targets(
             );
             continue;
         };
-        let image = images.add(create_scroll_target_image(size_px));
+        let format = render_settings.target_format;
+        let image = images.add(create_scroll_target_image(size_px, format));
         commands.entity(root_entity).insert(ScrollableRenderTarget {
             image,
             size_px,
             layer,
+            format,
         });
     }
 }
 
 fn sync_scrollable_render_targets(
     mut images: ResMut<Assets<Image>>,
+    render_settings: Res<ScrollRenderSettings>,
     mut root_query: Query<
         (&ScrollableRoot, &ScrollableViewport, &mut ScrollableRenderTarget),
         With<ScrollableRoot>,
     >,
 ) {
+    let required_format = render_settings.target_format;
     for (root, viewport, mut render_target) in root_query.iter_mut() {
         if !matches!(root.backend, ScrollBackend::RenderToTexture) {
             continue;
         }
         let required_size = viewport_texture_size(viewport.size);
-        if render_target.size_px == required_size {
+        if render_target.size_px == required_size && render_target.format == required_format {
             continue;
         }
 
         render_target.size_px = required_size;
-        render_target.image = images.add(create_scroll_target_image(required_size));
+        render_target.format = required_format;
+        render_target.image = images.add(create_scroll_target_image(required_size, required_format));
     }
 }
 
@@ -1392,6 +1414,7 @@ mod tests {
         camera::visibility::RenderLayers,
         input::mouse::{MouseScrollUnit, MouseWheel},
         prelude::*,
+        render::render_resource::TextureFormat,
     };
 
     use crate::{
@@ -1401,7 +1424,8 @@ mod tests {
 
     use super::{
         offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state, ScrollAxis,
-        ScrollPlugin, ScrollState, ScrollableContent, ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
+        ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent,
+        ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
     };
 
     fn make_scroll_test_app() -> App {
@@ -1414,6 +1438,12 @@ mod tests {
         app.init_resource::<Assets<Image>>();
         app.add_plugins(ScrollPlugin);
         app
+    }
+
+    #[test]
+    fn default_scroll_render_target_format_is_rgba16float() {
+        let settings = ScrollRenderSettings::default();
+        assert_eq!(settings.target_format, TextureFormat::Rgba16Float);
     }
 
     fn spawn_owner_and_scroll_root(
