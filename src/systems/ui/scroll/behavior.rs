@@ -1,4 +1,29 @@
-use super::*;
+use std::collections::HashMap;
+
+use bevy::{
+    input::mouse::{MouseScrollUnit, MouseWheel},
+    prelude::*,
+};
+
+use crate::{
+    data::states::PauseState,
+    startup::cursor::CustomCursor,
+    systems::{
+        interaction::{
+            interaction_gate_allows_for_owner, is_cursor_within_region, InteractionCapture,
+            InteractionCaptureOwner, InteractionGate,
+        },
+        ui::layer::{self, UiLayer, UiLayerKind},
+    },
+};
+
+use super::{
+    geometry::{axis_extent, clamp_scroll_state, edge_auto_scroll_delta},
+    ScrollAxis, ScrollFocusFollowLock, ScrollState, ScrollableContent,
+    ScrollableContentBaseTranslation, ScrollableContentExtent, ScrollableItem, ScrollableRoot,
+    ScrollableViewport, SCROLL_EPSILON, SCROLL_KEYBOARD_STEP_PX, SCROLL_PAGE_FACTOR,
+    SCROLL_WHEEL_LINE_PX,
+};
 
 pub(super) fn sync_scroll_extents(
     mut root_query: Query<
