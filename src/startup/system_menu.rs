@@ -4,6 +4,7 @@ use bevy::{ecs::query::QueryFilter, prelude::*, sprite::Anchor};
 use enum_map::{Enum, EnumArray};
 
 use crate::{
+    data::states::PauseState,
     entities::{
         sprites::compound::HollowRectangle,
         text::{scaled_font_size, TextButton, TextRaw},
@@ -12,8 +13,10 @@ use crate::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, SYSTEM_MENU_COLOR},
         interaction::{
-            InteractionVisualPalette, InteractionVisualState, OptionCycler, Selectable,
-            SelectableMenu,
+            interaction_gate_allows_for_owner, Clickable, InteractionCapture,
+            InteractionCaptureOwner, InteractionGate, InteractionVisualPalette,
+            InteractionVisualState, OptionCycler, Selectable, SelectableMenu,
+            SystemMenuActions,
         },
     },
 };
@@ -42,20 +45,27 @@ pub struct SystemMenuOption;
 #[derive(Component)]
 pub struct SystemMenuSelectionIndicator;
 
-#[derive(Component, Clone, Copy)]
-pub struct SystemMenuSelectionIndicatorOffset(pub f32);
-
 #[derive(Component)]
 pub struct SystemMenuSelectionIndicatorsAttached;
-
-#[derive(Component)]
-pub struct SystemMenuNoSelectionIndicators;
 
 #[derive(Component, Clone, Copy)]
 pub struct SystemMenuSelectionBarStyle {
     pub offset: Vec3,
     pub size: Vec2,
     pub color: Color,
+}
+
+#[derive(Clone, Copy)]
+pub struct SystemMenuSelectionIndicatorStyle {
+    pub offset_x: f32,
+}
+
+impl Default for SystemMenuSelectionIndicatorStyle {
+    fn default() -> Self {
+        Self {
+            offset_x: SELECTION_INDICATOR_X,
+        }
+    }
 }
 
 #[derive(Component)]
@@ -73,8 +83,49 @@ pub enum SystemMenuCycleArrow {
 #[derive(Component)]
 pub struct SystemMenuCycleArrowsAttached;
 
+#[derive(Clone, Copy)]
+pub struct SystemMenuCycleArrowStyle {
+    pub center_x: f32,
+}
+
 #[derive(Component, Clone, Copy)]
-pub struct SystemMenuCycleArrowOffset(pub f32);
+pub struct SystemMenuOptionVisualStyle {
+    pub selection_indicator: Option<SystemMenuSelectionIndicatorStyle>,
+    pub selection_bar: Option<SystemMenuSelectionBarStyle>,
+    pub cycle_arrows: Option<SystemMenuCycleArrowStyle>,
+}
+
+impl Default for SystemMenuOptionVisualStyle {
+    fn default() -> Self {
+        Self {
+            selection_indicator: Some(SystemMenuSelectionIndicatorStyle::default()),
+            selection_bar: None,
+            cycle_arrows: None,
+        }
+    }
+}
+
+impl SystemMenuOptionVisualStyle {
+    pub fn with_indicator_offset(mut self, offset_x: f32) -> Self {
+        self.selection_indicator = Some(SystemMenuSelectionIndicatorStyle { offset_x });
+        self
+    }
+
+    pub fn without_selection_indicators(mut self) -> Self {
+        self.selection_indicator = None;
+        self
+    }
+
+    pub fn with_selection_bar(mut self, style: SystemMenuSelectionBarStyle) -> Self {
+        self.selection_bar = Some(style);
+        self
+    }
+
+    pub fn with_cycle_arrows(mut self, center_x: f32) -> Self {
+        self.cycle_arrows = Some(SystemMenuCycleArrowStyle { center_x });
+        self
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct SystemMenuLayout {
@@ -104,6 +155,7 @@ pub struct SystemMenuOptionBundle {
     color_anchor: ColorAnchor,
     visual_state: InteractionVisualState,
     visual_palette: InteractionVisualPalette,
+    visual_style: SystemMenuOptionVisualStyle,
     transform: Transform,
     selectable: Selectable,
 }
@@ -142,9 +194,15 @@ impl SystemMenuOptionBundle {
                 SYSTEM_MENU_COLOR,
                 SYSTEM_MENU_COLOR,
             ),
+            visual_style: SystemMenuOptionVisualStyle::default(),
             transform: Transform::from_xyz(x, y, 1.0),
             selectable: Selectable::new(menu_entity, index),
         }
+    }
+
+    pub fn with_visual_style(mut self, style: SystemMenuOptionVisualStyle) -> Self {
+        self.visual_style = style;
+        self
     }
 }
 
@@ -153,12 +211,8 @@ pub fn ensure_selection_indicators(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     option_query: Query<
-        (Entity, Option<&SystemMenuSelectionIndicatorOffset>),
-        (
-            With<SystemMenuOption>,
-            Without<SystemMenuNoSelectionIndicators>,
-            Without<SystemMenuSelectionIndicatorsAttached>,
-        ),
+        (Entity, Option<&SystemMenuOptionVisualStyle>),
+        (With<SystemMenuOption>, Without<SystemMenuSelectionIndicatorsAttached>),
     >,
 ) {
     let triangle_mesh = meshes.add(Mesh::from(Triangle2d::new(
@@ -173,8 +227,12 @@ pub fn ensure_selection_indicators(
         Vec2::new(SELECTION_INDICATOR_WIDTH * 0.5, 0.0),
     )));
 
-    for (option_entity, indicator_offset) in option_query.iter() {
-        let indicator_x = indicator_offset.map_or(SELECTION_INDICATOR_X, |offset| offset.0);
+    for (option_entity, style) in option_query.iter() {
+        let style = style.copied().unwrap_or_default();
+        let Some(indicator_style) = style.selection_indicator else {
+            continue;
+        };
+        let indicator_x = indicator_style.offset_x;
         let left_material = materials.add(ColorMaterial::from(Color::BLACK));
         let right_material = materials.add(ColorMaterial::from(Color::BLACK));
 
@@ -249,14 +307,15 @@ pub fn update_selection_indicators(
 pub fn ensure_selection_bars(
     mut commands: Commands,
     option_query: Query<
-        (Entity, &SystemMenuSelectionBarStyle),
-        (
-            With<SystemMenuOption>,
-            Without<SystemMenuSelectionBarsAttached>,
-        ),
+        (Entity, Option<&SystemMenuOptionVisualStyle>),
+        (With<SystemMenuOption>, Without<SystemMenuSelectionBarsAttached>),
     >,
 ) {
     for (option_entity, style) in option_query.iter() {
+        let style = style.and_then(|style| style.selection_bar);
+        let Some(style) = style else {
+            continue;
+        };
         commands.entity(option_entity).with_children(|parent| {
             parent.spawn((
                 Name::new("system_menu_selection_bar"),
@@ -275,7 +334,7 @@ pub fn ensure_selection_bars(
 
 pub fn update_selection_bars(
     option_query: Query<
-        (&InteractionVisualState, &SystemMenuSelectionBarStyle),
+        (&InteractionVisualState, Option<&SystemMenuOptionVisualStyle>),
         With<SystemMenuOption>,
     >,
     mut bar_query: Query<
@@ -285,6 +344,10 @@ pub fn update_selection_bars(
 ) {
     for (parent, mut visibility, mut sprite, mut transform) in bar_query.iter_mut() {
         let Ok((state, style)) = option_query.get(parent.parent()) else {
+            continue;
+        };
+        let Some(style) = style.and_then(|style| style.selection_bar) else {
+            *visibility = Visibility::Hidden;
             continue;
         };
 
@@ -447,33 +510,95 @@ pub fn play_navigation_sound<S, F>(
     F: QueryFilter,
 {
     for (menu_entity, menu, pallet) in menu_query.iter() {
-        let up_pressed = menu
-            .up_keys
-            .iter()
-            .any(|&key| keyboard_input.just_pressed(key));
-        let down_pressed = menu
-            .down_keys
-            .iter()
-            .any(|&key| keyboard_input.just_pressed(key));
-
-        if (up_pressed && !down_pressed) || (down_pressed && !up_pressed) {
-            TransientAudioPallet::play_transient_audio(
-                menu_entity,
-                commands,
-                pallet,
-                switch_sound,
-                dilation,
-                audio_query,
-            );
-        }
+        play_navigation_switch(
+            menu_entity,
+            menu,
+            pallet,
+            commands,
+            keyboard_input,
+            audio_query,
+            switch_sound,
+            dilation,
+        );
     }
 }
 
-const CYCLE_ARROW_WIDTH: f32 = 12.0;
+pub fn play_navigation_sound_owner_scoped<S, F>(
+    commands: &mut Commands,
+    keyboard_input: &ButtonInput<KeyCode>,
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    menu_query: &Query<(Entity, &SelectableMenu, &TransientAudioPallet<S>, Option<&InteractionGate>), F>,
+    audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    switch_sound: S,
+    dilation: f32,
+) where
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + Copy + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
+    F: QueryFilter,
+{
+    for (menu_entity, menu, pallet, gate) in menu_query.iter() {
+        if !interaction_gate_allows_for_owner(gate, pause_state, capture_query, menu_entity) {
+            continue;
+        }
+        play_navigation_switch(
+            menu_entity,
+            menu,
+            pallet,
+            commands,
+            keyboard_input,
+            audio_query,
+            switch_sound,
+            dilation,
+        );
+    }
+}
+
+pub fn navigation_switch_pressed(menu: &SelectableMenu, keyboard_input: &ButtonInput<KeyCode>) -> bool {
+    let up_pressed = menu
+        .up_keys
+        .iter()
+        .any(|&key| keyboard_input.just_pressed(key));
+    let down_pressed = menu
+        .down_keys
+        .iter()
+        .any(|&key| keyboard_input.just_pressed(key));
+    (up_pressed && !down_pressed) || (down_pressed && !up_pressed)
+}
+
+pub fn play_navigation_switch<S>(
+    menu_entity: Entity,
+    menu: &SelectableMenu,
+    pallet: &TransientAudioPallet<S>,
+    commands: &mut Commands,
+    keyboard_input: &ButtonInput<KeyCode>,
+    audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    switch_sound: S,
+    dilation: f32,
+) where
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + Copy + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
+{
+    if !navigation_switch_pressed(menu, keyboard_input) {
+        return;
+    }
+
+    TransientAudioPallet::play_transient_audio(
+        menu_entity,
+        commands,
+        pallet,
+        switch_sound,
+        dilation,
+        audio_query,
+    );
+}
+
+pub const CYCLE_ARROW_WIDTH: f32 = 12.0;
+pub const CYCLE_ARROW_HALF_WIDTH: f32 = CYCLE_ARROW_WIDTH * 0.5;
 const CYCLE_ARROW_HEIGHT: f32 = 16.0;
-const CYCLE_ARROW_Z: f32 = 0.2;
+const CYCLE_ARROW_Z: f32 = 0.36;
 // How far left/right of the value column center to place each arrow.
-// The offset value passed via SystemMenuCycleArrowOffset is the center of the value column.
+// The style center_x value is the center of the value column.
 const CYCLE_ARROW_SPREAD: f32 = 120.0;
 
 pub fn ensure_cycle_arrows(
@@ -481,7 +606,7 @@ pub fn ensure_cycle_arrows(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     option_query: Query<
-        (Entity, &SystemMenuCycleArrowOffset),
+        (Entity, Option<&SystemMenuOptionVisualStyle>, Option<&InteractionGate>),
         (
             With<OptionCycler>,
             With<SystemMenuOption>,
@@ -503,8 +628,13 @@ pub fn ensure_cycle_arrows(
         Vec2::new(CYCLE_ARROW_WIDTH * 0.5, 0.0),
     )));
 
-    for (option_entity, arrow_offset) in option_query.iter() {
-        let center_x = arrow_offset.0;
+    for (option_entity, style, gate) in option_query.iter() {
+        let center_x = style
+            .and_then(|style| style.cycle_arrows.map(|cycle_style| cycle_style.center_x));
+        let Some(center_x) = center_x else {
+            continue;
+        };
+        let gate = gate.copied().unwrap_or_default();
         let left_material = materials.add(ColorMaterial::from(Color::BLACK));
         let right_material = materials.add(ColorMaterial::from(Color::BLACK));
 
@@ -512,6 +642,11 @@ pub fn ensure_cycle_arrows(
             parent.spawn((
                 Name::new("system_menu_cycle_arrow_left"),
                 SystemMenuCycleArrow::Left,
+                Clickable::with_region(
+                    vec![SystemMenuActions::Activate],
+                    Vec2::new(CYCLE_ARROW_WIDTH * 1.8, CYCLE_ARROW_HEIGHT * 1.8),
+                ),
+                gate,
                 Mesh2d(left_mesh.clone()),
                 MeshMaterial2d(left_material),
                 Transform::from_xyz(center_x - CYCLE_ARROW_SPREAD, 0.0, CYCLE_ARROW_Z),
@@ -521,6 +656,11 @@ pub fn ensure_cycle_arrows(
             parent.spawn((
                 Name::new("system_menu_cycle_arrow_right"),
                 SystemMenuCycleArrow::Right,
+                Clickable::with_region(
+                    vec![SystemMenuActions::Activate],
+                    Vec2::new(CYCLE_ARROW_WIDTH * 1.8, CYCLE_ARROW_HEIGHT * 1.8),
+                ),
+                gate,
                 Mesh2d(right_mesh.clone()),
                 MeshMaterial2d(right_material),
                 Transform::from_xyz(center_x + CYCLE_ARROW_SPREAD, 0.0, CYCLE_ARROW_Z),
@@ -563,6 +703,38 @@ pub fn update_cycle_arrows(
             }
         } else {
             *visibility = Visibility::Hidden;
+        }
+    }
+}
+
+pub fn consume_cycle_arrow_clicks(
+    mut arrow_query: Query<(
+        &ChildOf,
+        &SystemMenuCycleArrow,
+        &mut Clickable<SystemMenuActions>,
+    )>,
+    mut option_query: Query<&mut OptionCycler, With<SystemMenuOption>>,
+) {
+    for (parent, side, mut clickable) in arrow_query.iter_mut() {
+        if !clickable.triggered {
+            continue;
+        }
+        clickable.triggered = false;
+
+        let Ok(mut cycler) = option_query.get_mut(parent.parent()) else {
+            continue;
+        };
+        match side {
+            SystemMenuCycleArrow::Left => {
+                if !cycler.at_min {
+                    cycler.left_triggered = true;
+                }
+            }
+            SystemMenuCycleArrow::Right => {
+                if !cycler.at_max {
+                    cycler.right_triggered = true;
+                }
+            }
         }
     }
 }

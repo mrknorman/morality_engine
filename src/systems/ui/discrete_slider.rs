@@ -1,0 +1,254 @@
+use bevy::prelude::*;
+
+use crate::entities::sprites::compound::{HollowRectangle, RectangleSides};
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct DiscreteSlider {
+    pub steps: usize,
+    pub layout_steps: usize,
+    pub selected: usize,
+    pub filled_slots: usize,
+    pub slot_size: Vec2,
+    pub slot_gap: f32,
+    pub fill_color: Color,
+    pub empty_color: Color,
+    pub border_color: Color,
+    pub border_thickness: f32,
+    pub fill_inset: f32,
+}
+
+impl DiscreteSlider {
+    pub fn new(steps: usize, selected: usize) -> Self {
+        let clamped_steps = steps.max(1);
+        let clamped_selected = selected.min(clamped_steps - 1);
+        Self {
+            steps: clamped_steps,
+            layout_steps: clamped_steps,
+            selected: clamped_selected,
+            filled_slots: clamped_selected.saturating_add(1).min(clamped_steps),
+            slot_size: Vec2::splat(18.0),
+            slot_gap: 6.0,
+            fill_color: Color::WHITE,
+            empty_color: Color::NONE,
+            border_color: Color::WHITE,
+            border_thickness: 2.0,
+            fill_inset: 3.0,
+        }
+    }
+
+    pub fn with_layout_steps(mut self, layout_steps: usize) -> Self {
+        self.layout_steps = layout_steps.max(1);
+        self
+    }
+
+    pub fn with_slot_size(mut self, slot_size: Vec2) -> Self {
+        self.slot_size = slot_size.max(Vec2::splat(1.0));
+        self
+    }
+
+    pub fn with_slot_gap(mut self, slot_gap: f32) -> Self {
+        self.slot_gap = slot_gap.max(0.0);
+        self
+    }
+
+    pub fn with_fill_color(mut self, fill_color: Color) -> Self {
+        self.fill_color = fill_color;
+        self
+    }
+
+    pub fn with_empty_color(mut self, empty_color: Color) -> Self {
+        self.empty_color = empty_color;
+        self
+    }
+
+    pub fn with_border_color(mut self, border_color: Color) -> Self {
+        self.border_color = border_color;
+        self
+    }
+
+    pub fn with_border_thickness(mut self, border_thickness: f32) -> Self {
+        self.border_thickness = border_thickness.max(1.0);
+        self
+    }
+
+    pub fn with_fill_inset(mut self, fill_inset: f32) -> Self {
+        self.fill_inset = fill_inset.max(0.0);
+        self
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct DiscreteSliderSlot {
+    pub index: usize,
+}
+
+pub(crate) fn slot_center_x(index: usize, layout_steps: usize, slot_width: f32, slot_gap: f32) -> f32 {
+    let total_width =
+        layout_steps as f32 * slot_width + (layout_steps.saturating_sub(1)) as f32 * slot_gap;
+    let left = -total_width * 0.5 + slot_width * 0.5;
+    left + index as f32 * (slot_width + slot_gap)
+}
+
+pub(crate) fn slot_span_bounds(
+    visible_steps: usize,
+    layout_steps: usize,
+    slot_width: f32,
+    slot_gap: f32,
+) -> (f32, f32) {
+    let visible_steps = visible_steps.max(1);
+    let layout_steps = layout_steps.max(visible_steps);
+    let first_center = slot_center_x(0, layout_steps, slot_width, slot_gap);
+    let last_center = slot_center_x(
+        visible_steps.saturating_sub(1),
+        layout_steps,
+        slot_width,
+        slot_gap,
+    );
+    (
+        first_center - slot_width * 0.5,
+        last_center + slot_width * 0.5,
+    )
+}
+
+pub fn ensure_discrete_slider_slots(
+    mut commands: Commands,
+    slider_query: Query<(Entity, &DiscreteSlider, Option<&Children>)>,
+    slot_query: Query<&DiscreteSliderSlot>,
+) {
+    for (slider_entity, slider, children) in slider_query.iter() {
+        let required_slots = slider.steps.max(1).max(slider.layout_steps.max(1));
+
+        let mut present_indices = Vec::new();
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok(slot) = slot_query.get(child) {
+                    present_indices.push(slot.index);
+                }
+            }
+        }
+
+        let mut missing = Vec::new();
+        for index in 0..required_slots {
+            if !present_indices.contains(&index) {
+                missing.push(index);
+            }
+        }
+        if missing.is_empty() {
+            continue;
+        }
+
+        let inner_size = (slider.slot_size - Vec2::splat(slider.fill_inset * 2.0)).max(Vec2::splat(1.0));
+        commands.entity(slider_entity).with_children(|parent| {
+            for index in missing {
+                parent.spawn((
+                    Name::new(format!("discrete_slider_slot_{index}")),
+                    DiscreteSliderSlot { index },
+                    Sprite::from_color(slider.empty_color, inner_size),
+                    HollowRectangle {
+                        dimensions: slider.slot_size,
+                        thickness: slider.border_thickness,
+                        color: slider.border_color,
+                        sides: RectangleSides::default(),
+                    },
+                    Transform::from_xyz(
+                        slot_center_x(index, required_slots, slider.slot_size.x, slider.slot_gap),
+                        0.0,
+                        0.0,
+                    ),
+                ));
+            }
+        });
+    }
+}
+
+pub fn sync_discrete_slider_slots(
+    mut queries: ParamSet<(
+        Query<
+            (&DiscreteSlider, &Children, Option<&Visibility>),
+            Without<DiscreteSliderSlot>,
+        >,
+        Query<
+            (
+                &DiscreteSliderSlot,
+                &mut Sprite,
+                &mut HollowRectangle,
+                &mut Transform,
+                &mut Visibility,
+            ),
+            With<DiscreteSliderSlot>,
+        >,
+    )>,
+) {
+    let mut slider_states: Vec<(DiscreteSlider, Vec<Entity>, bool)> = Vec::new();
+    {
+        let slider_query = queries.p0();
+        for (slider, children, slider_visibility) in slider_query.iter() {
+            slider_states.push((
+                *slider,
+                children.iter().collect(),
+                slider_visibility.is_some_and(|visibility| *visibility == Visibility::Hidden),
+            ));
+        }
+    }
+
+    let mut slot_query = queries.p1();
+    for (slider, children, slider_hidden) in slider_states {
+        let steps = slider.steps.max(1);
+        let layout_steps = slider.layout_steps.max(steps);
+        let filled = slider.filled_slots.min(steps);
+        let inner_size = (slider.slot_size - Vec2::splat(slider.fill_inset * 2.0)).max(Vec2::splat(1.0));
+
+        for child in children {
+            let Ok((slot, mut sprite, mut border, mut transform, mut visibility)) =
+                slot_query.get_mut(child)
+            else {
+                continue;
+            };
+
+            if slider_hidden || slot.index >= steps {
+                *visibility = Visibility::Hidden;
+                continue;
+            }
+
+            *visibility = Visibility::Visible;
+            transform.translation.x =
+                slot_center_x(slot.index, layout_steps, slider.slot_size.x, slider.slot_gap);
+            border.dimensions = slider.slot_size;
+            border.thickness = slider.border_thickness;
+            border.color = slider.border_color;
+            sprite.custom_size = Some(inner_size);
+            sprite.color = if slot.index < filled {
+                slider.fill_color
+            } else {
+                slider.empty_color
+            };
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{slot_center_x, slot_span_bounds, DiscreteSlider};
+
+    #[test]
+    fn clamps_steps_and_selected() {
+        let slider = DiscreteSlider::new(0, 99);
+        assert_eq!(slider.steps, 1);
+        assert_eq!(slider.layout_steps, 1);
+        assert_eq!(slider.selected, 0);
+    }
+
+    #[test]
+    fn slot_centers_are_symmetric() {
+        let first = slot_center_x(0, 4, 20.0, 8.0);
+        let last = slot_center_x(3, 4, 20.0, 8.0);
+        assert_eq!(first, -last);
+    }
+
+    #[test]
+    fn slot_span_bounds_tracks_visible_steps() {
+        let (left, right) = slot_span_bounds(3, 4, 20.0, 8.0);
+        assert_eq!(left, -52.0);
+        assert_eq!(right, 24.0);
+    }
+}

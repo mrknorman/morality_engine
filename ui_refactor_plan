@@ -1,0 +1,307 @@
+# UI Refactor Plan
+
+Status legend:
+- `[ ]` not started
+- `[-]` in progress
+- `[x]` completed
+
+Last updated: 2026-02-18
+
+## Constraints (locked)
+1. Max composability: UI pieces must be reusable primitives.
+2. Interaction gating must be layered and owner-scoped.
+3. Tabs must be a reusable primitive with logic abstracted from menu-specific modules.
+
+## Stage Checklist
+
+### Stage 1: Architecture Boundaries
+- [x] Define strict module boundaries and ownership contracts.
+- [x] Define owner/root identity conventions for layered UI.
+- [x] Define query-safety standards (`ParamSet`/`Without`) for mutable access conflicts.
+- [x] Publish contract doc for future contributors.
+
+### Stage 2: Owner-Scoped Interaction Context
+- [x] Replace global interaction context with owner-scoped context.
+- [x] Refactor gating APIs to resolve by owner.
+- [x] Migrate menu/tab/dropdown/modal systems to owner-scoped gating.
+
+### Stage 3: Shared Layer Manager
+- [x] Centralize active-layer resolution (Base/Dropdown/Modal) by owner.
+- [x] Remove duplicated ad-hoc layer scans across menu/tab systems.
+- [x] Route dimming/focus/interaction decisions through one layer source-of-truth.
+
+### Stage 4: Dropdown Primitive Refactor
+- [x] Replace singleton dropdown open state with owner-keyed state.
+- [x] Keep dropdown open/close/single-visible/outside-click in reusable `systems/ui/dropdown`.
+- [x] Ensure independent dropdown-capable surfaces can coexist.
+
+### Stage 5: Tabs Primitive Unification
+- [x] Unify tab logic into one reusable primitive path.
+- [x] Remove duplicate/dead tab behavior paths.
+- [x] Keep extension hooks for activation policy and audio.
+
+### Stage 6: Command Reducer + Effects Split
+- [x] Split menu command handling into pure reducer transitions.
+- [x] Isolate side effects (audio/window/render/spawn/despawn).
+- [x] Keep behavior-compatible with existing flows.
+
+### Stage 7: Video Option Schema Registry
+- [x] Replace duplicated match trees with schema-driven option specs.
+- [x] Drive labels/values/get/set/cycle/dropdown behavior from one registry.
+- [x] Make option extension single-entry and low-risk.
+
+### Stage 8: Deterministic Input Arbitration
+- [x] Enforce strict priority: layer > focus group > keyboard lock > hover.
+- [x] Remove first-match query-iteration dependence.
+- [x] Consolidate arbitration ownership so one system decides selection priority per owner.
+- [x] Stabilize behavior under mixed rapid keyboard/mouse input.
+
+### Stage 9: Main Menu Composition Migration
+- [x] Split `startup/menus/mod.rs` into focused modules (commands, video layout sync, dropdown/modal flow, root spawn) to reduce coupling before migration.
+- [x] Move main menu option list to shared menu composition path.
+- [x] Remove duplicated scene-local menu behavior.
+
+### Stage 10: Query Safety + Test Hardening
+- [x] Full disjoint-query audit with explicit contracts.
+- [x] Add reducer tests and interaction regression tests.
+- [ ] Validate no B0001 panics under stress.
+
+### Stage 11: Documentation Completion
+- [ ] Document `clickable`, `selectable_menu`, layer manager, dropdown, tabs, composition patterns.
+- [ ] Add extension recipes to prevent repeat code.
+
+### Stage 12: Runtime Stress Validation (Close Stage 10)
+- [ ] Run interactive stress pass on GPU-capable runtime (rapid keyboard+mouse mixing across main/options/video/dropdown/modal).
+- [ ] Confirm no B0001 panics under stress.
+- [ ] Capture repro + logs if any panic occurs and patch immediately.
+- [ ] Mark Stage 10 fully complete after clean stress run.
+
+Stage 12 execution checklist (repeatable):
+- [x] Preflight compile/test completed:
+  `cargo check --features debug_tools`
+  `cargo test -- --nocapture`
+- [x] Runtime launch command validated:
+  `RUST_BACKTRACE=1 cargo run --features debug_tools`
+- [ ] Interactive stress script on GPU-capable runtime:
+  1. Main menu: rapid `Up/Down + mouse hover + click` for 30-60s.
+  2. Options -> Video: rapid tab/footer/options transitions with mixed keyboard/mouse for 60s.
+  3. Dropdowns: open/close via `Right/Left`, number shortcuts, hover+click churn for 60s.
+  4. Modals: trigger apply/unsaved-exit modals, alternate keyboard and mouse confirms/cancels for 60s.
+  5. Pause path: repeat steps in paused in-game context and confirm layered gating/dimming remains correct.
+- [ ] Log capture and acceptance:
+  - Run with log capture: `RUST_BACKTRACE=1 cargo run --features debug_tools 2>&1 | tee stage12_stress.log`
+  - Pass when no `error[B0001]` and no panic occurs during/after stress script.
+  - On failure, keep log + exact action sequence and patch immediately before proceeding.
+
+### Stage 13: UI Module Realignment
+- [x] Define target module layout for menu under UI domain (`ui::menu`), with clear public API boundaries.
+- [x] Move menu modules from startup-oriented placement to UI-oriented placement without behavior change.
+- [x] Keep owner/layer/interaction contracts intact after move.
+- [x] Remove transitional re-exports once callers are migrated.
+
+### Stage 14: Primitive Extraction (Untangle Menu-Specific Logic)
+- [x] Extract reusable tabbed focus/navigation primitive from video-specific tabbed flow.
+- [x] Extract reusable dropdown presenter/anchor primitive independent of video settings rows.
+- [x] Extract reusable horizontal footer navigation primitive (for bottom button rows).
+- [x] Reduce remaining feature-specific branching in generic menu flow systems.
+
+### Stage 15: JSON Menu/Settings Schema Interface
+- [x] Define JSON schema for menu structure (title, hint, options, shortcuts, layout bindings).
+- [x] Implement typed command registry bridge (string IDs in JSON -> typed Rust command handlers).
+- [x] Load/validate schema with explicit errors (no silent fallback).
+- [x] Migrate one existing menu as pilot (main or options), then evaluate extension cost.
+
+### Stage 16: Bug Fix Sprint (Known Issues)
+- [x] High: fix value-cell interaction dead zone after mouse-selected tab (value should be directly selectable/clickable).
+- [x] Medium: fix keyboard transfer from tabs/footer to main options so it jumps directly (no cycling through footer first).
+- [x] Low: remove dropdown-open flicker/jitter from row text/dropdown synchronization ordering.
+- [x] Add regression tests for all three issues.
+
+### Stage 17: New UI Components + Option Capacity
+- [x] Implement reusable `DiscreteSlider` primitive (square-fill bar + textual value) with keyboard/mouse control.
+- [x] Integrate `DiscreteSlider` for suitable scalable options (off/low/medium/high patterns).
+- [ ] Design and implement scrollable middle options panel (selection-safe, owner/layer-safe, no focus loss).
+- [ ] Expand video/CRT options after scroll support lands.
+
+### Stage 18: UI Cleanup and Redundancy Pass
+- [ ] Remove dead/redundant UI code paths introduced during refactor stages.
+- [ ] Consolidate duplicated utility logic across menu/tab/dropdown paths.
+- [ ] Ensure all UI systems have explicit query-safety contracts/comments.
+- [ ] Re-run compile/test to confirm no behavior regressions.
+
+### Stage 19: Documentation Stack + Test Framework Rollout
+- [ ] Add `mdBook` for UI architecture + extension playbook docs.
+- [ ] Expand rustdoc coverage for UI primitives and contracts.
+- [ ] Add `cargo-nextest` setup for faster and more stable test execution.
+- [ ] Add `rstest`/`proptest` where useful for interaction arbitration/state properties.
+- [ ] Add interaction-flow integration tests for menu stack, tabs, dropdown, modal, and layer gating.
+
+## Stage Notes
+- Stage 1 completed by adding `docs/ui_architecture_contract.md`.
+- Stage 2 completed by introducing `InteractionCaptureOwner`-aware gating and migrating
+  menu/tab/dropdown/modal layer resolution to owner-scoped APIs in:
+  `src/startup/menus/mod.rs`, `src/startup/menus/tabbed_menu.rs`,
+  `src/systems/ui/tabs.rs`, `src/scenes/menu/mod.rs`, and `src/systems/ui/layer.rs`.
+- Stage 3 started by adding shared layer helper accessors in `src/systems/ui/layer.rs`
+  and replacing ad-hoc active-layer kind/entity checks in menu/tab systems with those helpers.
+  Menu dimming/focus/interaction gating now resolves through `active_layers_by_owner_scoped`.
+- Stage 4 completed by refactoring `DropdownLayerState` to owner-keyed open/suppress state,
+  updating dropdown primitives to enforce single-visible per owner, and migrating menu dropdown
+  usage/layout/arrow sync to owner-scoped open contexts.
+- Stage 5 started by removing the dead `TabBarInput`/`handle_tab_input` path and centralizing
+  tab click-target extraction in `systems/ui/tabs.rs` for reuse by tabbed menu systems.
+- Stage 5 completed by adding reusable tab activation hooks
+  (`TabActivationPolicy`, `keyboard_activation_target`, `apply_tab_activation_with_audio`)
+  and migrating tabbed-menu commit flow to these primitives.
+- Stage 6 completed by splitting menu command handling into a reducer pipeline:
+  command reduction (`reduce_*` + `reduce_menu_command`) now returns `MenuReducerResult`,
+  and world side effects are centralized in `apply_menu_reducer_result`.
+- Stage 7 completed by introducing `VideoTopOptionKey` schema helpers in
+  `src/startup/menus/defs.rs` and routing video option labels, choice counts,
+  dropdown values, selected-index mapping, apply, and cycle behavior through that
+  single registry.
+- Stage 8 started by making selection processing deterministic across maps/queries:
+  `selectable_system` now processes menus in stable entity order, tab focus processing
+  iterates menus in stable order, and tab click resolution now breaks ties by stable
+  entity rank instead of query iteration order.
+- Stage 8 consolidation pass: footer horizontal/vertical handoff and tab-click focus
+  arbitration were folded into `sync_tabbed_menu_focus` so one owner-level system
+  decides tabbed-menu focus/selection priority; split handlers were removed from the
+  schedule.
+- Stage 8 stabilization pass: tabbed-menu option-lock retention is now owner-local
+  (cleared only when that menu has pointer activity), reducing cross-owner mouse-move
+  interference during mixed keyboard/mouse interaction.
+- Stage 8 stabilization continued in `src/systems/interaction/mod.rs`:
+  `selectable_system` now clears keyboard lock only when pointer movement re-engages
+  that specific menu (`mouse_moved && pointer_over_menu`) instead of on global mouse move.
+- Stage 8 regression fix: direct resolution digit shortcuts now apply even when the
+  dropdown is closed (still gated to active Video/Display resolution row), restoring
+  direct keyboard path for dropdown-backed resolution selection.
+- Stage 8 deterministic arbitration pass:
+  shortcut command collection now resolves per-menu conflicts deterministically
+  (`src/systems/ui/selector.rs`, lowest selectable index + stable output ordering),
+  menu intent dispatch now targets deterministically when duplicate commands/buttons
+  exist (`src/startup/menus/menu_input.rs`), and tab-click ownership ties are
+  resolved by stable entity rank (`src/startup/menus/tabbed_menu.rs`).
+- Stage 8 deterministic runtime ordering pass:
+  same-frame triggered menu-option commands and option-cycler updates are now
+  consumed in stable entity order (`src/startup/menus/mod.rs`) instead of query
+  iteration order, removing another first-match/iteration dependency class.
+- Stage 8 completion pass:
+  dropdown item commit flow now resolves deterministically per owner/layer and
+  applies values owner-scoped (instead of first-trigger global selection), modal
+  button handling now resolves deterministically against active modal layers, and
+  outside-click dropdown close checks only active dropdown items; this closes the
+  remaining first-match and mixed-input race surfaces in Stage 8 paths.
+- Stage 9 started with the first modular extraction:
+  reducer state + pure command reduction logic moved from
+  `src/startup/menus/mod.rs` into `src/startup/menus/command_reducer.rs`.
+- Stage 9 module split continued:
+  command side effects (`apply_menu_reducer_result` + apply/exit handlers) moved into
+  `src/startup/menus/command_effects.rs`, reducing coupling in `mod.rs`.
+- Stage 9 module split continued:
+  page content spawn/rebuild logic moved into `src/startup/menus/page_content.rs`
+  (`spawn_page_content`, `rebuild_menu_page`), reducing `mod.rs` size and isolating
+  table/dropdown/menu-option construction from runtime command/input flows.
+- Stage 9 module split continued:
+  dropdown layout/visual synchronization moved into
+  `src/startup/menus/dropdown_view.rs` (`sync_resolution_dropdown_items`,
+  dropdown value-arrow ensure/update, dropdown text recenter), with explicit local
+  imports to avoid hidden cross-module dependencies from `mod.rs`.
+- Stage 9 module split continued:
+  dropdown runtime/input flow moved into `src/startup/menus/dropdown_flow.rs`
+  (`open/close` helpers, tab-to-dropdown validity sync, keyboard dropdown navigation,
+  dropdown item commit, outside-click close), reducing `mod.rs` orchestration coupling.
+- Stage 9 module split continued:
+  modal flow moved into `src/startup/menus/modal_flow.rs` (modal spawn templates,
+  modal shortcut routing, modal button command handling, apply-countdown revert path,
+  modal-open predicate), isolating modal lifecycle/state behavior from menu orchestration.
+- Stage 9 module split continued:
+  menu input/intent orchestration moved into `src/startup/menus/menu_input.rs`
+  (`apply_menu_intents`, layer focus enforcement, keyboard shortcut dispatch,
+  navigation-audio trigger), reducing `mod.rs` to composition/wiring concerns.
+- Stage 9 module split continued:
+  root menu spawn path moved into `src/startup/menus/root_spawn.rs` with
+  `pub use` re-export from `menus::mod`, preserving external callers while
+  reducing orchestration module size.
+- Stage 9 module split continued:
+  video menu table/tab/footer visual sync and dropdown cycle-arrow suppression
+  moved from `src/startup/menus/mod.rs` into `src/startup/menus/video_visuals.rs`,
+  leaving `mod.rs` focused on orchestration/wiring.
+- Stage 9 module split continued:
+  menu option-command orchestration and option-cycler command handling moved from
+  `src/startup/menus/mod.rs` into `src/startup/menus/command_flow.rs`, reducing
+  `mod.rs` integration size further and isolating command execution flow.
+- Stage 9 main-menu composition migration:
+  main menu option entries now reuse `system_menu::SystemMenuOptionBundle`
+  (data-driven option specs + shared visual style path) in
+  `src/scenes/menu/mod.rs`, eliminating scene-local manual assembly of
+  text/selectable/visual components for each row.
+- Stage 9 scene-local behavior dedupe:
+  main-menu navigation-audio gating/switch playback now routes through
+  shared `system_menu::play_navigation_sound_owner_scoped`, removing
+  one-off scene-local gate+audio traversal logic.
+- Stage 10 test hardening started:
+  added reducer unit coverage in `src/startup/menus/command_reducer.rs`
+  for push/pop root-close, unsaved-exit modal routing, and dropdown-open
+  behavior; targeted `cargo test` passes for these reducer paths.
+- Stage 10 query-safety hardening started:
+  tabbed-menu query contracts now explicitly enforce role disjointness
+  (`TabItem` vs `TabbedMenuOption`) via `Without` filters, tab-click
+  collection was generalized to filtered queries, and menu-intent query
+  disjointness contracts were documented in `menu_input`.
+- Stage 10 test hardening continued:
+  deterministic shortcut arbitration coverage added in
+  `src/systems/ui/selector.rs`, tab click-layer arbitration coverage in
+  `src/systems/ui/tabs.rs` and `src/systems/ui/layer.rs`, and full
+  `cargo test` currently passes with no new failures.
+- Stage 10 runtime validation note:
+  interactive stress validation for B0001 remains pending on a GPU-capable
+  runtime; local sandbox `cargo run` exits at renderer init with
+  `Unable to find a GPU!`.
+- Process checkpoint (2026-02-18): direction is correct and aligned with constraints
+  (owner-scoped layers, reusable dropdown/tabs, reducer split), but two hotspots remain:
+  `src/startup/menus/mod.rs` is still a very large integration surface and
+  `src/startup/menus/tabbed_menu.rs` still owns complex focus arbitration. Next work
+  prioritizes arbitration completion + modular extraction before adding new feature scope.
+- Planning checkpoint (2026-02-18): converted open refactor questions into concrete
+  execution stages (12-19) covering runtime stress closure, UI module realignment,
+  primitive extraction, JSON schema, known bug sprint, discrete slider + scrolling,
+  redundancy cleanup, and documentation/test-stack rollout.
+- Stage 12 progress checkpoint (2026-02-18):
+  preflight and runtime launch command are verified, but interactive stress completion
+  is blocked in this sandbox by renderer init panic (`Unable to find a GPU!`).
+  Stage 10 final closure remains pending the GPU-capable stress run in the checklist above.
+- Stage 13 progress checkpoint (2026-02-18):
+  menu implementation modules were moved from `src/startup/menus/` to
+  `src/systems/ui/menu/` (UI-domain ownership), `src/systems/ui/mod.rs`
+  now exposes `menu`; call sites in scene/startup modules were migrated to
+  `systems::ui::menu`, the transitional `startup::menus` shim was removed,
+  and `cargo check` + `cargo test` pass after the migration.
+- Stage 14 completion checkpoint (2026-02-18):
+  extracted pure tabbed-focus transition reducer into
+  `src/systems/ui/menu/tabbed_focus.rs`, introduced reusable footer-row
+  navigation primitive in `src/systems/ui/menu/footer_nav.rs`, and replaced
+  video-specific dropdown row anchoring with owner/parent-scoped
+  `DropdownAnchorState` in `src/systems/ui/dropdown.rs`. Menu dropdown flow,
+  view sync, and command flow were migrated to the new primitive APIs.
+  `cargo check` and `cargo test` pass (11 tests).
+- Stage 15 completion checkpoint (2026-02-18):
+  added reusable schema loader/validator + typed command resolver in
+  `src/systems/ui/menu/schema.rs` (explicit parse/validation/command mapping
+  errors, no silent fallback), and migrated main menu options to JSON pilot
+  config at `src/scenes/menu/content/main_menu_ui.json`, loaded via schema
+  bridge in `src/scenes/menu/mod.rs`. `cargo check` + `cargo test` pass
+  (13 tests).
+- Stage 16 completion checkpoint (2026-02-18):
+  tab-focus arbitration now allows option reclaim from tab focus without
+  requiring mouse-delta-only hover transitions (reducing value-cell dead zones),
+  footer/tab handoff transitions are covered by pure reducer tests, and dropdown
+  row anchoring behavior has explicit regression coverage. Added tests in
+  `src/systems/ui/menu/tabbed_focus.rs` and `src/systems/ui/dropdown.rs`.
+  `cargo test` passes (17 tests).
+- Stage 17 progress checkpoint (2026-02-18):
+  added reusable `DiscreteSlider` primitive in `src/systems/ui/discrete_slider.rs`
+  and integrated slider-rendered value labels for scalable video options via
+  `VideoTopOptionKey::value_text` in `src/systems/ui/menu/defs.rs`.
+  Slider unit tests added and full test suite passes (18 tests).

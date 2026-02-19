@@ -7,6 +7,8 @@ struct ScanlineSettings {
     spacing: i32,
     thickness: i32,
     darkness: f32,
+    curvature_strength: f32,
+    static_strength: f32,
     resolution: vec2<f32>,
     real_time: f32,
 };
@@ -19,7 +21,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 
     // ---------------------------
     // Barrel distortion (curvature)
-    let strength: f32 = 0.08;
+    let strength: f32 = max(scanline.curvature_strength, 0.0);
     let r2: f32 = dot(uv, uv);
     uv = uv * (1.0 + strength * r2);
 
@@ -87,7 +89,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     // Noise / Static grain (apply last)
     let noise_seed: vec2<f32> = warpedUV * scanline.real_time;
     let noise_val: f32 = fract(sin(dot(noise_seed, vec2<f32>(12.9898, 78.233))) * 43758.5453);
-    let noise_strength: f32 = 0.015;
+    let noise_strength: f32 = max(scanline.static_strength, 0.0);
 
     let noisy_rgb: vec3<f32> = color.rgb + (noise_val - 0.5) * noise_strength;
     color = vec4<f32>(noisy_rgb, color.a);

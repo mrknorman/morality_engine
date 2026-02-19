@@ -79,7 +79,7 @@ pub fn propagate_changes<T: AssembleShape + Component>(
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct RectangleSides {
     pub top: bool,
     pub bottom: bool,
@@ -234,12 +234,14 @@ impl AssembleShape for Plus {
 #[require(Transform, Visibility)]
 pub struct BorderedRectangle {
     pub boundary: HollowRectangle,
+    pub fill_color: Color,
 }
 
 impl Default for BorderedRectangle {
     fn default() -> Self {
         Self {
             boundary: HollowRectangle::default(),
+            fill_color: Color::BLACK,
         }
     }
 }
@@ -254,9 +256,13 @@ impl BorderedRectangle {
     fn propagate_changes(
         rectangle_query: Query<(Entity, &BorderedRectangle), Changed<BorderedRectangle>>,
         children_query: Query<&Children>,
-        mut background_query: Query<&mut Mesh2d, With<RectangleBackground>>,
+        mut background_query: Query<
+            (&mut Mesh2d, &MeshMaterial2d<ColorMaterial>),
+            With<RectangleBackground>,
+        >,
         mut border_query: Query<&mut HollowRectangle, With<RectangleBorder>>,
         mut meshes: ResMut<Assets<Mesh>>,
+        mut materials: ResMut<Assets<ColorMaterial>>,
     ) {
         for (entity, bordered_rectangle) in &rectangle_query {
             if let Ok(children) = children_query.get(entity) {
@@ -264,8 +270,11 @@ impl BorderedRectangle {
                 let height = bordered_rectangle.boundary.dimensions.y;
 
                 for child in children.iter() {
-                    if let Ok(mut mesh2d) = background_query.get_mut(child) {
+                    if let Ok((mut mesh2d, material_handle)) = background_query.get_mut(child) {
                         mesh2d.0 = meshes.add(Mesh::from(Rectangle::new(width, height)));
+                        if let Some(material) = materials.get_mut(material_handle.0.id()) {
+                            material.color = bordered_rectangle.fill_color;
+                        }
                     }
 
                     if let Ok(mut hollow_rectangle) = border_query.get_mut(child) {
@@ -277,10 +286,11 @@ impl BorderedRectangle {
     }
 
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let (boundary, width, height) = {
+        let (boundary, fill_color, width, height) = {
             if let Some(bordered_rectangle) = world.entity(entity).get::<BorderedRectangle>() {
                 (
                     bordered_rectangle.boundary,
+                    bordered_rectangle.fill_color,
                     bordered_rectangle.boundary.dimensions.x,
                     bordered_rectangle.boundary.dimensions.y,
                 )
@@ -294,7 +304,7 @@ impl BorderedRectangle {
             let mesh_handle = meshes.add(Mesh::from(Rectangle::new(width, height)));
 
             let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-            let material_handle = materials.add(Color::BLACK);
+            let material_handle = materials.add(ColorMaterial::from(fill_color));
 
             (mesh_handle, material_handle)
         };

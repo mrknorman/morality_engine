@@ -4,11 +4,13 @@ use crate::{
     data::states::{MainState, PauseState},
     entities::text::TextPlugin,
     startup::{
-        menus::{self, MenuHost, MenuPage, PauseMenuAudio},
         render::{MainCamera, OffscreenCamera},
         system_menu,
     },
-    systems::interaction::{InteractionCapture, InteractionGate},
+    systems::{
+        interaction::{InteractionCapture, InteractionCaptureOwner, InteractionGate},
+        ui::menu::{self, MenuHost, MenuPage, PauseMenuAudio},
+    },
 };
 
 const PAUSE_MENU_DIM_ALPHA: f32 = 0.8;
@@ -144,7 +146,7 @@ fn setup_pause_menu_overlay(
         return;
     };
 
-    let menu_entity = menus::spawn_menu_root(
+    let menu_entity = menu::spawn_menu_root(
         &mut commands,
         &asset_server,
         MenuHost::Pause,
@@ -163,6 +165,7 @@ fn setup_pause_menu_overlay(
         parent.spawn((
             Name::new("pause_menu_dimmer"),
             InteractionCapture,
+            InteractionCaptureOwner::new(menu_entity),
             Sprite::from_color(
                 Color::srgba(0.0, 0.0, 0.0, PAUSE_MENU_DIM_ALPHA),
                 Vec2::splat(PAUSE_MENU_DIM_SIZE),

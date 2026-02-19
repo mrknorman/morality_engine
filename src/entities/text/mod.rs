@@ -408,6 +408,46 @@ fn get_anchor_offset(anchor: &Anchor, dimensions: Vec2) -> Vec2 {
     }
 }
 
+pub fn centered_text_y_correction(
+    anchor: &Anchor,
+    bounds: &TextBounds,
+    text_layout: &TextLayoutInfo,
+) -> f32 {
+    let is_centered_vertical_anchor = matches!(
+        anchor,
+        &Anchor::CENTER_LEFT | &Anchor::CENTER | &Anchor::CENTER_RIGHT
+    );
+    if !is_centered_vertical_anchor {
+        return 0.0;
+    }
+
+    let height = bounds.height.unwrap_or(text_layout.size.y).max(1.0);
+
+    // Use actual glyph quads for strict visual centering.
+    // `TextLayoutInfo` coordinates are relative to top-left of the text bounds.
+    let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
+    for glyph in &text_layout.glyphs {
+        let half_h = glyph.size.y * 0.5;
+        min_y = min_y.min(glyph.position.y - half_h);
+        max_y = max_y.max(glyph.position.y + half_h);
+    }
+
+    // Fallback to run geometry if glyphs aren't available yet.
+    if !(min_y.is_finite() && max_y.is_finite()) {
+        for run in &text_layout.run_geometry {
+            min_y = min_y.min(run.bounds.min.y);
+            max_y = max_y.max(run.bounds.max.y);
+        }
+    }
+
+    let visual_center_y = if min_y.is_finite() && max_y.is_finite() {
+        (min_y + max_y) * 0.5
+    } else {
+        height * 0.5
+    };
+    visual_center_y - height * 0.5
+}
+
 fn justify_for_anchor(anchor: &Anchor) -> Justify {
     match anchor {
         &Anchor::TOP_LEFT | &Anchor::CENTER_LEFT | &Anchor::BOTTOM_LEFT => Justify::Left,
@@ -753,6 +793,10 @@ impl Cell {
         Self { text, ..default() }
     }
 
+    pub fn set_fill_color(&mut self, color: Color) {
+        self.border.fill_color = color;
+    }
+
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let (text, border) = {
             if let Some(cell) = world.entity_mut(entity).get_mut::<Cell>() {
@@ -848,29 +892,7 @@ impl Cell {
             let offset = get_anchor_offset(anchor, Vec2::new(width, height));
 
             transform.translation.x = offset.x;
-
-            let is_centered_vertical_anchor = matches!(
-                anchor,
-                &Anchor::CENTER_LEFT | &Anchor::CENTER | &Anchor::CENTER_RIGHT
-            );
-            if !is_centered_vertical_anchor {
-                transform.translation.y = offset.y;
-                continue;
-            }
-
-            let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
-            for run in &text_layout.run_geometry {
-                min_y = min_y.min(run.bounds.min.y);
-                max_y = max_y.max(run.bounds.max.y);
-            }
-
-            let visual_center_y = if min_y.is_finite() && max_y.is_finite() {
-                (min_y + max_y) * 0.5
-            } else {
-                height * 0.5
-            };
-            let center_correction = visual_center_y - height * 0.5;
-            transform.translation.y = offset.y + center_correction;
+            transform.translation.y = offset.y + centered_text_y_correction(anchor, bounds, text_layout);
         }
     }
 }
@@ -884,6 +906,8 @@ pub struct Column {
     pub padding: Vec2,
     pub anchor: Anchor,
     pub has_boundary: bool,
+    pub cell_boundary_sides: Option<RectangleSides>,
+    pub cell_boundary_color: Option<Color>,
     rows: Vec<Row>,
 }
 
@@ -902,12 +926,37 @@ impl Column {
             padding,
             anchor,
             has_boundary,
+            cell_boundary_sides: None,
+            cell_boundary_color: None,
             rows: vec![Row::default(); num_cells],
         }
     }
 
+    pub fn with_cell_boundary_sides(mut self, sides: RectangleSides) -> Self {
+        self.cell_boundary_sides = Some(sides);
+        self
+    }
+
+    pub fn with_cell_boundary_color(mut self, color: Color) -> Self {
+        self.cell_boundary_color = Some(color);
+        self
+    }
+
+    fn effective_cell_boundary_sides(&self) -> RectangleSides {
+        self.cell_boundary_sides.unwrap_or(RectangleSides {
+            top: false,
+            bottom: false,
+            left: self.has_boundary,
+            right: false,
+        })
+    }
+
+    fn effective_cell_boundary_color(&self) -> Option<Color> {
+        self.cell_boundary_color
+    }
+
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let (cells, padding, width, rows, anchor, has_boundary) = {
+        let (cells, padding, width, rows, anchor, boundary_sides, boundary_color) = {
             if let Some(column) = world.entity_mut(entity).get_mut::<Column>() {
                 (
                     column.cells.clone(),
@@ -915,7 +964,8 @@ impl Column {
                     column.width,
                     column.rows.clone(),
                     column.anchor,
-                    column.has_boundary,
+                    column.effective_cell_boundary_sides(),
+                    column.effective_cell_boundary_color(),
                 )
             } else {
                 return;
@@ -937,12 +987,10 @@ impl Column {
                 }
 
                 cell.border.boundary.dimensions = Vec2::new(width, height);
-                cell.border.boundary.sides = RectangleSides {
-                    top: false,
-                    bottom: false,
-                    left: has_boundary,
-                    right: false,
-                };
+                cell.border.boundary.sides = boundary_sides;
+                if let Some(color) = boundary_color {
+                    cell.border.boundary.color = color;
+                }
 
                 cell.text.bounds = (Vec2::new(width, height) - padding).max(Vec2::splat(1.0));
                 cell.text.padding = padding;
@@ -988,12 +1036,10 @@ impl Column {
                 }
 
                 cell.border.boundary.dimensions = Vec2::new(column.width, row_height);
-                cell.border.boundary.sides = RectangleSides {
-                    top: false,
-                    bottom: false,
-                    left: column.has_boundary,
-                    right: false,
-                };
+                cell.border.boundary.sides = column.effective_cell_boundary_sides();
+                if let Some(color) = column.effective_cell_boundary_color() {
+                    cell.border.boundary.color = color;
+                }
                 cell.text.bounds =
                     (Vec2::new(column.width, row_height) - column.padding).max(Vec2::splat(1.0));
                 cell.text.padding = column.padding;
@@ -1100,6 +1146,8 @@ impl Table {
                 column.anchor = source_column.anchor;
                 column.padding = source_column.padding;
                 column.has_boundary = source_column.has_boundary;
+                column.cell_boundary_sides = source_column.cell_boundary_sides;
+                column.cell_boundary_color = source_column.cell_boundary_color;
 
                 if (column_transform.translation.x - current_center_x).abs() > 0.001 {
                     column_transform.translation.x = current_center_x;

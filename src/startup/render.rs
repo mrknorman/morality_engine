@@ -28,7 +28,8 @@ enum StartUpOrder {
 pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
+        app.init_resource::<CrtSettings>()
+            .add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
             .add_systems(
                 Startup,
                 (
@@ -43,6 +44,7 @@ impl Plugin for RenderPlugin {
                 Update,
                 (
                     ScanLinesMaterial::update,
+                    sync_render_pipeline_mode,
                     ScanLinesMaterial::update_scan_mesh,
                     RenderTargetHandle::update,
                 ),
@@ -53,16 +55,44 @@ impl Plugin for RenderPlugin {
 #[derive(Component)]
 pub struct MainCamera;
 
+#[derive(Component)]
+pub struct DirectCamera;
+
+#[derive(Resource, Clone, Copy, Debug, PartialEq)]
+pub struct CrtSettings {
+    pub spacing: i32,
+    pub thickness: i32,
+    pub darkness: f32,
+    pub curvature_strength: f32,
+    pub static_strength: f32,
+    pub pipeline_enabled: bool,
+}
+
+impl Default for CrtSettings {
+    fn default() -> Self {
+        Self {
+            spacing: 1,
+            thickness: 1,
+            darkness: 0.7,
+            curvature_strength: 0.08,
+            static_strength: 0.015,
+            pipeline_enabled: true,
+        }
+    }
+}
+
 const USE_POST_PROCESS: bool = true;
 
 fn setup_cameras(
     mut commands: Commands,
     mut clear_color: ResMut<ClearColor>,
     render_target: Res<RenderTargetHandle>,
+    crt_settings: Res<CrtSettings>,
 ) {
     clear_color.0 = BLACK.into();
 
     if USE_POST_PROCESS {
+        let pipeline_enabled = crt_settings.pipeline_enabled;
         // Off‑screen camera: renders game geometry to the off‑screen texture.
         commands.spawn((
             Camera2d,
@@ -70,6 +100,10 @@ fn setup_cameras(
             RenderLayers::layer(0),
             Hdr,
             RenderTarget::Image(render_target.0.clone().into()),
+            Camera {
+                is_active: pipeline_enabled,
+                ..default()
+            },
         ));
 
         // Main (window) camera: renders only the fullscreen quad (post‑processing) to the window.
@@ -78,9 +112,25 @@ fn setup_cameras(
             MainCamera,
             RenderLayers::layer(1),
             Hdr,
-            Camera::default(),
+            Camera {
+                is_active: pipeline_enabled,
+                ..default()
+            },
             Tonemapping::TonyMcMapface,
             Bloom::default(),
+        ));
+
+        // Direct camera: enabled when CRT/post-processing is disabled.
+        commands.spawn((
+            Camera2d,
+            DirectCamera,
+            RenderLayers::layer(0),
+            Hdr,
+            Camera {
+                is_active: !pipeline_enabled,
+                ..default()
+            },
+            Tonemapping::TonyMcMapface,
         ));
     } else {
         // Default camera: render directly to the window without any post‑processing.
@@ -199,6 +249,7 @@ impl ScanLinesMaterial {
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
         mut meshes: ResMut<Assets<Mesh>>,
         window: Single<&Window>,
+        crt_settings: Res<CrtSettings>,
     ) {
         // Get the primary window's resolution
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
@@ -213,9 +264,11 @@ impl ScanLinesMaterial {
         let material: Handle<ScanLinesMaterial> = materials.add(ScanLinesMaterial {
             source_texture: render_target.0.clone(),
             scan_line: ScanLineUniform {
-                spacing: 1,
-                thickness: 1,
-                darkness: 0.7,
+                spacing: crt_settings.spacing.max(0),
+                thickness: crt_settings.thickness.max(1),
+                darkness: crt_settings.darkness.clamp(0.0, 1.0),
+                curvature_strength: crt_settings.curvature_strength.max(0.0),
+                static_strength: crt_settings.static_strength.max(0.0),
                 resolution: window_resolution,
                 real_time: 0.0,
             },
@@ -227,6 +280,11 @@ impl ScanLinesMaterial {
             Mesh2d(mesh),
             MeshMaterial2d(material),
             ScanMesh,
+            if crt_settings.pipeline_enabled {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            },
         ));
     }
 
@@ -234,12 +292,18 @@ impl ScanLinesMaterial {
     fn update(
         window: Single<&Window, With<PrimaryWindow>>,
         time: Res<Time<Real>>,
+        crt_settings: Res<CrtSettings>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
     ) {
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
         for (_id, material) in materials.iter_mut() {
             material.scan_line.resolution = window_resolution;
             material.scan_line.real_time = time.elapsed_secs();
+            material.scan_line.spacing = crt_settings.spacing.max(0);
+            material.scan_line.thickness = crt_settings.thickness.max(1);
+            material.scan_line.darkness = crt_settings.darkness.clamp(0.0, 1.0);
+            material.scan_line.curvature_strength = crt_settings.curvature_strength.max(0.0);
+            material.scan_line.static_strength = crt_settings.static_strength.max(0.0);
         }
     }
 
@@ -276,6 +340,8 @@ struct ScanLineUniform {
     pub spacing: i32,
     pub thickness: i32,
     pub darkness: f32,
+    pub curvature_strength: f32,
+    pub static_strength: f32,
     pub resolution: Vec2,
     pub real_time: f32,
 }
@@ -283,6 +349,46 @@ struct ScanLineUniform {
 impl Material2d for ScanLinesMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/scan_lines.wgsl".into() // relative to the assets folder
+    }
+}
+
+fn sync_render_pipeline_mode(
+    crt_settings: Res<CrtSettings>,
+    mut offscreen_camera_query: Query<
+        &mut Camera,
+        (With<OffscreenCamera>, Without<MainCamera>, Without<DirectCamera>),
+    >,
+    mut main_camera_query: Query<
+        &mut Camera,
+        (With<MainCamera>, Without<OffscreenCamera>, Without<DirectCamera>),
+    >,
+    mut direct_camera_query: Query<
+        &mut Camera,
+        (With<DirectCamera>, Without<OffscreenCamera>, Without<MainCamera>),
+    >,
+    mut scan_mesh_query: Query<&mut Visibility, With<ScanMesh>>,
+) {
+    if !crt_settings.is_changed() {
+        return;
+    }
+
+    let pipeline_enabled = crt_settings.pipeline_enabled;
+
+    if let Ok(mut camera) = offscreen_camera_query.single_mut() {
+        camera.is_active = pipeline_enabled;
+    }
+    if let Ok(mut camera) = main_camera_query.single_mut() {
+        camera.is_active = pipeline_enabled;
+    }
+    if let Ok(mut camera) = direct_camera_query.single_mut() {
+        camera.is_active = !pipeline_enabled;
+    }
+    for mut visibility in &mut scan_mesh_query {
+        *visibility = if pipeline_enabled {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 

@@ -1,0 +1,26 @@
+
+1. General
+- Is there any code logic in menus that should be in generic ai.
+- Can we move the menu module to a submodule of UI
+- Are there any specific menu implementations - main menu, options, video ect, that are still tangled in the generic menu implentations and can we extract; 
+- can we build a json settings interfact to quickly build and configure the menus
+- Is everything clean and to a good ecs standard.
+- Is the relationship between menus, interaction, and the other UI elements such as Window, clean?
+- Have you removed all redundant code left over after refactor (in ui areas only.)
+
+2. Documenting
+- Is there a good rust framework for documentations that is well recognised and optimal that we can implement and start using
+- Is documentation of UI complete
+
+3. Tests
+= Is there a good rust framework for tests that is well recognised and optimal that we can implement and start using
+- Can we build a strong, robust test suite for all current UI features, including menus and interaction, to avoid regression.
+
+4. Small bugs/issues (thing of good clean fixes)
+- High: When tab has been selected by mouse as last thing, moving driectly to option value, rather than name, does not select, and cannot click to interact or change this value untill mouse moved over option name - bug does not occur with keyboard tab selection then mouse
+- Medium: When moving from one of bottom three options, and possibily tabs, directly onto main option via keyboard we cycle through bottom options before getting to main options rather than just jumping straight there.
+- Low: Opening dropdowns has a little flicker, possibly interaction with underlying text quick change to dropdown text, (unclear source of jittery visuals.)
+
+5. New implementations:
+- For options with clearly scalable values, i.e off, low, medium, high. Create new, discrete slider component, composable like other components, which is made of a bar of empty squares, which can be filled, empried using mouse or keyboard left right - with written value to right of bar.
+- Scrolling and new options, probably trick so pause to think here, but we should add more video menu options - think abotu which ones bevy exposes, and there are more crt options for sure, but we'll need to add scrollability to the middle pannel in order to add more options, will need to stop anf think about how to do this and propose a plan first.

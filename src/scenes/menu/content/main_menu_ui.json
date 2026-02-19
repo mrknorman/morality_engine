@@ -1,0 +1,29 @@
+{
+  "id": "main_menu",
+  "title": "Main Menu",
+  "hint": "Use arrow keys, Enter, or mouse",
+  "layout": {
+    "container": "menu_selectable_list",
+    "group": "vertical"
+  },
+  "options": [
+    {
+      "id": "menu_start_option",
+      "label": "Start Game",
+      "command": "enter_game",
+      "y": 46.0
+    },
+    {
+      "id": "menu_options_option",
+      "label": "Options",
+      "command": "open_options",
+      "y": 0.0
+    },
+    {
+      "id": "menu_exit_option",
+      "label": "Exit to Desktop",
+      "command": "exit_desktop",
+      "y": -46.0
+    }
+  ]
+}

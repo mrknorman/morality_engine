@@ -8,7 +8,6 @@ use crate::{
     },
     startup::{
         cursor::CustomCursor,
-        menus::{self, MenuHost, MenuPage},
         render::{MainCamera, OffscreenCamera},
         system_menu,
     },
@@ -16,6 +15,7 @@ use crate::{
         audio::{continuous_audio, MusicAudio},
         interaction::{Draggable, InteractionGate},
         particles::FireworkLauncher,
+        ui::menu::{self, MenuHost, MenuPage},
     },
 };
 
@@ -246,7 +246,7 @@ fn spawn_debug_menu_overlay(
     asset_server: &Res<AssetServer>,
     camera_translation: Vec3,
 ) {
-    menus::spawn_menu_root(
+    menu::spawn_menu_root(
         commands,
         asset_server,
         MenuHost::Debug,

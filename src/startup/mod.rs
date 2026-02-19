@@ -6,6 +6,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use crate::startup::textures::DigitSheet;
 use crate::systems::audio::{OneShotAudio, OneShotAudioPallet};
 use crate::systems::resize::ResizePlugin;
+use crate::systems::ui::menu::MenusPlugin;
 use crate::{
     data::{rng::RngPlugin, states::GameStatesPlugin, stats::StatsPlugin},
     scenes::dilemma::lever::Lever,
@@ -19,7 +20,6 @@ use crate::{
 
 pub mod cursor;
 pub mod debug;
-pub mod menus;
 pub mod pause;
 pub mod render;
 pub mod system_menu;
@@ -46,7 +46,7 @@ impl Plugin for StartupPlugin {
                 ColorsPlugin,
                 InheritancePlugin,
                 DilationPLugin,
-                menus::MenusPlugin,
+                MenusPlugin,
                 debug::DebugPlugin,
                 pause::PausePlugin,
             ))

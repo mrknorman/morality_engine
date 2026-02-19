@@ -234,6 +234,17 @@ impl InteractionGate {
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct InteractionCapture;
 
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InteractionCaptureOwner {
+    pub owner: Entity,
+}
+
+impl InteractionCaptureOwner {
+    pub const fn new(owner: Entity) -> Self {
+        Self { owner }
+    }
+}
+
 pub fn interaction_context_active(
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<(), With<InteractionCapture>>,
@@ -244,10 +255,39 @@ pub fn interaction_context_active(
     paused || !capture_query.is_empty()
 }
 
+pub fn interaction_context_active_for_owner(
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    owner: Entity,
+) -> bool {
+    let paused = pause_state
+        .as_ref()
+        .is_some_and(|state| *state.get() == PauseState::Paused);
+    if paused {
+        return true;
+    }
+
+    capture_query.iter().any(|capture_owner| {
+        capture_owner
+            .as_ref()
+            .is_none_or(|capture_owner| capture_owner.owner == owner)
+    })
+}
+
 pub fn interaction_gate_allows(gate: Option<&InteractionGate>, interaction_captured: bool) -> bool {
     gate.copied()
         .unwrap_or_default()
         .allows(interaction_captured)
+}
+
+pub fn interaction_gate_allows_for_owner(
+    gate: Option<&InteractionGate>,
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    owner: Entity,
+) -> bool {
+    let interaction_captured = interaction_context_active_for_owner(pause_state, capture_query, owner);
+    interaction_gate_allows(gate, interaction_captured)
 }
 
 #[derive(Copy, Clone, Component)]
@@ -732,7 +772,10 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     capture_query: Query<(), With<InteractionCapture>>,
     mut aggregate: ResMut<InteractionAggregate>,
     cursor: Res<CustomCursor>,
-    window_query: Query<(&Window, &Transform, &GlobalTransform), Without<TextSpan>>,
+    window_query: Query<
+        (&Window, &Transform, &GlobalTransform, Option<&InheritedVisibility>),
+        Without<TextSpan>,
+    >,
     mut clickable_query: Query<
         (
             Entity,
@@ -740,6 +783,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             &Transform,
             &GlobalTransform,
             &ClickableCursorIcons,
+            Option<&InheritedVisibility>,
             Option<&InteractionGate>,
             Option<&mut InteractionVisualState>,
             &mut Clickable<T>,
@@ -750,7 +794,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
 
     // Reset click latches every frame so stale clicks cannot retrigger actions.
-    for (_, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
+    for (_, _, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
         clickable.triggered = false;
     }
 
@@ -761,7 +805,10 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     // Any clickable under a higher window surface is blocked, even if that
     // top window surface itself is not clickable.
     let mut top_window_z: Option<f32> = None;
-    for (window, transform, global_transform) in window_query.iter() {
+    for (window, transform, global_transform, inherited_visibility) in window_query.iter() {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
         let window_region = Vec2::new(
             window.boundary.dimensions.x,
             window.boundary.dimensions.y + window.header_height,
@@ -783,9 +830,12 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     let mut hovered_top: Option<(Entity, f32, CursorMode)> = None;
 
-    for (entity, bound, transform, global_transform, icons, gate, _, clickable) in
+    for (entity, bound, transform, global_transform, icons, inherited_visibility, gate, _, clickable) in
         clickable_query.iter_mut()
     {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
         if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
@@ -827,7 +877,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     if let Some((entity, _, on_hover_mode)) = hovered_top {
         aggregate.option_to_click = Some(on_hover_mode);
-        if let Ok((_, _, _, _, _, _, visual_state, _)) = clickable_query.get_mut(entity) {
+        if let Ok((_, _, _, _, _, _, _, visual_state, _)) = clickable_query.get_mut(entity) {
             if let Some(mut visual_state) = visual_state {
                 visual_state.hovered = true;
                 if mouse_input.pressed(MouseButton::Left) {
@@ -836,7 +886,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             }
         }
         if mouse_input.just_pressed(MouseButton::Left) {
-            if let Ok((_, _, _, _, _, _, visual_state, mut clickable)) =
+            if let Ok((_, _, _, _, _, _, _, visual_state, mut clickable)) =
                 clickable_query.get_mut(entity)
             {
                 clickable.triggered = true;
@@ -907,6 +957,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
                 Option<&Aabb>,
                 &Transform,
                 &GlobalTransform,
+                Option<&InheritedVisibility>,
                 Option<&InteractionGate>,
                 &Clickable<K>,
             ),
@@ -962,9 +1013,12 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     }
 
     let mut candidates_by_menu: HashMap<Entity, Vec<SelectableCandidate>> = HashMap::new();
-    for (entity, selectable, bound, transform, global_transform, gate, clickable) in
+    for (entity, selectable, bound, transform, global_transform, inherited_visibility, gate, clickable) in
         selectable_queries.p0().iter()
     {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
         if !interaction_gate_allows(gate, interaction_captured) {
             continue;
         }
@@ -999,8 +1053,13 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     }
 
     let mut selection_state_by_menu: HashMap<Entity, SelectionState> = HashMap::new();
-    for (menu_entity, candidates) in candidates_by_menu.iter() {
-        let Ok((_, mut menu, gate)) = menus.get_mut(*menu_entity) else {
+    let mut ordered_menus: Vec<Entity> = candidates_by_menu.keys().copied().collect();
+    ordered_menus.sort_by_key(|entity| entity.index());
+    for menu_entity in ordered_menus {
+        let Some(candidates) = candidates_by_menu.get(&menu_entity) else {
+            continue;
+        };
+        let Ok((_, mut menu, gate)) = menus.get_mut(menu_entity) else {
             continue;
         };
 
@@ -1025,14 +1084,18 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         }
 
         let pointer_state = menu_pointer_state
-            .entry(*menu_entity)
+            .entry(menu_entity)
             .or_insert((false, None));
+        let pointer_over_menu = candidates.iter().any(|candidate| candidate.hovered);
         let mouse_moved = match (pointer_state.1, cursor.position) {
             (Some(prev), Some(current)) => prev.distance_squared(current) > f32::EPSILON,
             (None, Some(_)) | (Some(_), None) => true,
             (None, None) => false,
         };
-        if mouse_moved {
+        // Keep keyboard lock stable unless pointer intent re-engages this menu.
+        // Click-to-reengage matters for stationary cursor cases.
+        let mouse_reengaged = mouse_input.just_pressed(MouseButton::Left) && pointer_over_menu;
+        if (mouse_moved || mouse_reengaged) && pointer_over_menu {
             pointer_state.0 = false;
         }
         pointer_state.1 = cursor.position;
@@ -1045,12 +1108,23 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             .down_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
+        let raw_up_pressed = keyboard_input.just_pressed(KeyCode::ArrowUp);
+        let raw_down_pressed = keyboard_input.just_pressed(KeyCode::ArrowDown);
+        let left_pressed = keyboard_input.just_pressed(KeyCode::ArrowLeft);
+        let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
 
         if up_pressed && !down_pressed {
             menu.selected_index = move_selection(&indices, menu.selected_index, false, menu.wrap);
             pointer_state.0 = true;
         } else if down_pressed && !up_pressed {
             menu.selected_index = move_selection(&indices, menu.selected_index, true, menu.wrap);
+            pointer_state.0 = true;
+        } else if !menu.wrap
+            && ((left_pressed ^ right_pressed) || (raw_up_pressed ^ raw_down_pressed))
+        {
+            // For non-wrapping menus (e.g. tabbed video options), keep keyboard
+            // priority during reducer-managed focus transfers, even when vertical
+            // movement is handled outside SelectableMenu's up/down lists.
             pointer_state.0 = true;
         } else if !pointer_state.0 {
             if let Some(top_hovered) = candidates
@@ -1073,7 +1147,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         let force_selected_click = menu.click_activation == SelectableClickActivation::SelectedOnAnyClick
             && mouse_input.just_pressed(MouseButton::Left);
         selection_state_by_menu.insert(
-            *menu_entity,
+            menu_entity,
             SelectionState {
                 selected_index: menu.selected_index,
                 activate_pressed,

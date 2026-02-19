@@ -1,16 +1,16 @@
 use bevy::{audio::Volume, prelude::*};
 use enum_map::{enum_map, Enum};
+use once_cell::sync::Lazy;
 
 use crate::{
     data::states::{MainState, PauseState},
     entities::{
         large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
-        text::{TextButton, TextRaw},
+        text::TextRaw,
         track::Track,
         train::{content::TrainTypes, Train, TrainPlugin},
     },
     startup::{
-        menus::{self, MenuHost, MenuPage},
         render::{MainCamera, OffscreenCamera},
         system_menu,
     },
@@ -23,12 +23,14 @@ use crate::{
         backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
         colors::{ColorAnchor, CLICKED_BUTTON, DIM_BACKGROUND_COLOR, HOVERED_BUTTON, MENU_COLOR},
         interaction::{
-            interaction_context_active, interaction_gate_allows, ActionPallet, Clickable,
-            InputAction, InteractionCapture, InteractionGate, InteractionPlugin, InteractionSystem,
-            InteractionVisualPalette, InteractionVisualState, Selectable, SelectableClickActivation,
+            ActionPallet, Clickable, InputAction,
+            InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionPlugin,
+            InteractionSystem,
+            InteractionVisualPalette, SelectableClickActivation,
             SelectableMenu,
         },
         time::Dilation,
+        ui::menu::{self, schema, MenuHost, MenuPage},
     },
 };
 
@@ -38,6 +40,32 @@ const SYSTEM_MUSIC_PATH: &str = "./audio/music/the_last_decision.ogg";
 const SYSTEM_MENU_DIM_ALPHA: f32 = 0.8;
 const SYSTEM_MENU_DIM_SIZE: f32 = 6000.0;
 const SYSTEM_MENU_DIM_Z: f32 = -5.0;
+
+struct MainMenuOptionSpec {
+    name: String,
+    label: String,
+    y: f32,
+    action: MenuActions,
+}
+
+const MAIN_MENU_SCHEMA_JSON: &str = include_str!("./content/main_menu_ui.json");
+
+static MAIN_MENU_OPTIONS: Lazy<Vec<MainMenuOptionSpec>> = Lazy::new(|| {
+    let resolved =
+        schema::load_and_resolve_menu_schema(MAIN_MENU_SCHEMA_JSON, resolve_main_menu_action)
+            .unwrap_or_else(|error| panic!("invalid main menu schema: {error}"));
+
+    resolved
+        .options
+        .into_iter()
+        .map(|option| MainMenuOptionSpec {
+            name: option.id,
+            label: option.label,
+            y: option.y,
+            action: option.command,
+        })
+        .collect()
+});
 
 pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {
@@ -91,6 +119,15 @@ pub enum MenuActions {
     ExitDesktop,
 }
 
+fn resolve_main_menu_action(command_id: &str) -> Result<MenuActions, String> {
+    match command_id {
+        "enter_game" => Ok(MenuActions::EnterGame),
+        "open_options" => Ok(MenuActions::OpenOptions),
+        "exit_desktop" => Ok(MenuActions::ExitDesktop),
+        _ => Err(format!("unknown main menu command `{command_id}`")),
+    }
+}
+
 impl std::fmt::Display for MenuActions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
@@ -120,6 +157,32 @@ impl MenuScene {
         Vec3::new(-120.0, Train::track_alignment_offset_y(), 0.4);
     const SIGNATURE_TRANSLATION: Vec3 = Vec3::new(0.0, -100.0, 1.0);
     const OPTIONS_LIST_TRANSLATION: Vec3 = Vec3::new(0.0, -230.0, 1.0);
+
+    fn actions_for_option(action: MenuActions) -> ActionPallet<MenuActions, MenuSounds> {
+        match action {
+            MenuActions::EnterGame => ActionPallet(enum_map!(
+                MenuActions::EnterGame => vec![
+                    InputAction::PlaySound(MenuSounds::Click),
+                    InputAction::NextScene
+                ],
+                MenuActions::OpenOptions => vec![],
+                MenuActions::ExitDesktop => vec![],
+            )),
+            MenuActions::OpenOptions => ActionPallet(enum_map!(
+                MenuActions::EnterGame => vec![],
+                MenuActions::OpenOptions => vec![InputAction::PlaySound(MenuSounds::Click)],
+                MenuActions::ExitDesktop => vec![],
+            )),
+            MenuActions::ExitDesktop => ActionPallet(enum_map!(
+                MenuActions::EnterGame => vec![],
+                MenuActions::OpenOptions => vec![],
+                MenuActions::ExitDesktop => vec![
+                    InputAction::PlaySound(MenuSounds::Click),
+                    InputAction::ExitApplication,
+                ],
+            )),
+        }
+    }
 
     fn setup(
         mut commands: Commands,
@@ -228,7 +291,7 @@ impl MenuScene {
                     0,
                     vec![KeyCode::ArrowUp],
                     vec![KeyCode::ArrowDown],
-                    vec![KeyCode::Enter],
+                    vec![KeyCode::Enter, KeyCode::ArrowRight],
                     true,
                 )
                 .with_click_activation(SelectableClickActivation::HoveredOnly),
@@ -250,101 +313,39 @@ impl MenuScene {
         commands.entity(scene_entity).add_child(menu_list_entity);
 
         commands.entity(menu_list_entity).with_children(|parent| {
-            parent.spawn((
-                Name::new("menu_start_option"),
-                MainMenuInteractive,
-                TextButton,
-                Text2d::new("Start Game"),
-                TextLayout {
-                    justify: Justify::Center,
-                    ..default()
-                },
-                TextColor(MENU_COLOR),
-                ColorAnchor(MENU_COLOR),
-                Clickable::new(vec![MenuActions::EnterGame]),
-                InteractionVisualState::default(),
-                InteractionVisualPalette::new(
-                    MENU_COLOR,
-                    HOVERED_BUTTON,
-                    CLICKED_BUTTON,
-                    HOVERED_BUTTON,
-                ),
-                Transform::from_xyz(0.0, 46.0, 1.0),
-                Selectable::new(menu_list_entity, 0),
-                ActionPallet::<MenuActions, MenuSounds>(enum_map!(
-                    MenuActions::EnterGame => vec![
-                        InputAction::PlaySound(MenuSounds::Click),
-                        InputAction::NextScene
-                    ],
-                    MenuActions::OpenOptions => vec![],
-                    MenuActions::ExitDesktop => vec![],
-                )),
-                option_click_audio(),
-            ));
-
-            parent.spawn((
-                Name::new("menu_options_option"),
-                MainMenuInteractive,
-                MenuOpenOptionsButton,
-                TextButton,
-                Text2d::new("Options"),
-                TextLayout {
-                    justify: Justify::Center,
-                    ..default()
-                },
-                TextColor(MENU_COLOR),
-                ColorAnchor(MENU_COLOR),
-                Clickable::new(vec![MenuActions::OpenOptions]),
-                InteractionVisualState::default(),
-                InteractionVisualPalette::new(
-                    MENU_COLOR,
-                    HOVERED_BUTTON,
-                    CLICKED_BUTTON,
-                    HOVERED_BUTTON,
-                ),
-                Transform::from_xyz(0.0, 0.0, 1.0),
-                Selectable::new(menu_list_entity, 1),
-                ActionPallet::<MenuActions, MenuSounds>(enum_map!(
-                    MenuActions::EnterGame => vec![],
-                    MenuActions::OpenOptions => vec![
-                        InputAction::PlaySound(MenuSounds::Click),
-                    ],
-                    MenuActions::ExitDesktop => vec![],
-                )),
-                option_click_audio(),
-            ));
-
-            parent.spawn((
-                Name::new("menu_exit_option"),
-                MainMenuInteractive,
-                TextButton,
-                Text2d::new("Exit to Desktop"),
-                TextLayout {
-                    justify: Justify::Center,
-                    ..default()
-                },
-                TextColor(MENU_COLOR),
-                ColorAnchor(MENU_COLOR),
-                Clickable::new(vec![MenuActions::ExitDesktop]),
-                InteractionVisualState::default(),
-                InteractionVisualPalette::new(
-                    MENU_COLOR,
-                    HOVERED_BUTTON,
-                    CLICKED_BUTTON,
-                    HOVERED_BUTTON,
-                ),
-                Transform::from_xyz(0.0, -46.0, 1.0),
-                Selectable::new(menu_list_entity, 2),
-                ActionPallet::<MenuActions, MenuSounds>(enum_map!(
-                    MenuActions::EnterGame => vec![],
-                    MenuActions::OpenOptions => vec![],
-                    MenuActions::ExitDesktop => vec![
-                        InputAction::PlaySound(MenuSounds::Click),
-                        InputAction::ExitApplication,
-                    ],
-                )),
-                option_click_audio(),
-            ));
+            for (index, option) in MAIN_MENU_OPTIONS.iter().enumerate() {
+                let mut entity_commands = parent.spawn((
+                    Name::new(option.name.clone()),
+                    MainMenuInteractive,
+                    system_menu::SystemMenuOptionBundle::new_at(
+                        option.label.clone(),
+                        0.0,
+                        option.y,
+                        menu_list_entity,
+                        index,
+                    )
+                    .with_visual_style(
+                        system_menu::SystemMenuOptionVisualStyle::default()
+                            .without_selection_indicators(),
+                    ),
+                    Clickable::new(vec![option.action]),
+                    MenuScene::actions_for_option(option.action),
+                    option_click_audio(),
+                ));
+                if option.action == MenuActions::OpenOptions {
+                    entity_commands.insert(MenuOpenOptionsButton);
+                }
+                entity_commands.insert((
+                    TextColor(MENU_COLOR),
+                    ColorAnchor(MENU_COLOR),
+                    InteractionVisualPalette::new(
+                        MENU_COLOR,
+                        HOVERED_BUTTON,
+                        CLICKED_BUTTON,
+                        HOVERED_BUTTON,
+                    ),
+                ));
+            }
         });
     }
 }
@@ -393,7 +394,7 @@ fn open_main_menu_options_overlay(
         return;
     };
 
-    let menu_entity = menus::spawn_menu_root(
+    let menu_entity = menu::spawn_menu_root(
         &mut commands,
         &asset_server,
         MenuHost::Main,
@@ -412,6 +413,7 @@ fn open_main_menu_options_overlay(
         parent.spawn((
             Name::new("main_menu_options_dimmer"),
             InteractionCapture,
+            InteractionCaptureOwner::new(menu_entity),
             Sprite::from_color(
                 Color::srgba(0.0, 0.0, 0.0, SYSTEM_MENU_DIM_ALPHA),
                 Vec2::splat(SYSTEM_MENU_DIM_SIZE),
@@ -442,7 +444,7 @@ fn play_menu_navigation_sound(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<InteractionCapture>>,
+    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     menu_query: Query<
         (
             Entity,
@@ -455,31 +457,14 @@ fn play_menu_navigation_sound(
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
 ) {
-    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
-
-    for (menu_entity, menu, pallet, gate) in &menu_query {
-        if !interaction_gate_allows(gate, interaction_captured) {
-            continue;
-        }
-
-        let up_pressed = menu
-            .up_keys
-            .iter()
-            .any(|&key| keyboard_input.just_pressed(key));
-        let down_pressed = menu
-            .down_keys
-            .iter()
-            .any(|&key| keyboard_input.just_pressed(key));
-
-        if (up_pressed && !down_pressed) || (down_pressed && !up_pressed) {
-            TransientAudioPallet::play_transient_audio(
-                menu_entity,
-                &mut commands,
-                pallet,
-                MenuSounds::Switch,
-                dilation.0,
-                &mut audio_query,
-            );
-        }
-    }
+    system_menu::play_navigation_sound_owner_scoped(
+        &mut commands,
+        &keyboard_input,
+        pause_state.as_ref(),
+        &capture_query,
+        &menu_query,
+        &mut audio_query,
+        MenuSounds::Switch,
+        dilation.0,
+    );
 }
