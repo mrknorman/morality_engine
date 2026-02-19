@@ -19,7 +19,7 @@ use crate::{
         interaction::{
             interaction_gate_allows_for_owner, is_cursor_within_region, Clickable,
             InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionSystem,
-            SystemMenuActions,
+            ScrollUiActions,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -879,7 +879,7 @@ fn ensure_scrollbar_parts(
                     Name::new("scrollbar_track"),
                     ScrollBarTrack,
                     gate,
-                    Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::splat(10.0)),
+                    Clickable::with_region(vec![ScrollUiActions::Activate], Vec2::splat(10.0)),
                     BorderedRectangle {
                         boundary: HollowRectangle {
                             dimensions: Vec2::new(scrollbar.width, 64.0),
@@ -899,7 +899,7 @@ fn ensure_scrollbar_parts(
                     Name::new("scrollbar_thumb"),
                     ScrollBarThumb,
                     gate,
-                    Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::splat(10.0)),
+                    Clickable::with_region(vec![ScrollUiActions::Activate], Vec2::splat(10.0)),
                     BorderedRectangle {
                         boundary: HollowRectangle {
                             dimensions: Vec2::new(scrollbar.width, 24.0),
@@ -951,7 +951,7 @@ fn sync_scrollbar_visuals(
                 &mut BorderedRectangle,
                 &mut Transform,
                 &mut Visibility,
-                &mut Clickable<SystemMenuActions>,
+                &mut Clickable<ScrollUiActions>,
             ),
             (With<ScrollBarTrack>, Without<ScrollBarThumb>),
         >,
@@ -960,7 +960,7 @@ fn sync_scrollbar_visuals(
                 &mut BorderedRectangle,
                 &mut Transform,
                 &mut Visibility,
-                &mut Clickable<SystemMenuActions>,
+                &mut Clickable<ScrollUiActions>,
             ),
             (With<ScrollBarThumb>, Without<ScrollBarTrack>),
         >,
@@ -1114,7 +1114,7 @@ fn handle_scrollbar_input(
     )>,
     mut track_query: Query<
         (
-            &mut Clickable<SystemMenuActions>,
+            &mut Clickable<ScrollUiActions>,
             &GlobalTransform,
             &Transform,
             &BorderedRectangle,
@@ -1124,7 +1124,7 @@ fn handle_scrollbar_input(
     >,
     mut thumb_query: Query<
         (
-            &mut Clickable<SystemMenuActions>,
+            &mut Clickable<ScrollUiActions>,
             &GlobalTransform,
             &Transform,
             &BorderedRectangle,
