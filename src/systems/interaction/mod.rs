@@ -36,6 +36,7 @@ use crate::{
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON},
         motion::Bounce,
         time::Dilation,
+        ui::scroll::{cursor_in_edge_auto_scroll_zone, ScrollableRoot, ScrollableViewport},
     },
 };
 use bevy::{
@@ -46,7 +47,11 @@ use bevy::{
     window::{ClosingWindow, PrimaryWindow, WindowCloseRequested},
 };
 use enum_map::{Enum, EnumArray, EnumMap};
-use std::{cmp::Ordering, collections::HashMap, hash::Hash};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    hash::Hash,
+};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum InteractionSystem {
@@ -145,6 +150,7 @@ impl Plugin for InteractionPlugin {
         register_interaction_systems!(app, OverlayMenuActions, OverlayMenuSounds);
         register_interaction_systems!(app, PauseMenuActions, PauseMenuSounds);
         register_interaction_systems!(app, SystemMenuActions, SystemMenuSounds);
+        register_interaction_systems!(app, ScrollUiActions, ScrollUiSounds);
     }
 }
 
@@ -205,6 +211,22 @@ pub enum SystemMenuActions {
 }
 
 impl std::fmt::Display for SystemMenuActions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScrollUiSounds {
+    Click,
+}
+
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScrollUiActions {
+    Activate,
+}
+
+impl std::fmt::Display for ScrollUiActions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -772,6 +794,14 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     capture_query: Query<(), With<InteractionCapture>>,
     mut aggregate: ResMut<InteractionAggregate>,
     cursor: Res<CustomCursor>,
+    scroll_edge_query: Query<
+        (
+            &ScrollableRoot,
+            &ScrollableViewport,
+            &GlobalTransform,
+            Option<&InheritedVisibility>,
+        ),
+    >,
     window_query: Query<
         (&Window, &Transform, &GlobalTransform, Option<&InheritedVisibility>),
         Without<TextSpan>,
@@ -786,6 +816,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             Option<&InheritedVisibility>,
             Option<&InteractionGate>,
             Option<&mut InteractionVisualState>,
+            Option<&Selectable>,
             &mut Clickable<T>,
         ),
         Without<TextSpan>,
@@ -794,13 +825,24 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
 
     // Reset click latches every frame so stale clicks cannot retrigger actions.
-    for (_, _, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
+    for (_, _, _, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
         clickable.triggered = false;
     }
 
     let Some(cursor_position) = cursor.position else {
         return;
     };
+
+    let mut edge_blocked_menus: HashSet<Entity> = HashSet::new();
+    for (root, viewport, global_transform, inherited_visibility) in scroll_edge_query.iter() {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
+        if cursor_in_edge_auto_scroll_zone(cursor_position, global_transform, viewport.size, root.axis)
+        {
+            edge_blocked_menus.insert(root.owner);
+        }
+    }
 
     // Any clickable under a higher window surface is blocked, even if that
     // top window surface itself is not clickable.
@@ -830,13 +872,29 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     let mut hovered_top: Option<(Entity, f32, CursorMode)> = None;
 
-    for (entity, bound, transform, global_transform, icons, inherited_visibility, gate, _, clickable) in
-        clickable_query.iter_mut()
+    for (
+        entity,
+        bound,
+        transform,
+        global_transform,
+        icons,
+        inherited_visibility,
+        gate,
+        _,
+        selectable,
+        clickable,
+    ) in clickable_query.iter_mut()
     {
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
         if !interaction_gate_allows(gate, interaction_captured) {
+            continue;
+        }
+        if selectable
+            .as_ref()
+            .is_some_and(|selectable| edge_blocked_menus.contains(&selectable.menu_entity))
+        {
             continue;
         }
 
@@ -877,7 +935,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     if let Some((entity, _, on_hover_mode)) = hovered_top {
         aggregate.option_to_click = Some(on_hover_mode);
-        if let Ok((_, _, _, _, _, _, _, visual_state, _)) = clickable_query.get_mut(entity) {
+        if let Ok((_, _, _, _, _, _, _, visual_state, _, _)) = clickable_query.get_mut(entity) {
             if let Some(mut visual_state) = visual_state {
                 visual_state.hovered = true;
                 if mouse_input.pressed(MouseButton::Left) {
@@ -886,7 +944,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             }
         }
         if mouse_input.just_pressed(MouseButton::Left) {
-            if let Ok((_, _, _, _, _, _, _, visual_state, mut clickable)) =
+            if let Ok((_, _, _, _, _, _, _, visual_state, _, mut clickable)) =
                 clickable_query.get_mut(entity)
             {
                 clickable.triggered = true;
@@ -947,6 +1005,14 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<(), With<InteractionCapture>>,
+    scroll_edge_query: Query<
+        (
+            &ScrollableRoot,
+            &ScrollableViewport,
+            &GlobalTransform,
+            Option<&InheritedVisibility>,
+        ),
+    >,
     mut menus: Query<(Entity, &mut SelectableMenu, Option<&InteractionGate>)>,
     mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
@@ -1012,6 +1078,19 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         }
     }
 
+    let mut edge_blocked_menus: HashSet<Entity> = HashSet::new();
+    if let Some(cursor_position) = cursor.position {
+        for (root, viewport, global_transform, inherited_visibility) in scroll_edge_query.iter() {
+            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                continue;
+            }
+            if cursor_in_edge_auto_scroll_zone(cursor_position, global_transform, viewport.size, root.axis)
+            {
+                edge_blocked_menus.insert(root.owner);
+            }
+        }
+    }
+
     let mut candidates_by_menu: HashMap<Entity, Vec<SelectableCandidate>> = HashMap::new();
     for (entity, selectable, bound, transform, global_transform, inherited_visibility, gate, clickable) in
         selectable_queries.p0().iter()
@@ -1023,7 +1102,9 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             continue;
         }
 
-        let hovered = if let Some(cursor_position) = cursor.position {
+        let hovered = if edge_blocked_menus.contains(&selectable.menu_entity) {
+            false
+        } else if let Some(cursor_position) = cursor.position {
             if let Some(region) = clickable.region {
                 is_cursor_within_region(
                     cursor_position,
