@@ -151,6 +151,43 @@ fn dropdown_layer_blocks_scroll_input() {
 }
 
 #[test]
+fn modal_layer_blocks_base_scoped_scroll_input() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Modal), Visibility::Visible));
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+    write_wheel(&mut app, -1.0);
+    app.update();
+
+    let state = app.world().get::<ScrollState>(root).expect("scroll state");
+    assert_eq!(state.offset_px, 0.0);
+}
+
+#[test]
+fn base_layer_blocks_modal_scoped_scroll_input() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
+    let updated_root = app
+        .world()
+        .get::<ScrollableRoot>(root)
+        .copied()
+        .expect("scroll root")
+        .with_input_layer(UiLayerKind::Modal);
+    app.world_mut().entity_mut(root).insert(updated_root);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+    write_wheel(&mut app, -1.0);
+    app.update();
+
+    let state = app.world().get::<ScrollState>(root).expect("scroll state");
+    assert_eq!(state.offset_px, 0.0);
+}
+
+#[test]
 fn mixed_keyboard_and_wheel_input_is_deterministic() {
     let mut app = make_scroll_test_app();
     let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
