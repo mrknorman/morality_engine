@@ -3,7 +3,16 @@ use bevy::sprite::Anchor;
 use bevy::text::TextBounds;
 use crate::{
     entities::{sprites::compound::HollowRectangle, text::TextButton},
-    systems::{colors::SYSTEM_MENU_COLOR, ui::discrete_slider::DiscreteSlider},
+    systems::{
+        colors::SYSTEM_MENU_COLOR,
+        ui::{
+            discrete_slider::DiscreteSlider,
+            scroll::{
+                ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
+                ScrollableRoot, ScrollableViewport,
+            },
+        },
+    },
 };
 
 fn spawn_video_option_slider_widget(
@@ -60,6 +69,7 @@ pub(super) fn spawn_page_content(
 ) {
     let page_def = page_definition(page);
     let is_video_page = matches!(page, MenuPage::Video);
+    let mut video_top_options_parent = None;
 
     system_menu::spawn_chrome_with_marker(
         commands,
@@ -75,13 +85,65 @@ pub(super) fn spawn_page_content(
 
     if is_video_page {
         commands.entity(menu_entity).with_children(|parent| {
-            parent.spawn((
-                Name::new("system_video_top_options_table"),
-                MenuPageContent,
-                VideoTopOptionsTable,
-                video_top_options_table(),
-                Transform::from_xyz(VIDEO_TABLE_X, VIDEO_TABLE_Y, 0.95),
-            ));
+            let top_scroll_root = parent
+                .spawn((
+                    Name::new("system_video_top_options_scroll_root"),
+                    MenuPageContent,
+                    VideoTopOptionsScrollRoot,
+                    gate,
+                    ScrollableRoot::new(menu_entity, ScrollAxis::Vertical)
+                        .with_input_layer(UiLayerKind::Base),
+                    ScrollableViewport::new(Vec2::new(
+                        VIDEO_TABLE_TOTAL_WIDTH,
+                        VIDEO_TOP_SCROLL_VIEWPORT_HEIGHT,
+                    )),
+                    ScrollableContentExtent(VIDEO_TOP_SCROLL_CONTENT_HEIGHT),
+                    scroll_adapter::ScrollableTableAdapter::new(
+                        menu_entity,
+                        VIDEO_TOP_OPTION_COUNT,
+                        VIDEO_TABLE_ROW_HEIGHT,
+                        VIDEO_TOP_SCROLL_LEADING_PADDING,
+                    ),
+                    Transform::from_xyz(0.0, VIDEO_TOP_SCROLL_CENTER_Y, VIDEO_TOP_SCROLL_Z),
+                ))
+                .id();
+
+            let top_scroll_content = parent
+                .spawn((
+                    Name::new("system_video_top_options_scroll_content"),
+                    MenuPageContent,
+                    VideoTopOptionsScrollContent,
+                    ScrollableContent,
+                    Transform::default(),
+                ))
+                .id();
+
+            parent.commands().entity(top_scroll_root).add_child(top_scroll_content);
+            parent.commands().entity(top_scroll_root).with_children(|scroll_root| {
+                scroll_root.spawn((
+                    Name::new("system_video_top_options_scrollbar"),
+                    MenuPageContent,
+                    ScrollBar::new(top_scroll_root),
+                    Transform::from_xyz(0.0, 0.0, 0.12),
+                ));
+            });
+
+            parent.commands().entity(top_scroll_content).with_children(|content| {
+                content.spawn((
+                    Name::new("system_video_top_options_table"),
+                    MenuPageContent,
+                    VideoTopOptionsTable,
+                    video_top_options_table(),
+                    Transform::from_xyz(
+                        VIDEO_TABLE_X,
+                        video_top_scroll_local_y(VIDEO_TABLE_Y),
+                        0.95,
+                    ),
+                ));
+            });
+
+            video_top_options_parent = Some(top_scroll_content);
+
             parent.spawn((
                 Name::new("system_video_tabs_table"),
                 MenuPageContent,
@@ -153,12 +215,8 @@ pub(super) fn spawn_page_content(
                 }
             });
 
-            let resolution_row_index = page_def
-                .options
-                .iter()
-                .position(|option| matches!(option.command, MenuCommand::ToggleResolutionDropdown))
-                .unwrap_or(VIDEO_RESOLUTION_OPTION_INDEX);
-            let dropdown_rows = RESOLUTIONS.len();
+            let resolution_row_index = video_resolution_option_index();
+            let dropdown_rows = VIDEO_DROPDOWN_MAX_ROWS;
             let dropdown_height = dropdown_rows as f32 * VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT;
             let dropdown_entity = parent
                 .spawn((
@@ -214,7 +272,7 @@ pub(super) fn spawn_page_content(
                         Transform::from_xyz(0.0, 0.0, VIDEO_RESOLUTION_DROPDOWN_BORDER_Z),
                     ));
 
-                    for (index, &(w, h)) in RESOLUTIONS.iter().enumerate() {
+                    for index in 0..VIDEO_DROPDOWN_MAX_ROWS {
                         let base_y = dropdown_item_local_center_y(index, dropdown_rows);
                         dropdown
                             .spawn((
@@ -231,7 +289,7 @@ pub(super) fn spawn_page_content(
                                         VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT,
                                     ),
                                 ),
-                                Text2d::new(format!("{}x{}", w as i32, h as i32)),
+                                Text2d::new(VIDEO_MENU_VALUE_PLACEHOLDER.to_string()),
                                 TextFont {
                                     font_size: VIDEO_TABLE_TEXT_SIZE,
                                     ..default()
@@ -255,109 +313,123 @@ pub(super) fn spawn_page_content(
         });
     }
 
-    commands.entity(menu_entity).with_children(|parent| {
-        for (index, option) in page_def.options.iter().enumerate() {
-            let option_label = if is_video_page { "" } else { option.label };
-            let option_position = if is_video_page {
-                video_option_position(index)
+    let top_parent = video_top_options_parent.unwrap_or(menu_entity);
+    for (index, option) in page_def.options.iter().enumerate() {
+        let option_label = if is_video_page { "" } else { option.label };
+        let mut option_position = if is_video_page {
+            video_option_position(index)
+        } else {
+            Vec2::new(0.0, option.y)
+        };
+        let target_parent = if is_video_page && index < VIDEO_TOP_OPTION_COUNT {
+            option_position.y = video_top_scroll_local_y(option_position.y);
+            top_parent
+        } else {
+            menu_entity
+        };
+        let clickable = if is_video_page {
+            Clickable::with_region(vec![SystemMenuActions::Activate], video_option_region(index))
+        } else {
+            Clickable::new(vec![SystemMenuActions::Activate])
+        };
+
+        if is_video_page {
+            let mut visual_style = if index < VIDEO_TOP_OPTION_COUNT {
+                system_menu::SystemMenuOptionVisualStyle::default()
+                    .without_selection_indicators()
+                    .with_selection_bar(system_menu::SystemMenuSelectionBarStyle {
+                        offset: Vec3::new(
+                            VIDEO_NAME_COLUMN_CENTER_X,
+                            0.0,
+                            VIDEO_NAME_HIGHLIGHT_Z,
+                        ),
+                        size: Vec2::new(VIDEO_NAME_HIGHLIGHT_WIDTH, VIDEO_NAME_HIGHLIGHT_HEIGHT),
+                        color: SYSTEM_MENU_COLOR,
+                    })
             } else {
-                Vec2::new(0.0, option.y)
+                system_menu::SystemMenuOptionVisualStyle::default()
+                    .with_indicator_offset(VIDEO_FOOTER_INDICATOR_X)
             };
-            let clickable = if is_video_page {
-                Clickable::with_region(vec![SystemMenuActions::Activate], video_option_region(index))
-            } else {
-                Clickable::new(vec![SystemMenuActions::Activate])
-            };
+            if option.cyclable && index < VIDEO_TOP_OPTION_COUNT {
+                visual_style = visual_style.with_cycle_arrows(VIDEO_VALUE_COLUMN_CENTER_X);
+            }
 
-            if is_video_page {
-                let mut visual_style = if index < VIDEO_TOP_OPTION_COUNT {
-                    system_menu::SystemMenuOptionVisualStyle::default()
-                        .without_selection_indicators()
-                        .with_selection_bar(system_menu::SystemMenuSelectionBarStyle {
-                            offset: Vec3::new(
-                                VIDEO_NAME_COLUMN_CENTER_X,
-                                0.0,
-                                VIDEO_NAME_HIGHLIGHT_Z,
-                            ),
-                            size: Vec2::new(VIDEO_NAME_HIGHLIGHT_WIDTH, VIDEO_NAME_HIGHLIGHT_HEIGHT),
-                            color: SYSTEM_MENU_COLOR,
-                        })
-                } else {
-                    system_menu::SystemMenuOptionVisualStyle::default()
-                        .with_indicator_offset(VIDEO_FOOTER_INDICATOR_X)
-                };
-                if option.cyclable && index < VIDEO_TOP_OPTION_COUNT {
-                    visual_style = visual_style.with_cycle_arrows(VIDEO_VALUE_COLUMN_CENTER_X);
-                }
-
-                let entity_id = parent
-                    .spawn((
-                        Name::new(option.name),
-                        MenuPageContent,
-                        gate,
-                        tabbed_menu::TabbedMenuOption::new(menu_entity),
-                        VideoOptionRow { index },
-                        system_menu::SystemMenuOptionBundle::new_at(
-                            option_label,
-                            option_position.x,
-                            option_position.y,
-                            menu_entity,
-                            index,
-                        )
-                        .with_visual_style(visual_style),
-                        clickable,
-                        MenuOptionCommand(option.command.clone()),
-                        click_audio(),
-                    ))
-                    .id();
-
-                if let Some(shortcut) = option.shortcut {
-                    parent
-                        .commands()
-                        .entity(entity_id)
-                        .insert(ShortcutKey(shortcut));
-                }
-
-                if option.cyclable {
-                    parent.commands().entity(entity_id).insert(OptionCycler::default());
-                }
-
-                if index < VIDEO_TOP_OPTION_COUNT {
-                    spawn_video_option_slider_widget(
-                        parent.commands(),
-                        entity_id,
-                        menu_entity,
-                        index,
-                    );
-                }
-            } else {
-                let entity_id = parent
-                    .spawn((
+            let mut entity_id = None;
+            commands.entity(target_parent).with_children(|parent| {
+                let mut entity = parent.spawn((
                     Name::new(option.name),
                     MenuPageContent,
                     gate,
+                    tabbed_menu::TabbedMenuOption::new(menu_entity),
+                    VideoOptionRow { index },
                     system_menu::SystemMenuOptionBundle::new_at(
                         option_label,
                         option_position.x,
                         option_position.y,
                         menu_entity,
                         index,
-                    ),
+                    )
+                    .with_visual_style(visual_style),
                     clickable,
                     MenuOptionCommand(option.command.clone()),
                     click_audio(),
-                ))
-                    .id();
+                ));
+                if index < VIDEO_TOP_OPTION_COUNT {
+                    entity.insert(ScrollableItem::new(
+                        index as u64 + 1,
+                        index,
+                        VIDEO_TABLE_ROW_HEIGHT,
+                    ));
+                }
+                entity_id = Some(entity.id());
+            });
 
-                if let Some(shortcut) = option.shortcut {
+            let Some(entity_id) = entity_id else {
+                continue;
+            };
+
+            if let Some(shortcut) = option.shortcut {
+                commands.entity(entity_id).insert(ShortcutKey(shortcut));
+            }
+
+            if option.cyclable {
+                commands.entity(entity_id).insert(OptionCycler::default());
+            }
+
+            if index < VIDEO_TOP_OPTION_COUNT {
+                spawn_video_option_slider_widget(commands.reborrow(), entity_id, menu_entity, index);
+            }
+        } else {
+            let mut entity_id = None;
+            commands.entity(target_parent).with_children(|parent| {
+                entity_id = Some(
                     parent
-                        .commands()
-                        .entity(entity_id)
-                        .insert(ShortcutKey(shortcut));
+                        .spawn((
+                            Name::new(option.name),
+                            MenuPageContent,
+                            gate,
+                            system_menu::SystemMenuOptionBundle::new_at(
+                                option_label,
+                                option_position.x,
+                                option_position.y,
+                                menu_entity,
+                                index,
+                            ),
+                            clickable,
+                            MenuOptionCommand(option.command.clone()),
+                            click_audio(),
+                        ))
+                        .id(),
+                );
+            });
+
+            if let Some(shortcut) = option.shortcut {
+                if let Some(entity_id) = entity_id {
+                    commands.entity(entity_id).insert(ShortcutKey(shortcut));
                 }
             }
         }
-    });
+    }
 }
 
 fn clear_page_content(

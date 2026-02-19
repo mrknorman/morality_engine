@@ -98,7 +98,6 @@ pub struct ScrollState {
     pub content_extent: f32,
     pub viewport_extent: f32,
     pub max_offset: f32,
-    pub velocity: f32,
 }
 
 #[derive(Component, Clone, Copy, Debug, Default)]
@@ -371,11 +370,17 @@ fn ensure_scrollable_render_targets(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut layer_pool: ResMut<ScrollLayerPool>,
-    root_query: Query<(Entity, &ScrollableViewport), (With<ScrollableRoot>, Without<ScrollableRenderTarget>)>,
+    root_query: Query<
+        (Entity, &ScrollableRoot, &ScrollableViewport),
+        (With<ScrollableRoot>, Without<ScrollableRenderTarget>),
+    >,
 ) {
     let mut roots: Vec<(Entity, UVec2)> = root_query
         .iter()
-        .map(|(entity, viewport)| (entity, viewport_texture_size(viewport.size)))
+        .filter_map(|(entity, root, viewport)| {
+            matches!(root.backend, ScrollBackend::RenderToTexture)
+                .then_some((entity, viewport_texture_size(viewport.size)))
+        })
         .collect();
     roots.sort_by_key(|(entity, _)| entity.to_bits());
 
@@ -398,9 +403,15 @@ fn ensure_scrollable_render_targets(
 
 fn sync_scrollable_render_targets(
     mut images: ResMut<Assets<Image>>,
-    mut root_query: Query<(&ScrollableViewport, &mut ScrollableRenderTarget), With<ScrollableRoot>>,
+    mut root_query: Query<
+        (&ScrollableRoot, &ScrollableViewport, &mut ScrollableRenderTarget),
+        With<ScrollableRoot>,
+    >,
 ) {
-    for (viewport, mut render_target) in root_query.iter_mut() {
+    for (root, viewport, mut render_target) in root_query.iter_mut() {
+        if !matches!(root.backend, ScrollBackend::RenderToTexture) {
+            continue;
+        }
         let required_size = viewport_texture_size(viewport.size);
         if render_target.size_px == required_size {
             continue;
@@ -1422,7 +1433,6 @@ mod tests {
                     content_extent,
                     viewport_extent,
                     max_offset: (content_extent - viewport_extent).max(0.0),
-                    velocity: 0.0,
                 },
                 Transform::default(),
                 GlobalTransform::default(),
@@ -1634,9 +1644,13 @@ mod tests {
     fn modal_layer_can_receive_scroll_input_when_active() {
         let mut app = make_scroll_test_app();
         let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
-        if let Some(mut root_component) = app.world_mut().get_mut::<ScrollableRoot>(root) {
-            root_component.input_layer = UiLayerKind::Modal;
-        }
+        let updated_root = app
+            .world()
+            .get::<ScrollableRoot>(root)
+            .copied()
+            .expect("scroll root")
+            .with_input_layer(UiLayerKind::Modal);
+        app.world_mut().entity_mut(root).insert(updated_root);
         app.world_mut().spawn((
             UiLayer::new(owner, UiLayerKind::Modal),
             Visibility::Visible,
