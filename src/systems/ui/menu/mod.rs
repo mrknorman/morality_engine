@@ -519,6 +519,10 @@ impl Plugin for MenusPlugin {
         app.add_systems(
             Update,
             (
+                // Scroll integration point (Stage 1 contract):
+                // owner-scoped scroll input collection should run in Core after
+                // `InteractionSystem::Selectable` has produced deterministic hover/press
+                // state, and before menu command execution mutates page state.
                 initialize_video_settings_from_window,
                 selector::sync_option_cycler_bounds,
                 enforce_active_layer_focus,
@@ -540,6 +544,10 @@ impl Plugin for MenusPlugin {
         app.add_systems(
             Update,
             (
+                // Scroll integration point (Stage 1 contract):
+                // scroll-derived click/drag commands (e.g., scrollbar thumb/track)
+                // should be handled in the Commands stage with other direct UI command
+                // handlers to preserve deterministic ordering.
                 handle_video_discrete_slider_slot_commands,
                 handle_video_modal_button_commands,
                 handle_resolution_dropdown_item_commands,
@@ -566,6 +574,9 @@ impl Plugin for MenusPlugin {
         app.add_systems(
             Update,
             (
+                // Scroll integration point (Stage 1 contract):
+                // scroll state reduction and owner-local focus-follow should occur in
+                // PostCommands so base command mutations are settled before visual sync.
                 handle_option_cycler_commands,
                 tabs::sanitize_tab_selection_indices,
                 tabs::sync_tab_bar_state,
@@ -600,6 +611,9 @@ impl Plugin for MenusPlugin {
         app.add_systems(
             Update,
             (
+                // Scroll integration point (Stage 1 contract):
+                // scroll viewport surface + scrollbar visuals should render in Visual after
+                // menu/layout state is finalized for the frame.
                 sync_video_top_table_values,
                 sync_video_option_cycler_bounds,
                 sync_video_discrete_slider_widgets,
