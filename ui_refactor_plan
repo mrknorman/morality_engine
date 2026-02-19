@@ -121,7 +121,7 @@ Stage 12 execution checklist (repeatable):
 - [x] Implement reusable `DiscreteSlider` primitive (square-fill bar + textual value) with keyboard/mouse control.
 - [x] Integrate `DiscreteSlider` for suitable scalable options (off/low/medium/high patterns).
 - [x] Design and implement scrollable middle options panel (selection-safe, owner/layer-safe, no focus loss).
-- [ ] Expand video/CRT options after scroll support lands.
+- [x] Expand video/CRT options after scroll support lands.
 
 Stage 17 scrollable primitive implementation plan:
 - [x] Stage 17.1: Render-to-texture architecture contract
@@ -183,6 +183,41 @@ Stage 17 scrollable primitive implementation plan:
 - [ ] Add `cargo-nextest` setup for faster and more stable test execution.
 - [ ] Add `rstest`/`proptest` where useful for interaction arbitration/state properties.
 - [ ] Add interaction-flow integration tests for menu stack, tabs, dropdown, modal, and layer gating.
+
+### Stage 20: HoverBox Primitive + Video Options Pilot
+- [ ] Define reusable `HoverBox` primitive API in `src/systems/ui/hover_box.rs`.
+- [ ] Add owner-scoped/layer-scoped hover arbitration contract (same owner/layer model as other UI primitives).
+- [ ] Add hover delay behavior (`0.5s`) and deterministic show/hide state transitions.
+- [ ] Add anchored placement behavior (tooltip appears below hovered element, with bounds-safe clamping).
+- [ ] Add style/config components for box visuals and text content (`HoverBoxStyle`, `HoverBoxContent`).
+- [ ] Integrate with video option **name cells** to show setting descriptions after `0.5s` hover.
+- [ ] Integrate with dropdown value rows (e.g. tonemapper choices) to show per-value descriptions.
+- [ ] Exclude resolution dropdown values from hover descriptions by explicit schema flag.
+- [ ] Add regression tests for delay timing, owner/layer gating, dropdown hover descriptions, and resolution exclusion.
+- [ ] Run manual validation in Video menu (keyboard + mouse mixed input, tabs/dropdowns/modal overlays).
+
+Stage 20 step-by-step implementation plan:
+1. Add primitive components/resources:
+   `HoverBoxTarget`, `HoverBoxAnchor`, `HoverBoxContent`, `HoverBoxDelay`, `HoverBoxStyle`,
+   plus owner-scoped runtime state keyed by hovered entity.
+2. Implement primitive systems in `systems/ui/hover_box`:
+   target collection, hover timing accumulator, show/hide reducer, anchor-to-world transform sync.
+3. Wire layer/interaction gating:
+   show only when hovered target’s owner is in its active layer and gate permits interaction.
+4. Build visual entity composition:
+   bordered rectangle + text child, z-order above menu content, hidden when inactive.
+5. Add menu adapter hooks (no menu logic in primitive):
+   attach `HoverBoxTarget` metadata to video option name cells using existing video option schema keys.
+6. Extend schema/value metadata for dropdown values:
+   add optional description fields for tonemapper and similar value enums.
+7. Exclude resolutions explicitly:
+   mark resolution values with no description and guard adapter from emitting hover content.
+8. Integrate dropdown hovered-row feed:
+   adapter maps currently hovered dropdown row -> `HoverBoxContent` update.
+9. Add tests:
+   half-second delay, hide on hover exit/layer switch, dropdown value description mapping, resolution no-op.
+10. Validate runtime behavior:
+   confirm no B0001 panics, no flicker on rapid hover changes, no conflicts with selectable/force-click flows.
 
 ## Stage Notes
 - Stage 1 completed by adding `docs/ui_architecture_contract.md`.
@@ -357,3 +392,6 @@ Stage 17 scrollable primitive implementation plan:
   `scroll/geometry.rs`, `scroll/scrollbar_math.rs`), with owner-scoped input-layer
   arbitration and regression guards. `cargo check`, scroll tests, and
   `scroll_adapter` tests pass.
+- Stage 17 option-capacity completion checkpoint (2026-02-19):
+  expanded video/CRT option surface after scroll support landed; this closes
+  the remaining Stage 17 checklist item.
