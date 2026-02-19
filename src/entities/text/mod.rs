@@ -421,22 +421,25 @@ pub fn centered_text_y_correction(
         return 0.0;
     }
 
-    let height = bounds.height.unwrap_or(text_layout.size.y).max(1.0);
+    let layout_scale = text_layout_scale(text_layout);
+    let layout_height = text_layout.size.y / layout_scale;
+    let height = bounds.height.unwrap_or(layout_height).max(1.0);
 
-    // Use actual glyph quads for strict visual centering.
+    // Prefer run geometry for stable centering across render path changes.
     // `TextLayoutInfo` coordinates are relative to top-left of the text bounds.
     let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
-    for glyph in &text_layout.glyphs {
-        let half_h = glyph.size.y * 0.5;
-        min_y = min_y.min(glyph.position.y - half_h);
-        max_y = max_y.max(glyph.position.y + half_h);
+    for run in &text_layout.run_geometry {
+        min_y = min_y.min(run.bounds.min.y / layout_scale);
+        max_y = max_y.max(run.bounds.max.y / layout_scale);
     }
 
-    // Fallback to run geometry if glyphs aren't available yet.
+    // Fallback to glyph quads if run geometry isn't available yet.
     if !(min_y.is_finite() && max_y.is_finite()) {
-        for run in &text_layout.run_geometry {
-            min_y = min_y.min(run.bounds.min.y);
-            max_y = max_y.max(run.bounds.max.y);
+        for glyph in &text_layout.glyphs {
+            let position_y = glyph.position.y / layout_scale;
+            let half_h = (glyph.size.y / layout_scale) * 0.5;
+            min_y = min_y.min(position_y - half_h);
+            max_y = max_y.max(position_y + half_h);
         }
     }
 
@@ -445,7 +448,12 @@ pub fn centered_text_y_correction(
     } else {
         height * 0.5
     };
-    visual_center_y - height * 0.5
+    (visual_center_y - height * 0.5).clamp(-height * 0.45, height * 0.45)
+}
+
+#[inline]
+fn text_layout_scale(text_layout: &TextLayoutInfo) -> f32 {
+    text_layout.scale_factor.max(0.0001)
 }
 
 fn justify_for_anchor(anchor: &Anchor) -> Justify {
@@ -494,8 +502,13 @@ struct TextWindowBoundsPolicy {
 
 impl TextWindow {
     fn measured_text_size(text_layout: &TextLayoutInfo, text_bounds: &TextBounds) -> Vec2 {
-        let width = text_bounds.width.unwrap_or(text_layout.size.x);
-        let height = text_bounds.height.unwrap_or(text_layout.size.y);
+        let layout_scale = text_layout_scale(text_layout);
+        let width = text_bounds
+            .width
+            .unwrap_or(text_layout.size.x / layout_scale);
+        let height = text_bounds
+            .height
+            .unwrap_or(text_layout.size.y / layout_scale);
         Vec2::new(width, height)
     }
 
@@ -503,20 +516,35 @@ impl TextWindow {
         mut text_windows: Query<
             (
                 &TextLayoutInfo,
-                &TextBounds,
+                Ref<TextBounds>,
                 &TextWindowBoundsPolicy,
+                Ref<Text2d>,
+                Ref<TextFont>,
                 &mut TextWindowLayoutState,
             ),
             (
                 With<TextWindow>,
-                Or<(Changed<TextLayoutInfo>, Changed<TextBounds>)>,
+                Or<(
+                    Changed<TextLayoutInfo>,
+                    Changed<TextBounds>,
+                    Changed<Text2d>,
+                    Changed<TextFont>,
+                )>,
             ),
         >,
     ) {
-        for (text_layout, text_bounds, bounds_policy, mut layout_state) in text_windows.iter_mut() {
+        for (
+            text_layout,
+            text_bounds,
+            bounds_policy,
+            text_content,
+            text_font,
+            mut layout_state,
+        ) in text_windows.iter_mut()
+        {
             let measured_size =
-                Self::measured_text_size(text_layout, text_bounds).max(Vec2::splat(1.0));
-            let target_min_size = Vec2::new(
+                Self::measured_text_size(text_layout, &text_bounds).max(Vec2::splat(1.0));
+            let mut target_min_size = Vec2::new(
                 if bounds_policy.constrain_width {
                     layout_state.base_content_size.x
                 } else {
@@ -528,6 +556,12 @@ impl TextWindow {
                     measured_size.y.max(layout_state.base_content_size.y)
                 },
             );
+            let semantic_changed =
+                text_content.is_changed() || text_font.is_changed() || text_bounds.is_changed();
+            if !semantic_changed {
+                target_min_size.x = target_min_size.x.max(layout_state.min_content_size.x);
+                target_min_size.y = target_min_size.y.max(layout_state.min_content_size.y);
+            }
 
             if (layout_state.min_content_size - target_min_size).length_squared() > 0.0001 {
                 layout_state.min_content_size = target_min_size;
@@ -890,7 +924,6 @@ impl Cell {
             let width = bounds.width.unwrap_or(text_layout.size.x).max(1.0);
             let height = bounds.height.unwrap_or(text_layout.size.y).max(1.0);
             let offset = get_anchor_offset(anchor, Vec2::new(width, height));
-
             transform.translation.x = offset.x;
             transform.translation.y = offset.y + centered_text_y_correction(anchor, bounds, text_layout);
         }
