@@ -11,7 +11,10 @@ use enum_map::{enum_map, Enum};
 use crate::{
     entities::sprites::compound::*,
     entities::text::scaled_font_size,
-    startup::{cursor::CustomCursor, render::MainCamera},
+    startup::{
+        cursor::CustomCursor,
+        render::OffscreenCamera,
+    },
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
@@ -701,12 +704,14 @@ impl Window {
     fn sync_root_drag_bounds(
         mut commands: Commands,
         window: Single<&bevy::window::Window, With<PrimaryWindow>>,
-        camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
+        offscreen_camera_query: Query<(&Camera, &GlobalTransform), With<OffscreenCamera>>,
         windows: Query<(Entity, &Window, &GlobalTransform)>,
         root_globals: Query<&GlobalTransform>,
         existing_bounds: Query<Entity, With<DraggableViewportBounds>>,
     ) {
-        let (camera, camera_transform) = *camera_query;
+        let Ok((camera, camera_transform)) = offscreen_camera_query.single() else {
+            return;
+        };
         let Some((viewport_min, viewport_max)) =
             Self::viewport_world_bounds(*window, camera, camera_transform)
         else {
@@ -759,12 +764,14 @@ impl Window {
 
     fn clamp_to_viewport(
         window: Single<&bevy::window::Window, With<PrimaryWindow>>,
-        camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
+        offscreen_camera_query: Query<(&Camera, &GlobalTransform), With<OffscreenCamera>>,
         windows: Query<(Entity, &Window, &GlobalTransform)>,
         mut root_transforms: Query<(&mut Transform, Option<&ChildOf>)>,
         parent_globals: Query<&GlobalTransform>,
     ) {
-        let (camera, camera_transform) = *camera_query;
+        let Ok((camera, camera_transform)) = offscreen_camera_query.single() else {
+            return;
+        };
         let Some((viewport_min, viewport_max)) =
             Self::viewport_world_bounds(*window, camera, camera_transform)
         else {

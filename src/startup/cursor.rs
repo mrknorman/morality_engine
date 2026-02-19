@@ -10,7 +10,7 @@ use bevy::{
 
 use enum_map::{Enum, EnumMap};
 
-use super::render::{convert_to_hdr, MainCamera};
+use super::render::{convert_to_hdr, OffscreenCamera};
 
 pub struct CursorPlugin;
 impl Plugin for CursorPlugin {
@@ -163,9 +163,11 @@ impl CustomCursor {
         mut mouse_motion_events: MessageReader<MouseMotion>,
         mut custom_cursor: ResMut<CustomCursor>,
         mut cursor_query: Query<&mut Transform>,
-        camera_query: Single<(&Camera, &GlobalTransform), With<MainCamera>>,
+        offscreen_camera_query: Query<(&Camera, &GlobalTransform), With<OffscreenCamera>>,
     ) {
-        let (camera, camera_transform) = *camera_query;
+        let Ok((camera, camera_transform)) = offscreen_camera_query.single() else {
+            return;
+        };
 
         let motion_delta = mouse_motion_events
             .read()
