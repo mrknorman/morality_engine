@@ -120,11 +120,11 @@ Stage 12 execution checklist (repeatable):
 ### Stage 17: New UI Components + Option Capacity
 - [x] Implement reusable `DiscreteSlider` primitive (square-fill bar + textual value) with keyboard/mouse control.
 - [x] Integrate `DiscreteSlider` for suitable scalable options (off/low/medium/high patterns).
-- [ ] Design and implement scrollable middle options panel (selection-safe, owner/layer-safe, no focus loss).
+- [x] Design and implement scrollable middle options panel (selection-safe, owner/layer-safe, no focus loss).
 - [ ] Expand video/CRT options after scroll support lands.
 
 Stage 17 scrollable primitive implementation plan:
-- [ ] Stage 17.1: Render-to-texture architecture contract
+- [x] Stage 17.1: Render-to-texture architecture contract
   - Define reusable primitives:
     `ScrollableRoot`, `ScrollableViewport`, `ScrollableContentCamera`,
     `ScrollableRenderTarget`, `ScrollableItem`, `ScrollState`.
@@ -132,40 +132,40 @@ Stage 17 scrollable primitive implementation plan:
     deterministic arbitration contract with `SelectableMenu`.
   - Define backend enum now (`ScrollRenderBackend::RenderToTexture`) so future
     fallback/alternative backends are additive, not breaking.
-- [ ] Stage 17.2: Render target + camera lifecycle
+- [x] Stage 17.2: Render target + camera lifecycle
   - Add per-scroll-root render target allocation with pooling/reuse
     (`Assets<Image>` handles keyed by root entity + size).
   - Spawn dedicated content camera per root targeting that image.
   - Assign dedicated `RenderLayers` for scroll content (separate from main
     world layers `0/1` used by CRT pipeline).
   - Handle resize/rebuild when viewport dimensions change.
-- [ ] Stage 17.3: Viewport surface composition
+- [x] Stage 17.3: Viewport surface composition
   - Render scroll output as a world-space sprite/quad in the menu tree.
   - Guarantee strict clipping by texture bounds (no overdraw into neighbors).
   - Ensure visual order/z is stable with borders/text/glow and existing CRT pass
     (single global CRT application only).
-- [ ] Stage 17.4: Scroll state reducer and motion model
+- [x] Stage 17.4: Scroll state reducer and motion model
   - Implement pure reducer for `ScrollState`:
     `offset_px`, `content_extent`, `viewport_extent`, `max_offset`,
     optional `velocity`, optional `snap_mode`.
   - Typed intents: wheel, keyboard step/page/home/end, drag scrollbar thumb,
     focus-follow.
   - Clamp and deterministic ordering guarantees under mixed input.
-- [ ] Stage 17.5: Input + interaction mapping on RTT content
+- [x] Stage 17.5: Input + interaction mapping on RTT content
   - Map cursor from viewport-local coordinates to content-local coordinates.
   - Resolve hovered/pressed item by deterministic index/key mapping.
   - Keep arrow keys/enter/backspace semantics aligned with menu systems.
   - Ensure row/name/value click behavior parity with non-scroll menus.
-- [ ] Stage 17.6: Reusable adapters
+- [x] Stage 17.6: Reusable adapters
   - `ScrollableTableAdapter` for table-based menus (row heights, row keys).
   - `ScrollableListAdapter<T>` for generic lists outside settings menus.
   - Focus-follow hook: selected index auto-scrolls into visible range.
-- [ ] Stage 17.7: Performance and safety hardening
+- [x] Stage 17.7: Performance and safety hardening
   - Add texture budget controls (max active targets, downscale policy if needed).
   - Add camera/target cleanup on despawn to avoid leaks.
   - Document query disjointness and enforce `ParamSet`/`Without` where needed
     to prevent B0001.
-- [ ] Stage 17.8: Validation + rollout
+- [x] Stage 17.8: Validation + rollout
   - Unit tests for reducer math and coordinate mapping.
   - Integration tests for mixed keyboard/mouse scroll + selection + dropdown/modal layering.
   - Pilot rollout in Video middle options panel, then one secondary context,
@@ -351,3 +351,9 @@ Stage 17 scrollable primitive implementation plan:
   and integrated slider-rendered value labels for scalable video options via
   `VideoTopOptionKey::value_text` in `src/systems/ui/menu/defs.rs`.
   Slider unit tests added and full test suite passes (18 tests).
+- Stage 17 scrollable completion checkpoint (2026-02-19):
+  completed scrollable + scrollbar RTT implementation and modular cleanup
+  (`scroll/lifecycle.rs`, `scroll/behavior.rs`, `scroll/scrollbar.rs`,
+  `scroll/geometry.rs`, `scroll/scrollbar_math.rs`), with owner-scoped input-layer
+  arbitration and regression guards. `cargo check`, scroll tests, and
+  `scroll_adapter` tests pass.
