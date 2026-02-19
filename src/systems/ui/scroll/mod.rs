@@ -1,22 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use bevy::{
-    input::mouse::{MouseScrollUnit, MouseWheel},
-    prelude::*,
-    render::render_resource::TextureFormat,
-};
+use bevy::{prelude::*, render::render_resource::TextureFormat};
 
 use crate::{
-    data::states::PauseState,
-    entities::sprites::compound::{BorderedRectangle, HollowRectangle},
-    startup::cursor::CustomCursor,
     systems::{
-        interaction::{
-            interaction_gate_allows_for_owner, is_cursor_within_region, Clickable,
-            InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionSystem,
-            ScrollUiActions,
-        },
-        ui::layer::{self, UiLayer, UiLayerKind},
+        interaction::InteractionSystem,
+        ui::layer::UiLayerKind,
     },
 };
 
@@ -31,20 +20,13 @@ mod tests;
 use self::behavior::{
     handle_scrollable_pointer_and_keyboard_input, sync_scroll_content_offsets, sync_scroll_extents,
 };
-use self::geometry::{
-    axis_extent, axis_value_vec2, axis_value_vec3, clamp_scroll_state, edge_auto_scroll_delta,
-};
 use self::lifecycle::{
     cleanup_scroll_layer_pool, ensure_scrollable_render_targets,
     ensure_scrollable_runtime_entities, sync_scroll_content_layers,
     sync_scrollable_render_entities, sync_scrollable_render_targets,
 };
-use self::scrollbar_math::scrollbar_click_region;
 use self::scrollbar::{ensure_scrollbar_parts, handle_scrollbar_input, sync_scrollbar_visuals};
 pub use self::geometry::cursor_in_edge_auto_scroll_zone;
-pub use self::scrollbar_math::{
-    offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state,
-};
 
 const SCROLL_LAYER_START: u8 = 8;
 const SCROLL_LAYER_COUNT: u8 = 20;

@@ -1,4 +1,29 @@
-use super::*;
+use bevy::prelude::*;
+
+use crate::{
+    data::states::PauseState,
+    entities::sprites::compound::{BorderedRectangle, HollowRectangle},
+    startup::cursor::CustomCursor,
+    systems::{
+        interaction::{
+            interaction_gate_allows_for_owner, Clickable, InteractionCapture,
+            InteractionCaptureOwner, InteractionGate, ScrollUiActions,
+        },
+        ui::layer::{self, UiLayer, UiLayerKind},
+    },
+};
+
+use super::{
+    geometry::{axis_extent, axis_value_vec2, axis_value_vec3, clamp_scroll_state},
+    scrollbar_math::{
+        offset_from_thumb_center, scrollbar_click_region, thumb_center_for_offset,
+        thumb_extent_for_state,
+    },
+    ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
+    ScrollFocusFollowLock, ScrollState, ScrollableRoot, ScrollableViewport, SCROLL_EPSILON,
+    SCROLL_PAGE_FACTOR, SCROLLBAR_BORDER_THICKNESS, SCROLLBAR_INTERACTION_Z,
+    SCROLLBAR_THUMB_INSET, SCROLLBAR_THUMB_Z, SCROLLBAR_TRACK_FILL_COLOR, SCROLLBAR_TRACK_Z,
+};
 
 pub(super) fn ensure_scrollbar_parts(
     mut commands: Commands,

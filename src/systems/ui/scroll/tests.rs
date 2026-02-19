@@ -12,9 +12,9 @@ use crate::{
 };
 
 use super::{
-    offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state, ScrollAxis,
-    ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent, ScrollableContentExtent,
-    ScrollableRoot, ScrollableViewport,
+    scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
+    ScrollAxis, ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent,
+    ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
