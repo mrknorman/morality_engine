@@ -23,7 +23,7 @@ use crate::{
             SelectableClickActivation, SelectableMenu, SystemMenuActions,
         },
         ui::{
-            layer::UiLayerKind,
+            dropdown::DropdownSurface,
             menu_surface::MenuSurface,
             selector::SelectorSurface,
             scroll::{
@@ -468,8 +468,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                         owner: owner_entity,
                         size: panel_size,
                     },
-                    MenuSurface::new(owner_entity)
-                        .with_layer(UiLayerKind::Dropdown)
+                    DropdownSurface::new(owner_entity)
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                     Sprite::from_color(Color::BLACK, panel_size),
                     Transform::from_xyz(-12.0, -14.0, 0.24),
