@@ -104,8 +104,11 @@ pub(super) fn spawn_page_content(
                 hover_box_clamp_size,
                 hover_box_style,
                 VIDEO_HOVER_BOX_DELAY_SECONDS,
-                (MenuPageContent, VideoOptionHoverBoxRoot),
             );
+            parent
+                .commands()
+                .entity(option_hover_root)
+                .insert((MenuPageContent, VideoOptionHoverBoxRoot));
             let dropdown_hover_style = hover_box_style.with_z(VIDEO_DROPDOWN_HOVER_BOX_Z);
             let dropdown_hover_root = hover_box::spawn_hover_box_root(
                 parent,
@@ -115,8 +118,11 @@ pub(super) fn spawn_page_content(
                 hover_box_clamp_size,
                 dropdown_hover_style,
                 VIDEO_HOVER_BOX_DELAY_SECONDS,
-                (MenuPageContent, VideoDropdownHoverBoxRoot),
             );
+            parent
+                .commands()
+                .entity(dropdown_hover_root)
+                .insert((MenuPageContent, VideoDropdownHoverBoxRoot));
             video_option_hover_box_root = Some(option_hover_root);
 
             let top_scroll_root = parent

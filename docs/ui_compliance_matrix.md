@@ -20,7 +20,7 @@ Legend:
 | `selector.rs` | Compliant | `SelectorSurface` `on_insert` wiring for `Selectable`/`OptionCycler`. | None. |
 | `tabs.rs` | Compliant | `TabBar` primitive with required state and sync systems. | Keep selection/activation semantics here. |
 | `dropdown.rs` | Compliant | Reusable dropdown root/state with owner-scoped behavior. | Keep all generic open/close logic here. |
-| `hover_box.rs` | Partial | Primitive root is compliant; helper `spawn_hover_box_root(..., extra_components: impl Bundle)` still accepts bundle injection. | Replace helper bundle arg with explicit component attachment path. |
+| `hover_box.rs` | Compliant | Primitive root + explicit post-spawn marker attachment at callsites. | None. |
 | `discrete_slider.rs` | Compliant | Primitive root + insert hook builds internal slot hierarchy. | None. |
 | `scroll/mod.rs` + `scroll/*` | Partial | Reusable RTT scroll primitive and scrollbar with strong tests. | Complete remaining live-flow validation and nested-context polish. |
 
@@ -37,7 +37,7 @@ Legend:
 | `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns. | Push reusable pieces into scroll primitive layer. |
 | `root_spawn.rs` | Partial | Root spawn now explicit (no generic bundle arg), but composition callers still attach markers manually after spawn. | Continue reducing ad-hoc caller wiring via root hook contracts where practical. |
 | `page_content.rs` | Partial | Composes primitives; still monolithic and feature-dense. | Split by reusable composition units (tabs/footer/top-options/modal triggers). |
-| `modal_flow.rs` | Partial | Uses shared primitives, but local helper still takes `marker: impl Bundle`. | Replace helper with explicit component insertion flow. |
+| `modal_flow.rs` | Partial | Uses shared primitives with explicit marker insertion (no bundle helper arg). | Continue splitting modal-specific layout constants from generic flow. |
 | `dropdown_flow.rs` | Partial | Owner-scoped behavior mostly clean; still tied to video-option specifics in places. | Keep generic dropdown behavior in primitive module only. |
 | `dropdown_view.rs` | Partial | Mostly visual sync; includes some option-page assumptions. | Keep view sync generic or isolate feature-specific mapping. |
 | `tabbed_focus.rs` | Partial | Focus arbitration logic exists and is tested. | Keep arbitration rules centralized and generic across tabbed menus. |
@@ -51,21 +51,16 @@ Legend:
 
 ## Remaining Bundle-Style API Targets
 
-Current known bundle-style signatures in UI stack:
-
-1. `src/systems/ui/hover_box.rs`
-   - `spawn_hover_box_root(..., extra_components: impl Bundle)`
-2. `src/systems/ui/menu/modal_flow.rs`
-   - `spawn_video_modal_base(..., marker: impl Bundle)`
-
 Status:
 - Legacy `SystemMenuOptionBundle` has been removed.
 - `spawn_menu_root(..., extra_components: Bundle)` has been removed.
+- `spawn_hover_box_root(..., extra_components: impl Bundle)` has been removed.
+- `spawn_video_modal_base(..., marker: impl Bundle)` has been removed.
+- No remaining reusable UI helper in `systems/ui` or `systems/ui/menu` currently requires a bundle-style extension parameter.
 
 ## Prioritized Migration Backlog
 
-1. Replace remaining `impl Bundle` helper parameters in reusable UI paths (`hover_box`, modal helper).
-2. Continue moving behavior arbitration to primitive truth components (`Hoverable`, `Clickable`, `SelectableMenu`, `Selectable`, `OptionCycler`) and keep `InteractionVisualState` visual-only.
-3. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
-4. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
-5. Keep extending mixed keyboard+mouse regression coverage as new menu features land.
+1. Continue moving behavior arbitration to primitive truth components (`Hoverable`, `Clickable`, `SelectableMenu`, `Selectable`, `OptionCycler`) and keep `InteractionVisualState` visual-only.
+2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
+3. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
+4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.

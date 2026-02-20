@@ -265,7 +265,6 @@ pub fn spawn_hover_box_root(
     clamp_size: Vec2,
     style: HoverBoxStyle,
     delay_seconds: f32,
-    extra_components: impl Bundle,
 ) -> Entity {
     let name: String = name.into();
     parent
@@ -274,7 +273,6 @@ pub fn spawn_hover_box_root(
             HoverBoxDelay(delay_seconds),
             style,
             HoverBoxRoot::new(owner, input_layer, clamp_size),
-            extra_components,
         ))
         .id()
 }

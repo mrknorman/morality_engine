@@ -37,14 +37,14 @@ Legend:
   - Compile baseline is known (`cargo check` passes), but clean pre-change checkpoint discipline has not been consistently maintained.
 - Stage 1 Audit and Classification: `status: done`
   - Compliance matrix and migration backlog now captured in `docs/ui_compliance_matrix.md`.
-- Stage 2 Architecture Boundaries and Contracts: `status: partial`
-  - Contract docs exist (`docs/ui_architecture_contract.md`, `docs/ui_ecs_reference.md`); remaining work is tighter audit coverage and enforcement.
+- Stage 2 Architecture Boundaries and Contracts: `status: done`
+  - Contract docs are aligned with current boundaries and now cross-referenced by the compliance matrix (`docs/ui_compliance_matrix.md`).
 - Stage 3 Owner-Scoped Interaction Context + Layer Manager: `status: partial`
   - Owner-scoped layer arbitration is broadly used; some behavior still feels nondeterministic under mixed input.
 - Stage 4 Primitive Contract Normalization: `status: partial`
   - Primitive roots exist for menu surface, dropdown, tabs, selector, scroll, hover box, slider.
   - `SystemMenuOptionRoot` now owns option wiring via `#[require]` + `on_insert`.
-  - Remaining gap: fully removing bundle-first composition from reusable paths.
+  - Remaining gap: continue reducing monolithic composition wiring in menu-specific modules.
 - Stage 5 Menu Composition Migration: `status: partial`
   - Reducer/effects + composition split exists.
   - `page_content`, `modal_flow`, and main menu option rows now spawn via primitive `system_menu::spawn_option`.
@@ -136,16 +136,16 @@ Deliverable:
 - [x] Compliance matrix and migration backlog.
 
 ## Stage 2: Architecture Boundaries and Contracts
-- [ ] Reconfirm strict module boundaries:
+- [x] Reconfirm strict module boundaries:
   - `systems/ui/*` = reusable primitives only
   - `systems/ui/menu/*` = composition/policy only
   - scenes/startup = consumers
-- [ ] Reconfirm dependency direction and enforce it in code organization.
-- [ ] Reconfirm owner/root identity conventions for all layered UI elements.
-- [ ] Reconfirm query-safety standards (`ParamSet`/`Without`) as mandatory contract.
+- [x] Reconfirm dependency direction and enforce it in code organization.
+- [x] Reconfirm owner/root identity conventions for all layered UI elements.
+- [x] Reconfirm query-safety standards (`ParamSet`/`Without`) as mandatory contract.
 
 Deliverable:
-- [ ] Updated architecture contract doc aligned with actual module boundaries.
+- [x] Updated architecture contract doc aligned with actual module boundaries.
 
 ## Stage 3: Owner-Scoped Interaction Context + Layer Manager
 - [ ] Ensure all interaction gates resolve by owner, never globally.

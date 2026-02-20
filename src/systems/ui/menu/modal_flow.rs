@@ -18,7 +18,6 @@ fn spawn_video_modal_base(
     name: &str,
     asset_server: &Res<AssetServer>,
     gate: InteractionGate,
-    marker: impl Bundle,
 ) -> Entity {
     let mut modal_entity = None;
     commands.entity(menu_entity).with_children(|parent| {
@@ -38,7 +37,6 @@ fn spawn_video_modal_base(
                         vec![KeyCode::Enter],
                         true,
                     ),
-                    marker,
                     Transform::from_xyz(0.0, 0.0, VIDEO_MODAL_PANEL_Z),
                 ))
                 .with_children(|modal| {
@@ -116,8 +114,8 @@ pub(super) fn spawn_apply_confirm_modal(
         "video_apply_confirm_modal",
         asset_server,
         gate,
-        VideoApplyConfirmModal,
     );
+    commands.entity(modal_entity).insert(VideoApplyConfirmModal);
 
     commands.entity(modal_entity).with_children(|modal| {
         modal.spawn((
@@ -182,8 +180,8 @@ pub(super) fn spawn_exit_unsaved_modal(
         "video_unsaved_exit_modal",
         asset_server,
         gate,
-        VideoExitUnsavedModal,
     );
+    commands.entity(modal_entity).insert(VideoExitUnsavedModal);
 
     commands.entity(modal_entity).with_children(|modal| {
         modal.spawn((
