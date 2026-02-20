@@ -90,6 +90,39 @@ fn scrollbar_insert_hook_seeds_parts_and_parents_to_scroll_root() {
     );
 }
 
+#[test]
+fn ensure_scrollbar_parts_rebuilds_when_part_entities_are_stale() {
+    let mut app = make_scroll_test_app();
+    let owner = app.world_mut().spawn_empty().id();
+    let root = app
+        .world_mut()
+        .spawn((
+            ScrollableRoot::new(owner, ScrollAxis::Vertical),
+            InteractionGate::PauseMenuOnly,
+        ))
+        .id();
+    let scrollbar = app.world_mut().spawn(ScrollBar::new(root)).id();
+    let original_parts = app
+        .world()
+        .entity(scrollbar)
+        .get::<ScrollBarParts>()
+        .copied()
+        .expect("initial parts");
+
+    app.world_mut().entity_mut(original_parts.track).despawn();
+    app.update();
+
+    let repaired_parts = app
+        .world()
+        .entity(scrollbar)
+        .get::<ScrollBarParts>()
+        .copied()
+        .expect("repaired parts");
+    assert_ne!(repaired_parts.track, original_parts.track);
+    assert!(app.world().entity(repaired_parts.track).contains::<ScrollBarTrack>());
+    assert!(app.world().entity(repaired_parts.thumb).contains::<ScrollBarThumb>());
+}
+
 fn spawn_owner_and_scroll_root(
     app: &mut App,
     content_extent: f32,
