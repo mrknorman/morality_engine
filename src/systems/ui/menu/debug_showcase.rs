@@ -358,7 +358,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                         TextColor(SYSTEM_MENU_COLOR),
                         Anchor::CENTER,
                         TabItem { index },
-                        Selectable::new(tab_root, index),
+                        SelectorSurface::new(tab_root, index),
                         Clickable::with_region(
                             vec![SystemMenuActions::Activate],
                             TAB_REGION,
@@ -443,7 +443,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                             },
                             TextColor(SYSTEM_MENU_COLOR),
                             Anchor::CENTER_LEFT,
-                            Selectable::new(owner_entity, 0),
+                            SelectorSurface::new(owner_entity, 0),
                             Clickable::with_region(
                                 vec![SystemMenuActions::Activate],
                                 DROPDOWN_TRIGGER_REGION,
@@ -503,7 +503,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                             },
                             TextColor(SYSTEM_MENU_COLOR),
                             Anchor::CENTER_LEFT,
-                            Selectable::new(panel_entity, index),
+                            SelectorSurface::new(panel_entity, index),
                             Clickable::with_region(
                                 vec![SystemMenuActions::Activate],
                                 DROPDOWN_ITEM_REGION,
