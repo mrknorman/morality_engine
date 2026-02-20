@@ -59,6 +59,7 @@ Deliverable:
 Progress notes:
 - `TabBar` now enforces required primitive contracts on insertion (`SelectableMenu`, `TabBarState`, activation policy/state sync) in `src/systems/ui/tabs.rs`.
 - `DiscreteSlider` now enforces baseline transform/visibility contracts in `src/systems/ui/discrete_slider.rs`.
+- `DiscreteSlider` lifecycle is now primitive-owned via `DiscreteSliderPlugin` (`EnsureSlots`/`SyncSlots` system sets), and menu code now composes by ordering against those sets instead of scheduling slider internals directly (`src/systems/ui/discrete_slider.rs`, `src/systems/ui/menu/mod.rs`, `src/startup/mod.rs`).
 - `HoverBoxRoot` now self-initializes primitive defaults via insert hook (owner-scoped `UiLayer`, hidden root visuals, and required child label/border structure) in `src/systems/ui/hover_box.rs`.
 - `ScrollBar` now enforces required root contracts (`Transform`, `Visibility`, drag state) in `src/systems/ui/scroll/mod.rs`.
 - `SelectorSurface` now provides a root primitive contract for selector/cycler rows (`Selectable` + optional `OptionCycler` via insert hook) in `src/systems/ui/selector.rs`.
