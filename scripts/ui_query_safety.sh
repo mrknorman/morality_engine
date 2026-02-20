@@ -10,6 +10,7 @@ tests=(
   "systems::ui::menu::menu_input::tests::menu_input_systems_initialize_without_query_alias_panics"
   "systems::ui::menu::main_menu::tests::main_menu_systems_initialize_without_query_alias_panics"
   "systems::ui::menu::modal_flow::tests::modal_flow_systems_initialize_without_query_alias_panics"
+  "systems::ui::menu::scroll_adapter::tests::scroll_adapter_systems_initialize_without_query_alias_panics"
   "systems::ui::menu::tabbed_menu::tests::tabbed_menu_systems_initialize_without_query_alias_panics"
   "systems::ui::menu::debug_showcase::tests::debug_showcase_systems_initialize_without_query_alias_panics"
   "systems::ui::menu::video_visuals::tests::video_visual_systems_initialize_without_query_alias_panics"

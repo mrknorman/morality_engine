@@ -99,6 +99,7 @@ Legend:
     - `dropdown_flow::dropdown_flow_systems_initialize_without_query_alias_panics`
     - `main_menu::main_menu_systems_initialize_without_query_alias_panics`
     - `modal_flow::modal_flow_systems_initialize_without_query_alias_panics`
+    - `scroll_adapter::scroll_adapter_systems_initialize_without_query_alias_panics`
     - `debug_showcase::debug_showcase_systems_initialize_without_query_alias_panics`
     - `tabbed_menu::tabbed_menu_systems_initialize_without_query_alias_panics`
     - `video_visuals::video_visual_systems_initialize_without_query_alias_panics`

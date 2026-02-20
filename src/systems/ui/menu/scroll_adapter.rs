@@ -184,6 +184,7 @@ fn focus_scroll_offset_to_row(
 
 #[cfg(test)]
 mod tests {
+    use bevy::ecs::system::IntoSystem;
     use bevy::prelude::*;
 
     use super::{focus_scroll_offset_to_row, row_visible_in_viewport};
@@ -339,5 +340,17 @@ mod tests {
 
         let state = app.world().get::<ScrollState>(scroll_root).expect("scroll state");
         assert!((state.offset_px - 60.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn scroll_adapter_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut focus_follow_system = IntoSystem::into_system(sync_video_top_scroll_focus_follow);
+        focus_follow_system.initialize(&mut world);
+
+        let mut hit_region_system =
+            IntoSystem::into_system(sync_video_top_option_hit_regions_to_viewport);
+        hit_region_system.initialize(&mut world);
     }
 }
