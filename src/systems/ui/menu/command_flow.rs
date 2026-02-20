@@ -463,3 +463,24 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::IntoSystem;
+
+    #[test]
+    fn command_flow_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut menu_option_system = IntoSystem::into_system(handle_menu_option_commands);
+        menu_option_system.initialize(&mut world);
+
+        let mut option_cycler_system = IntoSystem::into_system(handle_option_cycler_commands);
+        option_cycler_system.initialize(&mut world);
+
+        let mut slider_slot_system =
+            IntoSystem::into_system(handle_video_discrete_slider_slot_commands);
+        slider_slot_system.initialize(&mut world);
+    }
+}

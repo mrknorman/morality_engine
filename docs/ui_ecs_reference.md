@@ -522,6 +522,9 @@ Conflict safety:
 - If a system reads layer visibility (`Option<&Visibility>`) and also mutates dropdown visibility (`&mut Visibility`), place those queries in one `ParamSet` and access them sequentially.
 - Prefer this over relying on implicit disjointness.
 - Where systems aggregate by menu (`HashMap<Entity, ...>`), process owners in stable entity order to avoid query-iteration-order behavior drift.
+- Add a query-safety smoke test for high-risk systems by initializing them via `IntoSystem::into_system(...).initialize(&mut world)`;
+  this catches B0001-style alias conflicts before runtime. Current examples live in:
+  `command_flow.rs`, `menu_input.rs`, `dropdown_flow.rs`, `modal_flow.rs`, `video_visuals.rs`.
 
 ## Window Integration
 

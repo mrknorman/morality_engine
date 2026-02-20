@@ -483,3 +483,23 @@ pub(super) fn update_apply_confirmation_countdown(
     settings.apply_timer = None;
     close_video_modals(&mut commands, &modal_query);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::IntoSystem;
+
+    #[test]
+    fn modal_flow_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut shortcuts_system = IntoSystem::into_system(handle_video_modal_shortcuts);
+        shortcuts_system.initialize(&mut world);
+
+        let mut button_commands_system = IntoSystem::into_system(handle_video_modal_button_commands);
+        button_commands_system.initialize(&mut world);
+
+        let mut countdown_system = IntoSystem::into_system(update_apply_confirmation_countdown);
+        countdown_system.initialize(&mut world);
+    }
+}

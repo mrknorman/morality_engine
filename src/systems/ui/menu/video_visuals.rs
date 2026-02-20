@@ -862,9 +862,11 @@ pub(super) fn sync_video_top_option_hover_descriptions(
 
 #[cfg(test)]
 mod tests {
-    use bevy::sprite::Anchor;
     use super::*;
-    use bevy::ecs::system::SystemState;
+    use bevy::{
+        ecs::system::{IntoSystem, SystemState},
+        sprite::Anchor,
+    };
 
     use crate::entities::text::{Cell, Column, Row, Table, TextContent};
     use crate::systems::ui::{
@@ -1232,5 +1234,47 @@ mod tests {
             .expect("name text color")
             .0;
         assert_eq!(name_color, Color::srgb(0.0, 0.08, 0.0));
+    }
+
+    #[test]
+    fn video_visual_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut top_table_system = IntoSystem::into_system(sync_video_top_table_values);
+        top_table_system.initialize(&mut world);
+
+        let mut footer_table_system = IntoSystem::into_system(sync_video_footer_table_values);
+        footer_table_system.initialize(&mut world);
+
+        let mut footer_indicators_system =
+            IntoSystem::into_system(sync_video_footer_selection_indicators);
+        footer_indicators_system.initialize(&mut world);
+
+        let mut top_bars_system = IntoSystem::into_system(sync_video_top_selection_bars);
+        top_bars_system.initialize(&mut world);
+
+        let mut slider_widgets_system = IntoSystem::into_system(sync_video_discrete_slider_widgets);
+        slider_widgets_system.initialize(&mut world);
+
+        let mut cycler_bounds_system = IntoSystem::into_system(sync_video_option_cycler_bounds);
+        cycler_bounds_system.initialize(&mut world);
+
+        let mut slider_clickables_system =
+            IntoSystem::into_system(ensure_video_discrete_slider_slot_clickables);
+        slider_clickables_system.initialize(&mut world);
+
+        let mut cycle_arrows_system = IntoSystem::into_system(sync_video_cycle_arrow_positions);
+        cycle_arrows_system.initialize(&mut world);
+
+        let mut tabs_visuals_system = IntoSystem::into_system(sync_video_tabs_visuals);
+        tabs_visuals_system.initialize(&mut world);
+
+        let mut suppress_left_arrow_system =
+            IntoSystem::into_system(suppress_left_cycle_arrow_for_dropdown_options);
+        suppress_left_arrow_system.initialize(&mut world);
+
+        let mut hover_descriptions_system =
+            IntoSystem::into_system(sync_video_top_option_hover_descriptions);
+        hover_descriptions_system.initialize(&mut world);
     }
 }

@@ -420,7 +420,10 @@ pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus() {}
 
 #[cfg(test)]
 mod tests {
-    use bevy::{ecs::system::SystemState, prelude::*};
+    use bevy::{
+        ecs::system::{IntoSystem, SystemState},
+        prelude::*,
+    };
 
     use super::*;
     use crate::systems::ui::menu::tabbed_menu::TabbedMenuFocus;
@@ -570,5 +573,22 @@ mod tests {
 
         let intents = collect_intents(&mut world);
         assert!(intents.is_empty());
+    }
+
+    #[test]
+    fn menu_input_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut apply_intents_system = IntoSystem::into_system(apply_menu_intents);
+        apply_intents_system.initialize(&mut world);
+
+        let mut nav_sound_system = IntoSystem::into_system(play_menu_navigation_sound);
+        nav_sound_system.initialize(&mut world);
+
+        let mut focus_system = IntoSystem::into_system(enforce_active_layer_focus);
+        focus_system.initialize(&mut world);
+
+        let mut shortcuts_system = IntoSystem::into_system(handle_menu_shortcuts);
+        shortcuts_system.initialize(&mut world);
     }
 }

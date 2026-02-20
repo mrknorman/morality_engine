@@ -89,6 +89,12 @@ Legend:
 - Stage 17 Query-Safety Hardening: `status: partial`
   - Many `ParamSet`/`Without` contracts are present.
   - Added explicit query-disjointness contract comments in dropdown view sync systems (`sync_resolution_dropdown_items`, `update_resolution_dropdown_value_arrows`, `recenter_resolution_dropdown_item_text`).
+  - Added query-safety smoke tests that initialize high-risk systems without running gameplay state:
+    - `command_flow::command_flow_systems_initialize_without_query_alias_panics`
+    - `menu_input::menu_input_systems_initialize_without_query_alias_panics`
+    - `dropdown_flow::dropdown_flow_systems_initialize_without_query_alias_panics`
+    - `modal_flow::modal_flow_systems_initialize_without_query_alias_panics`
+    - `video_visuals::video_visual_systems_initialize_without_query_alias_panics`
   - Still requires full pass and stress validation.
 - Stage 18 Test Coverage Expansion: `status: partial`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
@@ -96,6 +102,7 @@ Legend:
   - Added top-table owner-resolution regression for scroll-parented video tables.
   - Added dropdown-flow regressions for scroll-aware dropdown opening and outside-click item protection.
   - Added menu-input regression tests for directional shortcut behavior (right activate, left back-only, tabs-focus block).
+  - Added query-safety smoke tests for command/input/dropdown/modal/video visual systems.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
@@ -129,8 +136,8 @@ Legend:
    - Target: move behavior arbitration to primitive truth (`Hoverable`, `Clickable`, `SelectableMenu`) and keep visual state as output only.
 2. Some composition callsites still rely on ad-hoc post-spawn wiring instead of deeper primitive root hooks.
    - Target: continue migrating behavior-critical contracts to required-component + `on_insert` ownership where practical.
-3. Main menu still contains scene-local option list composition.
-   - Target: complete migration to shared composition path to avoid divergent menu behavior.
+3. Main-menu scene-local composition drift is resolved.
+   - Main menu option composition + overlay follow/audio routing is now owned by shared `ui::menu` modules.
 
 ## Next Execution Sequence
 

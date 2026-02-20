@@ -610,7 +610,10 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
 
 #[cfg(test)]
 mod tests {
-    use bevy::{ecs::system::SystemState, prelude::*};
+    use bevy::{
+        ecs::system::{IntoSystem, SystemState},
+        prelude::*,
+    };
 
     use super::*;
     use crate::{
@@ -819,5 +822,24 @@ mod tests {
                 .open_parent_for_owner(menu_entity),
             Some(menu_entity)
         );
+    }
+
+    #[test]
+    fn dropdown_flow_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut sync_tabs_system = IntoSystem::into_system(sync_video_tab_content_state);
+        sync_tabs_system.initialize(&mut world);
+
+        let mut item_command_system = IntoSystem::into_system(handle_resolution_dropdown_item_commands);
+        item_command_system.initialize(&mut world);
+
+        let mut outside_click_system =
+            IntoSystem::into_system(close_resolution_dropdown_on_outside_click);
+        outside_click_system.initialize(&mut world);
+
+        let mut keyboard_nav_system =
+            IntoSystem::into_system(handle_resolution_dropdown_keyboard_navigation);
+        keyboard_nav_system.initialize(&mut world);
     }
 }
