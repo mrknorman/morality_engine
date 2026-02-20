@@ -2,10 +2,16 @@ use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::{
     systems::{
-        interaction::{InteractionCapture, InteractionCaptureOwner, InteractionGate, SelectableMenu},
+        interaction::{
+            clickable_system, hoverable_system, option_cycler_input_system, reset_hoverable_state,
+            selectable_system, Clickable, Hoverable, InteractionAggregate, InteractionCapture,
+            InteractionCaptureOwner, InteractionGate, OptionCycler, Selectable,
+            SelectableClickActivation, SelectableMenu, SystemMenuActions,
+        },
         ui::{
             dropdown::{self, DropdownLayerState},
             layer::{self, UiLayer, UiLayerKind},
+            tabs::{TabBar, TabBarState, TabItem},
         },
     },
 };
@@ -13,11 +19,12 @@ use crate::{
 use super::{
     command_reducer::reduce_menu_command,
     defs::{
-        MenuCommand, MenuPage, VideoDisplayMode, VideoSettingsState, VideoTabKind,
+        MenuCommand, MenuHost, MenuPage, MenuRoot, VideoDisplayMode, VideoSettingsState, VideoTabKind,
         VIDEO_RESOLUTION_OPTION_INDEX,
     },
     stack::MenuNavigationState,
     tabbed_focus::{resolve_tabbed_focus, TabbedFocusInputs, TabbedMenuFocus},
+    tabbed_menu::{self, TabbedMenuConfig},
     MenuStack,
 };
 
@@ -316,4 +323,220 @@ fn owner_layer_priority_prefers_modal_then_dropdown_then_base() {
     let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
     assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Base);
     assert!(layer::is_active_layer_entity_for_owner(&active, owner, base));
+}
+
+#[test]
+fn option_cycler_input_only_triggers_for_selected_row_and_allowed_direction() {
+    let mut app = App::new();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.add_systems(Update, option_cycler_input_system);
+
+    let menu = app.world_mut().spawn(selectable_menu_for_tests()).id();
+    app.world_mut()
+        .entity_mut(menu)
+        .insert(SelectableMenu::new(
+            1,
+            vec![KeyCode::ArrowUp],
+            vec![KeyCode::ArrowDown],
+            vec![KeyCode::Enter],
+            true,
+        ));
+
+    let first = app.world_mut().spawn((
+        Selectable::new(menu, 0),
+        OptionCycler {
+            at_min: true,
+            ..default()
+        },
+    )).id();
+    let second = app.world_mut().spawn((
+        Selectable::new(menu, 1),
+        OptionCycler {
+            at_max: true,
+            ..default()
+        },
+    )).id();
+
+    {
+        let mut keyboard = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keyboard.press(KeyCode::ArrowLeft);
+        keyboard.press(KeyCode::ArrowRight);
+    }
+    app.update();
+
+    let first_cycler = app
+        .world()
+        .get::<OptionCycler>(first)
+        .copied()
+        .expect("first cycler");
+    let second_cycler = app
+        .world()
+        .get::<OptionCycler>(second)
+        .copied()
+        .expect("second cycler");
+
+    // Row 0 is not selected, so it should not trigger even though left is pressed.
+    assert!(!first_cycler.left_triggered);
+    assert!(!first_cycler.right_triggered);
+    // Row 1 is selected, so left triggers (not at_min), right is blocked by at_max.
+    assert!(second_cycler.left_triggered);
+    assert!(!second_cycler.right_triggered);
+}
+
+#[test]
+fn tabbed_focus_down_from_tabs_activates_selected_tab_and_returns_to_options() {
+    let mut app = App::new();
+    app.add_message::<crate::systems::ui::tabs::TabChanged>();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.init_resource::<crate::startup::cursor::CustomCursor>();
+    app.init_resource::<tabbed_menu::TabbedMenuFocusState>();
+    app.add_systems(Update, tabbed_menu::sync_tabbed_menu_focus);
+
+    let menu_entity = app
+        .world_mut()
+        .spawn((
+            MenuRoot {
+                host: MenuHost::Main,
+                gate: InteractionGate::PauseMenuOnly,
+            },
+            SelectableMenu::new(
+                3,
+                vec![KeyCode::ArrowUp],
+                vec![KeyCode::ArrowDown],
+                vec![KeyCode::Enter],
+                true,
+            ),
+            Visibility::Visible,
+        ))
+        .id();
+    app.world_mut()
+        .entity_mut(menu_entity)
+        .insert(UiLayer::new(menu_entity, UiLayerKind::Base));
+
+    let tab_root = app
+        .world_mut()
+        .spawn((
+            TabBar::new(menu_entity),
+            TabBarState { active_index: 0 },
+            TabbedMenuConfig::new(4, 4, 3),
+            SelectableMenu::new(1, vec![], vec![], vec![], true),
+            UiLayer::new(menu_entity, UiLayerKind::Base),
+            Visibility::Visible,
+        ))
+        .id();
+    app.world_mut().spawn((
+        TabItem { index: 0 },
+        Selectable::new(tab_root, 0),
+        Hoverable::default(),
+        Clickable::new(vec![SystemMenuActions::Activate]),
+    ));
+    app.world_mut().spawn((
+        TabItem { index: 1 },
+        Selectable::new(tab_root, 1),
+        Hoverable::default(),
+        Clickable::new(vec![SystemMenuActions::Activate]),
+    ));
+
+    app.world_mut()
+        .resource_mut::<tabbed_menu::TabbedMenuFocusState>()
+        .by_menu
+        .insert(menu_entity, TabbedMenuFocus::Tabs);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ArrowDown);
+
+    app.update();
+
+    let menu = app
+        .world()
+        .get::<SelectableMenu>(menu_entity)
+        .expect("base menu");
+    assert_eq!(menu.selected_index, 0);
+
+    let tab_state = app.world().get::<TabBarState>(tab_root).expect("tab state");
+    assert_eq!(tab_state.active_index, 1);
+
+    let focus_state = app
+        .world()
+        .resource::<tabbed_menu::TabbedMenuFocusState>();
+    assert_eq!(
+        focus_state.by_menu.get(&menu_entity).copied(),
+        Some(TabbedMenuFocus::Options)
+    );
+}
+
+#[test]
+fn mouse_selection_then_keyboard_cycle_uses_same_selected_row() {
+    let mut app = App::new();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.init_resource::<crate::startup::cursor::CustomCursor>();
+    app.init_resource::<InteractionAggregate>();
+    app.add_systems(
+        Update,
+        (
+            reset_hoverable_state,
+            hoverable_system::<SystemMenuActions>,
+            clickable_system::<SystemMenuActions>,
+            selectable_system::<SystemMenuActions>,
+            option_cycler_input_system,
+        )
+            .chain(),
+    );
+
+    let menu = app
+        .world_mut()
+        .spawn(
+            SelectableMenu::new(
+                0,
+                vec![KeyCode::ArrowUp],
+                vec![KeyCode::ArrowDown],
+                vec![KeyCode::Enter],
+                true,
+            )
+            .with_click_activation(SelectableClickActivation::HoveredOnly),
+        )
+        .id();
+    app.world_mut().spawn((
+        Selectable::new(menu, 0),
+        OptionCycler::default(),
+        Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+        Hoverable::default(),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+    ));
+    let second = app.world_mut().spawn((
+        Selectable::new(menu, 1),
+        OptionCycler::default(),
+        Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+        Hoverable::default(),
+        Transform::from_xyz(0.0, 40.0, 1.0),
+        GlobalTransform::from_translation(Vec3::new(0.0, 40.0, 1.0)),
+    )).id();
+
+    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
+        Some(Vec2::new(0.0, 40.0));
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+
+    let selected_menu = app.world().get::<SelectableMenu>(menu).expect("menu");
+    assert_eq!(selected_menu.selected_index, 1);
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ArrowRight);
+    app.update();
+
+    let cycler = app
+        .world()
+        .get::<OptionCycler>(second)
+        .copied()
+        .expect("second cycler");
+    assert!(cycler.right_triggered);
 }

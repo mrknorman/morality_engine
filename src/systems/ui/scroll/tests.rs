@@ -15,8 +15,8 @@ use crate::{
 
 use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
-    ScrollAxis, ScrollBar, ScrollBarDragState, ScrollPlugin, ScrollRenderSettings, ScrollState,
-    ScrollableContent, ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
+    ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollPlugin, ScrollRenderSettings,
+    ScrollState, ScrollableContent, ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -27,6 +27,8 @@ fn make_scroll_test_app() -> App {
     app.init_resource::<ButtonInput<MouseButton>>();
     app.init_resource::<CustomCursor>();
     app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<ColorMaterial>>();
     app.add_plugins(ScrollPlugin);
     app
 }
@@ -381,4 +383,48 @@ fn explicit_child_render_layer_is_not_overridden_by_scroll_layer_sync() {
         .get::<RenderLayers>(custom_layer_child)
         .expect("custom child render layers");
     assert_eq!(*layers, RenderLayers::layer(31));
+}
+
+#[test]
+fn scrollbar_wheel_and_drag_path_stays_clamped() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 520.0, 140.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    let scrollbar = app.world_mut().spawn(ScrollBar::new(root)).id();
+
+    // Spawn scrollbar parts and sync initial track/thumb geometry.
+    app.update();
+    let parts = *app
+        .world()
+        .get::<ScrollBarParts>(scrollbar)
+        .expect("scrollbar parts");
+
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+    write_wheel(&mut app, -1.0);
+    app.update();
+
+    let after_wheel = app.world().get::<ScrollState>(root).expect("scroll state").offset_px;
+    assert!(after_wheel > 0.0);
+
+    let track_center = app
+        .world()
+        .get::<GlobalTransform>(parts.track)
+        .expect("track transform")
+        .translation()
+        .truncate();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.world_mut()
+        .get_mut::<ScrollBarDragState>(scrollbar)
+        .expect("drag state")
+        .dragging = true;
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(track_center);
+    app.world_mut().resource_mut::<CustomCursor>().position =
+        Some(track_center + Vec2::new(0.0, -90.0));
+    app.update();
+    let state_after_drag = app.world().get::<ScrollState>(root).expect("scroll state");
+    assert!(state_after_drag.offset_px >= 0.0);
+    assert!(state_after_drag.offset_px <= state_after_drag.max_offset + 0.001);
 }
