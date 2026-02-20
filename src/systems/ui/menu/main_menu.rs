@@ -3,6 +3,17 @@ use crate::systems::{
     colors::ColorAnchor,
     interaction::InteractionVisualPalette,
 };
+use crate::{
+    data::states::PauseState,
+    startup::render::{MainCamera, OffscreenCamera},
+    systems::{
+        audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
+        interaction::{
+            InteractionCapture, InteractionCaptureOwner, InteractionGate,
+        },
+        time::Dilation,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct MainMenuEntry {
@@ -11,6 +22,9 @@ pub struct MainMenuEntry {
     pub y: f32,
     pub command: MenuCommand,
 }
+
+#[derive(Component)]
+pub struct MainMenuOptionList;
 
 pub fn resolve_main_menu_command_id(command_id: &str) -> Result<MenuCommand, String> {
     match command_id {
@@ -46,6 +60,7 @@ pub fn spawn_main_menu_option_list(
 
     commands.entity(menu_entity).insert((
         Name::new("main_menu_selectable_list"),
+        MainMenuOptionList,
         MenuRoot {
             host: MenuHost::Main,
             gate: InteractionGate::GameplayOnly,
@@ -79,4 +94,90 @@ pub fn spawn_main_menu_option_list(
     });
 
     menu_entity
+}
+
+fn menu_camera_center(
+    offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
+    main_camera_query: &Query<&GlobalTransform, With<MainCamera>>,
+) -> Option<Vec3> {
+    if let Ok(camera) = offscreen_camera_query.single() {
+        Some(camera.translation())
+    } else if let Ok(camera) = main_camera_query.single() {
+        Some(camera.translation())
+    } else {
+        None
+    }
+}
+
+pub(super) fn sync_main_menu_options_overlay_position(
+    offscreen_camera_query: Query<&GlobalTransform, With<OffscreenCamera>>,
+    main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
+    mut overlay_query: Query<&mut Transform, With<MainMenuOptionsOverlay>>,
+) {
+    let Some(camera_translation) =
+        menu_camera_center(&offscreen_camera_query, &main_camera_query)
+    else {
+        return;
+    };
+
+    for mut overlay_transform in &mut overlay_query {
+        overlay_transform.translation.x = camera_translation.x;
+        overlay_transform.translation.y = camera_translation.y;
+    }
+}
+
+pub(super) fn play_main_menu_navigation_sound(
+    mut commands: Commands,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    menu_query: Query<
+        (
+            Entity,
+            &SelectableMenu,
+            &TransientAudioPallet<SystemMenuSounds>,
+            Option<&InteractionGate>,
+        ),
+        With<MainMenuOptionList>,
+    >,
+    mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    dilation: Res<Dilation>,
+) {
+    system_menu::play_navigation_sound_owner_scoped(
+        &mut commands,
+        &keyboard_input,
+        pause_state.as_ref(),
+        &capture_query,
+        &menu_query,
+        &mut audio_query,
+        SystemMenuSounds::Switch,
+        dilation.0,
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_main_menu_command_id_maps_known_commands() {
+        assert_eq!(
+            resolve_main_menu_command_id("enter_game").expect("enter_game should resolve"),
+            MenuCommand::NextScene
+        );
+        assert_eq!(
+            resolve_main_menu_command_id("open_options").expect("open_options should resolve"),
+            MenuCommand::OpenMainMenuOptionsOverlay
+        );
+        assert_eq!(
+            resolve_main_menu_command_id("exit_desktop").expect("exit_desktop should resolve"),
+            MenuCommand::ExitApplication
+        );
+    }
+
+    #[test]
+    fn resolve_main_menu_command_id_rejects_unknown_commands() {
+        let error = resolve_main_menu_command_id("unknown").expect_err("unknown should fail");
+        assert!(error.contains("unknown main menu command"));
+    }
 }

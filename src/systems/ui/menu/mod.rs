@@ -859,6 +859,15 @@ impl Plugin for MenusPlugin {
         app.add_systems(
             Update,
             (
+                main_menu::sync_main_menu_options_overlay_position,
+                main_menu::play_main_menu_navigation_sound,
+            )
+                .chain()
+                .run_if(in_state(MainState::Menu)),
+        );
+        app.add_systems(
+            Update,
+            (
                 // Scroll integration point (Stage 1 contract):
                 // owner-scoped scroll input collection should run in Core after
                 // `InteractionSystem::Selectable` has produced deterministic hover/press

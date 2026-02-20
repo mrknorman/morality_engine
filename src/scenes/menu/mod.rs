@@ -3,33 +3,26 @@ use enum_map::Enum;
 use once_cell::sync::Lazy;
 
 use crate::{
-    data::states::{MainState, PauseState},
+    data::states::MainState,
     entities::{
         large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
         text::TextRaw,
         track::Track,
         train::{content::TrainTypes, Train, TrainPlugin},
     },
-    startup::{
-        render::{MainCamera, OffscreenCamera},
-        system_menu,
-    },
     style::ui::IOPlugin,
     systems::{
         audio::{
             continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet,
-            DilatableAudio, MusicAudio, TransientAudio, TransientAudioPallet,
+            MusicAudio,
         },
         backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
         colors::{CLICKED_BUTTON, DIM_BACKGROUND_COLOR, HOVERED_BUTTON, MENU_COLOR},
         interaction::{
-            InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionPlugin,
-            InteractionVisualPalette, SelectableMenu, SystemMenuSounds,
+            InteractionPlugin, InteractionVisualPalette,
         },
-        time::Dilation,
         ui::menu::{
             resolve_main_menu_command_id, schema, spawn_main_menu_option_list, MainMenuEntry,
-            MainMenuOptionsOverlay,
         },
     },
 };
@@ -63,15 +56,6 @@ pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MainState::Menu), MenuScene::setup);
-        app.add_systems(
-            Update,
-            (
-                update_main_menu_options_overlay_position,
-                play_menu_navigation_sound,
-            )
-                .chain()
-                .run_if(in_state(MainState::Menu)),
-        );
         if !app.is_plugin_added::<TrainPlugin>() {
             app.add_plugins(TrainPlugin);
         }
@@ -99,9 +83,6 @@ pub enum MenuSounds {
 #[derive(Component)]
 #[require(Transform, Visibility)]
 struct MenuScene;
-
-#[derive(Component)]
-struct MenuSelectableList;
 
 impl MenuScene {
     const TITLE_TRANSLATION: Vec3 = Vec3::new(0.0, 225.0, 1.0);
@@ -208,66 +189,6 @@ impl MenuScene {
                 HOVERED_BUTTON,
             ),
         );
-        commands.entity(menu_list_entity).insert(MenuSelectableList);
         commands.entity(scene_entity).add_child(menu_list_entity);
     }
-}
-
-fn get_menu_camera_center(
-    offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
-    main_camera_query: &Query<&GlobalTransform, With<MainCamera>>,
-) -> Option<Vec3> {
-    if let Ok(camera) = offscreen_camera_query.single() {
-        Some(camera.translation())
-    } else if let Ok(camera) = main_camera_query.single() {
-        Some(camera.translation())
-    } else {
-        None
-    }
-}
-
-fn update_main_menu_options_overlay_position(
-    offscreen_camera_query: Query<&GlobalTransform, With<OffscreenCamera>>,
-    main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
-    mut overlay_query: Query<&mut Transform, With<MainMenuOptionsOverlay>>,
-) {
-    let Some(camera_translation) =
-        get_menu_camera_center(&offscreen_camera_query, &main_camera_query)
-    else {
-        return;
-    };
-
-    for mut overlay_transform in &mut overlay_query {
-        overlay_transform.translation.x = camera_translation.x;
-        overlay_transform.translation.y = camera_translation.y;
-    }
-}
-
-fn play_menu_navigation_sound(
-    mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    menu_query: Query<
-        (
-            Entity,
-            &SelectableMenu,
-            &TransientAudioPallet<SystemMenuSounds>,
-            Option<&InteractionGate>,
-        ),
-        With<MenuSelectableList>,
-    >,
-    mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
-    dilation: Res<Dilation>,
-) {
-    system_menu::play_navigation_sound_owner_scoped(
-        &mut commands,
-        &keyboard_input,
-        pause_state.as_ref(),
-        &capture_query,
-        &menu_query,
-        &mut audio_query,
-        SystemMenuSounds::Switch,
-        dilation.0,
-    );
 }

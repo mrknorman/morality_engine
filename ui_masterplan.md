@@ -63,11 +63,12 @@ Legend:
   - Arbitration order exists conceptually.
   - Recent progress: tabbed focus and scroll focus-follow no longer depend on option `InteractionVisualState` as behavior truth.
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
-- Stage 10 Main Menu Composition Migration: `status: partial`
+- Stage 10 Main Menu Composition Migration: `status: done`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
   - Main menu option-list assembly moved to shared composition (`ui::menu::spawn_main_menu_option_list`).
+  - Main-menu overlay camera-follow and navigation-audio systems are now owned by `ui::menu::main_menu` instead of scene-local systems.
   - Legacy scene-local `MenuActions`/`ActionPallet` path and duplicate overlay-open handler were removed.
-  - Remaining gap: menu-scene-specific root orchestration and navigation-audio orchestration still live in `src/scenes/menu/mod.rs`.
+  - Scene module now only composes scene visuals/content and invokes shared menu composition.
 - Stage 11 JSON Menu/Settings Schema Interface: `status: partial`
   - JSON schema path exists and is used for main menu options, but not generalized across settings/menu pages.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`
@@ -237,7 +238,7 @@ Deliverable:
 - [x] Reuse shared navigation audio + selection behavior paths.
 
 Deliverable:
-- [ ] Main menu uses same composition system as other UI menus.
+- [x] Main menu uses same composition system as other UI menus.
 
 ## Stage 11: JSON Menu/Settings Schema Interface
 - [ ] Define JSON schema for menu structure (title, hint, options, shortcuts, layout bindings).
