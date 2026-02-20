@@ -15,9 +15,10 @@ use crate::{
         interaction::{
             interaction_gate_allows_for_owner, Clickable, InteractionCapture,
             InteractionCaptureOwner, InteractionGate, InteractionVisualPalette,
-            InteractionVisualState, OptionCycler, Selectable, SelectableMenu,
+            InteractionVisualState, Hoverable, OptionCycler, SelectableMenu,
             SystemMenuActions,
         },
+        ui::selector::SelectorSurface,
     },
 };
 
@@ -35,6 +36,10 @@ const SELECTION_INDICATOR_WIDTH: f32 = 16.0;
 const SELECTION_INDICATOR_HEIGHT: f32 = 20.0;
 const SELECTION_INDICATOR_X: f32 = 132.0;
 const SELECTION_INDICATOR_Z: f32 = 0.2;
+
+fn interactive_hovered(hoverable: &Hoverable, state: &InteractionVisualState) -> bool {
+    hoverable.hovered && !(state.keyboard_locked && !state.selected)
+}
 
 #[derive(Component)]
 pub struct SystemMenu;
@@ -157,7 +162,7 @@ pub struct SystemMenuOptionBundle {
     visual_palette: InteractionVisualPalette,
     visual_style: SystemMenuOptionVisualStyle,
     transform: Transform,
-    selectable: Selectable,
+    selector_surface: SelectorSurface,
 }
 
 impl SystemMenuOptionBundle {
@@ -196,7 +201,7 @@ impl SystemMenuOptionBundle {
             ),
             visual_style: SystemMenuOptionVisualStyle::default(),
             transform: Transform::from_xyz(x, y, 1.0),
-            selectable: Selectable::new(menu_entity, index),
+            selector_surface: SelectorSurface::new(menu_entity, index),
         }
     }
 
@@ -264,7 +269,10 @@ pub fn ensure_selection_indicators(
 }
 
 pub fn update_selection_indicators(
-    mut option_query: Query<(Entity, &InteractionVisualState, &mut TextFont), With<SystemMenuOption>>,
+    mut option_query: Query<
+        (Entity, &Hoverable, &InteractionVisualState, &mut TextFont),
+        With<SystemMenuOption>,
+    >,
     mut indicator_query: Query<
         (&ChildOf, &mut Visibility, &MeshMaterial2d<ColorMaterial>),
         With<SystemMenuSelectionIndicator>,
@@ -273,7 +281,7 @@ pub fn update_selection_indicators(
 ) {
     let mut highlighted_by_option: HashMap<Entity, bool> = HashMap::new();
 
-    for (entity, state, mut text_font) in option_query.iter_mut() {
+    for (entity, hoverable, state, mut text_font) in option_query.iter_mut() {
         let selected = state.selected;
         text_font.font_size = if selected {
             OPTION_SELECTED_FONT_SIZE
@@ -285,7 +293,10 @@ pub fn update_selection_indicators(
         } else {
             OPTION_FONT_WEIGHT
         };
-        highlighted_by_option.insert(entity, state.pressed || state.selected || state.hovered);
+        highlighted_by_option.insert(
+            entity,
+            state.pressed || state.selected || interactive_hovered(hoverable, state),
+        );
     }
 
     for (parent, mut visibility, material_handle) in indicator_query.iter_mut() {
@@ -334,7 +345,7 @@ pub fn ensure_selection_bars(
 
 pub fn update_selection_bars(
     option_query: Query<
-        (&InteractionVisualState, Option<&SystemMenuOptionVisualStyle>),
+        (&Hoverable, &InteractionVisualState, Option<&SystemMenuOptionVisualStyle>),
         With<SystemMenuOption>,
     >,
     mut bar_query: Query<
@@ -343,7 +354,7 @@ pub fn update_selection_bars(
     >,
 ) {
     for (parent, mut visibility, mut sprite, mut transform) in bar_query.iter_mut() {
-        let Ok((state, style)) = option_query.get(parent.parent()) else {
+        let Ok((hoverable, state, style)) = option_query.get(parent.parent()) else {
             continue;
         };
         let Some(style) = style.and_then(|style| style.selection_bar) else {
@@ -355,7 +366,7 @@ pub fn update_selection_bars(
         sprite.custom_size = Some(style.size);
         transform.translation = style.offset;
 
-        let highlighted = state.pressed || state.selected || state.hovered;
+        let highlighted = state.pressed || state.selected || interactive_hovered(hoverable, state);
         *visibility = if highlighted {
             Visibility::Visible
         } else {
@@ -675,7 +686,7 @@ pub fn ensure_cycle_arrows(
 }
 
 pub fn update_cycle_arrows(
-    option_query: Query<(&InteractionVisualState, &OptionCycler), With<SystemMenuOption>>,
+    option_query: Query<(&Hoverable, &InteractionVisualState, &OptionCycler), With<SystemMenuOption>>,
     mut arrow_query: Query<(
         &ChildOf,
         &SystemMenuCycleArrow,
@@ -685,11 +696,11 @@ pub fn update_cycle_arrows(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for (parent, arrow_side, mut visibility, material_handle) in arrow_query.iter_mut() {
-        let Ok((state, cycler)) = option_query.get(parent.parent()) else {
+        let Ok((hoverable, state, cycler)) = option_query.get(parent.parent()) else {
             continue;
         };
 
-        let highlighted = state.pressed || state.selected || state.hovered;
+        let highlighted = state.pressed || state.selected || interactive_hovered(hoverable, state);
 
         let arrow_allowed = match arrow_side {
             SystemMenuCycleArrow::Left => !cycler.at_min,
