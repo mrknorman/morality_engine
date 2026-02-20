@@ -9,6 +9,11 @@ struct ScanlineSettings {
     darkness: f32,
     curvature_strength: f32,
     static_strength: f32,
+    jitter_strength: f32,
+    aberration_strength: f32,
+    phosphor_strength: f32,
+    vignette_strength: f32,
+    glow_strength: f32,
     resolution: vec2<f32>,
     real_time: f32,
 };
@@ -30,7 +35,9 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 
     // ---------------------------
     // Jitter / flicker (horizontal wobble)
-    let jitter_amp: f32 = 1.0 / scanline.resolution.x * 0.07; 
+    // Keep the original visual scale and modulate by normalized setting value.
+    let jitter_norm: f32 = clamp(max(scanline.jitter_strength, 0.0) / 0.36, 0.0, 1.0);
+    let jitter_amp: f32 = jitter_norm * (0.07 / scanline.resolution.x);
     let jitter: f32 = sin(scanline.real_time * 60.0 + warpedUV.y * 20.0) * jitter_amp;
     warpedUV.x += jitter;
 
@@ -43,7 +50,8 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 
     // ---------------------------
     // Chromatic aberration (RGB split)
-    let aberration: f32 = 1.0 / scanline.resolution.x * 1.5;
+    let aberration_norm: f32 = clamp(max(scanline.aberration_strength, 0.0) / 0.7, 0.0, 1.0);
+    let aberration: f32 = aberration_norm * (1.5 / scanline.resolution.x);
     let r: f32 = textureSample(u_screenTex, u_screenSampler, warpedUV + vec2<f32>( aberration, 0.0)).r;
     let g: f32 = textureSample(u_screenTex, u_screenSampler, warpedUV).g;
     let b: f32 = textureSample(u_screenTex, u_screenSampler, warpedUV - vec2<f32>( aberration, 0.0)).b;
@@ -61,23 +69,25 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     // Phosphor mask (aperture grille effect)
     let pixelX: i32 = i32(warpedUV.x * scanline.resolution.x);
     let triad: i32 = pixelX % 3;
+    let phosphor_mix: f32 = clamp(scanline.phosphor_strength, 0.0, 1.0);
+    let phosphor_dim: f32 = 1.0 - 0.3 * phosphor_mix;
     if (triad == 0) {
-        color.g *= 0.7; color.b *= 0.7;
+        color.g *= phosphor_dim; color.b *= phosphor_dim;
     } else if (triad == 1) {
-        color.r *= 0.7; color.b *= 0.7;
+        color.r *= phosphor_dim; color.b *= phosphor_dim;
     } else {
-        color.r *= 0.7; color.g *= 0.7;
+        color.r *= phosphor_dim; color.g *= phosphor_dim;
     }
 
     // ---------------------------
     // Glow / Bloom boost
-    let glow_boost: f32 = 1.25;
+    let glow_boost: f32 = 1.0 + 0.25 * max(scanline.glow_strength, 0.0);
     let boosted_rgb: vec3<f32> = pow(color.rgb, vec3<f32>(1.0 / glow_boost));
     color = vec4<f32>(boosted_rgb, color.a);
 
     // ---------------------------
     // Vignette (edge darkness)
-    let vignette_strength: f32 = 0.8;
+    let vignette_strength: f32 = clamp(scanline.vignette_strength, 0.0, 1.0);
     let vignette_radius: f32 = 0.85;
     let dist: f32 = length(uv);
     let vignette: f32 = smoothstep(vignette_radius, 1.2, dist);
