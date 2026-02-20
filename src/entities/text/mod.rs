@@ -323,8 +323,8 @@ pub fn get_text_height(text: &String) -> f32 {
 
 #[derive(Component)]
 #[require(
-    Text2d = default_button_text(), 
-    TextFont = default_button_font(), 
+    Text2d = default_button_text(),
+    TextFont = default_button_font(),
     TextColor = default_font_color(),
     TextBounds = default_button_bounds(),
     ColorAnchor,

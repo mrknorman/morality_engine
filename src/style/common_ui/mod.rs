@@ -44,9 +44,9 @@ macro_rules! unique_element {
             /// Compute the element’s transform from the current window.
             fn transform(window: &Window) -> (Transform, BottomAnchor) {
                 let y = -window.height() / 2.0 + $distance;
-                let mut t = Transform::from_xyz(0.0, y, 1.0);
+                let t = Transform::from_xyz(0.0, y, 1.0);
                 $(
-                    t.rotation = Quat::from_rotation_z($rot);
+                    let t = t.with_rotation(Quat::from_rotation_z($rot));
                 )?
                 (t, BottomAnchor {distance : $distance})
             }

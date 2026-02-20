@@ -13,7 +13,7 @@ use crate::{
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
-            interaction_gate_allows_for_owner, Clickable, InteractionCapture,
+            interaction_gate_allows_for_owner, Clickable, Hoverable, InteractionCapture,
             InteractionCaptureOwner, InteractionGate, InteractionVisualState, Selectable,
             SelectableClickActivation, SelectableMenu, SystemMenuActions, SystemMenuSounds,
         },
@@ -82,6 +82,10 @@ impl TabbedMenuFocusState {
         self.previous_selection_by_menu
             .insert(menu_entity, selected_index);
     }
+
+    pub fn option_lock(&self, menu_entity: Entity) -> Option<usize> {
+        self.option_lock_by_menu.get(&menu_entity).copied()
+    }
 }
 
 pub fn cleanup_tabbed_menu_state(
@@ -135,6 +139,7 @@ pub fn cleanup_tabbed_menu_state(
 
 pub fn sync_tabbed_menu_focus(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
@@ -144,7 +149,7 @@ pub fn sync_tabbed_menu_focus(
             Entity,
             &TabItem,
             &Selectable,
-            &InteractionVisualState,
+            &Hoverable,
             &Clickable<SystemMenuActions>,
         ),
         Without<TabbedMenuOption>,
@@ -154,7 +159,7 @@ pub fn sync_tabbed_menu_focus(
             Entity,
             &Selectable,
             &TabbedMenuOption,
-            &InteractionVisualState,
+            &Hoverable,
             &Clickable<SystemMenuActions>,
         ),
         Without<TabItem>,
@@ -229,7 +234,7 @@ pub fn sync_tabbed_menu_focus(
     let mut clicked_tab_by_menu: HashMap<Entity, (usize, u64)> = HashMap::new();
     let mut hovered_option_by_menu: HashMap<Entity, (usize, u8, u64)> = HashMap::new();
     let mut clicked_option_by_menu: HashMap<Entity, (usize, u64)> = HashMap::new();
-    for (tab_entity, tab_item, selectable, visual_state, clickable) in tab_item_query.iter() {
+    for (tab_entity, tab_item, selectable, hoverable, clickable) in tab_item_query.iter() {
         let Some(owner) = owner_by_tab_root.get(&selectable.menu_entity).copied() else {
             continue;
         };
@@ -249,9 +254,10 @@ pub fn sync_tabbed_menu_focus(
             }
         }
 
-        let priority = if visual_state.pressed {
+        let pressed = clickable.triggered || (hoverable.hovered && mouse_input.pressed(MouseButton::Left));
+        let priority = if pressed {
             2
-        } else if mouse_moved && visual_state.hovered {
+        } else if mouse_moved && hoverable.hovered {
             1
         } else {
             0
@@ -275,7 +281,7 @@ pub fn sync_tabbed_menu_focus(
             }
         }
     }
-    for (option_entity, selectable, tabbed_option, visual_state, clickable) in option_query.iter() {
+    for (option_entity, selectable, tabbed_option, hoverable, clickable) in option_query.iter() {
         if clickable.triggered {
             let rank = option_entity.to_bits();
             match clicked_option_by_menu.get_mut(&tabbed_option.owner) {
@@ -290,9 +296,10 @@ pub fn sync_tabbed_menu_focus(
                 }
             }
         }
-        let priority = if visual_state.pressed {
+        let pressed = clickable.triggered || (hoverable.hovered && mouse_input.pressed(MouseButton::Left));
+        let priority = if pressed {
             2
-        } else if mouse_moved && visual_state.hovered {
+        } else if mouse_moved && hoverable.hovered {
             1
         } else {
             0

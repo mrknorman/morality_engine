@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use super::*;
-use crate::systems::{
-    interaction::InteractionVisualState,
-    ui::scroll::{ScrollFocusFollowLock, ScrollState},
-};
+use crate::systems::ui::scroll::{ScrollFocusFollowLock, ScrollState};
 const VISIBILITY_EPSILON: f32 = 0.001;
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -37,7 +34,6 @@ pub(super) fn sync_video_top_scroll_focus_follow(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     menu_query: Query<&SelectableMenu, With<MenuRoot>>,
-    option_query: Query<(&Selectable, &VideoOptionRow, &InteractionVisualState), With<MenuOptionCommand>>,
     mut root_query: Query<
         (
             &ScrollableTableAdapter,
@@ -53,17 +49,6 @@ pub(super) fn sync_video_top_scroll_focus_follow(
         || keyboard_input.just_pressed(KeyCode::PageDown)
         || keyboard_input.just_pressed(KeyCode::Home)
         || keyboard_input.just_pressed(KeyCode::End);
-    let mut keyboard_locked_selected_by_menu_row = HashMap::new();
-    for (selectable, row, visual_state) in option_query.iter() {
-        if row.index >= VIDEO_TOP_OPTION_COUNT || !visual_state.selected {
-            continue;
-        }
-        keyboard_locked_selected_by_menu_row.insert(
-            (selectable.menu_entity, row.index),
-            visual_state.keyboard_locked,
-        );
-    }
-
     for (adapter, mut state, mut focus_lock) in root_query.iter_mut() {
         if tabbed_focus.is_tabs_focused(adapter.menu_entity) {
             continue;
@@ -80,10 +65,8 @@ pub(super) fn sync_video_top_scroll_focus_follow(
         if focus_lock.manual_override {
             continue;
         }
-        let selected_is_keyboard_locked = keyboard_locked_selected_by_menu_row
-            .get(&(adapter.menu_entity, menu.selected_index))
-            .copied()
-            .unwrap_or(false);
+        let selected_is_keyboard_locked =
+            tabbed_focus.option_lock(adapter.menu_entity) == Some(menu.selected_index);
         if !keyboard_navigation && !selected_is_keyboard_locked {
             continue;
         }
