@@ -11,10 +11,12 @@ Covered systems and modules:
 - `src/systems/ui/layer.rs`
 - `src/systems/ui/selector.rs`
 - `src/systems/ui/tabs.rs`
+- `src/systems/ui/menu/debug_showcase.rs`
+- `src/systems/ui/menu/flow_tests.rs`
 - `src/entities/text/mod.rs`
 - `src/startup/system_menu.rs`
-- `src/startup/menus/mod.rs`
-- `src/startup/menus/stack.rs`
+- `src/systems/ui/menu/mod.rs`
+- `src/systems/ui/menu/stack.rs`
 - `src/entities/sprites/window.rs`
 
 ## Design Goals
@@ -47,6 +49,20 @@ When adding a reusable primitive:
 
 - Do not introduce new Bundle-first construction APIs for reusable UI primitives.
 - Existing Bundle helpers are compatibility shims and should be migrated over time, not expanded.
+
+### Do / Don't Quick Reference
+
+Do:
+
+- Insert a primitive root and let its insert hook wire internals.
+- Keep command/reducer systems focused on domain mapping (not primitive mechanics).
+- Reuse shared dropdown/tab/selector/scroll helpers before adding new behavior paths.
+
+Don't:
+
+- Spawn primitive-internal child contracts manually from composition modules.
+- Add per-menu one-off hover/click/select state machines when primitive state already exists.
+- Use `InteractionVisualState` as behavior truth.
 
 ## Core Interaction Primitives
 
@@ -233,7 +249,7 @@ Rule:
 
 - Prefer `SystemMenuOptionVisualStyle` + these systems over custom indicator rendering so interaction look/feel stays consistent.
 
-## Menu Stack Architecture (`startup/menus`)
+## Menu Stack Architecture (`systems/ui/menu`)
 
 ### Core Types
 
@@ -244,7 +260,7 @@ Rule:
 
 ### Page Composition Module
 
-Menu page content spawn/rebuild now lives in `src/startup/menus/page_content.rs`:
+Menu page content spawn/rebuild now lives in `src/systems/ui/menu/page_content.rs`:
 
 - `spawn_page_content(...)`
 - `rebuild_menu_page(...)`
@@ -257,6 +273,27 @@ Rule:
 ### Navigation State Resource (Menu-specific)
 
 `MenuNavigationState` (`stack.rs`) stores cross-system transient intent:
+
+## Debug Showcase Reference Composition
+
+The debug UI showcase is implemented as a primitive-backed reference in
+`src/systems/ui/menu/debug_showcase.rs`.
+
+- Root component: `DebugUiShowcaseRoot` (`#[require]` + `on_insert`) spawns all demo windows.
+- Demos are interactive and composed from the same primitives used by real menus:
+  `SelectableMenu`, `Selectable`, `Clickable`, `OptionCycler`, `TabBar`, and `ScrollableRoot`.
+- The reducer/effects layer toggles the showcase root, instead of constructing one-off table visuals.
+
+This module is the preferred example for composing multiple reusable primitives inside `Window` entities without re-implementing menu engines.
+
+## Flow Tests
+
+Cross-system behavior checks live in `src/systems/ui/menu/flow_tests.rs` and should be extended when changing:
+
+- layer arbitration
+- tab focus transitions
+- dropdown open/close semantics
+- menu stack/pop/push state transitions
 
 - `exit_prompt_target_menu`
 - `exit_prompt_closes_menu_system`

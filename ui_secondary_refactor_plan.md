@@ -115,8 +115,8 @@ Progress notes:
 
 ## Stage 8: Documentation and Adoption
 
-- [ ] Update docs/examples to use primitive-root construction patterns.
-- [ ] Add "do/dont" examples for primitive composition in `docs/ui_ecs_reference.md`.
+- [x] Update docs/examples to use primitive-root construction patterns.
+- [x] Add "do/dont" examples for primitive composition in `docs/ui_ecs_reference.md`.
 - [ ] Mark deprecated bundle-first helper surfaces as migration targets.
 
 Deliverable:
