@@ -265,6 +265,9 @@ pub struct MenuPageContent;
 #[derive(Component)]
 pub struct PauseMenuAudio;
 
+#[derive(Component)]
+pub struct MainMenuOptionsOverlay;
+
 #[derive(Component, Clone)]
 pub struct MenuOptionCommand(pub MenuCommand);
 
@@ -610,6 +613,8 @@ pub enum MenuCommand {
     None,
     Push(MenuPage),
     Pop,
+    OpenMainMenuOptionsOverlay,
+    NextScene,
     ToggleDebugUiShowcase,
     ToggleVideoTopOption(usize),
     ApplyVideoSettings,

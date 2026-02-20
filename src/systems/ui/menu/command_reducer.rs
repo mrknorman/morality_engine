@@ -27,6 +27,8 @@ pub(super) struct MenuReducerResult {
     pub(super) open_dropdown: Option<(usize, usize)>,
     pub(super) dirty_menu: bool,
     pub(super) close_menu: bool,
+    pub(super) open_main_menu_options_overlay: bool,
+    pub(super) advance_to_next_scene: bool,
     pub(super) spawn_exit_unsaved_modal: bool,
     pub(super) toggle_debug_ui_showcase: bool,
     pub(super) apply_video_settings: bool,
@@ -153,6 +155,14 @@ pub(super) fn reduce_menu_command(
         ),
         MenuCommand::SetPause(state) => MenuReducerResult {
             state_transition: Some(MenuStateTransition::Pause(state)),
+            ..MenuReducerResult::default()
+        },
+        MenuCommand::OpenMainMenuOptionsOverlay => MenuReducerResult {
+            open_main_menu_options_overlay: true,
+            ..MenuReducerResult::default()
+        },
+        MenuCommand::NextScene => MenuReducerResult {
+            advance_to_next_scene: true,
             ..MenuReducerResult::default()
         },
         command @ MenuCommand::ToggleVideoTopOption(_) => reduce_toggle_video_top_option_command(
@@ -321,5 +331,55 @@ mod tests {
             Some(VIDEO_RESOLUTION_OPTION_INDEX)
         );
         assert!(!result.close_menu);
+    }
+
+    #[test]
+    fn open_main_menu_options_overlay_sets_overlay_flag() {
+        let menu_entity = test_menu_entity();
+        let mut menu_stack = MenuStack::new(MenuPage::PauseRoot);
+        let mut selectable_menu = test_selectable_menu();
+        let mut settings = VideoSettingsState::default();
+        let mut dropdown_state = DropdownLayerState::default();
+        let mut navigation_state = MenuNavigationState::default();
+
+        let result = reduce_menu_command(
+            MenuCommand::OpenMainMenuOptionsOverlay,
+            menu_entity,
+            menu_stack.current_page(),
+            VideoTabKind::Display,
+            &mut menu_stack,
+            &mut selectable_menu,
+            &mut settings,
+            &mut dropdown_state,
+            &mut navigation_state,
+        );
+
+        assert!(result.open_main_menu_options_overlay);
+        assert!(!result.advance_to_next_scene);
+    }
+
+    #[test]
+    fn next_scene_command_sets_advance_flag() {
+        let menu_entity = test_menu_entity();
+        let mut menu_stack = MenuStack::new(MenuPage::PauseRoot);
+        let mut selectable_menu = test_selectable_menu();
+        let mut settings = VideoSettingsState::default();
+        let mut dropdown_state = DropdownLayerState::default();
+        let mut navigation_state = MenuNavigationState::default();
+
+        let result = reduce_menu_command(
+            MenuCommand::NextScene,
+            menu_entity,
+            menu_stack.current_page(),
+            VideoTabKind::Display,
+            &mut menu_stack,
+            &mut selectable_menu,
+            &mut settings,
+            &mut dropdown_state,
+            &mut navigation_state,
+        );
+
+        assert!(result.advance_to_next_scene);
+        assert!(!result.open_main_menu_options_overlay);
     }
 }

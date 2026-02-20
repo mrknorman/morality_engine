@@ -24,9 +24,10 @@ use bevy::{
 };
 
 use crate::{
-    data::states::{MainState, PauseState},
+    data::states::{DilemmaPhase, GameState, MainState, PauseState},
+    scenes::{Scene, SceneQueue},
     startup::system_menu,
-    startup::render::{CrtSettings, MainCamera},
+    startup::render::{CrtSettings, MainCamera, OffscreenCamera},
     systems::{
         audio::{continuous_audio, DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
@@ -71,8 +72,8 @@ mod video_visuals;
 mod flow_tests;
 
 pub use defs::{
-    MenuCommand, MenuHost, MenuOptionCommand, MenuPage, MenuPageContent, MenuRoot, MenuStack,
-    PauseMenuAudio,
+    MainMenuOptionsOverlay, MenuCommand, MenuHost, MenuOptionCommand, MenuPage, MenuPageContent,
+    MenuRoot, MenuStack, PauseMenuAudio,
 };
 pub use root_spawn::spawn_menu_root;
 use defs::*;
@@ -169,7 +170,10 @@ struct MenuCommandContext<'w, 's> {
     audio_query: Query<'w, 's, (&'static mut TransientAudio, Option<&'static DilatableAudio>)>,
     dilation: Res<'w, Dilation>,
     window_exit: WindowExitContext<'w, 's>,
+    scene_queue: ResMut<'w, SceneQueue>,
     next_main_state: ResMut<'w, NextState<MainState>>,
+    next_game_state: ResMut<'w, NextState<GameState>>,
+    next_sub_state: ResMut<'w, NextState<DilemmaPhase>>,
     next_pause_state: ResMut<'w, NextState<PauseState>>,
     settings: ResMut<'w, VideoSettingsState>,
     crt_settings: ResMut<'w, CrtSettings>,
@@ -189,6 +193,9 @@ struct MenuCommandContext<'w, 's> {
         ),
         With<MainCamera>,
     >,
+    main_camera_transform_query: Query<'w, 's, &'static GlobalTransform, With<MainCamera>>,
+    offscreen_camera_query: Query<'w, 's, &'static GlobalTransform, With<OffscreenCamera>>,
+    main_menu_overlay_query: Query<'w, 's, (), With<MainMenuOptionsOverlay>>,
     // Read-only layer resolution and mutable dropdown visibility live in one ParamSet to keep
     // Visibility access disjoint (avoids Bevy B0001 conflicts).
     layer_queries: ParamSet<

@@ -25,7 +25,6 @@ use crate::{
         },
         ending::{EndingActions, EndingSounds},
         loading::{LoadingActions, LoadingSounds},
-        menu::{MenuActions, MenuSounds},
         Scene, SceneQueue,
     },
     startup::cursor::{CursorMode, CustomCursor},
@@ -138,7 +137,6 @@ impl Plugin for InteractionPlugin {
             );
 
         register_interaction_systems!(app, WindowActions, WindowSounds);
-        register_interaction_systems!(app, MenuActions, MenuSounds);
         register_interaction_systems!(app, LoadingActions, LoadingSounds);
         register_interaction_systems!(app, DilemmaIntroActions, DilemmaSounds);
         register_interaction_systems!(app, DilemmaConsequenceActions, DilemmaSounds);

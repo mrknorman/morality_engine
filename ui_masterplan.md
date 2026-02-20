@@ -64,9 +64,9 @@ Legend:
   - Recent progress: tabbed focus and scroll focus-follow no longer depend on option `InteractionVisualState` as behavior truth.
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: partial`
-  - Main menu options overlay uses shared menu composition.
-  - Main menu selectable root now uses shared `system_menu::spawn_selectable_root`.
-  - Remaining gap: option-row/action mapping is still composed in `src/scenes/menu/mod.rs`.
+  - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
+  - Legacy scene-local `MenuActions`/`ActionPallet` path and duplicate overlay-open handler were removed.
+  - Remaining gap: option-row root assembly and navigation-audio orchestration still live in `src/scenes/menu/mod.rs`.
 - Stage 11 JSON Menu/Settings Schema Interface: `status: partial`
   - JSON schema path exists and is used for main menu options, but not generalized across settings/menu pages.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`
@@ -232,8 +232,8 @@ Deliverable:
 
 ## Stage 10: Main Menu Composition Migration
 - [ ] Move main menu option list fully to shared menu composition path.
-- [ ] Remove scene-local duplicate menu behavior.
-- [ ] Reuse shared navigation audio + selection behavior paths.
+- [x] Remove scene-local duplicate menu behavior.
+- [x] Reuse shared navigation audio + selection behavior paths.
 
 Deliverable:
 - [ ] Main menu uses same composition system as other UI menus.
