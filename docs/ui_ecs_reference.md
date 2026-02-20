@@ -445,6 +445,13 @@ Usage rule:
 - footer left/right movement and footer up handoff
 - pointer hover focus transfer
 - tab click focus transfer
+- option-lock tracking for owner-scoped option focus persistence
+
+Related integration:
+
+- `src/systems/ui/menu/scroll_adapter.rs` consumes `TabbedMenuFocusState::option_lock(...)` in
+  `sync_video_top_scroll_focus_follow(...)` so scroll focus-follow uses tabbed/menu primitive state
+  instead of per-option visual-state flags.
 
 Rule:
 

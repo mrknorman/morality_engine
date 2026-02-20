@@ -59,7 +59,8 @@ Legend:
   - `command_reducer.rs`, `command_effects.rs`, `command_flow.rs` are separated and active.
 - Stage 9 Deterministic Input Arbitration: `status: partial`
   - Arbitration order exists conceptually.
-  - Remaining work is focused on mixed-input determinism tests and removing residual behavior fallbacks that still read visual-state output.
+  - Recent progress: tabbed focus and scroll focus-follow no longer depend on option `InteractionVisualState` as behavior truth.
+  - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: partial`
   - Main menu options overlay uses shared menu composition.
   - Main menu selectable root now uses shared `system_menu::spawn_selectable_root`.
@@ -83,6 +84,7 @@ Legend:
   - Many `ParamSet`/`Without` contracts are present; still requires full pass and stress validation.
 - Stage 18 Test Coverage Expansion: `status: partial`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
+  - Added scroll focus-follow regression for option-lock path without navigation key input.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
@@ -121,6 +123,7 @@ Legend:
 3. [x] Resume bundle-first migration cleanup in menu composition paths.
 4. [x] Complete tooling pass with repeatable test commands (`./scripts/ui_regression.sh`, `cargo nextest` when available).
 5. [x] Run a dedicated mixed keyboard+mouse stress pass for owner-scoped arbitration.
+6. [x] Add option-lock focus-follow regression test and route scroll focus-follow from tabbed focus lock state instead of visual-state reads.
 
 ## Stage 0: Safety + Checkpoint
 - [ ] Create a clean checkpoint commit before functional changes.

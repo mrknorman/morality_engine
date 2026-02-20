@@ -290,4 +290,54 @@ mod tests {
             .expect("focus lock");
         assert!(lock.manual_override);
     }
+
+    #[test]
+    fn option_lock_focus_follows_without_navigation_key() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.init_resource::<tabbed_menu::TabbedMenuFocusState>();
+        app.add_systems(Update, sync_video_top_scroll_focus_follow);
+
+        let menu_entity = app
+            .world_mut()
+            .spawn((
+                MenuRoot {
+                    host: MenuHost::Main,
+                    gate: InteractionGate::PauseMenuOnly,
+                },
+                SelectableMenu::new(
+                    5,
+                    vec![KeyCode::ArrowUp],
+                    vec![KeyCode::ArrowDown],
+                    vec![KeyCode::Enter],
+                    true,
+                ),
+            ))
+            .id();
+        app.world_mut()
+            .resource_mut::<tabbed_menu::TabbedMenuFocusState>()
+            .set_option_lock(menu_entity, Some(5));
+        let scroll_root = app
+            .world_mut()
+            .spawn((
+                VideoTopOptionsScrollRoot,
+                ScrollableTableAdapter::new(menu_entity, 8, 40.0, 60.0),
+                ScrollState {
+                    offset_px: 0.0,
+                    content_extent: 500.0,
+                    viewport_extent: 240.0,
+                    max_offset: 260.0,
+                },
+                ScrollFocusFollowLock {
+                    manual_override: false,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let state = app.world().get::<ScrollState>(scroll_root).expect("scroll state");
+        assert!((state.offset_px - 60.0).abs() < 0.001);
+    }
 }

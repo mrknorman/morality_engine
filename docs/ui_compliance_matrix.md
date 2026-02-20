@@ -34,7 +34,7 @@ Legend:
 | `stack.rs` | Compliant | Menu stack/navigation state model. | None. |
 | `schema.rs` | Partial | Typed schema parsing exists for main menu only. | Expand schema usage across settings/menu pages. |
 | `footer_nav.rs` | Compliant | Footer navigation utility systems. | None. |
-| `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns. | Push reusable pieces into scroll primitive layer. |
+| `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns; focus-follow now reads tabbed option-lock state instead of visual-state outputs. | Push reusable pieces into scroll primitive layer. |
 | `root_spawn.rs` | Partial | Root spawn now explicit (no generic bundle arg), but composition callers still attach markers manually after spawn. | Continue reducing ad-hoc caller wiring via root hook contracts where practical. |
 | `page_content.rs` | Partial | Composes primitives; still monolithic and feature-dense. | Split by reusable composition units (tabs/footer/top-options/modal triggers). |
 | `modal_flow.rs` | Partial | Uses shared primitives with explicit marker insertion (no bundle helper arg). | Continue splitting modal-specific layout constants from generic flow. |
@@ -61,6 +61,7 @@ Status:
 ## Prioritized Migration Backlog
 
 1. Continue moving behavior arbitration to primitive truth components (`Hoverable`, `Clickable`, `SelectableMenu`, `Selectable`, `OptionCycler`) and keep `InteractionVisualState` visual-only.
+   - Recent progress: tabbed focus arbitration and video scroll focus-follow no longer depend on option-level `InteractionVisualState` for behavior truth.
 2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
 3. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
 4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.

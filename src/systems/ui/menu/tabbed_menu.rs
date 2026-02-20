@@ -86,6 +86,14 @@ impl TabbedMenuFocusState {
     pub fn option_lock(&self, menu_entity: Entity) -> Option<usize> {
         self.option_lock_by_menu.get(&menu_entity).copied()
     }
+
+    pub fn set_option_lock(&mut self, menu_entity: Entity, selected_index: Option<usize>) {
+        if let Some(selected_index) = selected_index {
+            self.option_lock_by_menu.insert(menu_entity, selected_index);
+        } else {
+            self.option_lock_by_menu.remove(&menu_entity);
+        }
+    }
 }
 
 pub fn cleanup_tabbed_menu_state(
@@ -425,11 +433,7 @@ pub fn sync_tabbed_menu_focus(
 
         focus_state.by_menu.insert(menu_entity, focus);
         focus_state.set_previous_selection(menu_entity, selectable_menu.selected_index);
-        if let Some(locked_index) = option_lock {
-            focus_state.option_lock_by_menu.insert(menu_entity, locked_index);
-        } else {
-            focus_state.option_lock_by_menu.remove(&menu_entity);
-        }
+        focus_state.set_option_lock(menu_entity, option_lock);
         tab_updates.push((tab_root_entity, focus, tab_selection_target));
     }
 

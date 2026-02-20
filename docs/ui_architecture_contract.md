@@ -82,6 +82,8 @@ Every layered UI element must resolve through an explicit owner/root identity.
 ### Selectables/Cyclers
 - `SelectableMenu` + `Selectable` control selection.
 - `OptionCycler` handles left/right trigger intent.
+- Tabbed option focus persistence should flow through owner-scoped tabbed-menu state
+  (for example `TabbedMenuFocusState::option_lock`) rather than visual-state flags.
 - Feature modules consume intent; they should not duplicate core intent generation logic.
 - Feature modules must not rely on `InteractionVisualState.selected/pressed/hovered` for commands.
 
