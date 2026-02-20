@@ -409,3 +409,30 @@ pub(super) fn recenter_resolution_dropdown_item_text(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::ecs::system::IntoSystem;
+
+    use super::*;
+
+    #[test]
+    fn dropdown_view_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut sync_items_system = IntoSystem::into_system(sync_resolution_dropdown_items);
+        sync_items_system.initialize(&mut world);
+
+        let mut ensure_arrows_system =
+            IntoSystem::into_system(ensure_resolution_dropdown_value_arrows);
+        ensure_arrows_system.initialize(&mut world);
+
+        let mut update_arrows_system =
+            IntoSystem::into_system(update_resolution_dropdown_value_arrows);
+        update_arrows_system.initialize(&mut world);
+
+        let mut recenter_text_system =
+            IntoSystem::into_system(recenter_resolution_dropdown_item_text);
+        recenter_text_system.initialize(&mut world);
+    }
+}

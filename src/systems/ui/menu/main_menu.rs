@@ -167,6 +167,8 @@ pub(super) fn play_main_menu_navigation_sound(
 
 #[cfg(test)]
 mod tests {
+    use bevy::ecs::system::IntoSystem;
+
     use super::*;
 
     #[test]
@@ -189,5 +191,17 @@ mod tests {
     fn resolve_main_menu_command_id_rejects_unknown_commands() {
         let error = resolve_main_menu_command_id("unknown").expect_err("unknown should fail");
         assert!(error.contains("unknown command"));
+    }
+
+    #[test]
+    fn main_menu_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut overlay_position_system =
+            IntoSystem::into_system(sync_main_menu_options_overlay_position);
+        overlay_position_system.initialize(&mut world);
+
+        let mut navigation_sound_system = IntoSystem::into_system(play_main_menu_navigation_sound);
+        navigation_sound_system.initialize(&mut world);
     }
 }

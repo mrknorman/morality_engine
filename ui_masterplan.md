@@ -94,8 +94,10 @@ Legend:
   - Added explicit query-disjointness contract comments in dropdown view sync systems (`sync_resolution_dropdown_items`, `update_resolution_dropdown_value_arrows`, `recenter_resolution_dropdown_item_text`).
   - Added query-safety smoke tests that initialize high-risk systems without running gameplay state:
     - `command_flow::command_flow_systems_initialize_without_query_alias_panics`
+    - `dropdown_view::dropdown_view_systems_initialize_without_query_alias_panics`
     - `menu_input::menu_input_systems_initialize_without_query_alias_panics`
     - `dropdown_flow::dropdown_flow_systems_initialize_without_query_alias_panics`
+    - `main_menu::main_menu_systems_initialize_without_query_alias_panics`
     - `modal_flow::modal_flow_systems_initialize_without_query_alias_panics`
     - `debug_showcase::debug_showcase_systems_initialize_without_query_alias_panics`
     - `tabbed_menu::tabbed_menu_systems_initialize_without_query_alias_panics`
