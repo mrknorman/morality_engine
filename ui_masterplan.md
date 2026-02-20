@@ -62,7 +62,8 @@ Legend:
   - Remaining work is focused on mixed-input determinism tests and removing residual behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: partial`
   - Main menu options overlay uses shared menu composition.
-  - Scene root menu list still uses scene-local setup in `src/scenes/menu/mod.rs`.
+  - Main menu selectable root now uses shared `system_menu::spawn_selectable_root`.
+  - Remaining gap: option-row/action mapping is still composed in `src/scenes/menu/mod.rs`.
 - Stage 11 JSON Menu/Settings Schema Interface: `status: partial`
   - JSON schema path exists and is used for main menu options, but not generalized across settings/menu pages.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`

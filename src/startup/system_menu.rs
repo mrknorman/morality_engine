@@ -463,18 +463,40 @@ where
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + Copy + 'static,
     <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
 {
+    spawn_selectable_root(
+        commands,
+        asset_server,
+        name,
+        translation,
+        switch_sound,
+        SelectableMenu::new(
+            0,
+            vec![KeyCode::ArrowUp],
+            vec![KeyCode::ArrowDown],
+            vec![KeyCode::Enter],
+            true,
+        ),
+    )
+}
+
+pub fn spawn_selectable_root<S>(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    name: &str,
+    translation: Vec3,
+    switch_sound: S,
+    selectable_menu: SelectableMenu,
+) -> Entity
+where
+    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + Copy + 'static,
+    <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
+{
     commands
         .spawn((
             Name::new(name.to_string()),
             SystemMenu,
             switch_audio_pallet(asset_server, switch_sound),
-            SelectableMenu::new(
-                0,
-                vec![KeyCode::ArrowUp],
-                vec![KeyCode::ArrowDown],
-                vec![KeyCode::Enter],
-                true,
-            ),
+            selectable_menu,
             Transform::from_translation(translation),
             Visibility::Visible,
         ))

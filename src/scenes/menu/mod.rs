@@ -282,33 +282,24 @@ impl MenuScene {
             )])
         };
 
-        let menu_list_entity = commands
-            .spawn((
-                Name::new("menu_selectable_list"),
-                MenuSelectableList,
-                MainMenuInteractive,
-                SelectableMenu::new(
-                    0,
-                    vec![KeyCode::ArrowUp],
-                    vec![KeyCode::ArrowDown],
-                    vec![KeyCode::Enter, KeyCode::ArrowRight],
-                    true,
-                )
-                .with_click_activation(SelectableClickActivation::HoveredOnly),
-                TransientAudioPallet::new(vec![(
-                    MenuSounds::Switch,
-                    vec![TransientAudio::new(
-                        asset_server.load("./audio/effects/switch.ogg"),
-                        0.03,
-                        true,
-                        0.2,
-                        false,
-                    )],
-                )]),
-                Transform::from_translation(Self::OPTIONS_LIST_TRANSLATION),
-                Visibility::Visible,
-            ))
-            .id();
+        let menu_list_entity = system_menu::spawn_selectable_root(
+            &mut commands,
+            &asset_server,
+            "menu_selectable_list",
+            Self::OPTIONS_LIST_TRANSLATION,
+            MenuSounds::Switch,
+            SelectableMenu::new(
+                0,
+                vec![KeyCode::ArrowUp],
+                vec![KeyCode::ArrowDown],
+                vec![KeyCode::Enter, KeyCode::ArrowRight],
+                true,
+            )
+            .with_click_activation(SelectableClickActivation::HoveredOnly),
+        );
+        commands
+            .entity(menu_list_entity)
+            .insert((MenuSelectableList, MainMenuInteractive));
 
         commands.entity(scene_entity).add_child(menu_list_entity);
 
