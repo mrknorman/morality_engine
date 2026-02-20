@@ -85,6 +85,7 @@ Legend:
 - Stage 18 Test Coverage Expansion: `status: partial`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
   - Added scroll focus-follow regression for option-lock path without navigation key input.
+  - Added top-table owner-resolution regression for scroll-parented video tables.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
@@ -101,6 +102,7 @@ Legend:
 
 1. Video menu consistency regressions after recent hotfixes
    - Ensure top-table owner resolution is stable with scroll-parented tables.
+     - Regression coverage added: `top_table_sync_resolves_menu_owner_from_scroll_content_parent`.
    - Ensure dropdown placement and open/close behavior remain stable under scroll/tab changes.
 2. Regression hardening
    - Footer and hover-description regression tests are added.
@@ -108,8 +110,9 @@ Legend:
 
 ## Contract Drift Notes (to reconcile during Stage 2/4/9)
 
-1. `InteractionVisualState` is still read for behavior arbitration in some menu/tab/scroll adapter paths.
+1. `InteractionVisualState` is still read for behavior arbitration in some menu/tab paths.
    - `option_cycler_input_system` now keys from `Selectable` + `SelectableMenu.selected_index` (not visual-state selected).
+   - `sync_video_top_scroll_focus_follow` now keys from owner-scoped tabbed option-lock state (not option visual-state flags).
    - Target: move behavior arbitration to primitive truth (`Hoverable`, `Clickable`, `SelectableMenu`) and keep visual state as output only.
 2. Some composition callsites still rely on ad-hoc post-spawn wiring instead of deeper primitive root hooks.
    - Target: continue migrating behavior-critical contracts to required-component + `on_insert` ownership where practical.

@@ -65,3 +65,4 @@ Status:
 2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
 3. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
 4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.
+   - Recent progress: added regression coverage for scroll-parented top-table owner resolution in video options.

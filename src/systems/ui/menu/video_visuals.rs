@@ -862,9 +862,11 @@ pub(super) fn sync_video_top_option_hover_descriptions(
 
 #[cfg(test)]
 mod tests {
+    use bevy::sprite::Anchor;
     use super::*;
     use bevy::ecs::system::SystemState;
 
+    use crate::entities::text::{Cell, Column, Row, Table, TextContent};
     use crate::systems::ui::{
         dropdown,
         layer::{UiLayer, UiLayerKind},
@@ -1087,5 +1089,148 @@ mod tests {
                 .value_description(1)
                 .expect("tonemapping index description")
         );
+    }
+
+    #[test]
+    fn top_table_sync_resolves_menu_owner_from_scroll_content_parent() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, sync_video_top_table_values);
+        app.init_resource::<tabbed_menu::TabbedMenuFocusState>();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<ColorMaterial>>();
+
+        let mut settings = VideoSettingsState::default();
+        settings.initialized = true;
+        app.insert_resource(settings);
+
+        let menu_entity = app
+            .world_mut()
+            .spawn((
+                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_selectable_menu(0),
+            ))
+            .id();
+        app.world_mut().spawn((
+            TabBar::new(menu_entity),
+            TabBarState { active_index: 0 }, // Display
+            tabbed_menu::TabbedMenuConfig::new(
+                VIDEO_TOP_OPTION_COUNT,
+                VIDEO_FOOTER_OPTION_START_INDEX,
+                VIDEO_FOOTER_OPTION_COUNT,
+            ),
+        ));
+
+        let scroll_root = app
+            .world_mut()
+            .spawn((
+                VideoTopOptionsScrollRoot,
+                scroll_adapter::ScrollableTableAdapter::new(
+                    menu_entity,
+                    VIDEO_TOP_OPTION_COUNT,
+                    40.0,
+                    0.0,
+                ),
+            ))
+            .id();
+        let scroll_content = app
+            .world_mut()
+            .spawn(VideoTopOptionsScrollContent)
+            .id();
+        app.world_mut().entity_mut(scroll_root).add_child(scroll_content);
+
+        let table = Table {
+            columns: vec![
+                Column::new(
+                    vec![Cell::new(TextContent::new(
+                        "name_placeholder".to_string(),
+                        SYSTEM_MENU_COLOR,
+                        VIDEO_TABLE_TEXT_SIZE,
+                    ))],
+                    220.0,
+                    Vec2::ZERO,
+                    Anchor::CENTER,
+                    false,
+                ),
+                Column::new(
+                    vec![Cell::new(TextContent::new(
+                        "value_placeholder".to_string(),
+                        SYSTEM_MENU_COLOR,
+                        VIDEO_TABLE_TEXT_SIZE,
+                    ))],
+                    220.0,
+                    Vec2::ZERO,
+                    Anchor::CENTER,
+                    false,
+                ),
+            ],
+            rows: vec![Row { height: 40.0 }],
+        };
+
+        let table_entity = app.world_mut().spawn((VideoTopOptionsTable, table)).id();
+        app.world_mut()
+            .entity_mut(scroll_content)
+            .add_child(table_entity);
+
+        // First update materializes table/column/cell hook-spawned children.
+        app.update();
+        // Second update applies sync_video_top_table_values to spawned text nodes.
+        app.update();
+
+        let world = app.world();
+        let table_children = world
+            .get::<Children>(table_entity)
+            .expect("table columns spawned");
+        assert_eq!(table_children.len(), 2);
+
+        let name_column = table_children[0];
+        let value_column = table_children[1];
+        let name_cell = *world
+            .get::<Children>(name_column)
+            .expect("name column cells")
+            .first()
+            .expect("first name row");
+        let value_cell = *world
+            .get::<Children>(value_column)
+            .expect("value column cells")
+            .first()
+            .expect("first value row");
+
+        let name_text_entity = world
+            .get::<Children>(name_cell)
+            .expect("name cell children")
+            .iter()
+            .find(|entity| world.get::<Text2d>(*entity).is_some())
+            .expect("name text child");
+        let value_text_entity = world
+            .get::<Children>(value_cell)
+            .expect("value cell children")
+            .iter()
+            .find(|entity| world.get::<Text2d>(*entity).is_some())
+            .expect("value text child");
+
+        let expected_label = video_top_option_labels(VideoTabKind::Display)[0];
+        let expected_value = video_top_value_strings(
+            app.world()
+                .resource::<VideoSettingsState>()
+                .pending,
+            VideoTabKind::Display,
+        )[0]
+            .clone();
+
+        let name_text = world
+            .get::<Text2d>(name_text_entity)
+            .expect("name text value");
+        let value_text = world
+            .get::<Text2d>(value_text_entity)
+            .expect("value text value");
+        assert_eq!(name_text.0, expected_label);
+        assert_eq!(value_text.0, expected_value);
+
+        let name_color = world
+            .get::<TextColor>(name_text_entity)
+            .expect("name text color")
+            .0;
+        assert_eq!(name_color, Color::srgb(0.0, 0.08, 0.0));
     }
 }
