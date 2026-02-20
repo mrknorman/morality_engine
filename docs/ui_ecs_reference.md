@@ -314,6 +314,9 @@ Cross-system behavior checks live in `src/systems/ui/menu/flow_tests.rs` and sho
 - directional shortcut arbitration (right activate / left back-only / tabs-focus suppression)
 - visual suppression arbitration for tab-focused top rows and non-base active layers
 
+Manual runtime verification scenarios are tracked separately in
+`docs/ui_manual_validation_checklist.md`.
+
 - `exit_prompt_target_menu`
 - `exit_prompt_closes_menu_system`
 - `pending_exit_menu`

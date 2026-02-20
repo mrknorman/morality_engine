@@ -115,7 +115,8 @@ Legend:
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
-  - Remaining: manual in-game verification checklist against live menu flows.
+  - Manual in-game verification checklist is now documented in `docs/ui_manual_validation_checklist.md`.
+  - Remaining: execute the checklist against live menu flows and capture any runtime regressions.
 - Stage 20 Documentation and Adoption: `status: partial`
   - Docs are substantial and mostly current; still need final alignment with latest bugfix/refactor outcome.
 - Stage 21 Tooling and Test Framework Rollout: `status: partial`
