@@ -96,6 +96,7 @@ Legend:
   - Showcase exists and uses primitives, but interaction reliability/readability polish remains.
   - Tabs demo now includes live `HoverBox` primitive wiring on tab labels (owner/layer scoped, delayed display).
   - Added explicit debug-showcase system-initialization smoke coverage to catch query alias regressions early.
+  - Added root-construction regression coverage ensuring showcase root spawns four interactive windows and core primitives.
 - Stage 16 Known Bug Sprint: `status: partial`
   - Several historical issues fixed; current active bugs still exist (see Active Bug Backlog).
 - Stage 17 Query-Safety Hardening: `status: done`
@@ -358,8 +359,8 @@ Deliverable:
 - [ ] Reusable hover tooltip primitive used by menu composition.
 
 ## Stage 15: Debug UI Showcase Rebuild
-- [ ] Move debug showcase to dedicated composition module.
-- [ ] Build interactive windows from real primitives (selector, tabs, dropdown, scroll, hover box).
+- [x] Move debug showcase to dedicated composition module.
+- [x] Build interactive windows from real primitives (selector, tabs, dropdown, scroll, hover box).
 - [ ] Remove visual-only or one-off showcase interaction logic.
 - [ ] Ensure debug demos mirror production primitive wiring.
 

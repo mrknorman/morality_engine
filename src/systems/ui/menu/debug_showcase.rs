@@ -1072,4 +1072,28 @@ mod tests {
         sync_dropdown_visuals_system.initialize(&mut world);
     }
 
+    #[test]
+    fn showcase_root_spawns_four_interactive_windows_with_primitives() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<bevy::audio::AudioSource>();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<ColorMaterial>>();
+
+        app.world_mut().spawn(DebugUiShowcaseRoot);
+        app.update();
+
+        let world = app.world_mut();
+        let window_count = world
+            .query::<(&DebugUiShowcaseWindow, &Window, &Draggable)>()
+            .iter(world)
+            .count();
+        assert_eq!(window_count, 4);
+
+        assert!(world.query::<&SelectorSurface>().iter(world).next().is_some());
+        assert!(world.query::<&TabBar>().iter(world).next().is_some());
+        assert!(world.query::<&DropdownSurface>().iter(world).next().is_some());
+        assert!(world.query::<&ScrollableRoot>().iter(world).next().is_some());
+    }
+
 }

@@ -84,6 +84,7 @@ Status:
    - Recent progress: added regressions for deterministic directional shortcut tie-breaking and modal owner ordering.
    - Recent progress: added regression coverage ensuring dropdown keyboard-open picks a deterministic owner when multiple menus match.
    - Recent progress: added active-layer shortcut-context coverage to verify non-base menus are excluded from directional shortcut dispatch.
+   - Recent progress: added owner-scoped cross-talk regressions for tab/dropdown flows and owner-scoped capture gate resolution.
 5. Keep trimming dead menu/UI helpers as command/input paths are consolidated.
    - Recent progress: removed unused slider click-region constant and unused top-option cycle helper.
    - Recent progress: removed unused legacy helper `startup::system_menu::play_navigation_sound`.
