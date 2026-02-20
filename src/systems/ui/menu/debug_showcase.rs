@@ -23,6 +23,7 @@ use crate::{
             SelectableClickActivation, SelectableMenu, SystemMenuActions,
         },
         ui::{
+            selector::SelectorSurface,
             scroll::{
                 ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
                 ScrollableRoot, ScrollableViewport,
@@ -279,12 +280,11 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
                         },
                         TextColor(SYSTEM_MENU_COLOR),
                         Anchor::CENTER_LEFT,
-                        Selectable::new(menu_root, index),
+                        SelectorSurface::new(menu_root, index).with_cycler(),
                         Clickable::with_region(
                             vec![SystemMenuActions::Activate],
                             MENU_OPTION_REGION,
                         ),
-                        OptionCycler::default(),
                         DebugMenuDemoOption {
                             root: menu_root,
                             key,

@@ -1,11 +1,67 @@
+//! Selector and shortcut helpers shared by UI composition systems.
+//!
+//! This module provides deterministic shortcut collection and selector bound
+//! synchronization for `Selectable` + `OptionCycler` surfaces.
 use std::collections::{HashMap, HashSet};
 
-use bevy::prelude::*;
+use bevy::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+};
 
 use crate::systems::interaction::{OptionCycler, Selectable};
 
 #[derive(Component, Clone, Copy)]
 pub struct ShortcutKey(pub KeyCode);
+
+#[derive(Component, Clone, Copy, Debug)]
+#[component(on_insert = SelectorSurface::on_insert)]
+pub struct SelectorSurface {
+    pub menu_entity: Entity,
+    pub index: usize,
+    pub with_cycler: bool,
+}
+
+impl SelectorSurface {
+    pub const fn new(menu_entity: Entity, index: usize) -> Self {
+        Self {
+            menu_entity,
+            index,
+            with_cycler: false,
+        }
+    }
+
+    pub const fn with_cycler(mut self) -> Self {
+        self.with_cycler = true;
+        self
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let Some(surface) = world.entity(entity).get::<SelectorSurface>().copied() else {
+            return;
+        };
+
+        let selectable_mismatch = world
+            .entity(entity)
+            .get::<Selectable>()
+            .is_none_or(|selectable| {
+                selectable.menu_entity != surface.menu_entity || selectable.index != surface.index
+            });
+        if selectable_mismatch {
+            world
+                .commands()
+                .entity(entity)
+                .insert(Selectable::new(surface.menu_entity, surface.index));
+        }
+
+        if surface.with_cycler && world.entity(entity).get::<OptionCycler>().is_none() {
+            world
+                .commands()
+                .entity(entity)
+                .insert(OptionCycler::default());
+        }
+    }
+}
 
 pub fn collect_shortcut_commands<C: Component + Clone>(
     keyboard_input: &ButtonInput<KeyCode>,
@@ -57,7 +113,7 @@ pub fn sync_option_cycler_bounds(mut option_query: Query<&mut OptionCycler, With
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::systems::interaction::Selectable;
+    use crate::systems::interaction::{OptionCycler, Selectable};
     use bevy::ecs::system::SystemState;
 
     #[derive(Component, Clone, Debug, PartialEq, Eq)]
@@ -101,5 +157,31 @@ mod tests {
             commands.into_iter().map(|(menu, cmd)| (menu, cmd.0)).collect();
         assert_eq!(by_parent.get(&menu_a).copied(), Some("a_low"));
         assert_eq!(by_parent.get(&menu_b).copied(), Some("b_only"));
+    }
+
+    #[test]
+    fn selector_surface_insertion_adds_selectable() {
+        let mut world = World::new();
+        let menu = world.spawn_empty().id();
+        let option = world.spawn(SelectorSurface::new(menu, 3)).id();
+        let selectable = world
+            .entity(option)
+            .get::<Selectable>()
+            .copied()
+            .expect("selector selectable");
+
+        assert_eq!(selectable.menu_entity, menu);
+        assert_eq!(selectable.index, 3);
+    }
+
+    #[test]
+    fn selector_surface_with_cycler_insertion_adds_option_cycler() {
+        let mut world = World::new();
+        let menu = world.spawn_empty().id();
+        let option = world
+            .spawn(SelectorSurface::new(menu, 1).with_cycler())
+            .id();
+
+        assert!(world.entity(option).get::<OptionCycler>().is_some());
     }
 }
