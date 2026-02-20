@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::entities::sprites::compound::{HollowRectangle, RectangleSides};
 
 #[derive(Component, Clone, Copy, Debug)]
+#[require(Transform, Visibility)]
 pub struct DiscreteSlider {
     pub steps: usize,
     pub layout_steps: usize,
@@ -229,6 +230,7 @@ pub fn sync_discrete_slider_slots(
 #[cfg(test)]
 mod tests {
     use super::{slot_center_x, slot_span_bounds, DiscreteSlider};
+    use bevy::prelude::*;
 
     #[test]
     fn clamps_steps_and_selected() {
@@ -250,5 +252,14 @@ mod tests {
         let (left, right) = slot_span_bounds(3, 4, 20.0, 8.0);
         assert_eq!(left, -52.0);
         assert_eq!(right, 24.0);
+    }
+
+    #[test]
+    fn slider_insertion_adds_required_components() {
+        let mut world = World::new();
+        let slider = world.spawn(DiscreteSlider::new(3, 1)).id();
+
+        assert!(world.entity(slider).get::<Transform>().is_some());
+        assert!(world.entity(slider).get::<Visibility>().is_some());
     }
 }

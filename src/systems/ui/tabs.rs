@@ -1,3 +1,8 @@
+//! Reusable tab selection/activation primitives.
+//!
+//! Tabs expose a thin data model (`TabBar`, `TabItem`, `TabBarState`) and
+//! deterministic helpers for click and keyboard activation. Menu-specific
+//! focus policy should remain in composition modules.
 use std::collections::HashMap;
 
 use bevy::prelude::*;
@@ -10,7 +15,9 @@ use crate::systems::{
 };
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[require(SelectableMenu, TabBarState, TabActivationPolicy, TabBarStateSync)]
 pub struct TabBar {
+    /// Owner entity for layer/gating arbitration.
     pub owner: Entity,
 }
 
@@ -22,6 +29,7 @@ impl TabBar {
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TabItem {
+    /// Logical tab index within a tab bar.
     pub index: usize,
 }
 
@@ -243,5 +251,17 @@ mod tests {
         assert_eq!(clicked.get(&tab_root).copied(), Some(expected_index));
 
         // Current implementation resolves ties by entity rank (`to_bits`).
+    }
+
+    #[test]
+    fn tab_bar_insertion_adds_required_components() {
+        let mut world = World::new();
+        let owner = world.spawn_empty().id();
+        let tab_bar = world.spawn(TabBar::new(owner)).id();
+
+        assert!(world.entity(tab_bar).get::<SelectableMenu>().is_some());
+        assert!(world.entity(tab_bar).get::<TabBarState>().is_some());
+        assert!(world.entity(tab_bar).get::<TabActivationPolicy>().is_some());
+        assert!(world.entity(tab_bar).get::<TabBarStateSync>().is_some());
     }
 }

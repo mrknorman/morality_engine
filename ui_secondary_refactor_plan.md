@@ -56,6 +56,10 @@ Deliverable:
 Deliverable:
 - Primitive APIs that can be used by adding a single root component plus config components.
 
+Progress notes:
+- `TabBar` now enforces required primitive contracts on insertion (`SelectableMenu`, `TabBarState`, activation policy/state sync) in `src/systems/ui/tabs.rs`.
+- `DiscreteSlider` now enforces baseline transform/visibility contracts in `src/systems/ui/discrete_slider.rs`.
+
 ## Stage 3: Menu Composition Migration
 
 - [ ] Refactor `src/systems/ui/menu/*` to compose primitives only, not rebuild primitive internals.
