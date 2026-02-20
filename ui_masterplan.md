@@ -86,6 +86,7 @@ Legend:
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
   - Added scroll focus-follow regression for option-lock path without navigation key input.
   - Added top-table owner-resolution regression for scroll-parented video tables.
+  - Added dropdown-flow regressions for scroll-aware dropdown opening and outside-click item protection.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
@@ -105,6 +106,8 @@ Legend:
    - Ensure top-table owner resolution is stable with scroll-parented tables.
      - Regression coverage added: `top_table_sync_resolves_menu_owner_from_scroll_content_parent`.
    - Ensure dropdown placement and open/close behavior remain stable under scroll/tab changes.
+     - Regression coverage added: `open_dropdown_for_menu_scrolls_row_into_view_and_sets_anchor`.
+     - Regression coverage added: `outside_click_does_not_close_when_cursor_is_inside_dropdown_item`.
 2. Regression hardening
    - Footer and hover-description regression tests are added.
    - Remaining: broader tab/dropdown/scroll interplay coverage.

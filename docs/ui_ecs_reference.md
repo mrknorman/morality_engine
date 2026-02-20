@@ -309,6 +309,7 @@ Cross-system behavior checks live in `src/systems/ui/menu/flow_tests.rs` and sho
 - tab focus transitions
 - dropdown open/close semantics
 - menu stack/pop/push state transitions
+- scroll-aware dropdown opening and outside-click protections
 
 - `exit_prompt_target_menu`
 - `exit_prompt_closes_menu_system`

@@ -607,3 +607,217 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::{ecs::system::SystemState, prelude::*};
+
+    use super::*;
+    use crate::{
+        startup::cursor::CustomCursor,
+        systems::{
+            interaction::{Clickable, InteractionGate, SelectableMenu, SystemMenuActions},
+            ui::layer::{UiLayer, UiLayerKind},
+        },
+    };
+
+    fn test_selectable_menu() -> SelectableMenu {
+        SelectableMenu::new(
+            0,
+            vec![KeyCode::ArrowUp],
+            vec![KeyCode::ArrowDown],
+            vec![KeyCode::Enter],
+            true,
+        )
+    }
+
+    #[test]
+    fn open_dropdown_for_menu_scrolls_row_into_view_and_sets_anchor() {
+        let mut world = World::new();
+
+        let mut dropdown_anchor_state = DropdownAnchorState::default();
+        let mut dropdown_state = DropdownLayerState::default();
+
+        let menu_entity = world
+            .spawn((
+                MenuRoot {
+                    host: MenuHost::Pause,
+                    gate: InteractionGate::PauseMenuOnly,
+                },
+                test_selectable_menu(),
+            ))
+            .id();
+
+        let dropdown_entity = world
+            .spawn((
+                VideoResolutionDropdown,
+                UiLayer::new(menu_entity, UiLayerKind::Dropdown),
+                Visibility::Hidden,
+                test_selectable_menu(),
+            ))
+            .id();
+        world.entity_mut(menu_entity).add_child(dropdown_entity);
+
+        let scroll_root = world
+            .spawn((
+                VideoTopOptionsScrollRoot,
+                scroll_adapter::ScrollableTableAdapter::new(menu_entity, 10, 40.0, 60.0),
+                crate::systems::ui::scroll::ScrollState {
+                    offset_px: 0.0,
+                    content_extent: 520.0,
+                    viewport_extent: 240.0,
+                    max_offset: 280.0,
+                },
+                crate::systems::ui::scroll::ScrollFocusFollowLock {
+                    manual_override: true,
+                },
+            ))
+            .id();
+
+        let mut query_state: SystemState<(
+            Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+            Query<&mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>,
+            Query<
+                (
+                    &scroll_adapter::ScrollableTableAdapter,
+                    &mut crate::systems::ui::scroll::ScrollState,
+                    &mut crate::systems::ui::scroll::ScrollFocusFollowLock,
+                ),
+                With<VideoTopOptionsScrollRoot>,
+            >,
+        )> = SystemState::new(&mut world);
+
+        {
+            let (mut dropdown_query, mut dropdown_menu_query, mut scroll_root_query) =
+                query_state.get_mut(&mut world);
+            open_dropdown_for_menu(
+                menu_entity,
+                7,
+                3,
+                &mut dropdown_anchor_state,
+                &mut dropdown_state,
+                &mut dropdown_query,
+                &mut dropdown_menu_query,
+                &mut scroll_root_query,
+            );
+        }
+        query_state.apply(&mut world);
+
+        assert_eq!(
+            dropdown_anchor_state.row_for_parent(menu_entity, menu_entity, 0),
+            7
+        );
+        assert_eq!(
+            dropdown_state.open_parent_for_owner(menu_entity),
+            Some(menu_entity)
+        );
+        assert_eq!(
+            world.entity(dropdown_entity).get::<Visibility>(),
+            Some(&Visibility::Visible)
+        );
+        assert_eq!(
+            world
+                .entity(dropdown_entity)
+                .get::<SelectableMenu>()
+                .map(|menu| menu.selected_index),
+            Some(3)
+        );
+
+        let state = world
+            .entity(scroll_root)
+            .get::<crate::systems::ui::scroll::ScrollState>()
+            .copied()
+            .expect("scroll state");
+        let lock = world
+            .entity(scroll_root)
+            .get::<crate::systems::ui::scroll::ScrollFocusFollowLock>()
+            .copied()
+            .expect("focus-follow lock");
+        assert!((state.offset_px - 140.0).abs() < 0.001);
+        assert!(!lock.manual_override);
+    }
+
+    #[test]
+    fn outside_click_does_not_close_when_cursor_is_inside_dropdown_item() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.init_resource::<CustomCursor>();
+        app.init_resource::<DropdownLayerState>();
+        app.add_systems(Update, close_resolution_dropdown_on_outside_click);
+
+        let mut settings = VideoSettingsState::default();
+        settings.initialized = true;
+        app.insert_resource(settings);
+
+        let menu_entity = app.world_mut().spawn_empty().id();
+        let dropdown_entity = app
+            .world_mut()
+            .spawn((
+                VideoResolutionDropdown,
+                UiLayer::new(menu_entity, UiLayerKind::Dropdown),
+                Visibility::Visible,
+                Sprite::from_color(Color::NONE, Vec2::new(200.0, 140.0)),
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(menu_entity)
+            .add_child(dropdown_entity);
+
+        let item_entity = app
+            .world_mut()
+            .spawn((
+                VideoResolutionDropdownItem { index: 2 },
+                Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 40.0)),
+                Transform::default(),
+                GlobalTransform::default(),
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(dropdown_entity)
+            .add_child(item_entity);
+
+        {
+            let world = app.world_mut();
+            let mut query_state: SystemState<(
+                ResMut<DropdownLayerState>,
+                Query<
+                    (Entity, &ChildOf, &UiLayer, &mut Visibility),
+                    With<VideoResolutionDropdown>,
+                >,
+                Query<&mut SelectableMenu, With<VideoResolutionDropdown>>,
+            )> = SystemState::new(world);
+            let (mut dropdown_state, mut dropdown_query, mut dropdown_menu_query) =
+                query_state.get_mut(world);
+            dropdown::open_for_parent::<VideoResolutionDropdown>(
+                menu_entity,
+                menu_entity,
+                0,
+                dropdown_state.as_mut(),
+                &mut dropdown_query,
+                &mut dropdown_menu_query,
+            );
+            query_state.apply(world);
+        }
+
+        app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+
+        app.update();
+
+        assert_eq!(
+            app.world().get::<Visibility>(dropdown_entity),
+            Some(&Visibility::Visible)
+        );
+        assert_eq!(
+            app.world()
+                .resource::<DropdownLayerState>()
+                .open_parent_for_owner(menu_entity),
+            Some(menu_entity)
+        );
+    }
+}
