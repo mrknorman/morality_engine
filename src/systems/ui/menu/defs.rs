@@ -1,4 +1,7 @@
 use bevy::{prelude::*, sprite::Anchor};
+use once_cell::sync::Lazy;
+
+use super::schema;
 
 use crate::{
     data::states::{MainState, PauseState},
@@ -33,6 +36,7 @@ pub(super) const OPTIONS_MENU_VIDEO_TEXT: &str = "VIDEO";
 pub(super) const OPTIONS_MENU_AUDIO_TEXT: &str = "AUDIO";
 pub(super) const OPTIONS_MENU_CONTROLS_TEXT: &str = "CONTROLS";
 pub(super) const OPTIONS_MENU_BACK_TEXT: &str = "BACK [⌫]";
+const OPTIONS_MENU_SCHEMA_JSON: &str = include_str!("./content/options_menu_ui.json");
 pub(super) const VIDEO_MENU_TITLE: &str = "VIDEO";
 pub(super) const VIDEO_MENU_HINT: &str = "[ARROW UP/ARROW DOWN + ENTER]\n[TAB TO CYCLE TABS]";
 pub(super) const VIDEO_MENU_DISPLAY_MODE_TEXT: &str = "DISPLAY MODE [f]";
@@ -706,40 +710,195 @@ const DEBUG_ROOT_OPTIONS: [MenuOptionDef; 3] = [
     },
 ];
 
-const OPTIONS_MENU_OPTIONS: [MenuOptionDef; 4] = [
-    MenuOptionDef {
-        name: "system_options_video_option",
-        label: OPTIONS_MENU_VIDEO_TEXT,
-        y: 60.0,
-        command: MenuCommand::Push(MenuPage::Video),
-        shortcut: None,
-        cyclable: false,
-    },
-    MenuOptionDef {
-        name: "system_options_audio_option",
-        label: OPTIONS_MENU_AUDIO_TEXT,
-        y: 20.0,
-        command: MenuCommand::None,
-        shortcut: None,
-        cyclable: false,
-    },
-    MenuOptionDef {
-        name: "system_options_controls_option",
-        label: OPTIONS_MENU_CONTROLS_TEXT,
-        y: -20.0,
-        command: MenuCommand::None,
-        shortcut: None,
-        cyclable: false,
-    },
-    MenuOptionDef {
-        name: "system_options_back_option",
-        label: OPTIONS_MENU_BACK_TEXT,
-        y: -65.0,
-        command: MenuCommand::Pop,
-        shortcut: Some(KeyCode::Backspace),
-        cyclable: false,
-    },
-];
+struct SchemaMenuPageDef {
+    name_prefix: &'static str,
+    title: &'static str,
+    hint: &'static str,
+    layout: SystemMenuLayout,
+    options: Vec<MenuOptionDef>,
+}
+
+static OPTIONS_MENU_COMMAND_REGISTRY: Lazy<schema::CommandRegistry<MenuCommand>> =
+    Lazy::new(|| {
+        schema::CommandRegistry::from_entries([
+            ("open_video", MenuCommand::Push(MenuPage::Video)),
+            ("audio_placeholder", MenuCommand::None),
+            ("controls_placeholder", MenuCommand::None),
+            ("go_back", MenuCommand::Pop),
+        ])
+        .expect("options menu command registry must have unique command ids")
+    });
+
+static OPTIONS_MENU_PAGE_SCHEMA: Lazy<SchemaMenuPageDef> = Lazy::new(|| {
+    resolve_options_menu_schema().unwrap_or_else(|error| {
+        panic!("invalid options menu schema: {error}");
+    })
+});
+
+fn leak_schema_text(text: String) -> &'static str {
+    Box::leak(text.into_boxed_str())
+}
+
+fn resolve_shortcut_keycode(shortcut: &str) -> Result<KeyCode, String> {
+    let normalized = shortcut.trim();
+    if normalized.is_empty() {
+        return Err("shortcut must not be blank".to_string());
+    }
+    if normalized.chars().count() == 1 {
+        let key = match normalized.chars().next().map(|ch| ch.to_ascii_uppercase()) {
+            Some('A') => Some(KeyCode::KeyA),
+            Some('B') => Some(KeyCode::KeyB),
+            Some('C') => Some(KeyCode::KeyC),
+            Some('D') => Some(KeyCode::KeyD),
+            Some('E') => Some(KeyCode::KeyE),
+            Some('F') => Some(KeyCode::KeyF),
+            Some('G') => Some(KeyCode::KeyG),
+            Some('H') => Some(KeyCode::KeyH),
+            Some('I') => Some(KeyCode::KeyI),
+            Some('J') => Some(KeyCode::KeyJ),
+            Some('K') => Some(KeyCode::KeyK),
+            Some('L') => Some(KeyCode::KeyL),
+            Some('M') => Some(KeyCode::KeyM),
+            Some('N') => Some(KeyCode::KeyN),
+            Some('O') => Some(KeyCode::KeyO),
+            Some('P') => Some(KeyCode::KeyP),
+            Some('Q') => Some(KeyCode::KeyQ),
+            Some('R') => Some(KeyCode::KeyR),
+            Some('S') => Some(KeyCode::KeyS),
+            Some('T') => Some(KeyCode::KeyT),
+            Some('U') => Some(KeyCode::KeyU),
+            Some('V') => Some(KeyCode::KeyV),
+            Some('W') => Some(KeyCode::KeyW),
+            Some('X') => Some(KeyCode::KeyX),
+            Some('Y') => Some(KeyCode::KeyY),
+            Some('Z') => Some(KeyCode::KeyZ),
+            Some('0') => Some(KeyCode::Digit0),
+            Some('1') => Some(KeyCode::Digit1),
+            Some('2') => Some(KeyCode::Digit2),
+            Some('3') => Some(KeyCode::Digit3),
+            Some('4') => Some(KeyCode::Digit4),
+            Some('5') => Some(KeyCode::Digit5),
+            Some('6') => Some(KeyCode::Digit6),
+            Some('7') => Some(KeyCode::Digit7),
+            Some('8') => Some(KeyCode::Digit8),
+            Some('9') => Some(KeyCode::Digit9),
+            _ => None,
+        };
+        if let Some(key) = key {
+            return Ok(key);
+        }
+    }
+
+    match normalized.to_ascii_lowercase().as_str() {
+        "backspace" => Ok(KeyCode::Backspace),
+        "esc" | "escape" => Ok(KeyCode::Escape),
+        "enter" | "return" => Ok(KeyCode::Enter),
+        "tab" => Ok(KeyCode::Tab),
+        "left" | "arrowleft" => Ok(KeyCode::ArrowLeft),
+        "right" | "arrowright" => Ok(KeyCode::ArrowRight),
+        "up" | "arrowup" => Ok(KeyCode::ArrowUp),
+        "down" | "arrowdown" => Ok(KeyCode::ArrowDown),
+        _ => Err(format!("unsupported shortcut `{shortcut}`")),
+    }
+}
+
+fn options_menu_layout_from_schema(layout: &schema::MenuLayoutBindings) -> Result<SystemMenuLayout, String> {
+    if layout.container != "system_options_menu_selectable_list" {
+        return Err(format!(
+            "unsupported options menu layout container `{}`",
+            layout.container
+        ));
+    }
+    if let Some(group) = &layout.group {
+        if group != "vertical" {
+            return Err(format!(
+                "unsupported options menu layout group `{group}` (expected `vertical`)"
+            ));
+        }
+    }
+    Ok(SystemMenuLayout::new(
+        Vec2::new(PANEL_WIDTH, 630.0),
+        182.0,
+        140.0,
+    ))
+}
+
+fn resolve_options_menu_schema() -> Result<SchemaMenuPageDef, String> {
+    let schema = schema::load_and_resolve_menu_schema_with_registry(
+        OPTIONS_MENU_SCHEMA_JSON,
+        &OPTIONS_MENU_COMMAND_REGISTRY,
+    )
+    .map_err(|error| error.to_string())?;
+
+    let title = schema
+        .title
+        .ok_or_else(|| "options menu schema missing `title`".to_string())?;
+    let hint = schema
+        .hint
+        .ok_or_else(|| "options menu schema missing `hint`".to_string())?;
+    if title != OPTIONS_MENU_TITLE {
+        return Err(format!(
+            "options menu title mismatch: expected `{OPTIONS_MENU_TITLE}`, got `{title}`"
+        ));
+    }
+    if hint != OPTIONS_MENU_HINT {
+        return Err(format!(
+            "options menu hint mismatch: expected `{OPTIONS_MENU_HINT}`, got `{hint}`"
+        ));
+    }
+    let layout = options_menu_layout_from_schema(&schema.layout)?;
+    let schema_id = schema.id;
+    if schema.options.len() != 4 {
+        return Err(format!(
+            "options menu must define exactly 4 options, got {}",
+            schema.options.len()
+        ));
+    }
+
+    let mut options = Vec::with_capacity(schema.options.len());
+    for option in schema.options {
+        let expected_label = match option.id.as_str() {
+            "video" => OPTIONS_MENU_VIDEO_TEXT,
+            "audio" => OPTIONS_MENU_AUDIO_TEXT,
+            "controls" => OPTIONS_MENU_CONTROLS_TEXT,
+            "back" => OPTIONS_MENU_BACK_TEXT,
+            _ => {
+                return Err(format!(
+                    "unsupported options menu option id `{}`",
+                    option.id
+                ));
+            }
+        };
+        if option.label != expected_label {
+            return Err(format!(
+                "options menu label mismatch for `{}`: expected `{expected_label}`, got `{}`",
+                option.id, option.label
+            ));
+        }
+        let shortcut = option
+            .shortcut
+            .as_deref()
+            .map(resolve_shortcut_keycode)
+            .transpose()
+            .map_err(|error| format!("invalid shortcut for option `{}`: {error}", option.id))?;
+        options.push(MenuOptionDef {
+            name: leak_schema_text(format!("{schema_id}_{}_option", option.id)),
+            label: leak_schema_text(option.label),
+            y: option.y,
+            command: option.command,
+            shortcut,
+            cyclable: false,
+        });
+    }
+
+    Ok(SchemaMenuPageDef {
+        name_prefix: leak_schema_text(schema_id),
+        title: leak_schema_text(title),
+        hint: leak_schema_text(hint),
+        layout,
+        options,
+    })
+}
 
 const VIDEO_MENU_OPTIONS: [MenuOptionDef; VIDEO_TOP_OPTION_COUNT + VIDEO_FOOTER_OPTION_COUNT] = [
     MenuOptionDef {
@@ -849,11 +1008,11 @@ pub(super) fn page_definition(page: MenuPage) -> MenuPageDef {
             options: &DEBUG_ROOT_OPTIONS,
         },
         MenuPage::Options => MenuPageDef {
-            name_prefix: "system_options_menu",
-            title: OPTIONS_MENU_TITLE,
-            hint: OPTIONS_MENU_HINT,
-            layout: SystemMenuLayout::new(Vec2::new(PANEL_WIDTH, 630.0), 182.0, 140.0),
-            options: &OPTIONS_MENU_OPTIONS,
+            name_prefix: OPTIONS_MENU_PAGE_SCHEMA.name_prefix,
+            title: OPTIONS_MENU_PAGE_SCHEMA.title,
+            hint: OPTIONS_MENU_PAGE_SCHEMA.hint,
+            layout: OPTIONS_MENU_PAGE_SCHEMA.layout,
+            options: OPTIONS_MENU_PAGE_SCHEMA.options.as_slice(),
         },
         MenuPage::Video => MenuPageDef {
             name_prefix: "system_video_menu",
@@ -2779,5 +2938,34 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn options_menu_page_definition_comes_from_schema() {
+        let options_page = page_definition(MenuPage::Options);
+        assert_eq!(options_page.title, OPTIONS_MENU_TITLE);
+        assert_eq!(options_page.hint, OPTIONS_MENU_HINT);
+        assert_eq!(options_page.options.len(), 4);
+        assert!(matches!(
+            options_page.options[0].command,
+            MenuCommand::Push(MenuPage::Video)
+        ));
+        assert!(matches!(options_page.options[1].command, MenuCommand::None));
+        assert!(matches!(options_page.options[2].command, MenuCommand::None));
+        assert!(matches!(options_page.options[3].command, MenuCommand::Pop));
+    }
+
+    #[test]
+    fn resolve_shortcut_keycode_accepts_letters_and_named_keys() {
+        assert_eq!(resolve_shortcut_keycode("a"), Ok(KeyCode::KeyA));
+        assert_eq!(resolve_shortcut_keycode("9"), Ok(KeyCode::Digit9));
+        assert_eq!(resolve_shortcut_keycode("Backspace"), Ok(KeyCode::Backspace));
+        assert_eq!(resolve_shortcut_keycode("ArrowLeft"), Ok(KeyCode::ArrowLeft));
+    }
+
+    #[test]
+    fn resolve_shortcut_keycode_rejects_unknown_values() {
+        let error = resolve_shortcut_keycode("not-a-key").expect_err("unknown shortcut should fail");
+        assert!(error.contains("unsupported shortcut"));
     }
 }

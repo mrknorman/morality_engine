@@ -1,0 +1,36 @@
+{
+  "id": "system_options_menu",
+  "title": "OPTIONS",
+  "hint": "[ARROW UP/ARROW DOWN + ENTER]",
+  "layout": {
+    "container": "system_options_menu_selectable_list",
+    "group": "vertical"
+  },
+  "options": [
+    {
+      "id": "video",
+      "label": "VIDEO",
+      "command": "open_video",
+      "y": 60.0
+    },
+    {
+      "id": "audio",
+      "label": "AUDIO",
+      "command": "audio_placeholder",
+      "y": 20.0
+    },
+    {
+      "id": "controls",
+      "label": "CONTROLS",
+      "command": "controls_placeholder",
+      "y": -20.0
+    },
+    {
+      "id": "back",
+      "label": "BACK [⌫]",
+      "command": "go_back",
+      "shortcut": "Backspace",
+      "y": -65.0
+    }
+  ]
+}

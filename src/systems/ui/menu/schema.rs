@@ -120,10 +120,31 @@ fn validate_schema(schema: &MenuSchema) -> Result<(), MenuSchemaError> {
             "menu id must not be empty".to_string(),
         ));
     }
+    if let Some(title) = &schema.title {
+        if title.trim().is_empty() {
+            return Err(MenuSchemaError::Validation(
+                "menu title must not be blank when provided".to_string(),
+            ));
+        }
+    }
+    if let Some(hint) = &schema.hint {
+        if hint.trim().is_empty() {
+            return Err(MenuSchemaError::Validation(
+                "menu hint must not be blank when provided".to_string(),
+            ));
+        }
+    }
     if schema.layout.container.trim().is_empty() {
         return Err(MenuSchemaError::Validation(
             "layout.container must not be empty".to_string(),
         ));
+    }
+    if let Some(group) = &schema.layout.group {
+        if group.trim().is_empty() {
+            return Err(MenuSchemaError::Validation(
+                "layout.group must not be blank when provided".to_string(),
+            ));
+        }
     }
     if schema.options.is_empty() {
         return Err(MenuSchemaError::Validation(
@@ -161,6 +182,12 @@ fn validate_schema(schema: &MenuSchema) -> Result<(), MenuSchemaError> {
         if !seen_ids.insert(option.id.clone()) {
             return Err(MenuSchemaError::Validation(format!(
                 "duplicate option id `{}`",
+                option.id
+            )));
+        }
+        if !option.y.is_finite() {
+            return Err(MenuSchemaError::Validation(format!(
+                "option `{}` y must be finite",
                 option.id
             )));
         }
@@ -291,5 +318,34 @@ mod tests {
         assert_eq!(resolved.options.len(), 2);
         assert_eq!(resolved.options[0].command, 10usize);
         assert_eq!(resolved.options[1].command, 20usize);
+    }
+
+    #[test]
+    fn rejects_blank_optional_fields() {
+        let blank_title = r#"
+{
+  "id": "menu",
+  "title": "   ",
+  "layout": { "container": "menu_selectable_list", "group": "vertical" },
+  "options": [
+    { "id": "start", "label": "Start", "command": "start", "y": 10.0 }
+  ]
+}
+"#;
+        let error = parse_menu_schema(blank_title).expect_err("blank title should fail");
+        assert!(error.to_string().contains("title must not be blank"));
+
+        let blank_group = r#"
+{
+  "id": "menu",
+  "title": "Main",
+  "layout": { "container": "menu_selectable_list", "group": "  " },
+  "options": [
+    { "id": "start", "label": "Start", "command": "start", "y": 10.0 }
+  ]
+}
+"#;
+        let error = parse_menu_schema(blank_group).expect_err("blank group should fail");
+        assert!(error.to_string().contains("layout.group must not be blank"));
     }
 }

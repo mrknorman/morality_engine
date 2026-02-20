@@ -32,7 +32,7 @@ Legend:
 | `command_effects.rs` | Compliant | Side-effect boundary for reducer outputs. | Keep deterministic effect dispatch. |
 | `command_flow.rs` | Compliant | Reducer + effects orchestration. | None. |
 | `stack.rs` | Compliant | Menu stack/navigation state model. | None. |
-| `schema.rs` | Partial | Typed schema parsing exists; typed command registry bridge (`CommandRegistry`) is in place and used by main menu command-id mapping. | Expand schema usage across settings/menu pages. |
+| `schema.rs` | Partial | Typed schema parsing exists with command registries; now used by both main menu and options menu, with explicit validation for blank optional fields and invalid shortcut/layout bindings. | Expand schema usage across remaining menu/settings pages. |
 | `footer_nav.rs` | Compliant | Footer navigation utility systems. | None. |
 | `main_menu.rs` | Compliant | Shared main-menu option-list composition + command-id mapping + overlay follow/navigation systems. | Keep main-menu behavior routed through shared menu command flow. |
 | `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns; focus-follow now reads tabbed option-lock state instead of visual-state outputs. | Push reusable pieces into scroll primitive layer. |
@@ -66,7 +66,7 @@ Status:
 2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
    - Recent progress: decomposed `menu_input::handle_menu_shortcuts` into focused helper units.
    - Recent progress: extracted video scaffold composition into `spawn_video_page_scaffold` within `page_content`.
-3. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
+3. Expand schema-driven composition beyond main/options to remaining pages (pause/debug/video).
 4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.
    - Recent progress: added regression coverage for scroll-parented top-table owner resolution in video options.
    - Recent progress: added dropdown-flow regressions for scroll-aware opening and outside-click item safety.

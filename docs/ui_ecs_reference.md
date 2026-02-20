@@ -387,6 +387,19 @@ Usage rule:
 - For schema-driven menus, prefer `CommandRegistry` over ad-hoc `match` closures so command-id
   validation remains centralized and reusable.
 
+Current schema-driven pages:
+
+- `Main` menu (`src/scenes/menu/content/main_menu_ui.json`) resolves via `main_menu_command_registry()`.
+- `Options` menu (`src/systems/ui/menu/content/options_menu_ui.json`) resolves via
+  `OPTIONS_MENU_COMMAND_REGISTRY` in `src/systems/ui/menu/defs.rs`.
+
+Options schema contract (`src/systems/ui/menu/defs.rs`):
+
+- `resolve_options_menu_schema()` is strict: it validates title/hint text, expected option ids/labels,
+  and layout container/group bindings before building menu options.
+- `resolve_shortcut_keycode(...)` converts schema shortcut strings to `KeyCode` with explicit failures
+  (no silent fallback).
+
 ### Dropdown State Resource (Shared UI)
 
 `DropdownLayerState` (`src/systems/ui/dropdown.rs`):

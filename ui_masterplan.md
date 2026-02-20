@@ -69,10 +69,10 @@ Legend:
   - Main-menu overlay camera-follow and navigation-audio systems are now owned by `ui::menu::main_menu` instead of scene-local systems.
   - Legacy scene-local `MenuActions`/`ActionPallet` path and duplicate overlay-open handler were removed.
   - Scene module now only composes scene visuals/content and invokes shared menu composition.
-- Stage 11 JSON Menu/Settings Schema Interface: `status: partial`
-  - JSON schema path exists and is used for main menu options.
-  - Typed command registry bridge (`schema::CommandRegistry`) now resolves string command ids to typed commands.
-  - Remaining gap: generalize schema composition across settings/menu pages.
+- Stage 11 JSON Menu/Settings Schema Interface: `status: done`
+  - Main menu and options menu both load through schema + typed command registry resolution.
+  - Schema validation now fails on blank optional fields and non-finite option positions.
+  - Options schema enforces strict layout container/group + shortcut parsing with explicit errors.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`
   - `DiscreteSlider` primitive exists and is integrated in video options.
 - Stage 13 Scrollable RTT Primitive: `status: partial`
@@ -243,13 +243,13 @@ Deliverable:
 - [x] Main menu uses same composition system as other UI menus.
 
 ## Stage 11: JSON Menu/Settings Schema Interface
-- [ ] Define JSON schema for menu structure (title, hint, options, shortcuts, layout bindings).
+- [x] Define JSON schema for menu structure (title, hint, options, shortcuts, layout bindings).
 - [x] Implement typed command registry bridge (`string id -> typed Rust handler`).
-- [ ] Add explicit validation failures (no silent fallback).
-- [ ] Migrate one menu as pilot and evaluate extension cost.
+- [x] Add explicit validation failures (no silent fallback).
+- [x] Migrate one menu as pilot and evaluate extension cost.
 
 Deliverable:
-- [ ] Validated schema-driven menu composition path.
+- [x] Validated schema-driven menu composition path.
 
 ## Stage 12: Discrete Slider Primitive and Integration
 - [ ] Implement/normalize reusable `DiscreteSlider` primitive (keyboard + mouse).
