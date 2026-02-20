@@ -26,9 +26,16 @@ where
             extra_components,
         ),
     );
-    commands
-        .entity(menu_entity)
-        .insert(UiLayer::new(menu_entity, UiLayerKind::Base));
+    let click_activation = if host == MenuHost::Debug {
+        SelectableClickActivation::HoveredOnly
+    } else {
+        SelectableClickActivation::SelectedOnAnyClick
+    };
+    commands.entity(menu_entity).insert(
+        MenuSurface::new(menu_entity)
+            .with_layer(UiLayerKind::Base)
+            .with_click_activation(click_activation),
+    );
 
     spawn_page_content(commands, asset_server, menu_entity, initial_page, gate);
 
