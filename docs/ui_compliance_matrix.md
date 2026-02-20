@@ -68,5 +68,6 @@ Status:
 4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.
    - Recent progress: added regression coverage for scroll-parented top-table owner resolution in video options.
    - Recent progress: added dropdown-flow regressions for scroll-aware opening and outside-click item safety.
+   - Recent progress: added directional shortcut regressions in `menu_input` (right activate, left back-only, tabs-focus block).
 5. Keep trimming dead menu/UI helpers as command/input paths are consolidated.
    - Recent progress: removed unused slider click-region constant and unused top-option cycle helper.

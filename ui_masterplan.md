@@ -88,6 +88,7 @@ Legend:
   - Added scroll focus-follow regression for option-lock path without navigation key input.
   - Added top-table owner-resolution regression for scroll-parented video tables.
   - Added dropdown-flow regressions for scroll-aware dropdown opening and outside-click item protection.
+  - Added menu-input regression tests for directional shortcut behavior (right activate, left back-only, tabs-focus block).
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).

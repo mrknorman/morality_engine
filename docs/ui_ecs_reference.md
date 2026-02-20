@@ -310,6 +310,7 @@ Cross-system behavior checks live in `src/systems/ui/menu/flow_tests.rs` and sho
 - dropdown open/close semantics
 - menu stack/pop/push state transitions
 - scroll-aware dropdown opening and outside-click protections
+- directional shortcut arbitration (right activate / left back-only / tabs-focus suppression)
 
 - `exit_prompt_target_menu`
 - `exit_prompt_closes_menu_system`

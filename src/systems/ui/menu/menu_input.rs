@@ -417,3 +417,158 @@ pub(super) fn handle_menu_shortcuts(
 }
 
 pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus() {}
+
+#[cfg(test)]
+mod tests {
+    use bevy::{ecs::system::SystemState, prelude::*};
+
+    use super::*;
+    use crate::systems::ui::menu::tabbed_menu::TabbedMenuFocus;
+
+    fn active_context_for_menu(menu_entity: Entity, selected_index: usize) -> ActiveMenuShortcutContext {
+        let mut context = ActiveMenuShortcutContext::default();
+        context.active_menus.insert(menu_entity);
+        context
+            .selected_indices_by_menu
+            .insert(menu_entity, selected_index);
+        context
+    }
+
+    fn collect_intents(world: &mut World) -> Vec<MenuIntent> {
+        let mut reader = world.resource_mut::<Messages<MenuIntent>>().get_cursor();
+        reader
+            .read(world.resource::<Messages<MenuIntent>>())
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn right_arrow_shortcut_triggers_selected_non_selector_option() {
+        let mut world = World::new();
+        world.init_resource::<Messages<MenuIntent>>();
+
+        let menu_entity = world.spawn_empty().id();
+        world.spawn((
+            Selectable::new(menu_entity, 1),
+            MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+        ));
+        world.spawn((
+            Selectable::new(menu_entity, 0),
+            MenuOptionCommand(MenuCommand::Push(MenuPage::Video)),
+        ));
+
+        let context = active_context_for_menu(menu_entity, 1);
+        let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
+
+        let mut system_state: SystemState<(
+            Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            MessageWriter<MenuIntent>,
+        )> = SystemState::new(&mut world);
+        {
+            let (option_command_query, mut menu_intents) = system_state.get_mut(&mut world);
+            emit_directional_shortcut_intents(
+                true,
+                false,
+                &context,
+                &tabbed_focus,
+                &option_command_query,
+                &mut menu_intents,
+            );
+        }
+        system_state.apply(&mut world);
+
+        let intents = collect_intents(&mut world);
+        assert_eq!(intents.len(), 1);
+        let MenuIntent::TriggerCommand {
+            menu_entity: triggered_menu,
+            command,
+        } = intents[0].clone() else {
+            panic!("expected trigger command intent");
+        };
+        assert_eq!(triggered_menu, menu_entity);
+        assert!(matches!(command, MenuCommand::Push(MenuPage::Options)));
+    }
+
+    #[test]
+    fn left_arrow_shortcut_triggers_back_only() {
+        let mut world = World::new();
+        world.init_resource::<Messages<MenuIntent>>();
+
+        let menu_entity = world.spawn_empty().id();
+        world.spawn((
+            Selectable::new(menu_entity, 2),
+            MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+        ));
+        world.spawn((
+            Selectable::new(menu_entity, 2),
+            MenuOptionCommand(MenuCommand::Pop),
+        ));
+
+        let context = active_context_for_menu(menu_entity, 2);
+        let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
+
+        let mut system_state: SystemState<(
+            Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            MessageWriter<MenuIntent>,
+        )> = SystemState::new(&mut world);
+        {
+            let (option_command_query, mut menu_intents) = system_state.get_mut(&mut world);
+            emit_directional_shortcut_intents(
+                false,
+                true,
+                &context,
+                &tabbed_focus,
+                &option_command_query,
+                &mut menu_intents,
+            );
+        }
+        system_state.apply(&mut world);
+
+        let intents = collect_intents(&mut world);
+        assert_eq!(intents.len(), 1);
+        let MenuIntent::TriggerCommand {
+            menu_entity: triggered_menu,
+            command,
+        } = intents[0].clone() else {
+            panic!("expected trigger command intent");
+        };
+        assert_eq!(triggered_menu, menu_entity);
+        assert!(matches!(command, MenuCommand::Pop));
+    }
+
+    #[test]
+    fn directional_shortcuts_are_blocked_while_tabs_focused() {
+        let mut world = World::new();
+        world.init_resource::<Messages<MenuIntent>>();
+
+        let menu_entity = world.spawn_empty().id();
+        world.spawn((
+            Selectable::new(menu_entity, 1),
+            MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+        ));
+
+        let context = active_context_for_menu(menu_entity, 1);
+        let mut tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
+        tabbed_focus.by_menu.insert(menu_entity, TabbedMenuFocus::Tabs);
+
+        let mut system_state: SystemState<(
+            Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            MessageWriter<MenuIntent>,
+        )> = SystemState::new(&mut world);
+        {
+            let (option_command_query, mut menu_intents) = system_state.get_mut(&mut world);
+            emit_directional_shortcut_intents(
+                true,
+                false,
+                &context,
+                &tabbed_focus,
+                &option_command_query,
+                &mut menu_intents,
+            );
+        }
+        system_state.apply(&mut world);
+
+        let intents = collect_intents(&mut world);
+        assert!(intents.is_empty());
+    }
+}
