@@ -112,8 +112,9 @@ Legend:
 - Stage 21 Tooling and Test Framework Rollout: `status: partial`
   - `mdBook` content now includes the `./scripts/ui_regression.sh` flow and `nextest` profile usage.
   - Remaining: decide if property-testing crates are required or keep deterministic sampled coverage only.
-- Stage 22 Cleanup and Redundancy Pass: `status: pending`
+- Stage 22 Cleanup and Redundancy Pass: `status: partial`
   - Redundant menu dead code cleanup started (`VIDEO_DISCRETE_SLIDER_SLOT_CLICK_REGION`, `cycle_video_top_option` removed).
+  - Removed unused legacy helper `startup::system_menu::play_navigation_sound`.
   - Not yet complete.
 
 ## Active Bug Backlog (Priority)

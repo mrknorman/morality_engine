@@ -74,3 +74,4 @@ Status:
    - Recent progress: added query-safety smoke tests that initialize command/input/dropdown/modal/video systems and fail fast on query aliasing.
 5. Keep trimming dead menu/UI helpers as command/input paths are consolidated.
    - Recent progress: removed unused slider click-region constant and unused top-option cycle helper.
+   - Recent progress: removed unused legacy helper `startup::system_menu::play_navigation_sound`.

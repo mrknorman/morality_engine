@@ -564,32 +564,6 @@ pub fn spawn_chrome_with_marker<M>(
     });
 }
 
-pub fn play_navigation_sound<S, F>(
-    commands: &mut Commands,
-    keyboard_input: &ButtonInput<KeyCode>,
-    menu_query: &Query<(Entity, &SelectableMenu, &TransientAudioPallet<S>), F>,
-    audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
-    switch_sound: S,
-    dilation: f32,
-) where
-    S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + Copy + 'static,
-    <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
-    F: QueryFilter,
-{
-    for (menu_entity, menu, pallet) in menu_query.iter() {
-        play_navigation_switch(
-            menu_entity,
-            menu,
-            pallet,
-            commands,
-            keyboard_input,
-            audio_query,
-            switch_sound,
-            dilation,
-        );
-    }
-}
-
 pub fn play_navigation_sound_owner_scoped<S, F>(
     commands: &mut Commands,
     keyboard_input: &ButtonInput<KeyCode>,
