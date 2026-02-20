@@ -5,6 +5,8 @@ use bevy::{
     prelude::*,
     render::render_resource::TextureFormat,
 };
+use proptest::prelude::*;
+use rstest::rstest;
 
 use crate::{
     startup::cursor::CustomCursor,
@@ -13,8 +15,8 @@ use crate::{
 
 use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
-    ScrollAxis, ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent,
-    ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
+    ScrollAxis, ScrollBar, ScrollBarDragState, ScrollPlugin, ScrollRenderSettings, ScrollState,
+    ScrollableContent, ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -33,6 +35,17 @@ fn make_scroll_test_app() -> App {
 fn default_scroll_render_target_format_is_rgba16float() {
     let settings = ScrollRenderSettings::default();
     assert_eq!(settings.target_format, TextureFormat::Rgba16Float);
+}
+
+#[test]
+fn scrollbar_insertion_adds_required_components() {
+    let mut world = World::new();
+    let root = world.spawn_empty().id();
+    let scrollbar = world.spawn(ScrollBar::new(root)).id();
+
+    assert!(world.entity(scrollbar).get::<Transform>().is_some());
+    assert!(world.entity(scrollbar).get::<Visibility>().is_some());
+    assert!(world.entity(scrollbar).get::<ScrollBarDragState>().is_some());
 }
 
 fn spawn_owner_and_scroll_root(
@@ -69,13 +82,18 @@ fn write_wheel(app: &mut App, y: f32) {
     });
 }
 
-#[test]
-fn thumb_extent_respects_minimum_and_track_bounds() {
-    let thumb = thumb_extent_for_state(120.0, 20.0, 300.0, 18.0);
-    assert_eq!(thumb, 18.0);
-
-    let thumb = thumb_extent_for_state(120.0, 500.0, 300.0, 18.0);
-    assert_eq!(thumb, 120.0);
+#[rstest]
+#[case(120.0, 20.0, 300.0, 18.0, 18.0)]
+#[case(120.0, 500.0, 300.0, 18.0, 120.0)]
+fn thumb_extent_respects_minimum_and_track_bounds(
+    #[case] track_extent: f32,
+    #[case] viewport_extent: f32,
+    #[case] content_extent: f32,
+    #[case] min_thumb_extent: f32,
+    #[case] expected: f32,
+) {
+    let thumb = thumb_extent_for_state(track_extent, viewport_extent, content_extent, min_thumb_extent);
+    assert_eq!(thumb, expected);
 }
 
 #[test]
@@ -100,6 +118,38 @@ fn horizontal_thumb_round_trip_maps_offset_consistently() {
     let mapped = offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Horizontal);
 
     assert!((mapped - offset).abs() < 0.001);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    #[test]
+    fn vertical_thumb_round_trip_property_is_bounded(
+        track in 24.0f32..400.0f32,
+        thumb_ratio in 0.15f32..0.95f32,
+        max in 1.0f32..5000.0f32,
+        normalized in 0.0f32..1.0f32,
+    ) {
+        let thumb = (track * thumb_ratio).clamp(1.0, track);
+        let offset = max * normalized;
+        let center = thumb_center_for_offset(track, thumb, offset, max, ScrollAxis::Vertical);
+        let mapped = offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Vertical);
+        prop_assert!((mapped - offset).abs() <= 0.01);
+    }
+
+    #[test]
+    fn horizontal_thumb_round_trip_property_is_bounded(
+        track in 24.0f32..400.0f32,
+        thumb_ratio in 0.15f32..0.95f32,
+        max in 1.0f32..5000.0f32,
+        normalized in 0.0f32..1.0f32,
+    ) {
+        let thumb = (track * thumb_ratio).clamp(1.0, track);
+        let offset = max * normalized;
+        let center = thumb_center_for_offset(track, thumb, offset, max, ScrollAxis::Horizontal);
+        let mapped = offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Horizontal);
+        prop_assert!((mapped - offset).abs() <= 0.01);
+    }
 }
 
 #[test]

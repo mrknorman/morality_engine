@@ -1,3 +1,8 @@
+//! Render-to-texture scroll primitives and scrollbar behavior.
+//!
+//! `ScrollableRoot` defines owner, axis, input-layer contract, and backend.
+//! Runtime systems manage render targets/cameras/surfaces and keep pointer,
+//! keyboard, and scrollbar input deterministic.
 use std::collections::{HashMap, HashSet};
 
 use bevy::{prelude::*, render::render_resource::TextureFormat};
@@ -50,6 +55,7 @@ const SCROLLBAR_HITBOX_MAIN_AXIS_PAD_PX: f32 = 6.0;
 
 #[derive(Resource, Clone, Copy, Debug)]
 pub struct ScrollRenderSettings {
+    /// Render target format for scroll surfaces.
     pub target_format: TextureFormat,
 }
 
@@ -63,6 +69,7 @@ impl Default for ScrollRenderSettings {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScrollBackend {
+    /// Off-screen render-to-texture backend.
     RenderToTexture,
 }
 
@@ -75,10 +82,18 @@ pub enum ScrollAxis {
 #[derive(Component, Clone, Copy, Debug)]
 #[require(ScrollState, ScrollFocusFollowLock)]
 pub struct ScrollableRoot {
+    /// Owner entity for layer arbitration.
     pub owner: Entity,
+    /// Scroll axis for content and input mapping.
     pub axis: ScrollAxis,
+    /// Rendering backend.
     pub backend: ScrollBackend,
+    /// Active UI layer required for input acceptance.
     pub input_layer: UiLayerKind,
+    /// Inside-edge auto-scroll zone in pixels.
+    pub edge_zone_inside_px: f32,
+    /// Outside-edge auto-scroll zone in pixels.
+    pub edge_zone_outside_px: f32,
 }
 
 impl ScrollableRoot {
@@ -88,11 +103,19 @@ impl ScrollableRoot {
             axis,
             backend: ScrollBackend::RenderToTexture,
             input_layer: UiLayerKind::Base,
+            edge_zone_inside_px: SCROLL_EDGE_ZONE_INSIDE_PX,
+            edge_zone_outside_px: SCROLL_EDGE_ZONE_OUTSIDE_PX,
         }
     }
 
     pub const fn with_input_layer(mut self, input_layer: UiLayerKind) -> Self {
         self.input_layer = input_layer;
+        self
+    }
+
+    pub const fn with_edge_zones(mut self, inside_px: f32, outside_px: f32) -> Self {
+        self.edge_zone_inside_px = inside_px;
+        self.edge_zone_outside_px = outside_px;
         self
     }
 }
@@ -165,6 +188,7 @@ struct ScrollableSurface {
 struct ScrollLayerManaged;
 
 #[derive(Component, Clone, Copy, Debug)]
+#[require(Transform, Visibility, ScrollBarDragState)]
 pub struct ScrollBar {
     pub scrollable_root: Entity,
     pub width: f32,
