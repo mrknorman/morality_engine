@@ -113,6 +113,7 @@ Legend:
   - Added query-safety smoke tests for command/input/dropdown/modal/video visual systems.
   - Added tabbed-menu regression coverage for focused-owner suppression and stale-state cleanup restoration.
   - Added menu-input suppression regressions for non-base layer gating and tab-focus top-row suppression.
+  - Added stack-state regression coverage for stale menu target cleanup (`clear_stale_menu_targets`).
   - Added menu-input active-layer context regression (`active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav`).
   - Added debug-showcase smoke coverage for command and visual system initialization.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
