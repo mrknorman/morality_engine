@@ -1,7 +1,7 @@
 # UI Scrollable Usage Guide
 
 ## Purpose
-`Scrollable` and `ScrollBar` provide a reusable render-to-texture clipping primitive for UI content that must overflow a viewport while keeping owner-scoped interaction/layer arbitration intact.
+`ScrollableRoot` and `ScrollBar` provide a reusable render-to-texture clipping primitive for UI content that must overflow a viewport while keeping owner-scoped interaction/layer arbitration intact.
 
 Primary module:
 - `src/systems/ui/scroll/mod.rs`
@@ -19,8 +19,10 @@ Attach these to a scroll root entity:
 3. `ScrollState` (auto-required by `ScrollableRoot`)
 4. Optional `ScrollableContentExtent` for explicit content size
 
-Attach this to one child under the root:
+Optional explicit child content root:
 1. `ScrollableContent`
+   - `ScrollPlugin` now auto-seeds a default `ScrollableContent` child if one is missing.
+   - Add your own explicit `ScrollableContent` child when you want deterministic naming/placement during composition.
 
 Attach this to optional scrollbar entity (can be a child of the root or auto-reparented):
 1. `ScrollBar::new(scrollable_root_entity)`
@@ -42,8 +44,8 @@ Attach this to scroll items when you want automatic extent aggregation:
 
 ## Integration Recipe (Reusable)
 1. Spawn a root entity with `ScrollableRoot` + `ScrollableViewport`.
-2. Spawn a child `ScrollableContent` entity.
-3. Parent overflow content under `ScrollableContent`.
+2. Optionally spawn an explicit `ScrollableContent` child entity (or rely on auto-seeded default).
+3. Parent overflow content under the `ScrollableContent` child.
 4. Add `ScrollableContentExtent` or `ScrollableItem` entries to define content size.
 5. Add `ScrollBar` if a visual scrollbar is needed.
 6. Ensure your owning UI root participates in `UiLayer` arbitration.
