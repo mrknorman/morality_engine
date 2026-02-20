@@ -39,6 +39,10 @@ pub(super) fn sync_scroll_extents(
     content_query: Query<(Entity, &ChildOf), With<ScrollableContent>>,
     item_query: Query<(&ScrollableItem, &ChildOf), Without<ScrollableRoot>>,
 ) {
+    // Query contract:
+    // - root state is mutated only through `root_query`.
+    // - content/item queries are read-only and disjoint by role
+    //   (`ScrollableContent` vs `ScrollableItem`), preventing aliasing.
     let mut content_by_root = HashMap::new();
     for (content_entity, parent) in content_query.iter() {
         content_by_root.insert(parent.parent(), content_entity);
@@ -91,6 +95,11 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         With<ScrollableRoot>,
     >,
 ) {
+    // Query contract:
+    // - active-layer arbitration queries are read-only
+    //   (`capture_query`, `ui_layer_query`).
+    // - scroll state/focus lock mutations are isolated to `root_query`.
+    // This keeps pointer+keyboard reduction deterministic and query-safe.
     let pause_state = pause_state.as_ref();
     let active_layers =
         layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
@@ -160,9 +169,14 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             Vec2::ZERO,
         );
         if !hovered {
-            if let Some(edge_delta) =
-                edge_auto_scroll_delta(cursor_position, global_transform, viewport.size, root.axis)
-            {
+            if let Some(edge_delta) = edge_auto_scroll_delta(
+                cursor_position,
+                global_transform,
+                viewport.size,
+                root.axis,
+                root.edge_zone_inside_px,
+                root.edge_zone_outside_px,
+            ) {
                 let candidate = (
                     entity,
                     global_transform.translation().z,
@@ -283,6 +297,10 @@ pub(super) fn sync_scroll_content_offsets(
         With<ScrollableContent>,
     >,
 ) {
+    // Query contract:
+    // - root scroll state is read-only (`root_query`).
+    // - content transform mutations are isolated to entities marked
+    //   `ScrollableContent`.
     let root_state: HashMap<Entity, (ScrollAxis, f32)> = root_query
         .iter()
         .map(|(entity, root, state)| (entity, (root.axis, state.offset_px)))

@@ -111,6 +111,11 @@ pub(super) fn ensure_scrollable_runtime_entities(
     camera_marker_query: Query<(), With<ScrollableContentCamera>>,
     surface_marker_query: Query<(), With<ScrollableSurface>>,
 ) {
+    // Query contract:
+    // - root iteration is read-only (`root_query`).
+    // - camera/surface marker queries are read-only existence checks.
+    // - all entity creation and parent mutation occurs through `Commands`,
+    //   keeping this system B0001-safe.
     for (root_entity, render_target, children) in root_query.iter() {
         let mut has_camera = false;
         let mut has_surface = false;
@@ -169,6 +174,11 @@ pub(super) fn sync_scrollable_render_entities(
     >,
     mut surface_query: Query<(&ScrollableSurface, &mut Sprite, &mut Transform, &mut Visibility)>,
 ) {
+    // Query contract:
+    // - root state is read-only and cached into `root_map`.
+    // - camera/surface mutations are isolated by marker components
+    //   (`ScrollableContentCamera` vs `ScrollableSurface`), avoiding overlap on
+    //   mutable render components.
     let mut root_map = HashMap::new();
     for (root_entity, viewport, render_target) in root_query.iter() {
         root_map.insert(
@@ -211,6 +221,11 @@ pub(super) fn sync_scroll_content_layers(
     children_query: Query<&Children>,
     layer_query: Query<(Option<&RenderLayers>, Option<&ScrollLayerManaged>)>,
 ) {
+    // Query contract:
+    // - all source queries are read-only snapshots (`root_query`, `content_query`,
+    //   `content_parent_query`, `children_query`, `layer_query`).
+    // - layer updates are applied through `Commands`, so no mutable query aliasing
+    //   occurs while traversing the content subtree.
     let layer_by_root: HashMap<Entity, u8> = root_query
         .iter()
         .map(|(entity, target)| (entity, target.layer))
