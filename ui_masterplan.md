@@ -58,8 +58,8 @@ Legend:
   - Footer single-selection visual override is now registered in visual sync; dropdown anchoring edge cases still need hardening.
 - Stage 8 Command Reducer + Effects Split: `status: done`
   - `command_reducer.rs`, `command_effects.rs`, `command_flow.rs` are separated and active.
-- Stage 9 Deterministic Input Arbitration: `status: partial`
-  - Arbitration order exists conceptually.
+- Stage 9 Deterministic Input Arbitration: `status: done`
+  - Arbitration order is enforced and regression-covered.
   - Recent progress: tabbed focus and scroll focus-follow no longer depend on option `InteractionVisualState` as behavior truth.
   - Recent progress: visual arbitration now explicitly suppresses top-option highlight state when tab focus is active, and suppresses option visuals for non-base active layers.
   - Recent progress: directional shortcut dispatch now resolves deterministically per menu by entity rank, and emits intents in stable owner order.
@@ -67,7 +67,7 @@ Legend:
   - Recent progress: dropdown keyboard-open flow now deterministically chooses the lowest owner index when multiple owners match in-frame.
   - Recent progress: dropdown value-apply routing now resolves active dropdown owners in shared layer order, removing local hash-key sort/dedup behavior.
   - Recent progress: tabbed-focus reducer now has explicit priority coverage for keyboard-vs-hover and click-vs-hover arbitration.
-  - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
+  - Recent progress: mixed-input jitter guards are now regression-tested (`keyboard_lock_prevents_hover_jitter_until_pointer_reengages`, `overlapping_hover_candidates_resolve_selection_deterministically`).
 - Stage 10 Main Menu Composition Migration: `status: done`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
   - Main menu option-list assembly moved to shared composition (`ui::menu::spawn_main_menu_option_list`).
@@ -262,10 +262,10 @@ Deliverable:
 - [x] Enforce strict priority: layer > focus group > keyboard lock > hover.
 - [x] Remove first-match query-iteration dependence.
 - [x] Ensure one owner-level system decides selection priority.
-- [ ] Stabilize behavior under rapid mixed keyboard/mouse interaction.
+- [x] Stabilize behavior under rapid mixed keyboard/mouse interaction.
 
 Deliverable:
-- [ ] No selection jitter or nondeterministic ownership conflicts.
+- [x] No selection jitter or nondeterministic ownership conflicts.
 
 ## Stage 10: Main Menu Composition Migration
 - [x] Move main menu option list fully to shared menu composition path.

@@ -566,6 +566,158 @@ fn mouse_selection_then_keyboard_cycle_uses_same_selected_row() {
 }
 
 #[test]
+fn keyboard_lock_prevents_hover_jitter_until_pointer_reengages() {
+    let mut app = App::new();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.init_resource::<crate::startup::cursor::CustomCursor>();
+    app.add_systems(Update, selectable_system::<SystemMenuActions>);
+
+    let menu = app
+        .world_mut()
+        .spawn(
+            SelectableMenu::new(
+                0,
+                vec![KeyCode::ArrowUp],
+                vec![KeyCode::ArrowDown],
+                vec![KeyCode::Enter],
+                true,
+            )
+            .with_click_activation(SelectableClickActivation::HoveredOnly),
+        )
+        .id();
+
+    app.world_mut().spawn((
+        Selectable::new(menu, 0),
+        Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+    ));
+    app.world_mut().spawn((
+        Selectable::new(menu, 1),
+        Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+        Transform::from_xyz(0.0, 40.0, 0.0),
+        GlobalTransform::from_translation(Vec3::new(0.0, 40.0, 0.0)),
+    ));
+
+    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
+        Some(Vec2::new(0.0, 40.0));
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<SelectableMenu>(menu)
+            .expect("menu selected from hover")
+            .selected_index,
+        1
+    );
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::ArrowUp);
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<SelectableMenu>(menu)
+            .expect("menu selected from keyboard")
+            .selected_index,
+        0
+    );
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .release(KeyCode::ArrowUp);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .clear();
+
+    // Cursor did not move: keyboard lock should hold selection and prevent jitter.
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<SelectableMenu>(menu)
+            .expect("menu selected without cursor movement")
+            .selected_index,
+        0
+    );
+
+    // Re-engage pointer with movement: hover selection can reclaim focus.
+    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
+        Some(Vec2::new(1.0, 40.5));
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<SelectableMenu>(menu)
+            .expect("menu selected after pointer reengage")
+            .selected_index,
+        1
+    );
+}
+
+#[test]
+fn overlapping_hover_candidates_resolve_selection_deterministically() {
+    let mut app = App::new();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    app.init_resource::<crate::startup::cursor::CustomCursor>();
+    app.add_systems(Update, selectable_system::<SystemMenuActions>);
+
+    let menu = app
+        .world_mut()
+        .spawn(
+            SelectableMenu::new(
+                0,
+                vec![KeyCode::ArrowUp],
+                vec![KeyCode::ArrowDown],
+                vec![KeyCode::Enter],
+                true,
+            )
+            .with_click_activation(SelectableClickActivation::HoveredOnly),
+        )
+        .id();
+
+    let first = app
+        .world_mut()
+        .spawn((
+            Selectable::new(menu, 0),
+            Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+        ))
+        .id();
+    let second = app
+        .world_mut()
+        .spawn((
+            Selectable::new(menu, 1),
+            Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+        ))
+        .id();
+
+    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
+        Some(Vec2::new(0.0, 0.0));
+    app.update();
+
+    let expected = if first.index() >= second.index() { 0 } else { 1 };
+    assert_eq!(
+        app.world()
+            .get::<SelectableMenu>(menu)
+            .expect("menu selected index")
+            .selected_index,
+        expected
+    );
+
+    // Re-running without input changes should not produce selection jitter.
+    app.update();
+    assert_eq!(
+        app.world()
+            .get::<SelectableMenu>(menu)
+            .expect("menu selected index remains stable")
+            .selected_index,
+        expected
+    );
+}
+
+#[test]
 fn tab_change_closes_open_video_dropdown_for_owner() {
     let mut app = App::new();
     app.add_message::<crate::systems::ui::tabs::TabChanged>();
