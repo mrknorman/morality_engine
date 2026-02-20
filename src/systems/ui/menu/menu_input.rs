@@ -576,6 +576,70 @@ mod tests {
     }
 
     #[test]
+    fn active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav() {
+        let mut world = World::new();
+        let active_menu = world
+            .spawn((
+                MenuStack::new(MenuPage::Video),
+                MenuRoot {
+                    host: MenuHost::Pause,
+                    gate: InteractionGate::GameplayOnly,
+                },
+                SelectableMenu::new(
+                    VIDEO_FOOTER_OPTION_START_INDEX,
+                    vec![],
+                    vec![],
+                    vec![],
+                    true,
+                ),
+            ))
+            .id();
+        let inactive_menu = world
+            .spawn((
+                MenuStack::new(MenuPage::PauseRoot),
+                MenuRoot {
+                    host: MenuHost::Pause,
+                    gate: InteractionGate::GameplayOnly,
+                },
+                SelectableMenu::new(0, vec![], vec![], vec![], true),
+            ))
+            .id();
+
+        let mut active_layers = std::collections::HashMap::new();
+        active_layers.insert(
+            active_menu,
+            layer::ActiveUiLayer {
+                entity: Entity::from_bits(10),
+                kind: UiLayerKind::Base,
+            },
+        );
+        active_layers.insert(
+            inactive_menu,
+            layer::ActiveUiLayer {
+                entity: Entity::from_bits(20),
+                kind: UiLayerKind::Dropdown,
+            },
+        );
+
+        let mut query_state: SystemState<(
+            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
+        )> = SystemState::new(&mut world);
+        let (capture_query, menu_query) = query_state.get(&world);
+
+        let context = collect_active_menu_shortcut_context(
+            None,
+            &capture_query,
+            &active_layers,
+            &menu_query,
+            &tabbed_menu::TabbedMenuFocusState::default(),
+        );
+        assert!(context.active_menus.contains(&active_menu));
+        assert!(!context.active_menus.contains(&inactive_menu));
+        assert!(context.footer_horizontal_nav_menus.contains(&active_menu));
+    }
+
+    #[test]
     fn menu_input_systems_initialize_without_query_alias_panics() {
         let mut world = World::new();
 

@@ -103,6 +103,7 @@ Legend:
   - Added dropdown-flow regressions for scroll-aware dropdown opening and outside-click item protection.
   - Added menu-input regression tests for directional shortcut behavior (right activate, left back-only, tabs-focus block).
   - Added query-safety smoke tests for command/input/dropdown/modal/video visual systems.
+  - Added menu-input active-layer context regression (`active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav`).
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
