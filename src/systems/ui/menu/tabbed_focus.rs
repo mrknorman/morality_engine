@@ -219,4 +219,34 @@ mod tests {
         assert_eq!(transition.focus, TabbedMenuFocus::Options);
         assert_eq!(transition.selected_option_index, 1);
     }
+
+    #[test]
+    fn keyboard_navigation_ignores_hover_targets_for_focus_arbitration() {
+        let mut input = base_input();
+        input.previous_focus = TabbedMenuFocus::Options;
+        input.selected_option_index = 2;
+        input.keyboard_focus_navigation = true;
+        input.left_pressed = true;
+        input.hovered_tab_index = Some(1);
+        input.hovered_option_index = Some(0);
+
+        let transition = resolve_tabbed_focus(input);
+        assert_eq!(transition.focus, TabbedMenuFocus::Options);
+        assert_eq!(transition.selected_option_index, 2);
+        assert_eq!(transition.tab_selection_target, None);
+    }
+
+    #[test]
+    fn click_target_has_priority_over_hover_target() {
+        let mut input = base_input();
+        input.previous_focus = TabbedMenuFocus::Options;
+        input.clicked_option_index = Some(2);
+        input.hovered_tab_index = Some(1);
+        input.hovered_option_index = Some(0);
+
+        let transition = resolve_tabbed_focus(input);
+        assert_eq!(transition.focus, TabbedMenuFocus::Options);
+        assert_eq!(transition.selected_option_index, 2);
+        assert_eq!(transition.tab_selection_target, None);
+    }
 }

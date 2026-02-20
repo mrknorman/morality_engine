@@ -72,6 +72,7 @@ Legend:
   - Recent progress: escape/modal/dropdown keyboard shortcut routing now uses deterministic owner/menu ordering rather than query first-match behavior.
   - Recent progress: dropdown keyboard-open flow now deterministically chooses the lowest owner index when multiple owners match in-frame.
   - Recent progress: dropdown value-apply routing now resolves active dropdown owners in shared layer order, removing local hash-key sort/dedup behavior.
+  - Recent progress: tabbed-focus reducer now has explicit priority coverage for keyboard-vs-hover and click-vs-hover arbitration.
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: done`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
@@ -263,9 +264,9 @@ Deliverable:
 - [x] Reducer/effects architecture with clear contracts and tests.
 
 ## Stage 9: Deterministic Input Arbitration
-- [ ] Enforce strict priority: layer > focus group > keyboard lock > hover.
-- [ ] Remove first-match query-iteration dependence.
-- [ ] Ensure one owner-level system decides selection priority.
+- [x] Enforce strict priority: layer > focus group > keyboard lock > hover.
+- [x] Remove first-match query-iteration dependence.
+- [x] Ensure one owner-level system decides selection priority.
 - [ ] Stabilize behavior under rapid mixed keyboard/mouse interaction.
 
 Deliverable:
