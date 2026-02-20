@@ -17,8 +17,8 @@ use crate::{
 use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
     ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
-    ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent, ScrollableContentExtent,
-    ScrollableRoot, ScrollableViewport,
+    ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent, ScrollableContentCamera,
+    ScrollableContentExtent, ScrollableRoot, ScrollableSurface, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -121,6 +121,40 @@ fn ensure_scrollbar_parts_rebuilds_when_part_entities_are_stale() {
     assert_ne!(repaired_parts.track, original_parts.track);
     assert!(app.world().entity(repaired_parts.track).contains::<ScrollBarTrack>());
     assert!(app.world().entity(repaired_parts.thumb).contains::<ScrollBarThumb>());
+}
+
+#[test]
+fn scroll_root_runtime_ensure_seeds_content_camera_and_surface_children() {
+    let mut app = make_scroll_test_app();
+    let owner = app.world_mut().spawn_empty().id();
+    let root = app
+        .world_mut()
+        .spawn((
+            ScrollableRoot::new(owner, ScrollAxis::Vertical),
+            ScrollableViewport::new(Vec2::new(180.0, 120.0)),
+        ))
+        .id();
+
+    app.update();
+
+    let children = app
+        .world()
+        .entity(root)
+        .get::<Children>()
+        .expect("scroll root children");
+    let mut has_camera = false;
+    let mut has_surface = false;
+    let mut has_content = false;
+    for child in children.iter() {
+        let child_ref = app.world().entity(child);
+        has_camera |= child_ref.contains::<ScrollableContentCamera>();
+        has_surface |= child_ref.contains::<ScrollableSurface>();
+        has_content |= child_ref.contains::<ScrollableContent>();
+    }
+
+    assert!(has_camera);
+    assert!(has_surface);
+    assert!(has_content);
 }
 
 fn spawn_owner_and_scroll_root(

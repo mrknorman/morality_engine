@@ -110,15 +110,17 @@ pub(super) fn ensure_scrollable_runtime_entities(
     root_query: Query<(Entity, &ScrollableRenderTarget, Option<&Children>), With<ScrollableRoot>>,
     camera_marker_query: Query<(), With<ScrollableContentCamera>>,
     surface_marker_query: Query<(), With<ScrollableSurface>>,
+    content_marker_query: Query<(), With<ScrollableContent>>,
 ) {
     // Query contract:
     // - root iteration is read-only (`root_query`).
-    // - camera/surface marker queries are read-only existence checks.
+    // - camera/surface/content marker queries are read-only existence checks.
     // - all entity creation and parent mutation occurs through `Commands`,
     //   keeping this system B0001-safe.
     for (root_entity, render_target, children) in root_query.iter() {
         let mut has_camera = false;
         let mut has_surface = false;
+        let mut has_content = false;
 
         if let Some(children) = children {
             for child in children.iter() {
@@ -127,6 +129,9 @@ pub(super) fn ensure_scrollable_runtime_entities(
                 }
                 if surface_marker_query.get(child).is_ok() {
                     has_surface = true;
+                }
+                if content_marker_query.get(child).is_ok() {
+                    has_content = true;
                 }
             }
         }
@@ -156,6 +161,18 @@ pub(super) fn ensure_scrollable_runtime_entities(
                     ScrollableSurface { root: root_entity },
                     Sprite::from_image(render_target.image.clone()),
                     Transform::from_xyz(0.0, 0.0, SCROLL_SURFACE_Z),
+                ));
+            });
+        }
+
+        if !has_content {
+            commands.entity(root_entity).with_children(|parent| {
+                parent.spawn((
+                    Name::new("scrollable_content"),
+                    ScrollableContent,
+                    Transform::default(),
+                    GlobalTransform::default(),
+                    Visibility::Visible,
                 ));
             });
         }
