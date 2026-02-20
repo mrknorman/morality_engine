@@ -28,6 +28,15 @@ Covered systems and modules:
 - Interaction behavior must use interaction primitives as source of truth; visual state is derived output only.
 - Primitive authoring should prefer required-components plus insert hooks over new Bundle-first APIs.
 
+## Latest Style and Coding Preferences (2026-02-20)
+
+- Build reusable UI as self-contained primitives first (`src/systems/ui/*`), then compose in feature modules.
+- For reusable primitives, do not add new bundle-first APIs.
+- Use root component + `#[require(...)]` + `#[component(on_insert = ...)]` as the default construction model.
+- Adding a primitive root should produce a working behavior unit without manual hidden-child wiring.
+- Keep behavior truth in interaction primitives (`Hoverable`, `Clickable`, `Pressable`, `SelectableMenu`, `Selectable`, `OptionCycler`), not `InteractionVisualState`.
+- Keep owner/layer scoping explicit (`UiLayer { owner, kind }`) and maintain query disjointness (`ParamSet`/`Without<T>`).
+
 ## Primitive Construction Guidelines
 
 ### Preferred Pattern (Required Components + Insert Hooks)
@@ -228,11 +237,14 @@ Developer checklist before adding new UI behavior:
 
 - `spawn_root(...)`: spawns a root menu with `SelectableMenu` and switch audio pallet.
 - `spawn_chrome_with_marker(...)`: panel, border, title, hint.
-- `play_navigation_switch(...)`: shared keyboard-nav sound utility used by both main-scene and startup menu systems.
+- `play_navigation_switch(...)`: shared keyboard-nav sound utility used by both main-scene and UI menu systems.
 
-### Option Bundle
+### Option Construction (Legacy + Preferred)
 
-- `SystemMenuOptionBundle::new_at(...)` creates text option + `Selectable` + visual palette state.
+- Legacy compatibility helper: `SystemMenuOptionBundle::new_at(...)` creates text option + selection + visual palette state.
+- Preferred pattern for new/reusable surfaces:
+  - Use primitive roots (`MenuSurface`, `SelectorSurface`, `DropdownSurface`) and let insert hooks wire required contracts.
+  - Keep bundle-style helpers as migration shims; do not add new reusable bundle-first APIs.
 
 ### Indicators and Bars
 
@@ -310,7 +322,7 @@ Purpose:
 `handle_menu_option_commands` now follows a reducer + effects model:
 
 - Pure reduction:
-  - lives in `src/startup/menus/command_reducer.rs`
+  - lives in `src/systems/ui/menu/command_reducer.rs`
   - `reduce_push_menu_command(...)`
   - `reduce_pop_menu_command(...)`
   - `reduce_toggle_resolution_dropdown_command(...)`
@@ -320,7 +332,7 @@ Purpose:
   - `reduce_menu_command(...)` dispatches `MenuCommand` to reducers.
 - Effect application:
   - reducers return `MenuReducerResult` (flags + payloads only).
-  - lives in `src/startup/menus/command_effects.rs`
+  - lives in `src/systems/ui/menu/command_effects.rs`
   - `apply_menu_reducer_result(...)` applies world side effects:
     - dropdown open/close
     - modal spawn
@@ -338,7 +350,7 @@ Guideline:
 
 ### Video Option Schema Registry
 
-`src/startup/menus/defs.rs` now exposes a single schema primitive:
+`src/systems/ui/menu/defs.rs` now exposes a single schema primitive:
 
 - `VideoTopOptionKey` (DisplayMode, Resolution, Vsync, etc.)
 - `video_top_option_key(tab, row)` / `video_top_option_keys(tab)`
@@ -421,11 +433,11 @@ Reusable systems:
 
 Usage rule:
 
-- Keep tab interaction in `systems/ui/tabs.rs`, and keep page-specific meaning of each tab (content shown, focus transfer, etc.) in feature modules (for example `startup/menus/mod.rs`).
+- Keep tab interaction in `systems/ui/tabs.rs`, and keep page-specific meaning of each tab (content shown, focus transfer, etc.) in feature modules (for example `src/systems/ui/menu/mod.rs`).
 
 ### Tabbed Menu Arbitration (Menus)
 
-`src/startup/menus/tabbed_menu.rs` now centralizes owner-level tabbed-menu arbitration in
+`src/systems/ui/menu/tabbed_menu.rs` now centralizes owner-level tabbed-menu arbitration in
 `sync_tabbed_menu_focus(...)`:
 
 - keyboard focus transfers (options <-> tabs)
@@ -490,7 +502,7 @@ This keeps menu and window interactions on the same ECS foundation without dupli
 
 Current reusable modal pattern in menus:
 
-1. Spawn modal root with `SelectableMenu` and standard option bundle children.
+1. Spawn modal root with `MenuSurface` + `SelectableMenu` and selector-surface option rows.
 2. Route keys to modal buttons through `MenuIntent`.
 3. Handle clicked modal buttons in one command system.
 4. Despawn modal via `close_video_modals(...)`.

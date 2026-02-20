@@ -1,0 +1,12 @@
+[book]
+authors = ["Morality Engine Team"]
+language = "en"
+src = "book/src"
+title = "Morality Engine UI Architecture"
+
+[build]
+build-dir = "../target/mdbook/ui"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
