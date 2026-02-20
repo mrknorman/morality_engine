@@ -96,9 +96,9 @@ Deliverable:
 
 ## Stage 5: Interaction and Layer Conformance Pass
 
-- [ ] Verify owner-scoped layer behavior for all primitives (`Base`, `Dropdown`, `Modal`).
-- [ ] Verify input arbitration consistency (keyboard lock, hover handoff, active layer priority).
-- [ ] Remove any behavior paths that still depend on visual-state fields.
+- [x] Verify owner-scoped layer behavior for all primitives (`Base`, `Dropdown`, `Modal`).
+- [x] Verify input arbitration consistency (keyboard lock, hover handoff, active layer priority).
+- [x] Remove any behavior paths that still depend on visual-state fields.
 
 Deliverable:
 - Deterministic interaction behavior under mixed mouse+keyboard input.
@@ -108,6 +108,7 @@ Progress notes:
 - Scroll primitives now validate owner/layer gating behavior (base, dropdown, modal) in `src/systems/ui/scroll/tests.rs`.
 - Selector/cycler mixed input arbitration is now covered by mouse+keyboard integration in `src/systems/ui/menu/flow_tests.rs`.
 - Added regression coverage for nested tab interaction surfaces to ensure `MenuSurface::without_layer()` preserves owner base-layer activity (`src/systems/ui/menu/flow_tests.rs`).
+- Behavior flow paths (`command_flow`, `dropdown_flow`, `menu_input` shortcuts) now derive decisions from `Hoverable`/`Clickable`/`SelectableMenu`/layer state; remaining `InteractionVisualState` usage is isolated to visual sync systems.
 
 ## Stage 6: Query-Safety Hardening
 
@@ -162,6 +163,6 @@ Deliverable:
 
 - [x] Debug showcase windows are all interactive (not visual-only).
 - [ ] Primitive-root insertion is sufficient to stand up each major UI feature.
-- [ ] No new reusable UI bundles introduced.
-- [ ] Layering and input arbitration are owner-scoped and deterministic.
+- [x] No new reusable UI bundles introduced.
+- [x] Layering and input arbitration are owner-scoped and deterministic.
 - [x] No known B0001 query conflicts in UI systems.
