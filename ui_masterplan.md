@@ -35,8 +35,8 @@ Legend:
 ### Stage status summary
 - Stage 0 Safety + Checkpoint: `status: partial`
   - Compile baseline is known (`cargo check` passes), but clean pre-change checkpoint discipline has not been consistently maintained.
-- Stage 1 Audit and Classification: `status: partial`
-  - Core module inventory exists; formal compliance matrix is still missing.
+- Stage 1 Audit and Classification: `status: done`
+  - Compliance matrix and migration backlog now captured in `docs/ui_compliance_matrix.md`.
 - Stage 2 Architecture Boundaries and Contracts: `status: partial`
   - Contract docs exist (`docs/ui_architecture_contract.md`, `docs/ui_ecs_reference.md`); remaining work is tighter audit coverage and enforcement.
 - Stage 3 Owner-Scoped Interaction Context + Layer Manager: `status: partial`
@@ -127,13 +127,13 @@ Legend:
 - [ ] Confirm current compile status and capture baseline command outputs.
 
 ## Stage 1: Audit and Classification
-- [ ] Inventory all UI modules under `src/systems/ui/*` and `src/systems/ui/menu/*`.
-- [ ] Classify each as primitive-compliant, partially compliant, or non-compliant.
-- [ ] Produce migration table: owner file, current construction pattern, target primitive pattern.
-- [ ] Identify all remaining bundle-first reusable APIs to migrate.
+- [x] Inventory all UI modules under `src/systems/ui/*` and `src/systems/ui/menu/*`.
+- [x] Classify each as primitive-compliant, partially compliant, or non-compliant.
+- [x] Produce migration table: owner file, current construction pattern, target primitive pattern.
+- [x] Identify all remaining bundle-first reusable APIs to migrate.
 
 Deliverable:
-- [ ] Compliance matrix and migration backlog.
+- [x] Compliance matrix and migration backlog.
 
 ## Stage 2: Architecture Boundaries and Contracts
 - [ ] Reconfirm strict module boundaries:
