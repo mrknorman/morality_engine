@@ -1,5 +1,6 @@
 use super::*;
 use super::command_reducer::{MenuReducerResult, MenuStateTransition};
+use super::debug_showcase;
 use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
 
 fn request_application_exit(
@@ -30,7 +31,18 @@ fn handle_apply_video_settings_command(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     crt_settings: &mut CrtSettings,
-    main_camera_query: &mut Query<&mut Bloom, With<MainCamera>>,
+    main_camera_query: &mut Query<
+        (
+            &mut Bloom,
+            &mut Tonemapping,
+            &mut DebandDither,
+            &mut Fxaa,
+            &mut ContrastAdaptiveSharpening,
+            &mut ChromaticAberration,
+            &mut Msaa,
+        ),
+        With<MainCamera>,
+    >,
     window_exit: &mut WindowExitContext,
 ) {
     if !settings.initialized || !video_settings_dirty(settings) {
@@ -66,10 +78,22 @@ pub(super) fn apply_menu_reducer_result(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     crt_settings: &mut CrtSettings,
-    main_camera_query: &mut Query<&mut Bloom, With<MainCamera>>,
+    main_camera_query: &mut Query<
+        (
+            &mut Bloom,
+            &mut Tonemapping,
+            &mut DebandDither,
+            &mut Fxaa,
+            &mut ContrastAdaptiveSharpening,
+            &mut ChromaticAberration,
+            &mut Msaa,
+        ),
+        With<MainCamera>,
+    >,
     window_exit: &mut WindowExitContext,
     next_pause_state: &mut ResMut<NextState<PauseState>>,
     next_main_state: &mut ResMut<NextState<MainState>>,
+    showcase_root_query: &Query<Entity, With<debug_showcase::DebugUiShowcaseRoot>>,
     dirty_menus: &mut HashSet<Entity>,
     closed_menus: &mut HashSet<Entity>,
     pending_dropdown_open: &mut Vec<(Entity, usize, usize)>,
@@ -82,6 +106,9 @@ pub(super) fn apply_menu_reducer_result(
     }
     if result.spawn_exit_unsaved_modal {
         spawn_exit_unsaved_modal(commands, menu_entity, asset_server, menu_root.gate);
+    }
+    if result.toggle_debug_ui_showcase {
+        debug_showcase::toggle_debug_ui_showcase(commands, showcase_root_query);
     }
     if result.apply_video_settings {
         handle_apply_video_settings_command(

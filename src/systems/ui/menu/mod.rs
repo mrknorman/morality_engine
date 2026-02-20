@@ -1,13 +1,25 @@
+//! Menu composition systems built from reusable `systems::ui` primitives.
+//!
+//! This module owns policy/state transitions for menu pages while delegating
+//! generic behavior (layers, dropdown state, tabs, selectors, scrolling) to
+//! primitive modules.
 use std::collections::{HashMap, HashSet};
 
 use bevy::{
     app::AppExit,
+    anti_alias::{
+        contrast_adaptive_sharpening::ContrastAdaptiveSharpening,
+        fxaa::{Fxaa, Sensitivity},
+    },
     audio::Volume,
+    core_pipeline::tonemapping::{DebandDither, Tonemapping},
     post_process::bloom::{Bloom, BloomCompositeMode},
+    post_process::effect_stack::ChromaticAberration,
     prelude::*,
+    render::view::Msaa,
     window::{
-        ClosingWindow, MonitorSelection, PresentMode, PrimaryWindow, Window, WindowCloseRequested,
-        WindowMode,
+        ClosingWindow, CompositeAlphaMode, MonitorSelection, PresentMode, PrimaryWindow,
+        VideoModeSelection, Window, WindowCloseRequested, WindowMode,
     },
 };
 
@@ -19,8 +31,9 @@ use crate::{
         audio::{continuous_audio, DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
             interaction_gate_allows_for_owner, option_cycler_input_system, Clickable,
-            InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionSystem,
-            InteractionVisualState, OptionCycler, Selectable, SelectableClickActivation,
+            Hoverable, InteractionCapture, InteractionCaptureOwner, InteractionGate,
+            InteractionSystem, InteractionVisualState, OptionCycler, Selectable,
+            SelectableClickActivation,
             SelectableMenu, SystemMenuActions, SystemMenuSounds,
         },
         time::Dilation,
@@ -28,6 +41,7 @@ use crate::{
             discrete_slider,
             dropdown::{self, DropdownAnchorState, DropdownLayerState},
             layer::{self, UiLayer, UiLayerKind},
+            scroll::{ScrollFocusFollowLock, ScrollState},
             selector::{self, ShortcutKey},
             tabs,
         },
@@ -38,6 +52,7 @@ mod defs;
 mod command_flow;
 mod command_effects;
 mod command_reducer;
+mod debug_showcase;
 mod dropdown_flow;
 mod dropdown_view;
 mod footer_nav;
@@ -45,11 +60,14 @@ mod menu_input;
 mod modal_flow;
 mod page_content;
 mod root_spawn;
+mod scroll_adapter;
 pub mod schema;
 mod stack;
 mod tabbed_focus;
 mod tabbed_menu;
 mod video_visuals;
+#[cfg(test)]
+mod flow_tests;
 
 pub use defs::{
     MenuCommand, MenuHost, MenuOptionCommand, MenuPage, MenuPageContent, MenuRoot, MenuStack,
@@ -80,6 +98,7 @@ use modal_flow::{
 use menu_input::{
     apply_menu_intents, enforce_active_layer_focus, handle_menu_shortcuts,
     play_menu_navigation_sound,
+    suppress_option_visuals_for_inactive_layers_and_tab_focus,
 };
 use page_content::{rebuild_menu_page, spawn_page_content};
 use stack::MenuNavigationState;
@@ -87,7 +106,8 @@ use video_visuals::{
     ensure_video_discrete_slider_slot_clickables, suppress_left_cycle_arrow_for_dropdown_options,
     sync_video_cycle_arrow_positions, sync_video_discrete_slider_widgets,
     sync_video_footer_table_values, sync_video_option_cycler_bounds, sync_video_tabs_visuals,
-    sync_video_top_selection_bars, sync_video_top_table_values,
+    sync_video_top_option_hover_descriptions, sync_video_top_selection_bars,
+    sync_video_top_table_values,
 };
 
 #[derive(Message, Clone, Debug)]
@@ -153,7 +173,20 @@ struct MenuCommandContext<'w, 's> {
     crt_settings: ResMut<'w, CrtSettings>,
     dropdown_state: ResMut<'w, DropdownLayerState>,
     navigation_state: ResMut<'w, MenuNavigationState>,
-    main_camera_query: Query<'w, 's, &'static mut Bloom, With<MainCamera>>,
+    main_camera_query: Query<
+        'w,
+        's,
+        (
+            &'static mut Bloom,
+            &'static mut Tonemapping,
+            &'static mut DebandDither,
+            &'static mut Fxaa,
+            &'static mut ContrastAdaptiveSharpening,
+            &'static mut ChromaticAberration,
+            &'static mut Msaa,
+        ),
+        With<MainCamera>,
+    >,
     // Read-only layer resolution and mutable dropdown visibility live in one ParamSet to keep
     // Visibility access disjoint (avoids Bevy B0001 conflicts).
     layer_queries: ParamSet<
@@ -189,6 +222,16 @@ struct MenuCommandContext<'w, 's> {
         (&'static tabs::TabBar, &'static tabs::TabBarState),
         With<tabbed_menu::TabbedMenuConfig>,
     >,
+    video_top_scroll_query: Query<
+        'w,
+        's,
+        (
+            &'static scroll_adapter::ScrollableTableAdapter,
+            &'static mut ScrollState,
+            &'static mut ScrollFocusFollowLock,
+        ),
+        With<VideoTopOptionsScrollRoot>,
+    >,
 }
 
 #[derive(Resource, Default)]
@@ -214,10 +257,15 @@ fn snapshot_from_window(window: &Window) -> VideoSettingsSnapshot {
     let mut snapshot = default_video_settings();
     snapshot.display_mode = match window.mode {
         WindowMode::Windowed => VideoDisplayMode::Windowed,
-        _ => VideoDisplayMode::Borderless,
+        WindowMode::BorderlessFullscreen(_) => VideoDisplayMode::Borderless,
+        WindowMode::Fullscreen(_, _) => VideoDisplayMode::Fullscreen,
     };
-    snapshot.vsync_enabled = matches!(window.present_mode, PresentMode::AutoVsync);
     snapshot.resolution_index = resolution_index_from_window(window);
+    snapshot.present_mode = video_present_mode_from_bevy(window.present_mode);
+    snapshot.window_resizable = window.resizable;
+    snapshot.window_decorations = window.decorations;
+    snapshot.window_transparent = window.transparent;
+    snapshot.composite_alpha = video_composite_alpha_from_bevy(window.composite_alpha_mode);
     snapshot
 }
 
@@ -225,13 +273,16 @@ fn apply_snapshot_to_window(window: &mut Window, snapshot: VideoSettingsSnapshot
     window.mode = match snapshot.display_mode {
         VideoDisplayMode::Windowed => WindowMode::Windowed,
         VideoDisplayMode::Borderless => WindowMode::BorderlessFullscreen(MonitorSelection::Current),
+        VideoDisplayMode::Fullscreen => {
+            WindowMode::Fullscreen(MonitorSelection::Current, VideoModeSelection::Current)
+        }
     };
     apply_resolution(window, snapshot.resolution_index);
-    window.present_mode = if snapshot.vsync_enabled {
-        PresentMode::AutoVsync
-    } else {
-        PresentMode::AutoNoVsync
-    };
+    window.present_mode = bevy_present_mode(snapshot.present_mode);
+    window.resizable = snapshot.window_resizable;
+    window.decorations = snapshot.window_decorations;
+    window.transparent = snapshot.window_transparent;
+    window.composite_alpha_mode = bevy_composite_alpha(snapshot.composite_alpha);
 }
 
 fn active_video_tabs_by_menu(
@@ -246,13 +297,9 @@ fn active_video_tabs_by_menu(
 
 fn snapshot_bloom_settings(snapshot: VideoSettingsSnapshot) -> Bloom {
     let mut bloom = match snapshot.bloom_style {
-        BloomStyle::Off => {
-            let mut bloom = Bloom::NATURAL;
-            bloom.intensity = 0.0;
-            bloom
-        }
         BloomStyle::Natural => Bloom::NATURAL,
         BloomStyle::OldSchool => Bloom::OLD_SCHOOL,
+        BloomStyle::ScreenBlur => Bloom::SCREEN_BLUR,
     };
 
     bloom.intensity *= match snapshot.bloom_intensity {
@@ -296,27 +343,164 @@ fn snapshot_bloom_settings(snapshot: VideoSettingsSnapshot) -> Bloom {
         bloom.max_mip_dimension = Bloom::NATURAL.max_mip_dimension * 2;
     }
 
-    if snapshot.bloom_style == BloomStyle::Off {
+    bloom.low_frequency_boost = match snapshot.bloom_boost {
+        BloomBoost::Off => 0.0,
+        BloomBoost::Low => 0.35,
+        BloomBoost::Medium => 0.7,
+        BloomBoost::High => 1.0,
+    };
+    bloom.low_frequency_boost_curvature = match snapshot.bloom_boost {
+        BloomBoost::Off => 0.0,
+        BloomBoost::Low => 0.5,
+        BloomBoost::Medium => 0.8,
+        BloomBoost::High => 1.0,
+    };
+
+    if !snapshot.bloom_enabled {
         bloom.intensity = 0.0;
+        bloom.low_frequency_boost = 0.0;
     }
 
     bloom
 }
 
+fn video_present_mode_from_bevy(mode: PresentMode) -> VideoPresentMode {
+    match mode {
+        PresentMode::AutoVsync => VideoPresentMode::AutoVsync,
+        PresentMode::AutoNoVsync => VideoPresentMode::AutoNoVsync,
+        PresentMode::Fifo => VideoPresentMode::Fifo,
+        PresentMode::FifoRelaxed => VideoPresentMode::FifoRelaxed,
+        PresentMode::Immediate => VideoPresentMode::Immediate,
+        PresentMode::Mailbox => VideoPresentMode::Mailbox,
+    }
+}
+
+fn bevy_present_mode(mode: VideoPresentMode) -> PresentMode {
+    match mode {
+        VideoPresentMode::AutoVsync => PresentMode::AutoVsync,
+        VideoPresentMode::AutoNoVsync => PresentMode::AutoNoVsync,
+        VideoPresentMode::Fifo => PresentMode::Fifo,
+        VideoPresentMode::FifoRelaxed => PresentMode::FifoRelaxed,
+        VideoPresentMode::Immediate => PresentMode::Immediate,
+        VideoPresentMode::Mailbox => PresentMode::Mailbox,
+    }
+}
+
+fn video_composite_alpha_from_bevy(mode: CompositeAlphaMode) -> VideoCompositeAlpha {
+    match mode {
+        CompositeAlphaMode::Auto => VideoCompositeAlpha::Auto,
+        CompositeAlphaMode::Opaque => VideoCompositeAlpha::Opaque,
+        CompositeAlphaMode::PreMultiplied => VideoCompositeAlpha::PreMultiplied,
+        CompositeAlphaMode::PostMultiplied => VideoCompositeAlpha::PostMultiplied,
+        CompositeAlphaMode::Inherit => VideoCompositeAlpha::Inherit,
+    }
+}
+
+fn bevy_composite_alpha(mode: VideoCompositeAlpha) -> CompositeAlphaMode {
+    match mode {
+        VideoCompositeAlpha::Auto => CompositeAlphaMode::Auto,
+        VideoCompositeAlpha::Opaque => CompositeAlphaMode::Opaque,
+        VideoCompositeAlpha::PreMultiplied => CompositeAlphaMode::PreMultiplied,
+        VideoCompositeAlpha::PostMultiplied => CompositeAlphaMode::PostMultiplied,
+        VideoCompositeAlpha::Inherit => CompositeAlphaMode::Inherit,
+    }
+}
+
+fn fxaa_sensitivity_from_quality(quality: FxaaQuality) -> Sensitivity {
+    match quality {
+        FxaaQuality::Low => Sensitivity::Low,
+        FxaaQuality::Medium => Sensitivity::Medium,
+        FxaaQuality::High => Sensitivity::High,
+        FxaaQuality::Ultra => Sensitivity::Ultra,
+        FxaaQuality::Extreme => Sensitivity::Extreme,
+    }
+}
+
+fn fxaa_quality_from_sensitivity(sensitivity: Sensitivity) -> FxaaQuality {
+    match sensitivity {
+        Sensitivity::Low => FxaaQuality::Low,
+        Sensitivity::Medium => FxaaQuality::Medium,
+        Sensitivity::High => FxaaQuality::High,
+        Sensitivity::Ultra => FxaaQuality::Ultra,
+        Sensitivity::Extreme => FxaaQuality::Extreme,
+    }
+}
+
+fn cas_strength_value(strength: CasStrength) -> f32 {
+    match strength {
+        CasStrength::Off => 0.0,
+        CasStrength::Low => 0.3,
+        CasStrength::Medium => 0.6,
+        CasStrength::High => 0.9,
+    }
+}
+
+fn cas_strength_from_value(value: f32) -> CasStrength {
+    if value <= 0.001 {
+        CasStrength::Off
+    } else if value < 0.45 {
+        CasStrength::Low
+    } else if value < 0.75 {
+        CasStrength::Medium
+    } else {
+        CasStrength::High
+    }
+}
+
+fn crt_effect_scalar(level: CrtEffectLevel) -> f32 {
+    match level {
+        CrtEffectLevel::Off => 0.0,
+        CrtEffectLevel::Low => 0.33,
+        CrtEffectLevel::Medium => 0.66,
+        CrtEffectLevel::High => 1.0,
+    }
+}
+
+fn crt_effect_level_from_scalar(value: f32) -> CrtEffectLevel {
+    if value <= 0.001 {
+        CrtEffectLevel::Off
+    } else if value < 0.45 {
+        CrtEffectLevel::Low
+    } else if value < 0.8 {
+        CrtEffectLevel::Medium
+    } else {
+        CrtEffectLevel::High
+    }
+}
+
 fn apply_snapshot_to_post_processing(
     snapshot: VideoSettingsSnapshot,
     crt_settings: &mut CrtSettings,
-    main_camera_query: &mut Query<&mut Bloom, With<MainCamera>>,
+    main_camera_query: &mut Query<
+        (
+            &mut Bloom,
+            &mut Tonemapping,
+            &mut DebandDither,
+            &mut Fxaa,
+            &mut ContrastAdaptiveSharpening,
+            &mut ChromaticAberration,
+            &mut Msaa,
+        ),
+        With<MainCamera>,
+    >,
 ) {
-    let (spacing, thickness, darkness) = match snapshot.scan_spacing {
-        ScanSpacing::Off => (0, 1, 0.0),
-        ScanSpacing::Fine => (1, 1, 0.45),
-        ScanSpacing::Balanced => (2, 1, 0.6),
-        ScanSpacing::Sparse => (3, 2, 0.75),
+    crt_settings.spacing = match snapshot.scan_spacing {
+        ScanSpacing::Off => 0,
+        ScanSpacing::Fine => 1,
+        ScanSpacing::Balanced => 2,
+        ScanSpacing::Sparse => 3,
     };
-    crt_settings.spacing = spacing;
-    crt_settings.thickness = thickness;
-    crt_settings.darkness = darkness;
+    crt_settings.thickness = match snapshot.scan_thickness {
+        ScanThickness::Off | ScanThickness::Low => 1,
+        ScanThickness::Medium => 2,
+        ScanThickness::High => 3,
+    };
+    crt_settings.darkness = match snapshot.scan_darkness {
+        ScanDarkness::Off => 0.0,
+        ScanDarkness::Low => 0.45,
+        ScanDarkness::Medium => 0.6,
+        ScanDarkness::High => 0.75,
+    };
     crt_settings.curvature_strength = match snapshot.scan_thickness {
         ScanThickness::Off => 0.0,
         ScanThickness::Low => 0.04,
@@ -329,20 +513,88 @@ fn apply_snapshot_to_post_processing(
         ScanDarkness::Medium => 0.015,
         ScanDarkness::High => 0.03,
     };
+    crt_settings.jitter_strength = 0.36 * crt_effect_scalar(snapshot.scan_jitter);
+    crt_settings.aberration_strength = 0.7 * crt_effect_scalar(snapshot.scan_aberration);
+    crt_settings.phosphor_strength = crt_effect_scalar(snapshot.scan_phosphor);
+    crt_settings.vignette_strength = 0.85 * crt_effect_scalar(snapshot.scan_vignette);
+    crt_settings.glow_strength = 0.9 * crt_effect_scalar(snapshot.scan_phosphor);
+
     let all_effects_off = snapshot.scan_spacing == ScanSpacing::Off
         && snapshot.scan_thickness == ScanThickness::Off
-        && snapshot.scan_darkness == ScanDarkness::Off;
-    crt_settings.pipeline_enabled = !all_effects_off;
+        && snapshot.scan_darkness == ScanDarkness::Off
+        && snapshot.scan_jitter == CrtEffectLevel::Off
+        && snapshot.scan_aberration == CrtEffectLevel::Off
+        && snapshot.scan_phosphor == CrtEffectLevel::Off
+        && snapshot.scan_vignette == CrtEffectLevel::Off;
+    crt_settings.pipeline_enabled = snapshot.crt_enabled && !all_effects_off;
 
-    if let Ok(mut bloom) = main_camera_query.single_mut() {
+    if let Ok((
+        mut bloom,
+        mut tonemapping,
+        mut deband_dither,
+        mut fxaa,
+        mut cas,
+        mut chromatic,
+        mut msaa,
+    )) = main_camera_query.single_mut()
+    {
         *bloom = snapshot_bloom_settings(snapshot);
+        *tonemapping = match snapshot.tonemapping {
+            VideoTonemapping::None => Tonemapping::None,
+            VideoTonemapping::Reinhard => Tonemapping::Reinhard,
+            VideoTonemapping::ReinhardLuminance => Tonemapping::ReinhardLuminance,
+            VideoTonemapping::AcesFitted => Tonemapping::AcesFitted,
+            VideoTonemapping::AgX => Tonemapping::AgX,
+            VideoTonemapping::SomewhatBoringDisplayTransform => {
+                Tonemapping::SomewhatBoringDisplayTransform
+            }
+            VideoTonemapping::TonyMcMapface => Tonemapping::TonyMcMapface,
+            VideoTonemapping::BlenderFilmic => Tonemapping::BlenderFilmic,
+        };
+        *deband_dither = if snapshot.deband_dither_enabled {
+            DebandDither::Enabled
+        } else {
+            DebandDither::Disabled
+        };
+        let fxaa_sensitivity = fxaa_sensitivity_from_quality(snapshot.fxaa_quality);
+        fxaa.enabled = snapshot.fxaa_enabled;
+        fxaa.edge_threshold = fxaa_sensitivity;
+        fxaa.edge_threshold_min = fxaa_sensitivity;
+        cas.enabled = snapshot.cas_enabled && snapshot.cas_strength != CasStrength::Off;
+        cas.sharpening_strength = cas_strength_value(snapshot.cas_strength);
+        cas.denoise = false;
+        chromatic.intensity = if snapshot.chromatic_enabled {
+            0.03 * crt_effect_scalar(snapshot.chromatic_intensity)
+        } else {
+            0.0
+        };
+        chromatic.max_samples = 8;
+        *msaa = match snapshot.msaa {
+            VideoMsaa::Off => Msaa::Off,
+            VideoMsaa::Sample2 => Msaa::Sample2,
+            VideoMsaa::Sample4 => Msaa::Sample4,
+            // HDR render target formats commonly cap guaranteed MSAA at 4x.
+            // Clamp 8x to 4x to avoid device validation panics.
+            VideoMsaa::Sample8 => Msaa::Sample4,
+        };
     }
 }
 
 fn initialize_video_settings_from_window(
     mut settings: ResMut<VideoSettingsState>,
     crt_settings: Res<CrtSettings>,
-    main_camera_query: Query<&Bloom, With<MainCamera>>,
+    main_camera_query: Query<
+        (
+            &Bloom,
+            &Tonemapping,
+            &DebandDither,
+            &Fxaa,
+            &ContrastAdaptiveSharpening,
+            &ChromaticAberration,
+            &Msaa,
+        ),
+        With<MainCamera>,
+    >,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     if settings.initialized {
@@ -353,10 +605,16 @@ fn initialize_video_settings_from_window(
     };
     let mut snapshot = snapshot_from_window(window);
     if !crt_settings.pipeline_enabled {
+        snapshot.crt_enabled = false;
         snapshot.scan_spacing = ScanSpacing::Off;
         snapshot.scan_thickness = ScanThickness::Off;
         snapshot.scan_darkness = ScanDarkness::Off;
+        snapshot.scan_jitter = CrtEffectLevel::Off;
+        snapshot.scan_aberration = CrtEffectLevel::Off;
+        snapshot.scan_phosphor = CrtEffectLevel::Off;
+        snapshot.scan_vignette = CrtEffectLevel::Off;
     } else {
+        snapshot.crt_enabled = true;
         snapshot.scan_spacing = if crt_settings.spacing <= 0 {
             ScanSpacing::Off
         } else if crt_settings.spacing <= 1 {
@@ -384,11 +642,23 @@ fn initialize_video_settings_from_window(
         } else {
             ScanDarkness::High
         };
+        snapshot.scan_jitter = crt_effect_level_from_scalar((crt_settings.jitter_strength / 0.36).clamp(0.0, 1.0));
+        snapshot.scan_aberration = crt_effect_level_from_scalar(
+            (crt_settings.aberration_strength / 0.7).clamp(0.0, 1.0),
+        );
+        snapshot.scan_phosphor =
+            crt_effect_level_from_scalar(crt_settings.phosphor_strength.clamp(0.0, 1.0));
+        snapshot.scan_vignette = crt_effect_level_from_scalar(
+            (crt_settings.vignette_strength / 0.85).clamp(0.0, 1.0),
+        );
     }
 
-    if let Ok(bloom) = main_camera_query.single() {
-        snapshot.bloom_style = if bloom.intensity <= 0.001 {
-            BloomStyle::Off
+    if let Ok((bloom, tonemapping, deband_dither, fxaa, cas, chromatic, msaa)) =
+        main_camera_query.single()
+    {
+        snapshot.bloom_enabled = bloom.intensity > 0.001;
+        snapshot.bloom_style = if bloom.high_pass_frequency < 0.45 && bloom.intensity >= 0.5 {
+            BloomStyle::ScreenBlur
         } else if bloom.prefilter.threshold >= 0.5
             || matches!(bloom.composite_mode, BloomCompositeMode::Additive)
         {
@@ -427,6 +697,44 @@ fn initialize_video_settings_from_window(
             AnamorphicScale::Wide
         } else {
             AnamorphicScale::UltraWide
+        };
+        snapshot.bloom_boost = if bloom.low_frequency_boost <= 0.05 {
+            BloomBoost::Off
+        } else if bloom.low_frequency_boost < 0.5 {
+            BloomBoost::Low
+        } else if bloom.low_frequency_boost < 0.85 {
+            BloomBoost::Medium
+        } else {
+            BloomBoost::High
+        };
+
+        snapshot.tonemapping = match tonemapping {
+            Tonemapping::None => VideoTonemapping::None,
+            Tonemapping::Reinhard => VideoTonemapping::Reinhard,
+            Tonemapping::ReinhardLuminance => VideoTonemapping::ReinhardLuminance,
+            Tonemapping::AcesFitted => VideoTonemapping::AcesFitted,
+            Tonemapping::AgX => VideoTonemapping::AgX,
+            Tonemapping::SomewhatBoringDisplayTransform => {
+                VideoTonemapping::SomewhatBoringDisplayTransform
+            }
+            Tonemapping::TonyMcMapface => VideoTonemapping::TonyMcMapface,
+            Tonemapping::BlenderFilmic => VideoTonemapping::BlenderFilmic,
+        };
+        snapshot.deband_dither_enabled = matches!(deband_dither, DebandDither::Enabled);
+        snapshot.fxaa_enabled = fxaa.enabled;
+        snapshot.fxaa_quality = fxaa_quality_from_sensitivity(fxaa.edge_threshold);
+        snapshot.cas_strength = cas_strength_from_value(cas.sharpening_strength);
+        snapshot.cas_enabled = cas.enabled && snapshot.cas_strength != CasStrength::Off;
+        snapshot.chromatic_intensity =
+            crt_effect_level_from_scalar((chromatic.intensity / 0.03).clamp(0.0, 1.0));
+        snapshot.chromatic_enabled =
+            chromatic.intensity > 0.0001 && snapshot.chromatic_intensity != CrtEffectLevel::Off;
+        snapshot.msaa = match msaa {
+            Msaa::Off => VideoMsaa::Off,
+            Msaa::Sample2 => VideoMsaa::Sample2,
+            Msaa::Sample4 => VideoMsaa::Sample4,
+            // Normalize unsupported/high samples to the UI's max supported setting.
+            Msaa::Sample8 => VideoMsaa::Sample4,
         };
     }
 
@@ -476,6 +784,16 @@ fn sanitize_menu_selection_indices(
     }
 }
 
+fn enforce_video_menu_hover_click_activation(
+    mut menu_query: Query<(&MenuStack, &mut SelectableMenu), With<MenuRoot>>,
+) {
+    for (menu_stack, mut selectable_menu) in menu_query.iter_mut() {
+        if menu_stack.current_page() == Some(MenuPage::Video) {
+            selectable_menu.click_activation = SelectableClickActivation::HoveredOnly;
+        }
+    }
+}
+
 fn enforce_menu_layer_invariants(
     mut navigation_state: ResMut<MenuNavigationState>,
     mut dropdown_state: ResMut<DropdownLayerState>,
@@ -515,6 +833,15 @@ impl Plugin for MenusPlugin {
                 MenuSystems::PostCommands.after(MenuSystems::Commands),
                 MenuSystems::Visual.after(MenuSystems::PostCommands),
             ),
+        );
+        app.add_systems(
+            Update,
+            (
+                enforce_video_menu_hover_click_activation,
+                scroll_adapter::sync_video_top_option_hit_regions_to_viewport,
+            )
+                .chain()
+                .before(InteractionSystem::Selectable),
         );
         app.add_systems(
             Update,
@@ -559,6 +886,18 @@ impl Plugin for MenusPlugin {
         );
         app.add_systems(
             Update,
+            (
+                debug_showcase::handle_menu_demo_commands,
+                debug_showcase::handle_dropdown_trigger_commands,
+                debug_showcase::handle_dropdown_item_commands,
+                debug_showcase::close_dropdown_on_outside_click,
+            )
+                .chain()
+                .in_set(MenuSystems::Commands)
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
             update_apply_confirmation_countdown
                 .in_set(MenuSystems::Commands)
                 .after(close_resolution_dropdown_on_outside_click)
@@ -582,6 +921,7 @@ impl Plugin for MenusPlugin {
                 tabs::sync_tab_bar_state,
                 tabbed_menu::cleanup_tabbed_menu_state,
                 sanitize_menu_selection_indices,
+                scroll_adapter::sync_video_top_scroll_focus_follow,
                 enforce_menu_layer_invariants,
             )
                 .chain()
@@ -611,10 +951,23 @@ impl Plugin for MenusPlugin {
         app.add_systems(
             Update,
             (
+                debug_showcase::sync_menu_demo_visuals,
+                debug_showcase::sync_tabs_demo_visuals,
+                debug_showcase::sync_dropdown_demo_visuals,
+            )
+                .chain()
+                .in_set(MenuSystems::Visual)
+                .after(InteractionSystem::Selectable),
+        );
+        app.add_systems(
+            Update,
+            (
                 // Scroll integration point (Stage 1 contract):
                 // scroll viewport surface + scrollbar visuals should render in Visual after
                 // menu/layout state is finalized for the frame.
+                suppress_option_visuals_for_inactive_layers_and_tab_focus,
                 sync_video_top_table_values,
+                sync_video_top_option_hover_descriptions,
                 sync_video_option_cycler_bounds,
                 sync_video_discrete_slider_widgets,
                 discrete_slider::ensure_discrete_slider_slots,

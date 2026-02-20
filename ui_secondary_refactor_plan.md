@@ -17,12 +17,12 @@ Purpose:
 
 ## Stage 1: Audit and Classification
 
-- [ ] Inventory all UI modules under `src/systems/ui/*` and `src/systems/ui/menu/*`.
-- [ ] Classify each feature as:
+- [x] Inventory all UI modules under `src/systems/ui/*` and `src/systems/ui/menu/*`.
+- [x] Classify each feature as:
   - Primitive-compliant
   - Partially compliant
   - Non-compliant (bundle-first, externally wired internals, or visual-only facades).
-- [ ] Produce a migration table with owner file, current construction pattern, and target primitive pattern.
+- [x] Produce a migration table with owner file, current construction pattern, and target primitive pattern.
 
 Deliverable:
 - A compliance matrix appended to this plan.
@@ -39,7 +39,7 @@ Deliverable:
 | `src/systems/ui/hover_box.rs` | Primitive-compliant | Reusable hover tooltip primitive. |
 | `src/systems/ui/discrete_slider.rs` | Partially compliant | Reusable widget, but showcase/adapters need stronger self-contained root integration. |
 | `src/systems/ui/menu/*` | Composition-heavy / partially compliant | Strong reducer/effects split, but still contains some primitive-like behavior that should migrate down into `systems/ui/*`. |
-| Debug UI showcase (currently in `menu/command_effects.rs`) | Non-compliant | Mixed visual-only content and interaction composition; needs dedicated self-contained primitive-backed module. |
+| `src/systems/ui/menu/debug_showcase.rs` | Primitive-compliant | Dedicated self-contained showcase root with insert-hook composition and interactive primitive demos. |
 
 ## Stage 2: Primitive Contract Normalization
 
@@ -67,13 +67,13 @@ Deliverable:
 
 ## Stage 4: Debug UI Showcase Rebuild
 
-- [ ] Move debug showcase into its own module (outside command effect body).
-- [ ] Replace table-only demos with primitive-backed demos:
+- [x] Move debug showcase into its own module (outside command effect body).
+- [x] Replace table-only demos with primitive-backed demos:
   - Interactive selector menu window
   - Interactive tabs window
   - Interactive dropdown window
   - Interactive scroll window
-- [ ] Ensure each demo window is assembled from reusable primitives with no one-off interaction logic.
+- [x] Ensure each demo window is assembled from reusable primitives with no one-off interaction logic.
 
 Deliverable:
 - Debug showcase as a reference implementation of composable primitives.
@@ -120,7 +120,7 @@ Deliverable:
 
 ## Acceptance Checklist
 
-- [ ] Debug showcase windows are all interactive (not visual-only).
+- [x] Debug showcase windows are all interactive (not visual-only).
 - [ ] Primitive-root insertion is sufficient to stand up each major UI feature.
 - [ ] No new reusable UI bundles introduced.
 - [ ] Layering and input arbitration are owner-scoped and deterministic.
