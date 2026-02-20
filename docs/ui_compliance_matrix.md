@@ -34,6 +34,7 @@ Legend:
 | `stack.rs` | Compliant | Menu stack/navigation state model. | None. |
 | `schema.rs` | Partial | Typed schema parsing exists for main menu only. | Expand schema usage across settings/menu pages. |
 | `footer_nav.rs` | Compliant | Footer navigation utility systems. | None. |
+| `main_menu.rs` | Partial | Shared main-menu option-list composition exists and is active. | Continue migrating scene-local main-menu orchestration into shared menu composition paths. |
 | `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns; focus-follow now reads tabbed option-lock state instead of visual-state outputs. | Push reusable pieces into scroll primitive layer. |
 | `root_spawn.rs` | Partial | Root spawn now explicit (no generic bundle arg), but composition callers still attach markers manually after spawn. | Continue reducing ad-hoc caller wiring via root hook contracts where practical. |
 | `page_content.rs` | Partial | Composes primitives; still monolithic and feature-dense. | Split by reusable composition units (tabs/footer/top-options/modal triggers). |

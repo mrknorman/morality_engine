@@ -65,8 +65,9 @@ Legend:
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: partial`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
+  - Main menu option-list assembly moved to shared composition (`ui::menu::spawn_main_menu_option_list`).
   - Legacy scene-local `MenuActions`/`ActionPallet` path and duplicate overlay-open handler were removed.
-  - Remaining gap: option-row root assembly and navigation-audio orchestration still live in `src/scenes/menu/mod.rs`.
+  - Remaining gap: menu-scene-specific root orchestration and navigation-audio orchestration still live in `src/scenes/menu/mod.rs`.
 - Stage 11 JSON Menu/Settings Schema Interface: `status: partial`
   - JSON schema path exists and is used for main menu options, but not generalized across settings/menu pages.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`
@@ -231,7 +232,7 @@ Deliverable:
 - [ ] No selection jitter or nondeterministic ownership conflicts.
 
 ## Stage 10: Main Menu Composition Migration
-- [ ] Move main menu option list fully to shared menu composition path.
+- [x] Move main menu option list fully to shared menu composition path.
 - [x] Remove scene-local duplicate menu behavior.
 - [x] Reuse shared navigation audio + selection behavior paths.
 
