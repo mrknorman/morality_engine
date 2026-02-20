@@ -72,6 +72,9 @@ Status:
    - Recent progress: added dropdown-flow regressions for scroll-aware opening and outside-click item safety.
    - Recent progress: added directional shortcut regressions in `menu_input` (right activate, left back-only, tabs-focus block).
    - Recent progress: added query-safety smoke tests that initialize command/input/dropdown/modal/video systems and fail fast on query aliasing.
+   - Recent progress: added tabbed-menu query-safety smoke coverage and stale-state cleanup regression.
+   - Recent progress: added menu-input suppression regressions for non-base layer gating and tabs-focus top-row visual suppression.
+   - Recent progress: added debug-showcase query-safety smoke coverage for command and visual systems.
    - Recent progress: added active-layer shortcut-context coverage to verify non-base menus are excluded from directional shortcut dispatch.
 5. Keep trimming dead menu/UI helpers as command/input paths are consolidated.
    - Recent progress: removed unused slider click-region constant and unused top-option cycle helper.

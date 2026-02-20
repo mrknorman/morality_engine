@@ -311,6 +311,7 @@ Cross-system behavior checks live in `src/systems/ui/menu/flow_tests.rs` and sho
 - menu stack/pop/push state transitions
 - scroll-aware dropdown opening and outside-click protections
 - directional shortcut arbitration (right activate / left back-only / tabs-focus suppression)
+- visual suppression arbitration for tab-focused top rows and non-base active layers
 
 - `exit_prompt_target_menu`
 - `exit_prompt_closes_menu_system`
@@ -524,7 +525,7 @@ Conflict safety:
 - Where systems aggregate by menu (`HashMap<Entity, ...>`), process owners in stable entity order to avoid query-iteration-order behavior drift.
 - Add a query-safety smoke test for high-risk systems by initializing them via `IntoSystem::into_system(...).initialize(&mut world)`;
   this catches B0001-style alias conflicts before runtime. Current examples live in:
-  `command_flow.rs`, `menu_input.rs`, `dropdown_flow.rs`, `modal_flow.rs`, `video_visuals.rs`.
+  `command_flow.rs`, `menu_input.rs`, `dropdown_flow.rs`, `modal_flow.rs`, `tabbed_menu.rs`, `debug_showcase.rs`, `video_visuals.rs`.
 
 ## Window Integration
 

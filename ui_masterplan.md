@@ -62,6 +62,7 @@ Legend:
 - Stage 9 Deterministic Input Arbitration: `status: partial`
   - Arbitration order exists conceptually.
   - Recent progress: tabbed focus and scroll focus-follow no longer depend on option `InteractionVisualState` as behavior truth.
+  - Recent progress: visual arbitration now explicitly suppresses top-option highlight state when tab focus is active, and suppresses option visuals for non-base active layers.
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: done`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
@@ -84,6 +85,7 @@ Legend:
   - Remaining: mixed keyboard/mouse overlay validation pass.
 - Stage 15 Debug UI Showcase Rebuild: `status: partial`
   - Showcase exists and uses primitives, but interaction reliability/readability polish remains.
+  - Added explicit debug-showcase system-initialization smoke coverage to catch query alias regressions early.
 - Stage 16 Known Bug Sprint: `status: partial`
   - Several historical issues fixed; current active bugs still exist (see Active Bug Backlog).
 - Stage 17 Query-Safety Hardening: `status: partial`
@@ -94,6 +96,8 @@ Legend:
     - `menu_input::menu_input_systems_initialize_without_query_alias_panics`
     - `dropdown_flow::dropdown_flow_systems_initialize_without_query_alias_panics`
     - `modal_flow::modal_flow_systems_initialize_without_query_alias_panics`
+    - `debug_showcase::debug_showcase_systems_initialize_without_query_alias_panics`
+    - `tabbed_menu::tabbed_menu_systems_initialize_without_query_alias_panics`
     - `video_visuals::video_visual_systems_initialize_without_query_alias_panics`
   - Still requires full pass and stress validation.
 - Stage 18 Test Coverage Expansion: `status: partial`
@@ -103,7 +107,10 @@ Legend:
   - Added dropdown-flow regressions for scroll-aware dropdown opening and outside-click item protection.
   - Added menu-input regression tests for directional shortcut behavior (right activate, left back-only, tabs-focus block).
   - Added query-safety smoke tests for command/input/dropdown/modal/video visual systems.
+  - Added tabbed-menu regression coverage for focused-owner suppression and stale-state cleanup restoration.
+  - Added menu-input suppression regressions for non-base layer gating and tab-focus top-row suppression.
   - Added menu-input active-layer context regression (`active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav`).
+  - Added debug-showcase smoke coverage for command and visual system initialization.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).

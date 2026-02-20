@@ -572,3 +572,135 @@ pub fn commit_tab_activation(
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::ecs::system::IntoSystem;
+
+    use super::*;
+
+    #[test]
+    fn tabbed_menu_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut cleanup_system = IntoSystem::into_system(cleanup_tabbed_menu_state);
+        cleanup_system.initialize(&mut world);
+
+        let mut sync_focus_system = IntoSystem::into_system(sync_tabbed_menu_focus);
+        sync_focus_system.initialize(&mut world);
+
+        let mut suppress_system = IntoSystem::into_system(suppress_tabbed_options_while_tabs_focused);
+        suppress_system.initialize(&mut world);
+
+        let mut commit_system = IntoSystem::into_system(commit_tab_activation);
+        commit_system.initialize(&mut world);
+    }
+
+    #[test]
+    fn suppress_tabbed_options_only_clears_focused_owner_options() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<TabbedMenuFocusState>();
+        app.add_systems(Update, suppress_tabbed_options_while_tabs_focused);
+
+        let owner_a = app.world_mut().spawn_empty().id();
+        let owner_b = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .resource_mut::<TabbedMenuFocusState>()
+            .by_menu
+            .insert(owner_a, TabbedMenuFocus::Tabs);
+
+        let focused_option = app
+            .world_mut()
+            .spawn((
+                TabbedMenuOption::new(owner_a),
+                InteractionVisualState {
+                    selected: true,
+                    hovered: true,
+                    pressed: true,
+                    keyboard_locked: true,
+                },
+            ))
+            .id();
+        let unfocused_option = app
+            .world_mut()
+            .spawn((
+                TabbedMenuOption::new(owner_b),
+                InteractionVisualState {
+                    selected: true,
+                    hovered: true,
+                    pressed: true,
+                    keyboard_locked: true,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let focused_state = app
+            .world()
+            .get::<InteractionVisualState>(focused_option)
+            .copied()
+            .expect("focused option state");
+        let unfocused_state = app
+            .world()
+            .get::<InteractionVisualState>(unfocused_option)
+            .copied()
+            .expect("unfocused option state");
+        assert!(!focused_state.selected);
+        assert!(!focused_state.hovered);
+        assert!(!focused_state.pressed);
+        assert!(focused_state.keyboard_locked);
+        assert!(unfocused_state.selected);
+        assert!(unfocused_state.hovered);
+        assert!(unfocused_state.pressed);
+        assert!(unfocused_state.keyboard_locked);
+    }
+
+    #[test]
+    fn cleanup_tabbed_state_restores_menu_navigation_for_stale_menu() {
+        let mut world = World::new();
+        world.init_resource::<TabbedMenuFocusState>();
+
+        let stale_menu = world
+            .spawn(
+                SelectableMenu::new(3, vec![], vec![], vec![], false)
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            )
+            .id();
+        world.entity_mut(stale_menu).insert(MenuRoot {
+            host: crate::systems::ui::menu::MenuHost::Pause,
+            gate: InteractionGate::PauseMenuOnly,
+        });
+        world.resource_mut::<TabbedMenuFocusState>().by_menu.insert(
+            stale_menu,
+            TabbedMenuFocus::Tabs,
+        );
+        world
+            .resource_mut::<TabbedMenuFocusState>()
+            .set_previous_selection(stale_menu, 2);
+        world
+            .resource_mut::<TabbedMenuFocusState>()
+            .set_option_lock(stale_menu, Some(1));
+
+        let mut cleanup_system = IntoSystem::into_system(cleanup_tabbed_menu_state);
+        cleanup_system.initialize(&mut world);
+        let _ = cleanup_system.run((), &mut world);
+        cleanup_system.apply_deferred(&mut world);
+
+        let menu = world.get::<SelectableMenu>(stale_menu).expect("stale menu");
+        assert!(menu.wrap);
+        assert_eq!(
+            menu.click_activation,
+            SelectableClickActivation::SelectedOnAnyClick
+        );
+        assert_eq!(menu.up_keys, vec![KeyCode::ArrowUp]);
+        assert_eq!(menu.down_keys, vec![KeyCode::ArrowDown]);
+        assert_eq!(menu.activate_keys, vec![KeyCode::Enter]);
+
+        let focus = world.resource::<TabbedMenuFocusState>();
+        assert!(focus.by_menu.is_empty());
+        assert!(focus.previous_selection_by_menu.is_empty());
+        assert!(focus.option_lock_by_menu.is_empty());
+    }
+}

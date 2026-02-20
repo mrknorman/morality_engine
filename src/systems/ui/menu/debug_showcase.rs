@@ -1003,6 +1003,8 @@ pub(super) fn sync_dropdown_demo_visuals(
 
 #[cfg(test)]
 mod tests {
+    use bevy::ecs::system::IntoSystem;
+
     use super::*;
 
     #[test]
@@ -1024,6 +1026,32 @@ mod tests {
         let mut schedule = Schedule::default();
         schedule.add_systems((sync_tabs_demo_visuals, sync_dropdown_demo_visuals));
         schedule.run(&mut world);
+    }
+
+    #[test]
+    fn debug_showcase_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut menu_commands_system = IntoSystem::into_system(handle_menu_demo_commands);
+        menu_commands_system.initialize(&mut world);
+
+        let mut dropdown_trigger_system = IntoSystem::into_system(handle_dropdown_trigger_commands);
+        dropdown_trigger_system.initialize(&mut world);
+
+        let mut dropdown_item_system = IntoSystem::into_system(handle_dropdown_item_commands);
+        dropdown_item_system.initialize(&mut world);
+
+        let mut close_dropdown_system = IntoSystem::into_system(close_dropdown_on_outside_click);
+        close_dropdown_system.initialize(&mut world);
+
+        let mut sync_menu_visuals_system = IntoSystem::into_system(sync_menu_demo_visuals);
+        sync_menu_visuals_system.initialize(&mut world);
+
+        let mut sync_tabs_visuals_system = IntoSystem::into_system(sync_tabs_demo_visuals);
+        sync_tabs_visuals_system.initialize(&mut world);
+
+        let mut sync_dropdown_visuals_system = IntoSystem::into_system(sync_dropdown_demo_visuals);
+        sync_dropdown_visuals_system.initialize(&mut world);
     }
 
 }

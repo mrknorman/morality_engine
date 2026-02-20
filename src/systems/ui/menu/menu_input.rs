@@ -416,7 +416,34 @@ pub(super) fn handle_menu_shortcuts(
     );
 }
 
-pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus() {}
+pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
+    pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
+    mut option_query: Query<
+        (&Selectable, Option<&VideoOptionRow>, &mut InteractionVisualState),
+        With<MenuOptionCommand>,
+    >,
+) {
+    let active_layers =
+        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+
+    for (selectable, row, mut visual_state) in option_query.iter_mut() {
+        let active_kind = layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
+        let suppress_for_layer = active_kind != UiLayerKind::Base;
+        let suppress_for_tabs = tabbed_focus.is_tabs_focused(selectable.menu_entity)
+            && row.is_some_and(|row| row.index < VIDEO_TOP_OPTION_COUNT);
+        if !(suppress_for_layer || suppress_for_tabs) {
+            continue;
+        }
+
+        visual_state.selected = false;
+        visual_state.hovered = false;
+        visual_state.pressed = false;
+        visual_state.keyboard_locked = false;
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -654,5 +681,118 @@ mod tests {
 
         let mut shortcuts_system = IntoSystem::into_system(handle_menu_shortcuts);
         shortcuts_system.initialize(&mut world);
+
+        let mut suppress_system =
+            IntoSystem::into_system(suppress_option_visuals_for_inactive_layers_and_tab_focus);
+        suppress_system.initialize(&mut world);
+    }
+
+    #[test]
+    fn suppress_option_visuals_clears_state_for_non_base_active_layer() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<tabbed_menu::TabbedMenuFocusState>();
+        app.add_systems(
+            Update,
+            suppress_option_visuals_for_inactive_layers_and_tab_focus,
+        );
+
+        let menu_entity = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .entity_mut(menu_entity)
+            .insert((UiLayer::new(menu_entity, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut().spawn((
+            UiLayer::new(menu_entity, UiLayerKind::Dropdown),
+            Visibility::Visible,
+        ));
+
+        let option_entity = app
+            .world_mut()
+            .spawn((
+                Selectable::new(menu_entity, 0),
+                VideoOptionRow { index: 0 },
+                MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+                InteractionVisualState {
+                    selected: true,
+                    hovered: true,
+                    pressed: true,
+                    keyboard_locked: true,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let state = app
+            .world()
+            .get::<InteractionVisualState>(option_entity)
+            .copied()
+            .expect("option visual state");
+        assert!(!state.selected);
+        assert!(!state.hovered);
+        assert!(!state.pressed);
+        assert!(!state.keyboard_locked);
+    }
+
+    #[test]
+    fn suppress_option_visuals_hides_top_rows_while_tabs_are_focused() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<tabbed_menu::TabbedMenuFocusState>();
+        app.add_systems(
+            Update,
+            suppress_option_visuals_for_inactive_layers_and_tab_focus,
+        );
+
+        let menu_entity = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .entity_mut(menu_entity)
+            .insert((UiLayer::new(menu_entity, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut()
+            .resource_mut::<tabbed_menu::TabbedMenuFocusState>()
+            .by_menu
+            .insert(menu_entity, tabbed_menu::TabbedMenuFocus::Tabs);
+
+        let top_option = app
+            .world_mut()
+            .spawn((
+                Selectable::new(menu_entity, 0),
+                VideoOptionRow { index: 0 },
+                MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+                InteractionVisualState {
+                    selected: true,
+                    ..default()
+                },
+            ))
+            .id();
+        let footer_option = app
+            .world_mut()
+            .spawn((
+                Selectable::new(menu_entity, VIDEO_FOOTER_OPTION_START_INDEX),
+                VideoOptionRow {
+                    index: VIDEO_FOOTER_OPTION_START_INDEX,
+                },
+                MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+                InteractionVisualState {
+                    selected: true,
+                    ..default()
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let top_state = app
+            .world()
+            .get::<InteractionVisualState>(top_option)
+            .copied()
+            .expect("top option state");
+        let footer_state = app
+            .world()
+            .get::<InteractionVisualState>(footer_option)
+            .copied()
+            .expect("footer option state");
+        assert!(!top_state.selected);
+        assert!(footer_state.selected);
     }
 }
