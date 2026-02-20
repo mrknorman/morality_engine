@@ -851,7 +851,10 @@ pub(super) fn close_dropdown_on_outside_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<crate::startup::cursor::CustomCursor>,
     owner_query: Query<&DebugDropdownDemoState>,
-    trigger_query: Query<(&Transform, &GlobalTransform), With<DebugDropdownDemoTrigger>>,
+    trigger_query: Query<
+        (&Transform, &GlobalTransform),
+        (With<DebugDropdownDemoTrigger>, Without<DebugDropdownDemoPanel>),
+    >,
     mut panel_query: Query<
         (
             &DebugDropdownDemoPanel,
@@ -859,8 +862,12 @@ pub(super) fn close_dropdown_on_outside_click(
             &GlobalTransform,
             &mut Visibility,
         ),
+        Without<DebugDropdownDemoTrigger>,
     >,
 ) {
+    // Query contract:
+    // - Trigger and panel queries are explicitly disjoint via marker filters.
+    // - This prevents accidental aliasing when extending dropdown entities.
     if !mouse_input.just_pressed(MouseButton::Left) {
         return;
     }
@@ -974,5 +981,23 @@ pub(super) fn sync_dropdown_demo_visuals(
         } else {
             SYSTEM_MENU_COLOR
         };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cycle_index_wraps_forward_and_backward() {
+        assert_eq!(cycle_index(0, 4, -1), 3);
+        assert_eq!(cycle_index(3, 4, 1), 0);
+        assert_eq!(cycle_index(2, 4, 3), 1);
+    }
+
+    #[test]
+    fn cycle_index_handles_empty_collections() {
+        assert_eq!(cycle_index(0, 0, 1), 0);
+        assert_eq!(cycle_index(3, 0, -1), 0);
     }
 }
