@@ -83,8 +83,9 @@ Legend:
 - Stage 18 Test Coverage Expansion: `status: partial`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
   - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
-- Stage 19 Runtime Stress Validation: `status: pending`
-  - Not yet formalized as a repeatable validation pass.
+- Stage 19 Runtime Stress Validation: `status: partial`
+  - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
+  - Remaining: manual in-game verification checklist against live menu flows.
 - Stage 20 Documentation and Adoption: `status: partial`
   - Docs are substantial and mostly current; still need final alignment with latest bugfix/refactor outcome.
 - Stage 21 Tooling and Test Framework Rollout: `status: partial`
@@ -118,7 +119,7 @@ Legend:
 2. [x] Add focused regression tests for footer/tabs/dropdown interaction and hover description mapping.
 3. [x] Resume bundle-first migration cleanup in menu composition paths.
 4. [x] Complete tooling pass with repeatable test commands (`./scripts/ui_regression.sh`, `cargo nextest` when available).
-5. [ ] Run a dedicated mixed keyboard+mouse stress pass for owner-scoped arbitration.
+5. [x] Run a dedicated mixed keyboard+mouse stress pass for owner-scoped arbitration.
 
 ## Stage 0: Safety + Checkpoint
 - [ ] Create a clean checkpoint commit before functional changes.
