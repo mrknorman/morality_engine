@@ -259,3 +259,61 @@ fn dropdown_open_select_close_flow_is_owner_scoped() {
         Some(&Visibility::Hidden)
     );
 }
+
+#[test]
+fn owner_layer_priority_prefers_modal_then_dropdown_then_base() {
+    let mut world = World::new();
+    let owner = world.spawn_empty().id();
+    let base = world
+        .spawn((
+            UiLayer::new(owner, UiLayerKind::Base),
+            Visibility::Visible,
+            InteractionGate::PauseMenuOnly,
+        ))
+        .id();
+    let dropdown = world
+        .spawn((
+            UiLayer::new(owner, UiLayerKind::Dropdown),
+            Visibility::Visible,
+            InteractionGate::PauseMenuOnly,
+        ))
+        .id();
+    let modal = world
+        .spawn((
+            UiLayer::new(owner, UiLayerKind::Modal),
+            Visibility::Hidden,
+            InteractionGate::PauseMenuOnly,
+        ))
+        .id();
+
+    world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner)));
+
+    let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
+        SystemState::new(&mut world);
+    let mut layer_state: SystemState<
+        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    > = SystemState::new(&mut world);
+
+    let capture_query = capture_state.get(&world);
+    let layer_query = layer_state.get(&world);
+    let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Dropdown);
+    assert!(layer::is_active_layer_entity_for_owner(&active, owner, dropdown));
+    assert!(!layer::is_active_layer_entity_for_owner(&active, owner, base));
+
+    world.entity_mut(modal).insert(Visibility::Visible);
+    let capture_query = capture_state.get(&world);
+    let layer_query = layer_state.get(&world);
+    let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Modal);
+    assert!(layer::is_active_layer_entity_for_owner(&active, owner, modal));
+    assert!(!layer::is_active_layer_entity_for_owner(&active, owner, dropdown));
+
+    world.entity_mut(modal).insert(Visibility::Hidden);
+    world.entity_mut(dropdown).insert(Visibility::Hidden);
+    let capture_query = capture_state.get(&world);
+    let layer_query = layer_state.get(&world);
+    let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Base);
+    assert!(layer::is_active_layer_entity_for_owner(&active, owner, base));
+}
