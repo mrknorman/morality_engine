@@ -187,6 +187,11 @@ pub fn sync_discrete_slider_slots(
         >,
     )>,
 ) {
+    // Query contract:
+    // - slider roots are read via `p0` and exclude `DiscreteSliderSlot`.
+    // - slot entities are mutated via `p1` and require `DiscreteSliderSlot`.
+    // - shared `Visibility` access remains disjoint through these reciprocal
+    //   role filters, avoiding B0001 aliasing.
     let mut slider_states: Vec<(DiscreteSlider, Vec<Entity>, bool)> = Vec::new();
     {
         let slider_query = queries.p0();
