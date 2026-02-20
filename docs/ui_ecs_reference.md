@@ -378,11 +378,9 @@ Extension rule:
 
 Generic helpers (component-parametric):
 
-- `any_open<D>()`
 - `open_for_parent<D>()`
 - `close_all<D>()`
 - `close_for_parent<D>()`
-- `close_for_owner<D>()`
 - `enforce_single_visible_layer<D, R>()`
 
 These helpers are reusable for any dropdown component type `D` and any root-owner marker `R` (menus, window panels, etc.).

@@ -218,12 +218,6 @@ mod tests {
     }
 }
 
-pub fn any_open<D: Component>(dropdown_query: &Query<&Visibility, With<D>>) -> bool {
-    dropdown_query
-        .iter()
-        .any(|visibility| *visibility == Visibility::Visible)
-}
-
 pub fn open_for_parent<D: Component>(
     owner: Entity,
     parent_entity: Entity,
@@ -281,19 +275,6 @@ pub fn close_for_parent<D: Component>(
     if dropdown_state.is_parent_open_for_owner(owner, parent_entity) {
         dropdown_state.clear_owner(owner);
     }
-}
-
-pub fn close_for_owner<D: Component>(
-    owner: Entity,
-    dropdown_state: &mut DropdownLayerState,
-    dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<D>>,
-) {
-    for (_, _, ui_layer, mut visibility) in dropdown_query.iter_mut() {
-        if ui_layer.owner == owner {
-            *visibility = Visibility::Hidden;
-        }
-    }
-    dropdown_state.clear_owner(owner);
 }
 
 pub fn enforce_single_visible_layer<D: Component, R: Component>(
