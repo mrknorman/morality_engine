@@ -55,6 +55,7 @@ use std::{
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum InteractionSystem {
+    Hoverable,
     Clickable,
     Pressable,
     Selectable,
@@ -87,7 +88,8 @@ macro_rules! register_interaction_systems {
             Update,
             (
                 Draggable::enact,
-                system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable),
+                system_entry!(hoverable_system::<$enum_type>, InteractionSystem::Hoverable),
+                system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable, after: InteractionSystem::Hoverable),
                 system_entry!(pressable_system::<$enum_type>, InteractionSystem::Pressable, after: InteractionSystem::Clickable),
                 system_entry!(selectable_system::<$enum_type>, InteractionSystem::Selectable, after: InteractionSystem::Pressable),
                 system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Selectable),
@@ -127,7 +129,7 @@ impl Plugin for InteractionPlugin {
             .add_systems(Startup, activate_prerequisite_states)
             .add_systems(
                 Update,
-                (reset_clickable_aggregate, reset_interaction_visual_state)
+                (reset_clickable_aggregate, reset_hoverable_state, reset_interaction_visual_state)
                     .before(InteractionSystem::Clickable),
             )
             .add_systems(
@@ -326,7 +328,7 @@ impl Default for ClickableCursorIcons {
 }
 
 #[derive(Component)]
-#[require(ClickableCursorIcons, InteractionGate)]
+#[require(Hoverable, ClickableCursorIcons, InteractionGate)]
 pub struct Clickable<T>
 where
     T: Copy + Send + Sync,
@@ -493,6 +495,11 @@ impl InteractionVisualState {
         self.selected = false;
         self.keyboard_locked = false;
     }
+}
+
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub struct Hoverable {
+    pub hovered: bool,
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -756,6 +763,163 @@ pub fn reset_interaction_visual_state(mut query: Query<&mut InteractionVisualSta
     }
 }
 
+pub fn reset_hoverable_state(mut query: Query<&mut Hoverable>) {
+    for mut hoverable in query.iter_mut() {
+        hoverable.hovered = false;
+    }
+}
+
+pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
+    pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<(), With<InteractionCapture>>,
+    cursor: Res<CustomCursor>,
+    scroll_edge_query: Query<
+        (
+            &ScrollableRoot,
+            &ScrollableViewport,
+            &GlobalTransform,
+            Option<&InheritedVisibility>,
+        ),
+    >,
+    window_query: Query<
+        (&Window, &Transform, &GlobalTransform, Option<&InheritedVisibility>),
+        Without<TextSpan>,
+    >,
+    mut hoverable_query: Query<
+        (
+            Entity,
+            Option<&Aabb>,
+            &Transform,
+            &GlobalTransform,
+            Option<&Clickable<T>>,
+            Option<&InheritedVisibility>,
+            Option<&InteractionGate>,
+            Option<&Selectable>,
+            &mut Hoverable,
+        ),
+        Without<TextSpan>,
+    >,
+) {
+    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+    let Some(cursor_position) = cursor.position else {
+        return;
+    };
+
+    let mut edge_blocked_menus: HashSet<Entity> = HashSet::new();
+    for (root, viewport, global_transform, inherited_visibility) in scroll_edge_query.iter() {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
+        if cursor_in_edge_auto_scroll_zone(
+            cursor_position,
+            global_transform,
+            viewport.size,
+            root.axis,
+            root.edge_zone_inside_px,
+            root.edge_zone_outside_px,
+        ) {
+            edge_blocked_menus.insert(root.owner);
+        }
+    }
+
+    let mut top_window_z: Option<f32> = None;
+    for (window, transform, global_transform, inherited_visibility) in window_query.iter() {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
+        let window_region = Vec2::new(
+            window.boundary.dimensions.x,
+            window.boundary.dimensions.y + window.header_height,
+        );
+        let window_offset = Vec2::new(0.0, window.header_height * 0.5);
+        if is_cursor_within_region(
+            cursor_position,
+            transform,
+            global_transform,
+            window_region,
+            window_offset,
+        ) {
+            let z = global_transform.translation().z;
+            if top_window_z.is_none_or(|current| z > current) {
+                top_window_z = Some(z);
+            }
+        }
+    }
+
+    let mut hovered_top: Option<(Entity, f32)> = None;
+    for (
+        entity,
+        bound,
+        transform,
+        global_transform,
+        clickable,
+        inherited_visibility,
+        gate,
+        selectable,
+        _,
+    ) in hoverable_query.iter_mut()
+    {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
+        if !interaction_gate_allows(gate, interaction_captured) {
+            continue;
+        }
+        if selectable
+            .as_ref()
+            .is_some_and(|selectable| edge_blocked_menus.contains(&selectable.menu_entity))
+        {
+            continue;
+        }
+
+        let is_hovered = if let Some(clickable) = clickable {
+            if let Some(region) = clickable.region {
+                is_cursor_within_region(
+                    cursor_position,
+                    transform,
+                    global_transform,
+                    region,
+                    Vec2::ZERO,
+                )
+            } else if let Some(bound) = bound {
+                is_cursor_within_bounds(cursor_position, global_transform, bound)
+            } else {
+                false
+            }
+        } else if let Some(bound) = bound {
+            is_cursor_within_bounds(cursor_position, global_transform, bound)
+        } else {
+            false
+        };
+
+        if !is_hovered {
+            continue;
+        }
+
+        let z = global_transform.translation().z;
+        if let Some(blocking_z) = top_window_z {
+            if z + 0.001 < blocking_z {
+                continue;
+            }
+        }
+        let replace = match hovered_top {
+            None => true,
+            Some((current_entity, current_z)) => {
+                z > current_z || (z == current_z && entity.index() > current_entity.index())
+            }
+        };
+        if replace {
+            hovered_top = Some((entity, z));
+        }
+    }
+
+    if let Some((entity, _)) = hovered_top {
+        if let Ok((_, _, _, _, _, _, _, _, mut hoverable)) = hoverable_query.get_mut(entity) {
+            hoverable.hovered = true;
+        }
+    }
+}
+
 pub fn apply_interaction_visuals(
     mut query: Query<(
         &InteractionVisualState,
@@ -838,7 +1002,14 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if cursor_in_edge_auto_scroll_zone(cursor_position, global_transform, viewport.size, root.axis)
+        if cursor_in_edge_auto_scroll_zone(
+            cursor_position,
+            global_transform,
+            viewport.size,
+            root.axis,
+            root.edge_zone_inside_px,
+            root.edge_zone_outside_px,
+        )
         {
             edge_blocked_menus.insert(root.owner);
         }
@@ -1084,7 +1255,14 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
                 continue;
             }
-            if cursor_in_edge_auto_scroll_zone(cursor_position, global_transform, viewport.size, root.axis)
+            if cursor_in_edge_auto_scroll_zone(
+                cursor_position,
+                global_transform,
+                viewport.size,
+                root.axis,
+                root.edge_zone_inside_px,
+                root.edge_zone_outside_px,
+            )
             {
                 edge_blocked_menus.insert(root.owner);
             }
