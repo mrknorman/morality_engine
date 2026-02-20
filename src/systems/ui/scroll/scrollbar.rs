@@ -90,15 +90,40 @@ pub(super) fn seed_scrollbar_parts(
 pub(super) fn ensure_scrollbar_parts(
     mut commands: Commands,
     root_gate_query: Query<Option<&InteractionGate>, With<ScrollableRoot>>,
-    scrollbar_query: Query<(Entity, &ScrollBar, Option<&ChildOf>), Without<ScrollBarParts>>,
+    scrollbar_query: Query<(Entity, &ScrollBar, Option<&ChildOf>, Option<&ScrollBarParts>)>,
+    track_query: Query<(), With<ScrollBarTrack>>,
+    thumb_query: Query<(), With<ScrollBarThumb>>,
 ) {
     // Insert hooks seed parts on spawn; this system is a runtime drift-correction
     // path for cases where part entities are removed or parent links are rebuilt.
-    for (scrollbar_entity, scrollbar, parent) in scrollbar_query.iter() {
+    // Query contract:
+    // - `scrollbar_query` mutates only through `Commands` (no direct mutable borrows).
+    // - track/thumb presence checks are read-only marker queries used to validate
+    //   `ScrollBarParts` handles before reseeding.
+    for (scrollbar_entity, scrollbar, parent, parts) in scrollbar_query.iter() {
         if parent.is_none_or(|parent| parent.parent() != scrollbar.scrollable_root) {
             commands
                 .entity(scrollbar.scrollable_root)
                 .add_child(scrollbar_entity);
+        }
+
+        let parts_live = parts.is_some_and(|parts| {
+            track_query.get(parts.track).is_ok() && thumb_query.get(parts.thumb).is_ok()
+        });
+        if parts_live {
+            continue;
+        }
+
+        if let Some(parts) = parts {
+            if track_query.get(parts.track).is_ok() {
+                commands.entity(parts.track).despawn_related::<Children>();
+                commands.entity(parts.track).despawn();
+            }
+            if thumb_query.get(parts.thumb).is_ok() {
+                commands.entity(parts.thumb).despawn_related::<Children>();
+                commands.entity(parts.thumb).despawn();
+            }
+            commands.entity(scrollbar_entity).remove::<ScrollBarParts>();
         }
 
         let gate = root_gate_query

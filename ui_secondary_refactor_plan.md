@@ -62,7 +62,7 @@ Progress notes:
 - `DiscreteSlider` lifecycle is now primitive-owned via `DiscreteSliderPlugin` (`EnsureSlots`/`SyncSlots` system sets), and menu code now composes by ordering against those sets instead of scheduling slider internals directly (`src/systems/ui/discrete_slider.rs`, `src/systems/ui/menu/mod.rs`, `src/startup/mod.rs`).
 - `DiscreteSlider` root now seeds slot child hierarchy through an insert hook, with runtime ensure/sync systems retained for dynamic slot-count drift correction (`src/systems/ui/discrete_slider.rs`).
 - `HoverBoxRoot` now self-initializes primitive defaults via insert hook (owner-scoped `UiLayer`, hidden root visuals, and required child label/border structure) in `src/systems/ui/hover_box.rs`.
-- `ScrollBar` now enforces required root contracts (`Transform`, `Visibility`, drag state) and seeds track/thumb child hierarchy via insert hook; runtime ensure flow remains as drift correction (`src/systems/ui/scroll/mod.rs`, `src/systems/ui/scroll/scrollbar.rs`).
+- `ScrollBar` now enforces required root contracts (`Transform`, `Visibility`, drag state) and seeds track/thumb child hierarchy via insert hook; runtime ensure flow now also repairs stale/missing part handles (`src/systems/ui/scroll/mod.rs`, `src/systems/ui/scroll/scrollbar.rs`).
 - `SelectorSurface` now provides a root primitive contract for selector/cycler rows (`Selectable` + optional `OptionCycler` via insert hook) in `src/systems/ui/selector.rs`.
 - Menu composition now adopts `SelectorSurface` for video tabs/dropdown rows/cyclers and debug showcase tabs/dropdowns in `src/systems/ui/menu/page_content.rs` and `src/systems/ui/menu/debug_showcase.rs`.
 - `DropdownSurface` now provides a root dropdown primitive contract (`UiLayer::Dropdown`, default hidden visibility, selectable menu baseline) via insert hook in `src/systems/ui/dropdown.rs`, and video dropdown composition now consumes it in `src/systems/ui/menu/page_content.rs`.
@@ -146,6 +146,7 @@ Progress notes:
 - Selector/cycler mouse-selection + keyboard-cycle behavior is now covered in `src/systems/ui/menu/flow_tests.rs`.
 - Scrollbar wheel + drag-path clamp behavior is now covered in `src/systems/ui/scroll/tests.rs`.
 - Scrollbar root insertion behavior is now covered (insert-hook part seeding + root parenting) in `src/systems/ui/scroll/tests.rs`.
+- Scrollbar stale-part repair behavior is now covered (missing part entity triggers deterministic rebuild) in `src/systems/ui/scroll/tests.rs`.
 - Debug showcase smoke hooks continue to validate visual sync systems execute without query alias panics in `src/systems/ui/menu/debug_showcase.rs`.
 
 ## Stage 8: Documentation and Adoption
