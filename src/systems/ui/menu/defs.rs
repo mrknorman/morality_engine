@@ -120,10 +120,6 @@ pub(super) const VIDEO_OPTION_REGION_HEIGHT: f32 = 38.0;
 pub(super) const VIDEO_DISCRETE_SLIDER_MAX_STEPS: usize = 4;
 pub(super) const VIDEO_DISCRETE_SLIDER_SLOT_SIZE: Vec2 = Vec2::new(18.0, 18.0);
 pub(super) const VIDEO_DISCRETE_SLIDER_SLOT_SIZE_SELECTED: Vec2 = Vec2::new(22.0, 22.0);
-pub(super) const VIDEO_DISCRETE_SLIDER_SLOT_CLICK_REGION: Vec2 = Vec2::new(
-    VIDEO_DISCRETE_SLIDER_SLOT_SIZE_SELECTED.x * 2.0,
-    VIDEO_DISCRETE_SLIDER_SLOT_SIZE_SELECTED.y + 8.0,
-);
 pub(super) const VIDEO_DISCRETE_SLIDER_ZERO_CUTOFF_LEFT_BIAS_PX: f32 = 2.0;
 pub(super) const VIDEO_DISCRETE_SLIDER_GAP: f32 = 7.0;
 pub(super) const VIDEO_DISCRETE_SLIDER_ROOT_X: f32 =
@@ -2450,17 +2446,6 @@ pub(super) fn scan_darkness_text(darkness: ScanDarkness) -> &'static str {
         ScanDarkness::Medium => "Medium",
         ScanDarkness::High => "High",
     }
-}
-
-pub(super) fn cycle_video_top_option(
-    snapshot: &mut VideoSettingsSnapshot,
-    tab: VideoTabKind,
-    row: usize,
-    forward: bool,
-) -> bool {
-    video_top_option_key(tab, row)
-        .map(|key| key.cycle(snapshot, forward))
-        .unwrap_or(false)
 }
 
 pub(super) fn step_video_top_option_clamped(

@@ -96,6 +96,7 @@ Legend:
   - `mdBook` content now includes the `./scripts/ui_regression.sh` flow and `nextest` profile usage.
   - Remaining: decide if property-testing crates are required or keep deterministic sampled coverage only.
 - Stage 22 Cleanup and Redundancy Pass: `status: pending`
+  - Redundant menu dead code cleanup started (`VIDEO_DISCRETE_SLIDER_SLOT_CLICK_REGION`, `cycle_video_top_option` removed).
   - Not yet complete.
 
 ## Active Bug Backlog (Priority)
