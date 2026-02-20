@@ -1,10 +1,16 @@
-use bevy::prelude::*;
+use std::collections::HashSet;
+
+use bevy::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+};
 
 use crate::entities::sprites::compound::{HollowRectangle, RectangleSides};
 use crate::systems::interaction::InteractionSystem;
 
 #[derive(Component, Clone, Copy, Debug)]
 #[require(Transform, Visibility)]
+#[component(on_insert = DiscreteSlider::on_insert)]
 pub struct DiscreteSlider {
     pub steps: usize,
     pub layout_steps: usize,
@@ -77,6 +83,44 @@ impl DiscreteSlider {
         self.fill_inset = fill_inset.max(0.0);
         self
     }
+
+    fn required_slots(self) -> usize {
+        self.steps.max(1).max(self.layout_steps.max(1))
+    }
+
+    fn slot_inner_size(self) -> Vec2 {
+        (self.slot_size - Vec2::splat(self.fill_inset * 2.0)).max(Vec2::splat(1.0))
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let Some(slider) = world.entity(entity).get::<DiscreteSlider>().copied() else {
+            return;
+        };
+
+        let required_slots = slider.required_slots();
+        let mut present_indices = HashSet::new();
+        if let Some(children) = world.entity(entity).get::<Children>() {
+            for child in children.iter() {
+                if let Some(slot) = world.entity(child).get::<DiscreteSliderSlot>() {
+                    present_indices.insert(slot.index);
+                }
+            }
+        }
+        let missing: Vec<usize> = (0..required_slots)
+            .filter(|index| !present_indices.contains(index))
+            .collect();
+        if missing.is_empty() {
+            return;
+        }
+
+        spawn_slider_slots(
+            &mut world.commands(),
+            entity,
+            slider,
+            required_slots,
+            missing.into_iter(),
+        );
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -88,6 +132,36 @@ pub struct DiscreteSliderSlot {
 pub enum DiscreteSliderSystems {
     EnsureSlots,
     SyncSlots,
+}
+
+fn spawn_slider_slots(
+    commands: &mut Commands,
+    slider_entity: Entity,
+    slider: DiscreteSlider,
+    required_slots: usize,
+    missing: impl Iterator<Item = usize>,
+) {
+    let inner_size = slider.slot_inner_size();
+    commands.entity(slider_entity).with_children(|parent| {
+        for index in missing {
+            parent.spawn((
+                Name::new(format!("discrete_slider_slot_{index}")),
+                DiscreteSliderSlot { index },
+                Sprite::from_color(slider.empty_color, inner_size),
+                HollowRectangle {
+                    dimensions: slider.slot_size,
+                    thickness: slider.border_thickness,
+                    color: slider.border_color,
+                    sides: RectangleSides::default(),
+                },
+                Transform::from_xyz(
+                    slot_center_x(index, required_slots, slider.slot_size.x, slider.slot_gap),
+                    0.0,
+                    0.0,
+                ),
+            ));
+        }
+    });
 }
 
 pub(crate) fn slot_center_x(index: usize, layout_steps: usize, slot_width: f32, slot_gap: f32) -> f32 {
@@ -124,48 +198,30 @@ pub fn ensure_discrete_slider_slots(
     slot_query: Query<&DiscreteSliderSlot>,
 ) {
     for (slider_entity, slider, children) in slider_query.iter() {
-        let required_slots = slider.steps.max(1).max(slider.layout_steps.max(1));
-
-        let mut present_indices = Vec::new();
+        let required_slots = slider.required_slots();
+        let mut present_indices = HashSet::new();
         if let Some(children) = children {
             for child in children.iter() {
                 if let Ok(slot) = slot_query.get(child) {
-                    present_indices.push(slot.index);
+                    present_indices.insert(slot.index);
                 }
             }
         }
 
-        let mut missing = Vec::new();
-        for index in 0..required_slots {
-            if !present_indices.contains(&index) {
-                missing.push(index);
-            }
-        }
+        let missing: Vec<usize> = (0..required_slots)
+            .filter(|index| !present_indices.contains(index))
+            .collect();
         if missing.is_empty() {
             continue;
         }
 
-        let inner_size = (slider.slot_size - Vec2::splat(slider.fill_inset * 2.0)).max(Vec2::splat(1.0));
-        commands.entity(slider_entity).with_children(|parent| {
-            for index in missing {
-                parent.spawn((
-                    Name::new(format!("discrete_slider_slot_{index}")),
-                    DiscreteSliderSlot { index },
-                    Sprite::from_color(slider.empty_color, inner_size),
-                    HollowRectangle {
-                        dimensions: slider.slot_size,
-                        thickness: slider.border_thickness,
-                        color: slider.border_color,
-                        sides: RectangleSides::default(),
-                    },
-                    Transform::from_xyz(
-                        slot_center_x(index, required_slots, slider.slot_size.x, slider.slot_gap),
-                        0.0,
-                        0.0,
-                    ),
-                ));
-            }
-        });
+        spawn_slider_slots(
+            &mut commands,
+            slider_entity,
+            *slider,
+            required_slots,
+            missing.into_iter(),
+        );
     }
 }
 
@@ -323,5 +379,25 @@ mod tests {
             .filter(|entity| app.world().entity(**entity).contains::<DiscreteSliderSlot>())
             .count();
         assert_eq!(slot_count, 4);
+    }
+
+    #[test]
+    fn insert_hook_seeds_slot_children_without_running_update() {
+        let mut world = World::new();
+        let slider = world
+            .spawn(DiscreteSlider::new(3, 1))
+            .id();
+
+        let slot_count = world
+            .entity(slider)
+            .get::<Children>()
+            .map(|children| {
+                children
+                    .iter()
+                    .filter(|child| world.entity(*child).contains::<DiscreteSliderSlot>())
+                    .count()
+            })
+            .unwrap_or(0);
+        assert_eq!(slot_count, 3);
     }
 }
