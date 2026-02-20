@@ -11,6 +11,7 @@ use crate::{
         ui::{
             dropdown::{self, DropdownLayerState},
             layer::{self, UiLayer, UiLayerKind},
+            menu_surface::MenuSurface,
             tabs::{TabBar, TabBarState, TabItem},
         },
     },
@@ -156,6 +157,27 @@ fn tabs_and_layer_gating_flow_remain_owner_scoped() {
     assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Modal);
     assert!(layer::is_active_layer_entity_for_owner(&active, owner, modal));
     assert!(!layer::is_active_layer_entity_for_owner(&active, owner, base));
+}
+
+#[test]
+fn nested_tab_interaction_surface_without_layer_keeps_menu_root_active() {
+    let mut world = World::new();
+    let owner = world.spawn_empty().id();
+    let menu_root = world.spawn(MenuSurface::new(owner)).id();
+    let tab_interaction_root = world.spawn(MenuSurface::new(owner).without_layer()).id();
+
+    assert!(world.entity(tab_interaction_root).get::<UiLayer>().is_none());
+
+    let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
+        SystemState::new(&mut world);
+    let mut layer_state: SystemState<
+        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    > = SystemState::new(&mut world);
+    let capture_query = capture_state.get(&world);
+    let layer_query = layer_state.get(&world);
+    let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+
+    assert!(layer::is_active_layer_entity_for_owner(&active, owner, menu_root));
 }
 
 #[derive(Component)]
