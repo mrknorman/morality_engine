@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::entities::sprites::compound::{HollowRectangle, RectangleSides};
+use crate::systems::interaction::InteractionSystem;
 
 #[derive(Component, Clone, Copy, Debug)]
 #[require(Transform, Visibility)]
@@ -81,6 +82,12 @@ impl DiscreteSlider {
 #[derive(Component, Clone, Copy, Debug)]
 pub struct DiscreteSliderSlot {
     pub index: usize,
+}
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum DiscreteSliderSystems {
+    EnsureSlots,
+    SyncSlots,
 }
 
 pub(crate) fn slot_center_x(index: usize, layout_steps: usize, slot_width: f32, slot_gap: f32) -> f32 {
@@ -227,9 +234,35 @@ pub fn sync_discrete_slider_slots(
     }
 }
 
+pub struct DiscreteSliderPlugin;
+
+impl Plugin for DiscreteSliderPlugin {
+    fn build(&self, app: &mut App) {
+        app.configure_sets(
+            Update,
+            (
+                DiscreteSliderSystems::EnsureSlots,
+                DiscreteSliderSystems::SyncSlots.after(DiscreteSliderSystems::EnsureSlots),
+            )
+                .chain()
+                .after(InteractionSystem::Selectable),
+        )
+        .add_systems(
+            Update,
+            ensure_discrete_slider_slots.in_set(DiscreteSliderSystems::EnsureSlots),
+        )
+        .add_systems(
+            Update,
+            sync_discrete_slider_slots.in_set(DiscreteSliderSystems::SyncSlots),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{slot_center_x, slot_span_bounds, DiscreteSlider};
+    use super::{
+        slot_center_x, slot_span_bounds, DiscreteSlider, DiscreteSliderPlugin, DiscreteSliderSlot,
+    };
     use bevy::prelude::*;
 
     #[test]
@@ -261,5 +294,29 @@ mod tests {
 
         assert!(world.entity(slider).get::<Transform>().is_some());
         assert!(world.entity(slider).get::<Visibility>().is_some());
+    }
+
+    #[test]
+    fn plugin_builds_slider_slots_without_menu_module() {
+        let mut app = App::new();
+        app.add_plugins(DiscreteSliderPlugin);
+        let slider = app
+            .world_mut()
+            .spawn(DiscreteSlider::new(4, 2))
+            .id();
+
+        app.update();
+
+        let children: Vec<Entity> = app
+            .world()
+            .entity(slider)
+            .get::<Children>()
+            .map(|children| children.iter().collect())
+            .unwrap_or_default();
+        let slot_count = children
+            .iter()
+            .filter(|entity| app.world().entity(**entity).contains::<DiscreteSliderSlot>())
+            .count();
+        assert_eq!(slot_count, 4);
     }
 }

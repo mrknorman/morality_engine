@@ -832,7 +832,10 @@ impl Plugin for MenusPlugin {
                 MenuSystems::Core,
                 MenuSystems::Commands.after(MenuSystems::Core),
                 MenuSystems::PostCommands.after(MenuSystems::Commands),
-                MenuSystems::Visual.after(MenuSystems::PostCommands),
+                MenuSystems::Visual
+                    .after(MenuSystems::PostCommands)
+                    .after(discrete_slider::DiscreteSliderSystems::EnsureSlots)
+                    .before(discrete_slider::DiscreteSliderSystems::SyncSlots),
             ),
         );
         app.add_systems(
@@ -971,9 +974,7 @@ impl Plugin for MenusPlugin {
                 sync_video_top_option_hover_descriptions,
                 sync_video_option_cycler_bounds,
                 sync_video_discrete_slider_widgets,
-                discrete_slider::ensure_discrete_slider_slots,
                 ensure_video_discrete_slider_slot_clickables,
-                discrete_slider::sync_discrete_slider_slots,
                 sync_video_footer_table_values,
                 sync_video_tabs_visuals,
                 sync_resolution_dropdown_items,

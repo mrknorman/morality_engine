@@ -6,7 +6,10 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use crate::startup::textures::DigitSheet;
 use crate::systems::audio::{OneShotAudio, OneShotAudioPallet};
 use crate::systems::resize::ResizePlugin;
+use crate::systems::ui::discrete_slider::DiscreteSliderPlugin;
 use crate::systems::ui::menu::MenusPlugin;
+use crate::systems::ui::hover_box::HoverBoxPlugin;
+use crate::systems::ui::scroll::ScrollPlugin;
 use crate::{
     data::{rng::RngPlugin, states::GameStatesPlugin, stats::StatsPlugin},
     scenes::dilemma::lever::Lever,
@@ -50,6 +53,9 @@ impl Plugin for StartupPlugin {
                 debug::DebugPlugin,
                 pause::PausePlugin,
             ))
+            .add_plugins(DiscreteSliderPlugin)
+            .add_plugins(HoverBoxPlugin)
+            .add_plugins(ScrollPlugin)
             .add_systems(Startup, crt_start_up);
 
         //#[cfg(debug_assertions)]
