@@ -236,12 +236,12 @@ Deliverable:
 - [ ] Menu modules are policy + command mapping only.
 
 ## Stage 6: UI Module Realignment
-- [ ] Ensure menu modules live under `ui::menu` with clean public API boundaries.
-- [ ] Remove or avoid transitional re-export shims.
-- [ ] Keep owner/layer/interaction contracts intact after module cleanup.
+- [x] Ensure menu modules live under `ui::menu` with clean public API boundaries.
+- [x] Remove or avoid transitional re-export shims.
+- [x] Keep owner/layer/interaction contracts intact after module cleanup.
 
 Deliverable:
-- [ ] Stable module topology aligned with architecture contract.
+- [x] Stable module topology aligned with architecture contract.
 
 ## Stage 7: Dropdown, Tabs, and Footer Primitive Unification
 - [ ] Keep dropdown open/close/single-visible/outside-click logic fully in reusable dropdown primitive.
@@ -253,12 +253,12 @@ Deliverable:
 - [ ] Shared dropdown/tab/footer primitives used consistently by menu composition.
 
 ## Stage 8: Command Reducer + Effects Split
-- [ ] Keep pure reducer transitions separate from Bevy side effects.
-- [ ] Ensure command side effects are centralized and deterministic.
-- [ ] Keep behavior compatibility with existing flows during migration.
+- [x] Keep pure reducer transitions separate from Bevy side effects.
+- [x] Ensure command side effects are centralized and deterministic.
+- [x] Keep behavior compatibility with existing flows during migration.
 
 Deliverable:
-- [ ] Reducer/effects architecture with clear contracts and tests.
+- [x] Reducer/effects architecture with clear contracts and tests.
 
 ## Stage 9: Deterministic Input Arbitration
 - [ ] Enforce strict priority: layer > focus group > keyboard lock > hover.
@@ -287,13 +287,13 @@ Deliverable:
 - [x] Validated schema-driven menu composition path.
 
 ## Stage 12: Discrete Slider Primitive and Integration
-- [ ] Implement/normalize reusable `DiscreteSlider` primitive (keyboard + mouse).
-- [ ] Integrate into appropriate rankable options (off/low/medium/high patterns).
-- [ ] Ensure selector and slider interaction do not conflict.
-- [ ] Ensure slider behavior is owner/layer safe and composable.
+- [x] Implement/normalize reusable `DiscreteSlider` primitive (keyboard + mouse).
+- [x] Integrate into appropriate rankable options (off/low/medium/high patterns).
+- [x] Ensure selector and slider interaction do not conflict.
+- [x] Ensure slider behavior is owner/layer safe and composable.
 
 Deliverable:
-- [ ] Stable slider primitive adopted in settings UI.
+- [x] Stable slider primitive adopted in settings UI.
 
 ## Stage 13: Scrollable RTT Primitive
 
