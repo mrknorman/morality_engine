@@ -38,34 +38,36 @@ fn handle_escape_shortcut_for_active_menus(
         return;
     }
 
-    let mut handled_escape = false;
+    let mut eligible_menus: Vec<(Entity, MenuPage, InteractionGate)> = Vec::new();
     for (menu_entity, menu_stack, menu_root, _) in menu_query.iter() {
-        if handled_escape
-            || !menu_is_active_base_layer(
-                menu_entity,
-                menu_root,
-                pause_state,
-                capture_query,
-                active_layers,
-            )
-        {
+        if !menu_is_active_base_layer(
+            menu_entity,
+            menu_root,
+            pause_state,
+            capture_query,
+            active_layers,
+        ) {
             continue;
         }
 
         let Some(page) = menu_stack.current_page() else {
             continue;
         };
+        eligible_menus.push((menu_entity, page, menu_root.gate));
+    }
+    eligible_menus.sort_by_key(|(menu_entity, _, _)| menu_entity.index());
+    let Some((menu_entity, page, gate)) = eligible_menus.first().copied() else {
+        return;
+    };
 
-        handled_escape = true;
-        let leaving_video_options = matches!(page, MenuPage::Video | MenuPage::Options);
-        if settings.initialized && video_settings_dirty(settings) && leaving_video_options {
-            navigation_state.exit_prompt_target_menu = Some(menu_entity);
-            navigation_state.exit_prompt_closes_menu_system = true;
-            spawn_exit_unsaved_modal(commands, menu_entity, asset_server, menu_root.gate);
-        } else {
-            navigation_state.pending_exit_menu = Some(menu_entity);
-            navigation_state.pending_exit_closes_menu_system = true;
-        }
+    let leaving_video_options = matches!(page, MenuPage::Video | MenuPage::Options);
+    if settings.initialized && video_settings_dirty(settings) && leaving_video_options {
+        navigation_state.exit_prompt_target_menu = Some(menu_entity);
+        navigation_state.exit_prompt_closes_menu_system = true;
+        spawn_exit_unsaved_modal(commands, menu_entity, asset_server, gate);
+    } else {
+        navigation_state.pending_exit_menu = Some(menu_entity);
+        navigation_state.pending_exit_closes_menu_system = true;
     }
 }
 
@@ -109,15 +111,15 @@ fn emit_directional_shortcut_intents(
     activate_left: bool,
     context: &ActiveMenuShortcutContext,
     tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
-    option_command_query: &Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+    option_command_query: &Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
     menu_intents: &mut MessageWriter<MenuIntent>,
 ) {
     if !(activate_right || activate_left) {
         return;
     }
 
-    let mut directional_targets = HashSet::new();
-    for (selectable, option_command, cycler) in option_command_query.iter() {
+    let mut target_by_menu: HashMap<Entity, (u64, MenuCommand)> = HashMap::new();
+    for (entity, selectable, option_command, cycler) in option_command_query.iter() {
         if !context.active_menus.contains(&selectable.menu_entity) {
             continue;
         }
@@ -144,14 +146,33 @@ fn emit_directional_shortcut_intents(
         let is_selector = cycler.is_some();
         let is_back = matches!(option_command.0, MenuCommand::Pop);
         let activate = (activate_right && !is_selector) || (activate_left && is_back);
-        if !activate || !directional_targets.insert(selectable.menu_entity) {
+        if !activate {
             continue;
         }
+        let candidate_rank = entity.to_bits();
+        match target_by_menu.get_mut(&selectable.menu_entity) {
+            Some((best_rank, best_command)) => {
+                if candidate_rank >= *best_rank {
+                    *best_rank = candidate_rank;
+                    *best_command = option_command.0.clone();
+                }
+            }
+            None => {
+                target_by_menu.insert(
+                    selectable.menu_entity,
+                    (candidate_rank, option_command.0.clone()),
+                );
+            }
+        }
+    }
 
-        menu_intents.write(MenuIntent::TriggerCommand {
-            menu_entity: selectable.menu_entity,
-            command: option_command.0.clone(),
-        });
+    let mut ordered_targets: Vec<(Entity, MenuCommand)> = target_by_menu
+        .into_iter()
+        .map(|(menu_entity, (_, command))| (menu_entity, command))
+        .collect();
+    ordered_targets.sort_by_key(|(menu_entity, _)| menu_entity.index());
+    for (menu_entity, command) in ordered_targets {
+        menu_intents.write(MenuIntent::TriggerCommand { menu_entity, command });
     }
 }
 
@@ -254,7 +275,12 @@ pub(super) fn play_menu_navigation_sound(
     let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
     let tab_pressed = keyboard_input.just_pressed(KeyCode::Tab);
     let horizontal_pressed = left_pressed ^ right_pressed;
-    for active_layer in active_layers.values() {
+    let mut ordered_active_layers: Vec<(Entity, layer::ActiveUiLayer)> = active_layers
+        .iter()
+        .map(|(owner, active_layer)| (*owner, *active_layer))
+        .collect();
+    ordered_active_layers.sort_by_key(|(owner, active_layer)| (owner.index(), active_layer.entity.index()));
+    for (_, active_layer) in ordered_active_layers {
         let Ok((layer_entity, menu_stack, menu, pallet)) = layer_menu_query.get(active_layer.entity) else {
             continue;
         };
@@ -364,7 +390,7 @@ pub(super) fn handle_menu_shortcuts(
     ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
     menu_query: Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     option_shortcut_query: Query<(&Selectable, &ShortcutKey, &MenuOptionCommand)>,
-    option_command_query: Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+    option_command_query: Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
     mut menu_intents: MessageWriter<MenuIntent>,
 ) {
     let escape_pressed = keyboard_input.just_pressed(KeyCode::Escape);
@@ -491,7 +517,7 @@ mod tests {
         let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
 
         let mut system_state: SystemState<(
-            Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -538,7 +564,7 @@ mod tests {
         let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
 
         let mut system_state: SystemState<(
-            Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -582,7 +608,7 @@ mod tests {
         tabbed_focus.by_menu.insert(menu_entity, TabbedMenuFocus::Tabs);
 
         let mut system_state: SystemState<(
-            Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -600,6 +626,58 @@ mod tests {
 
         let intents = collect_intents(&mut world);
         assert!(intents.is_empty());
+    }
+
+    #[test]
+    fn directional_shortcuts_prefer_highest_rank_when_multiple_targets_match() {
+        let mut world = World::new();
+        world.init_resource::<Messages<MenuIntent>>();
+
+        let menu_entity = world.spawn_empty().id();
+        let lower_rank = world
+            .spawn((
+                Selectable::new(menu_entity, 1),
+                MenuOptionCommand(MenuCommand::Push(MenuPage::Options)),
+            ))
+            .id();
+        let higher_rank = world
+            .spawn((
+                Selectable::new(menu_entity, 1),
+                MenuOptionCommand(MenuCommand::Push(MenuPage::Video)),
+            ))
+            .id();
+        let expected_command = if higher_rank.to_bits() >= lower_rank.to_bits() {
+            MenuCommand::Push(MenuPage::Video)
+        } else {
+            MenuCommand::Push(MenuPage::Options)
+        };
+
+        let context = active_context_for_menu(menu_entity, 1);
+        let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
+
+        let mut system_state: SystemState<(
+            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            MessageWriter<MenuIntent>,
+        )> = SystemState::new(&mut world);
+        {
+            let (option_command_query, mut menu_intents) = system_state.get_mut(&mut world);
+            emit_directional_shortcut_intents(
+                true,
+                false,
+                &context,
+                &tabbed_focus,
+                &option_command_query,
+                &mut menu_intents,
+            );
+        }
+        system_state.apply(&mut world);
+
+        let intents = collect_intents(&mut world);
+        assert_eq!(intents.len(), 1);
+        let MenuIntent::TriggerCommand { command, .. } = intents[0].clone() else {
+            panic!("expected trigger command intent");
+        };
+        assert_eq!(command, expected_command);
     }
 
     #[test]

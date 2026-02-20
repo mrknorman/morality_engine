@@ -63,6 +63,8 @@ Legend:
   - Arbitration order exists conceptually.
   - Recent progress: tabbed focus and scroll focus-follow no longer depend on option `InteractionVisualState` as behavior truth.
   - Recent progress: visual arbitration now explicitly suppresses top-option highlight state when tab focus is active, and suppresses option visuals for non-base active layers.
+  - Recent progress: directional shortcut dispatch now resolves deterministically per menu by entity rank, and emits intents in stable owner order.
+  - Recent progress: escape/modal/dropdown keyboard shortcut routing now uses deterministic owner/menu ordering rather than query first-match behavior.
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: done`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
@@ -113,6 +115,8 @@ Legend:
   - Added query-safety smoke tests for command/input/dropdown/modal/video visual systems.
   - Added tabbed-menu regression coverage for focused-owner suppression and stale-state cleanup restoration.
   - Added menu-input suppression regressions for non-base layer gating and tab-focus top-row suppression.
+  - Added directional-shortcut regression coverage for deterministic highest-rank option dispatch when duplicate targets match.
+  - Added modal-shortcut regression coverage for deterministic owner ordering.
   - Added stack-state regression coverage for stale menu target cleanup (`clear_stale_menu_targets`).
   - Added menu-input active-layer context regression (`active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav`).
   - Added debug-showcase smoke coverage for command and visual system initialization.

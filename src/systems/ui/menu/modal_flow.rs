@@ -267,14 +267,26 @@ pub(super) fn handle_video_modal_shortcuts(
 
     let active_layers =
         layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let mut eligible_modals: Vec<(Entity, Entity, bool, bool)> = Vec::new();
     for (modal_entity, ui_layer, is_apply_modal, is_exit_modal) in modal_query.iter() {
         if layer::active_layer_kind_for_owner(&active_layers, ui_layer.owner) != UiLayerKind::Modal
             || !layer::is_active_layer_entity_for_owner(&active_layers, ui_layer.owner, modal_entity)
         {
             continue;
         }
+        eligible_modals.push((
+            ui_layer.owner,
+            modal_entity,
+            is_apply_modal.is_some(),
+            is_exit_modal.is_some(),
+        ));
+    }
+    eligible_modals
+        .sort_by_key(|(owner, modal_entity, _, _)| (owner.index(), modal_entity.index()));
 
-        let target_button = if is_apply_modal.is_some() {
+    for (_, _, is_apply_modal, is_exit_modal) in eligible_modals {
+
+        let target_button = if is_apply_modal {
             if yes_pressed {
                 Some(VideoModalButton::ApplyKeep)
             } else if no_pressed || cancel_pressed {
@@ -282,7 +294,7 @@ pub(super) fn handle_video_modal_shortcuts(
             } else {
                 None
             }
-        } else if is_exit_modal.is_some() {
+        } else if is_exit_modal {
             if yes_pressed {
                 Some(VideoModalButton::ExitWithoutSaving)
             } else if no_pressed || cancel_pressed {
@@ -501,5 +513,47 @@ mod tests {
 
         let mut countdown_system = IntoSystem::into_system(update_apply_confirmation_countdown);
         countdown_system.initialize(&mut world);
+    }
+
+    #[test]
+    fn modal_shortcuts_pick_deterministic_owner_order() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.add_message::<MenuIntent>();
+        app.add_systems(Update, handle_video_modal_shortcuts);
+
+        let owner_low = app.world_mut().spawn_empty().id();
+        let owner_high = app.world_mut().spawn_empty().id();
+        assert!(owner_low.index() < owner_high.index());
+
+        app.world_mut().spawn((
+            VideoModalRoot,
+            UiLayer::new(owner_high, UiLayerKind::Modal),
+            Visibility::Visible,
+            VideoExitUnsavedModal,
+        ));
+        app.world_mut().spawn((
+            VideoModalRoot,
+            UiLayer::new(owner_low, UiLayerKind::Modal),
+            Visibility::Visible,
+            VideoApplyConfirmModal,
+        ));
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyY);
+        app.update();
+
+        let mut reader = app.world_mut().resource_mut::<Messages<MenuIntent>>().get_cursor();
+        let intents: Vec<MenuIntent> = reader
+            .read(app.world().resource::<Messages<MenuIntent>>())
+            .cloned()
+            .collect();
+        assert_eq!(intents.len(), 1);
+        assert!(matches!(
+            intents[0],
+            MenuIntent::TriggerModalButton(VideoModalButton::ApplyKeep)
+        ));
     }
 }

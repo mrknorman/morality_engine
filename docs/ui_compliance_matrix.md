@@ -78,6 +78,8 @@ Status:
    - Recent progress: added query-safety smoke coverage for `main_menu` and `dropdown_view` systems.
    - Recent progress: added query-safety smoke coverage for `scroll_adapter` systems.
    - Recent progress: added regression coverage for stale menu-target cleanup in `stack`.
+   - Recent progress: deterministic shortcut arbitration hardening landed in `menu_input`, `modal_flow`, and dropdown keyboard navigation.
+   - Recent progress: added regressions for deterministic directional shortcut tie-breaking and modal owner ordering.
    - Recent progress: added active-layer shortcut-context coverage to verify non-base menus are excluded from directional shortcut dispatch.
 5. Keep trimming dead menu/UI helpers as command/input paths are consolidated.
    - Recent progress: removed unused slider click-region constant and unused top-option cycle helper.
