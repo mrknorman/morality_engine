@@ -98,7 +98,7 @@ Deliverable:
 
 ## Stage 7: Test Coverage
 
-- [ ] Add/extend unit tests for primitive reducers and state transitions.
+- [x] Add/extend unit tests for primitive reducers and state transitions.
 - [ ] Add integration-level tests for:
   - Tabs activation and content switching
   - Dropdown open/select/close paths
@@ -108,6 +108,10 @@ Deliverable:
 
 Deliverable:
 - Regression safety for primitive behavior and composition.
+
+Progress notes:
+- `command_reducer` and menu flow tests are in place (`src/systems/ui/menu/command_reducer.rs`, `src/systems/ui/menu/flow_tests.rs`).
+- Debug showcase now has targeted unit coverage for core index-cycling behavior (`src/systems/ui/menu/debug_showcase.rs`).
 
 ## Stage 8: Documentation and Adoption
 
