@@ -44,6 +44,7 @@ Legend:
   - Recent progress: shared deterministic owner ordering helper (`layer::ordered_active_layers_by_owner`) is now used in menu navigation routing instead of ad-hoc local sorting.
   - Recent progress: shared owner-kind helper (`layer::ordered_active_owners_by_kind`) now drives owner iteration in escape shortcut routing, modal shortcut routing, and dropdown item resolution.
   - Recent progress: dropdown keyboard-navigation owner traversal now uses shared active-layer ordering instead of local menu-query sorting.
+  - Recent progress: tabbed focus arbitration now iterates active base owners via shared layer-owner ordering.
 - Stage 4 Primitive Contract Normalization: `status: partial`
   - Primitive roots exist for menu surface, dropdown, tabs, selector, scroll, hover box, slider.
   - `SystemMenuOptionRoot` now owns option wiring via `#[require]` + `on_insert`.

@@ -334,9 +334,7 @@ pub fn sync_tabbed_menu_focus(
 
     let mut tab_updates: Vec<(Entity, TabbedMenuFocus, Option<usize>)> = Vec::new();
     let mut pending_tab_activations: Vec<(Entity, usize)> = Vec::new();
-    let mut ordered_menus: Vec<Entity> = tabbed_by_menu.keys().copied().collect();
-    ordered_menus.sort_by_key(|entity| entity.index());
-    for menu_entity in ordered_menus {
+    for menu_entity in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Base) {
         let Some(&(tab_root_entity, active_tab_index, selected_tab_index, config)) =
             tabbed_by_menu.get(&menu_entity)
         else {
@@ -346,11 +344,6 @@ pub fn sync_tabbed_menu_focus(
             continue;
         };
         selectable_menu.wrap = false;
-        let is_base_active =
-            layer::active_layer_kind_for_owner(&active_layers, menu_entity) == UiLayerKind::Base;
-        if !is_base_active {
-            continue;
-        }
 
         let previous_focus = focus_state
             .by_menu
