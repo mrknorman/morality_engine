@@ -41,6 +41,7 @@ use crate::{
             discrete_slider,
             dropdown::{self, DropdownAnchorState, DropdownLayerState},
             layer::{self, UiLayer, UiLayerKind},
+            menu_surface::MenuSurface,
             scroll::{ScrollFocusFollowLock, ScrollState},
             selector::{self, ShortcutKey},
             tabs,

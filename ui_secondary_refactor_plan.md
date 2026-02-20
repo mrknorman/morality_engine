@@ -43,7 +43,7 @@ Deliverable:
 
 ## Stage 2: Primitive Contract Normalization
 
-- [ ] Define and standardize root primitive components for:
+- [x] Define and standardize root primitive components for:
   - Menu surface
   - Selector/cycler surface
   - Tab bar
@@ -65,6 +65,7 @@ Progress notes:
 - Menu composition now adopts `SelectorSurface` for video tabs/dropdown rows/cyclers and debug showcase tabs/dropdowns in `src/systems/ui/menu/page_content.rs` and `src/systems/ui/menu/debug_showcase.rs`.
 - `DropdownSurface` now provides a root dropdown primitive contract (`UiLayer::Dropdown`, default hidden visibility, selectable menu baseline) via insert hook in `src/systems/ui/dropdown.rs`, and video dropdown composition now consumes it in `src/systems/ui/menu/page_content.rs`.
 - `SystemMenuOptionBundle` now routes selection construction through `SelectorSurface` (instead of directly embedding `Selectable`) in `src/startup/system_menu.rs`.
+- `MenuSurface` now provides a root menu primitive contract (`UiLayer`, `SelectableMenu`, click-activation policy) via insert hook in `src/systems/ui/menu_surface.rs`, and root menu spawning now consumes it in `src/systems/ui/menu/root_spawn.rs`.
 
 ## Stage 3: Menu Composition Migration
 
