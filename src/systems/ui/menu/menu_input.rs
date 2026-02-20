@@ -1,6 +1,160 @@
 use super::*;
 use super::modal_flow::spawn_exit_unsaved_modal;
 
+#[derive(Default)]
+struct ActiveMenuShortcutContext {
+    active_menus: HashSet<Entity>,
+    selected_indices_by_menu: HashMap<Entity, usize>,
+    footer_horizontal_nav_menus: HashSet<Entity>,
+}
+
+fn menu_is_active_base_layer(
+    menu_entity: Entity,
+    menu_root: &MenuRoot,
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
+) -> bool {
+    interaction_gate_allows_for_owner(
+        Some(&menu_root.gate),
+        pause_state,
+        capture_query,
+        menu_entity,
+    ) && layer::active_layer_kind_for_owner(active_layers, menu_entity) == UiLayerKind::Base
+}
+
+fn handle_escape_shortcut_for_active_menus(
+    escape_pressed: bool,
+    settings: &VideoSettingsState,
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
+    menu_query: &Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
+    navigation_state: &mut MenuNavigationState,
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+) {
+    if !escape_pressed {
+        return;
+    }
+
+    let mut handled_escape = false;
+    for (menu_entity, menu_stack, menu_root, _) in menu_query.iter() {
+        if handled_escape
+            || !menu_is_active_base_layer(
+                menu_entity,
+                menu_root,
+                pause_state,
+                capture_query,
+                active_layers,
+            )
+        {
+            continue;
+        }
+
+        let Some(page) = menu_stack.current_page() else {
+            continue;
+        };
+
+        handled_escape = true;
+        let leaving_video_options = matches!(page, MenuPage::Video | MenuPage::Options);
+        if settings.initialized && video_settings_dirty(settings) && leaving_video_options {
+            navigation_state.exit_prompt_target_menu = Some(menu_entity);
+            navigation_state.exit_prompt_closes_menu_system = true;
+            spawn_exit_unsaved_modal(commands, menu_entity, asset_server, menu_root.gate);
+        } else {
+            navigation_state.pending_exit_menu = Some(menu_entity);
+            navigation_state.pending_exit_closes_menu_system = true;
+        }
+    }
+}
+
+fn collect_active_menu_shortcut_context(
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
+    menu_query: &Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
+    tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
+) -> ActiveMenuShortcutContext {
+    let mut context = ActiveMenuShortcutContext::default();
+    for (menu_entity, menu_stack, menu_root, selectable_menu) in menu_query.iter() {
+        if !menu_is_active_base_layer(
+            menu_entity,
+            menu_root,
+            pause_state,
+            capture_query,
+            active_layers,
+        ) {
+            continue;
+        }
+
+        context.active_menus.insert(menu_entity);
+        context
+            .selected_indices_by_menu
+            .insert(menu_entity, selectable_menu.selected_index);
+        if menu_stack.current_page() == Some(MenuPage::Video)
+            && selectable_menu.selected_index >= VIDEO_FOOTER_OPTION_START_INDEX
+            && selectable_menu.selected_index
+                < VIDEO_FOOTER_OPTION_START_INDEX + VIDEO_FOOTER_OPTION_COUNT
+            && !tabbed_focus.is_tabs_focused(menu_entity)
+        {
+            context.footer_horizontal_nav_menus.insert(menu_entity);
+        }
+    }
+    context
+}
+
+fn emit_directional_shortcut_intents(
+    activate_right: bool,
+    activate_left: bool,
+    context: &ActiveMenuShortcutContext,
+    tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
+    option_command_query: &Query<(&Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+    menu_intents: &mut MessageWriter<MenuIntent>,
+) {
+    if !(activate_right || activate_left) {
+        return;
+    }
+
+    let mut directional_targets = HashSet::new();
+    for (selectable, option_command, cycler) in option_command_query.iter() {
+        if !context.active_menus.contains(&selectable.menu_entity) {
+            continue;
+        }
+        if context
+            .footer_horizontal_nav_menus
+            .contains(&selectable.menu_entity)
+        {
+            continue;
+        }
+        if tabbed_focus.is_tabs_focused(selectable.menu_entity) {
+            continue;
+        }
+        let Some(selected_index) = context
+            .selected_indices_by_menu
+            .get(&selectable.menu_entity)
+            .copied()
+        else {
+            continue;
+        };
+        if selectable.index != selected_index {
+            continue;
+        }
+
+        let is_selector = cycler.is_some();
+        let is_back = matches!(option_command.0, MenuCommand::Pop);
+        let activate = (activate_right && !is_selector) || (activate_left && is_back);
+        if !activate || !directional_targets.insert(selectable.menu_entity) {
+            continue;
+        }
+
+        menu_intents.write(MenuIntent::TriggerCommand {
+            menu_entity: selectable.menu_entity,
+            command: option_command.0.clone(),
+        });
+    }
+}
+
 pub(super) fn apply_menu_intents(
     mut menu_intents: MessageReader<MenuIntent>,
     mut option_query: Query<(
@@ -222,68 +376,29 @@ pub(super) fn handle_menu_shortcuts(
     let pause_state = pause_state.as_ref();
     let active_layers =
         layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
-    let mut handled_escape = false;
 
-    for (menu_entity, menu_stack, menu_root, _) in menu_query.iter() {
-        if !interaction_gate_allows_for_owner(
-            Some(&menu_root.gate),
-            pause_state,
-            &capture_query,
-            menu_entity,
-        ) {
-            continue;
-        }
-        let active_kind = layer::active_layer_kind_for_owner(&active_layers, menu_entity);
-        if active_kind != UiLayerKind::Base {
-            continue;
-        }
+    handle_escape_shortcut_for_active_menus(
+        escape_pressed,
+        &settings,
+        pause_state,
+        &capture_query,
+        &active_layers,
+        &menu_query,
+        &mut navigation_state,
+        &mut commands,
+        &asset_server,
+    );
 
-        let Some(page) = menu_stack.current_page() else {
-            continue;
-        };
-
-        if escape_pressed && !handled_escape {
-            handled_escape = true;
-            let leaving_video_options = matches!(page, MenuPage::Video | MenuPage::Options);
-            if settings.initialized && video_settings_dirty(&settings) && leaving_video_options {
-                navigation_state.exit_prompt_target_menu = Some(menu_entity);
-                navigation_state.exit_prompt_closes_menu_system = true;
-                spawn_exit_unsaved_modal(&mut commands, menu_entity, &asset_server, menu_root.gate);
-            } else {
-                navigation_state.pending_exit_menu = Some(menu_entity);
-                navigation_state.pending_exit_closes_menu_system = true;
-            }
-            continue;
-        }
-    }
-
-    let mut active_menus = HashSet::new();
-    let mut selected_indices_by_menu = HashMap::new();
-    let mut footer_horizontal_nav_menus = HashSet::new();
-    for (menu_entity, menu_stack, menu_root, selectable_menu) in menu_query.iter() {
-        if interaction_gate_allows_for_owner(
-            Some(&menu_root.gate),
-            pause_state,
-            &capture_query,
-            menu_entity,
-        )
-            && layer::active_layer_kind_for_owner(&active_layers, menu_entity) == UiLayerKind::Base
-        {
-            active_menus.insert(menu_entity);
-            selected_indices_by_menu.insert(menu_entity, selectable_menu.selected_index);
-            if menu_stack.current_page() == Some(MenuPage::Video)
-                && selectable_menu.selected_index >= VIDEO_FOOTER_OPTION_START_INDEX
-                && selectable_menu.selected_index
-                    < VIDEO_FOOTER_OPTION_START_INDEX + VIDEO_FOOTER_OPTION_COUNT
-                && !tabbed_focus.is_tabs_focused(menu_entity)
-            {
-                footer_horizontal_nav_menus.insert(menu_entity);
-            }
-        }
-    }
+    let context = collect_active_menu_shortcut_context(
+        pause_state,
+        &capture_query,
+        &active_layers,
+        &menu_query,
+        &tabbed_focus,
+    );
 
     let pending_shortcuts =
-        selector::collect_shortcut_commands(&keyboard_input, &active_menus, &option_shortcut_query);
+        selector::collect_shortcut_commands(&keyboard_input, &context.active_menus, &option_shortcut_query);
     for (menu_entity, option_command) in pending_shortcuts {
         menu_intents.write(MenuIntent::TriggerCommand {
             menu_entity,
@@ -291,42 +406,14 @@ pub(super) fn handle_menu_shortcuts(
         });
     }
 
-    if activate_right || activate_left {
-        let mut directional_targets = HashSet::new();
-        for (selectable, option_command, cycler) in option_command_query.iter() {
-            if !active_menus.contains(&selectable.menu_entity) {
-                continue;
-            }
-            if footer_horizontal_nav_menus.contains(&selectable.menu_entity) {
-                continue;
-            }
-            if tabbed_focus.is_tabs_focused(selectable.menu_entity) {
-                continue;
-            }
-            let Some(selected_index) = selected_indices_by_menu.get(&selectable.menu_entity).copied()
-            else {
-                continue;
-            };
-            if selectable.index != selected_index {
-                continue;
-            }
-
-            let is_selector = cycler.is_some();
-            let is_back = matches!(option_command.0, MenuCommand::Pop);
-            let activate = (activate_right && !is_selector) || (activate_left && is_back);
-            if !activate {
-                continue;
-            }
-            if !directional_targets.insert(selectable.menu_entity) {
-                continue;
-            }
-
-            menu_intents.write(MenuIntent::TriggerCommand {
-                menu_entity: selectable.menu_entity,
-                command: option_command.0.clone(),
-            });
-        }
-    }
+    emit_directional_shortcut_intents(
+        activate_right,
+        activate_left,
+        &context,
+        &tabbed_focus,
+        &option_command_query,
+        &mut menu_intents,
+    );
 }
 
 pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus() {}

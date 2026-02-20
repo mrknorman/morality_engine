@@ -49,6 +49,7 @@ Legend:
   - Reducer/effects + composition split exists.
   - `page_content`, `modal_flow`, and main menu option rows now spawn via primitive `system_menu::spawn_option`.
   - `spawn_menu_root` no longer accepts generic extra bundle injection; markers are attached explicitly by composition callers.
+  - `menu_input::handle_menu_shortcuts` has been split into focused helpers (escape handling, active-menu context, directional dispatch).
   - Remaining gap: complete scene-local main-menu composition migration into shared menu composition modules.
 - Stage 6 UI Module Realignment: `status: done`
   - Menu composition is under `src/systems/ui/menu/*` with clear submodules.

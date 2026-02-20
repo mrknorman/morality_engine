@@ -63,6 +63,7 @@ Status:
 1. Continue moving behavior arbitration to primitive truth components (`Hoverable`, `Clickable`, `SelectableMenu`, `Selectable`, `OptionCycler`) and keep `InteractionVisualState` visual-only.
    - Recent progress: tabbed focus arbitration and video scroll focus-follow no longer depend on option-level `InteractionVisualState` for behavior truth.
 2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
+   - Recent progress: decomposed `menu_input::handle_menu_shortcuts` into focused helper units.
 3. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
 4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.
    - Recent progress: added regression coverage for scroll-parented top-table owner resolution in video options.
