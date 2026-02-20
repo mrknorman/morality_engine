@@ -1,10 +1,55 @@
-use bevy::{ecs::query::QueryFilter, prelude::*};
+//! Reusable dropdown-layer state primitives.
+//!
+//! This module tracks per-owner dropdown visibility/anchors and exposes
+//! helpers to open/close dropdown layers without hardcoding menu-specific
+//! behavior.
+use bevy::{
+    ecs::{lifecycle::HookContext, query::QueryFilter, world::DeferredWorld},
+    prelude::*,
+};
 use std::collections::{HashMap, HashSet};
 
 use crate::systems::{
     interaction::SelectableMenu,
-    ui::layer::UiLayer,
+    ui::layer::{UiLayer, UiLayerKind},
 };
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[require(SelectableMenu, Visibility)]
+#[component(on_insert = DropdownSurface::on_insert)]
+pub struct DropdownSurface {
+    pub owner: Entity,
+}
+
+impl DropdownSurface {
+    pub const fn new(owner: Entity) -> Self {
+        Self { owner }
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let Some(surface) = world.entity(entity).get::<DropdownSurface>().copied() else {
+            return;
+        };
+
+        if world.entity(entity).get::<UiLayer>().is_none() {
+            world
+                .commands()
+                .entity(entity)
+                .insert(UiLayer::new(surface.owner, UiLayerKind::Dropdown));
+        }
+
+        let visibility_is_default = world
+            .entity(entity)
+            .get::<Visibility>()
+            .is_none_or(|visibility| *visibility == Visibility::Inherited);
+        if visibility_is_default {
+            world
+                .commands()
+                .entity(entity)
+                .insert(Visibility::Hidden);
+        }
+    }
+}
 
 #[derive(Resource, Debug, Default)]
 pub struct DropdownLayerState {
@@ -13,6 +58,7 @@ pub struct DropdownLayerState {
 }
 
 impl DropdownLayerState {
+    /// Returns the currently open parent entity for an owner, if any.
     pub fn open_parent_for_owner(&self, owner: Entity) -> Option<Entity> {
         self.open_parent_by_owner.get(&owner).copied()
     }
@@ -66,6 +112,7 @@ pub struct DropdownAnchorState {
 }
 
 impl DropdownAnchorState {
+    /// Stores the anchor row used when opening a dropdown for an owner/parent.
     pub fn set_for_parent(&mut self, owner: Entity, parent_entity: Entity, row: usize) {
         self.row_by_owner_parent.insert((owner, parent_entity), row);
     }
@@ -96,8 +143,12 @@ impl DropdownAnchorState {
 
 #[cfg(test)]
 mod tests {
-    use super::DropdownAnchorState;
-    use bevy::prelude::Entity;
+    use super::{DropdownAnchorState, DropdownSurface};
+    use crate::systems::{
+        interaction::SelectableMenu,
+        ui::layer::{UiLayer, UiLayerKind},
+    };
+    use bevy::prelude::{Entity, Visibility, World};
 
     #[test]
     fn anchored_row_overrides_selection_fallback_until_owner_clears() {
@@ -111,6 +162,23 @@ mod tests {
 
         anchors.remove_owner(owner);
         assert_eq!(anchors.row_for_parent(owner, parent, 2), 2);
+    }
+
+    #[test]
+    fn dropdown_surface_insertion_adds_required_layer_and_hidden_visibility() {
+        let mut world = World::new();
+        let owner = world.spawn_empty().id();
+        let dropdown = world.spawn(DropdownSurface::new(owner)).id();
+
+        assert!(world.entity(dropdown).get::<SelectableMenu>().is_some());
+        assert_eq!(
+            world.entity(dropdown).get::<UiLayer>(),
+            Some(&UiLayer::new(owner, UiLayerKind::Dropdown))
+        );
+        assert_eq!(
+            world.entity(dropdown).get::<Visibility>(),
+            Some(&Visibility::Hidden)
+        );
     }
 }
 

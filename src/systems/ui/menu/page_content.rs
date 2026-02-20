@@ -7,6 +7,7 @@ use crate::{
         colors::SYSTEM_MENU_COLOR,
         ui::{
             discrete_slider::DiscreteSlider,
+            dropdown::DropdownSurface,
             hover_box,
             selector::SelectorSurface,
             scroll::{
@@ -257,7 +258,7 @@ pub(super) fn spawn_page_content(
                     Name::new("system_video_resolution_dropdown"),
                     MenuPageContent,
                     VideoResolutionDropdown,
-                    UiLayer::new(menu_entity, UiLayerKind::Dropdown),
+                    DropdownSurface::new(menu_entity),
                     gate,
                     system_menu::switch_audio_pallet(asset_server, SystemMenuSounds::Switch),
                     SelectableMenu::new(
