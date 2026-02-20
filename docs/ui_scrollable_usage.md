@@ -101,3 +101,6 @@ Current guard:
 3. Scroll offset stays clamped under rapid layer toggles.
 4. No B0001 panics under repeated `app.update()` in test harness.
 5. Existing menu navigation, dropdown, selector, and slider tests still pass.
+6. Optional GPU smoke lane passes (or skip-path is explicit on no-GPU hosts):
+   - `./scripts/ui_gpu_smoke.sh`
+   - `UI_RUN_GPU_SMOKE=1 ./scripts/ui_regression.sh`

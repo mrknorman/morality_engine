@@ -806,3 +806,51 @@ pub fn consume_cycle_arrow_clicks(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::systems::interaction::Selectable;
+
+    #[test]
+    fn system_menu_option_root_insertion_wires_required_option_contracts() {
+        let mut world = World::new();
+        let menu_entity = world.spawn(SelectableMenu::default()).id();
+        let option_entity = world
+            .spawn(SystemMenuOptionRoot::new(
+                "Test Option",
+                12.0,
+                -8.0,
+                menu_entity,
+                3,
+                SystemMenuOptionVisualStyle::default(),
+            ))
+            .id();
+
+        assert!(world.entity(option_entity).contains::<SystemMenuOption>());
+        assert!(world.entity(option_entity).contains::<TextButton>());
+        assert!(world
+            .entity(option_entity)
+            .contains::<InteractionVisualState>());
+        assert!(world
+            .entity(option_entity)
+            .contains::<InteractionVisualPalette>());
+        assert!(world.entity(option_entity).contains::<SelectorSurface>());
+
+        let selectable = world
+            .entity(option_entity)
+            .get::<Selectable>()
+            .copied()
+            .expect("selector surface should seed selectable");
+        assert_eq!(selectable.menu_entity, menu_entity);
+        assert_eq!(selectable.index, 3);
+
+        let transform = world
+            .entity(option_entity)
+            .get::<Transform>()
+            .copied()
+            .expect("option transform");
+        assert_eq!(transform.translation.x, 12.0);
+        assert_eq!(transform.translation.y, -8.0);
+    }
+}

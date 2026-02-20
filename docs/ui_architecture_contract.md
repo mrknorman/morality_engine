@@ -138,3 +138,4 @@ If a feature cannot be primitive-backed, document why in-code near the system.
 2. Dropdown/tab/selectable behavior is primitive-driven and reusable.
 3. Menu composition contains policy, not duplicated engine logic.
 4. Query conflicts are explicitly prevented by design (`ParamSet`/`Without`).
+5. Major UI features are constructible from primitive roots with insertion/runtime smoke coverage.

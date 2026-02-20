@@ -73,6 +73,38 @@ Don't:
 - Add per-menu one-off hover/click/select state machines when primitive state already exists.
 - Use `InteractionVisualState` as behavior truth.
 
+### Primitive-Root Insertion Coverage (Current)
+
+Major reusable UI features now have root-level insertion/runtime coverage:
+
+- Menu surface root:
+  - `MenuSurface` (`src/systems/ui/menu_surface.rs`)
+  - `menu_surface_insertion_adds_layer_and_click_policy`
+- Selector/cycler root:
+  - `SelectorSurface` (`src/systems/ui/selector.rs`)
+  - `selector_surface_insertion_adds_selectable`
+- Option row root:
+  - `SystemMenuOptionRoot` (`src/startup/system_menu.rs`)
+  - `system_menu_option_root_insertion_wires_required_option_contracts`
+- Dropdown root/state:
+  - `DropdownSurface` (`src/systems/ui/dropdown.rs`)
+  - `dropdown_surface_insertion_adds_required_layer_and_hidden_visibility`
+- Tab root/state:
+  - `TabBar` (`src/systems/ui/tabs.rs`)
+  - `tab_bar_insertion_adds_required_components`
+- Hover box root:
+  - `HoverBoxRoot` (`src/systems/ui/hover_box.rs`)
+  - `hover_box_root_insertion_adds_required_components_and_children`
+- Discrete slider root:
+  - `DiscreteSlider` (`src/systems/ui/discrete_slider.rs`)
+  - `slider_insertion_adds_required_components`
+  - `insert_hook_seeds_slot_children_without_running_update`
+- Scroll root + scrollbar:
+  - `ScrollableRoot` / `ScrollBar` (`src/systems/ui/scroll/mod.rs`)
+  - `scrollable_root_insertion_adds_required_state_components`
+  - `scrollbar_insertion_adds_required_components`
+  - `scroll_root_runtime_ensure_seeds_content_camera_and_surface_children`
+
 ## Core Interaction Primitives
 
 ### `InteractionGate` and `InteractionCapture`

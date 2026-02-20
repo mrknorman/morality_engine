@@ -9,10 +9,12 @@ Primary goals:
 
 Use these chapters in order:
 1. Architecture Contract
-2. ECS Reference
-3. Scrollable Usage
-4. Extension Playbook
-5. Testing Guide
+2. Compliance Matrix
+3. ECS Reference
+4. Scrollable Usage
+5. Extension Playbook
+6. Testing Guide
+7. Manual Validation Checklist
 
 Build locally:
 

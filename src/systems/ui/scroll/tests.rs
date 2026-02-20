@@ -17,9 +17,9 @@ use crate::{
 use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
     ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
-    ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent, ScrollableContentCamera,
-    ScrollableContentExtent, ScrollableListAdapter, ScrollableRenderTarget, ScrollableRoot,
-    ScrollableSurface, ScrollableViewport,
+    ScrollFocusFollowLock, ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent,
+    ScrollableContentCamera, ScrollableContentExtent, ScrollableListAdapter,
+    ScrollableRenderTarget, ScrollableRoot, ScrollableSurface, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -95,6 +95,21 @@ fn scrollable_list_adapter_new_sets_expected_fields() {
     assert_eq!(adapter.item_count, 12);
     assert_eq!(adapter.item_extent, 28.0);
     assert_eq!(adapter.leading_padding, 6.0);
+}
+
+#[test]
+fn scrollable_root_insertion_adds_required_state_components() {
+    let mut world = World::new();
+    let owner = world.spawn_empty().id();
+    let root = world
+        .spawn((
+            ScrollableRoot::new(owner, ScrollAxis::Vertical),
+            ScrollableViewport::new(Vec2::new(320.0, 180.0)),
+        ))
+        .id();
+
+    assert!(world.entity(root).contains::<ScrollState>());
+    assert!(world.entity(root).contains::<ScrollFocusFollowLock>());
 }
 
 #[test]

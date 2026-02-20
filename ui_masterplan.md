@@ -142,6 +142,7 @@ Legend:
 - Stage 22 Cleanup and Redundancy Pass: `status: done`
   - Removed duplicated menu camera-center helper into shared `ui::menu::camera`.
   - Consolidated repeated dropdown/menu query signatures behind shared menu aliases.
+  - Added primitive-insertion coverage for `ScrollableRoot` and `SystemMenuOptionRoot`.
   - Re-ran cleanup validation (`cargo check`, `./scripts/ui_query_safety.sh`, `./scripts/ui_regression.sh`) with green results.
 
 ## Active Bug Backlog (Priority)
@@ -425,7 +426,7 @@ Deliverable:
 - [x] Clean, minimal, composable UI codebase.
 
 ## Final Acceptance Checklist
-- [ ] Primitive-root insertion is sufficient for each major UI feature.
+- [x] Primitive-root insertion is sufficient for each major UI feature.
 - [x] No new reusable bundle-first APIs were introduced.
 - [x] Layering and input arbitration are deterministic and owner-scoped.
 - [x] No known B0001 query conflicts in UI systems.
