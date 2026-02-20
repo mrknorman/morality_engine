@@ -48,6 +48,7 @@ Legend:
 - Stage 5 Menu Composition Migration: `status: partial`
   - Reducer/effects + composition split exists.
   - `page_content`, `modal_flow`, and main menu option rows now spawn via primitive `system_menu::spawn_option`.
+  - Video page scaffold composition has been extracted into a dedicated helper (`spawn_video_page_scaffold`) to reduce `spawn_page_content` monolith complexity.
   - `spawn_menu_root` no longer accepts generic extra bundle injection; markers are attached explicitly by composition callers.
   - `menu_input::handle_menu_shortcuts` has been split into focused helpers (escape handling, active-menu context, directional dispatch).
   - Remaining gap: complete scene-local main-menu composition migration into shared menu composition modules.

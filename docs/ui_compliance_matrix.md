@@ -64,6 +64,7 @@ Status:
    - Recent progress: tabbed focus arbitration and video scroll focus-follow no longer depend on option-level `InteractionVisualState` for behavior truth.
 2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
    - Recent progress: decomposed `menu_input::handle_menu_shortcuts` into focused helper units.
+   - Recent progress: extracted video scaffold composition into `spawn_video_page_scaffold` within `page_content`.
 3. Expand schema-driven composition beyond main menu so settings tabs/options are data-driven.
 4. Keep extending mixed keyboard+mouse regression coverage as new menu features land.
    - Recent progress: added regression coverage for scroll-parented top-table owner resolution in video options.
