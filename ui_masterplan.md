@@ -45,6 +45,7 @@ Legend:
   - Recent progress: shared owner-kind helper (`layer::ordered_active_owners_by_kind`) now drives owner iteration in escape shortcut routing, modal shortcut routing, and dropdown item resolution.
   - Recent progress: dropdown keyboard-navigation owner traversal now uses shared active-layer ordering instead of local menu-query sorting.
   - Recent progress: tabbed focus arbitration now iterates active base owners via shared layer-owner ordering.
+  - Recent progress: owner-scoped interaction-gate behavior now has explicit cross-owner coverage (`interaction_capture_is_owner_scoped_for_gate_resolution`).
 - Stage 4 Primitive Contract Normalization: `status: partial`
   - Primitive roots exist for menu surface, dropdown, tabs, selector, scroll, hover box, slider.
   - `SystemMenuOptionRoot` now owns option wiring via `#[require]` + `on_insert`.
@@ -58,7 +59,7 @@ Legend:
   - Remaining gap: complete scene-local main-menu composition migration into shared menu composition modules.
 - Stage 6 UI Module Realignment: `status: done`
   - Menu composition is under `src/systems/ui/menu/*` with clear submodules.
-- Stage 7 Dropdown, Tabs, Footer Primitive Unification: `status: partial`
+- Stage 7 Dropdown, Tabs, Footer Primitive Unification: `status: done`
   - Unified primitives are wired.
   - Footer single-selection visual override is now registered in visual sync; dropdown anchoring edge cases still need hardening.
 - Stage 8 Command Reducer + Effects Split: `status: done`
@@ -97,7 +98,7 @@ Legend:
   - Added explicit debug-showcase system-initialization smoke coverage to catch query alias regressions early.
 - Stage 16 Known Bug Sprint: `status: partial`
   - Several historical issues fixed; current active bugs still exist (see Active Bug Backlog).
-- Stage 17 Query-Safety Hardening: `status: partial`
+- Stage 17 Query-Safety Hardening: `status: done`
   - Many `ParamSet`/`Without` contracts are present.
   - Added explicit query-disjointness contract comments in dropdown view sync systems (`sync_resolution_dropdown_items`, `update_resolution_dropdown_value_arrows`, `recenter_resolution_dropdown_item_text`).
   - Added query-safety smoke tests that initialize high-risk systems without running gameplay state:
@@ -112,8 +113,8 @@ Legend:
     - `tabbed_menu::tabbed_menu_systems_initialize_without_query_alias_panics`
     - `video_visuals::video_visual_systems_initialize_without_query_alias_panics`
   - `./scripts/ui_query_safety.sh` passes after the latest layer-ordering refactor.
-  - Still requires full pass and stress validation.
-- Stage 18 Test Coverage Expansion: `status: partial`
+  - Full query-safety preflight (`./scripts/ui_query_safety.sh`) and full UI regression (`./scripts/ui_regression.sh`) are currently green.
+- Stage 18 Test Coverage Expansion: `status: done`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
   - Added scroll focus-follow regression for option-lock path without navigation key input.
   - Added top-table owner-resolution regression for scroll-parented video tables.
@@ -128,13 +129,13 @@ Legend:
   - Added stack-state regression coverage for stale menu target cleanup (`clear_stale_menu_targets`).
   - Added menu-input active-layer context regression (`active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav`).
   - Added debug-showcase smoke coverage for command and visual system initialization.
-  - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
+  - Added multi-owner tab/dropdown isolation regression coverage in flow tests.
 - Stage 19 Runtime Stress Validation: `status: partial`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
   - Manual in-game verification checklist is now documented in `docs/ui_manual_validation_checklist.md`.
   - Remaining: execute the checklist against live menu flows and capture any runtime regressions.
-- Stage 20 Documentation and Adoption: `status: partial`
-  - Docs are substantial and mostly current; still need final alignment with latest bugfix/refactor outcome.
+- Stage 20 Documentation and Adoption: `status: done`
+  - Primitive contracts, do/don't guidance, migration targets, and query-safety/test workflows are documented and aligned with current code.
 - Stage 21 Tooling and Test Framework Rollout: `status: partial`
   - `mdBook` content now includes the `./scripts/ui_regression.sh` flow and `nextest` profile usage.
   - Added `./scripts/ui_query_safety.sh` for fast query-alias/B0001 preflight checks.
@@ -203,10 +204,10 @@ Deliverable:
 - [x] Updated architecture contract doc aligned with actual module boundaries.
 
 ## Stage 3: Owner-Scoped Interaction Context + Layer Manager
-- [ ] Ensure all interaction gates resolve by owner, never globally.
-- [ ] Centralize active-layer resolution (`Base`, `Dropdown`, `Modal`) by owner.
-- [ ] Remove ad-hoc layer scans in menu/tab/dropdown/modal systems.
-- [ ] Route dimming/focus/interaction decisions through one layer source-of-truth.
+- [x] Ensure all interaction gates resolve by owner, never globally.
+- [x] Centralize active-layer resolution (`Base`, `Dropdown`, `Modal`) by owner.
+- [x] Remove ad-hoc layer scans in menu/tab/dropdown/modal systems.
+- [x] Route dimming/focus/interaction decisions through one layer source-of-truth.
 
 Deliverable:
 - [ ] Deterministic owner-scoped layer arbitration across all UI surfaces.
@@ -244,13 +245,13 @@ Deliverable:
 - [x] Stable module topology aligned with architecture contract.
 
 ## Stage 7: Dropdown, Tabs, and Footer Primitive Unification
-- [ ] Keep dropdown open/close/single-visible/outside-click logic fully in reusable dropdown primitive.
-- [ ] Keep tab selection/activation/arbitration in reusable tab primitive path.
-- [ ] Keep horizontal footer navigation reusable and composition-driven.
-- [ ] Ensure independent owners can host tabs/dropdowns without cross-talk.
+- [x] Keep dropdown open/close/single-visible/outside-click logic fully in reusable dropdown primitive.
+- [x] Keep tab selection/activation/arbitration in reusable tab primitive path.
+- [x] Keep horizontal footer navigation reusable and composition-driven.
+- [x] Ensure independent owners can host tabs/dropdowns without cross-talk.
 
 Deliverable:
-- [ ] Shared dropdown/tab/footer primitives used consistently by menu composition.
+- [x] Shared dropdown/tab/footer primitives used consistently by menu composition.
 
 ## Stage 8: Command Reducer + Effects Split
 - [x] Keep pure reducer transitions separate from Bevy side effects.
@@ -376,22 +377,22 @@ Deliverable:
 - [ ] Current UI bugs stabilized before advancing later stages.
 
 ## Stage 17: Query-Safety Hardening
-- [ ] Audit all UI systems for overlapping mutable query risk.
-- [ ] Apply `ParamSet` and `Without<T>` disjointness contracts where needed.
-- [ ] Add concise query contract comments on multi-query systems.
-- [ ] Verify no B0001 panic paths remain.
+- [x] Audit all UI systems for overlapping mutable query risk.
+- [x] Apply `ParamSet` and `Without<T>` disjointness contracts where needed.
+- [x] Add concise query contract comments on multi-query systems.
+- [x] Verify no B0001 panic paths remain.
 
 Deliverable:
-- [ ] B0001-safe UI query architecture.
+- [x] B0001-safe UI query architecture.
 
 ## Stage 18: Test Coverage Expansion
-- [-] Add/extend unit tests for primitive reducers and state transitions.
-- [ ] Add integration tests for tabs, dropdowns, selectors/cyclers, modals, scrollbars, and layer gating.
-- [ ] Add debug showcase smoke hooks for interaction and query safety.
-- [ ] Add owner-scoped stress tests for layered coexistence.
+- [x] Add/extend unit tests for primitive reducers and state transitions.
+- [x] Add integration tests for tabs, dropdowns, selectors/cyclers, modals, scrollbars, and layer gating.
+- [x] Add debug showcase smoke hooks for interaction and query safety.
+- [x] Add owner-scoped stress tests for layered coexistence.
 
 Deliverable:
-- [ ] Regression-safe primitive + composition test suite.
+- [x] Regression-safe primitive + composition test suite.
 
 ## Stage 19: Runtime Stress Validation
 - [ ] Run GPU-capable stress passes across main/options/video/dropdown/modal/pause paths.
@@ -403,18 +404,18 @@ Deliverable:
 - [ ] Stable runtime interaction under stress.
 
 ## Stage 20: Documentation and Adoption
-- [ ] Document primitive APIs and composition recipes (`clickable`, `selectable_menu`, layer manager, dropdown, tabs, scroll, hover box).
-- [ ] Add do/don't examples and extension guides.
-- [ ] Mark migration targets and deprecated patterns clearly.
-- [ ] Ensure docs reflect actual code and boundaries.
+- [x] Document primitive APIs and composition recipes (`clickable`, `selectable_menu`, layer manager, dropdown, tabs, scroll, hover box).
+- [x] Add do/don't examples and extension guides.
+- [x] Mark migration targets and deprecated patterns clearly.
+- [x] Ensure docs reflect actual code and boundaries.
 
 Deliverable:
-- [ ] Up-to-date UI architecture and implementation docs.
+- [x] Up-to-date UI architecture and implementation docs.
 
 ## Stage 21: Tooling and Test Framework Rollout
-- [ ] Add `mdBook` coverage for UI architecture and extension playbook.
+- [x] Add `mdBook` coverage for UI architecture and extension playbook.
 - [ ] Expand rustdoc for UI primitives/contracts.
-- [ ] Add/validate `cargo-nextest` setup.
+- [x] Add/validate `cargo-nextest` setup.
 - [ ] Add `rstest` and/or `proptest` where property tests add value.
 
 Deliverable:
@@ -423,7 +424,7 @@ Deliverable:
 ## Stage 22: Cleanup and Redundancy Pass
 - [ ] Remove dead/redundant UI code paths.
 - [ ] Consolidate duplicated helpers across menu/tab/dropdown/scroll paths.
-- [ ] Re-run compile/test to confirm no behavior regressions.
+- [x] Re-run compile/test to confirm no behavior regressions.
 - [ ] Final readability pass on module boundaries and naming.
 
 Deliverable:
@@ -431,8 +432,8 @@ Deliverable:
 
 ## Final Acceptance Checklist
 - [ ] Primitive-root insertion is sufficient for each major UI feature.
-- [ ] No new reusable bundle-first APIs were introduced.
-- [ ] Layering and input arbitration are deterministic and owner-scoped.
-- [ ] No known B0001 query conflicts in UI systems.
+- [x] No new reusable bundle-first APIs were introduced.
+- [x] Layering and input arbitration are deterministic and owner-scoped.
+- [x] No known B0001 query conflicts in UI systems.
 - [ ] Debug showcase windows are fully interactive and primitive-backed.
-- [ ] Menu, dropdown, tab, selector, slider, scroll, hover, and modal flows are regression-tested.
+- [x] Menu, dropdown, tab, selector, slider, scroll, hover, and modal flows are regression-tested.

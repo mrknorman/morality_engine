@@ -250,4 +250,128 @@ mod tests {
         let ordered = ordered_active_owners_by_kind(&active_layers, UiLayerKind::Dropdown);
         assert_eq!(ordered, vec![owner_b, owner_c]);
     }
+
+    #[test]
+    fn active_layer_resolution_is_independent_per_owner_under_mixed_layers() {
+        let mut world = World::new();
+        let owner_a = world.spawn_empty().id();
+        let owner_b = world.spawn_empty().id();
+
+        let owner_a_base = world
+            .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible))
+            .id();
+        let owner_a_modal = world
+            .spawn((UiLayer::new(owner_a, UiLayerKind::Modal), Visibility::Visible))
+            .id();
+
+        let owner_b_base = world
+            .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible))
+            .id();
+        let owner_b_dropdown = world
+            .spawn((UiLayer::new(owner_b, UiLayerKind::Dropdown), Visibility::Visible))
+            .id();
+        let owner_b_modal = world
+            .spawn((UiLayer::new(owner_b, UiLayerKind::Modal), Visibility::Hidden))
+            .id();
+
+        let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
+            SystemState::new(&mut world);
+        let mut layer_state: SystemState<
+            Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        > = SystemState::new(&mut world);
+
+        let capture_query = capture_state.get(&world);
+        let layer_query = layer_state.get(&world);
+        let mut active = active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+        assert_eq!(
+            active_layer_for_owner(&active, owner_a).map(|layer| layer.entity),
+            Some(owner_a_modal)
+        );
+        assert_eq!(
+            active_layer_for_owner(&active, owner_b).map(|layer| layer.entity),
+            Some(owner_b_dropdown)
+        );
+
+        world.entity_mut(owner_b_modal).insert(Visibility::Visible);
+        let capture_query = capture_state.get(&world);
+        let layer_query = layer_state.get(&world);
+        active = active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+        assert_eq!(
+            active_layer_for_owner(&active, owner_a).map(|layer| layer.entity),
+            Some(owner_a_modal)
+        );
+        assert_eq!(
+            active_layer_for_owner(&active, owner_b).map(|layer| layer.entity),
+            Some(owner_b_modal)
+        );
+
+        world.entity_mut(owner_a_modal).insert(Visibility::Hidden);
+        let capture_query = capture_state.get(&world);
+        let layer_query = layer_state.get(&world);
+        active = active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+        assert_eq!(
+            active_layer_for_owner(&active, owner_a).map(|layer| layer.entity),
+            Some(owner_a_base)
+        );
+        assert_eq!(
+            active_layer_for_owner(&active, owner_b).map(|layer| layer.entity),
+            Some(owner_b_modal)
+        );
+
+        assert!(is_active_layer_entity_for_owner(&active, owner_a, owner_a_base));
+        assert!(!is_active_layer_entity_for_owner(&active, owner_a, owner_a_modal));
+        assert!(is_active_layer_entity_for_owner(&active, owner_b, owner_b_modal));
+        assert!(!is_active_layer_entity_for_owner(&active, owner_b, owner_b_base));
+    }
+
+    #[test]
+    fn interaction_capture_is_owner_scoped_for_gate_resolution() {
+        let mut world = World::new();
+        let owner_a = world.spawn_empty().id();
+        let owner_b = world.spawn_empty().id();
+
+        let owner_a_pause_menu = world
+            .spawn((
+                UiLayer::new(owner_a, UiLayerKind::Base),
+                Visibility::Visible,
+                InteractionGate::PauseMenuOnly,
+            ))
+            .id();
+        let owner_b_pause_menu = world
+            .spawn((
+                UiLayer::new(owner_b, UiLayerKind::Base),
+                Visibility::Visible,
+                InteractionGate::PauseMenuOnly,
+            ))
+            .id();
+        let owner_b_gameplay = world
+            .spawn((
+                UiLayer::new(owner_b, UiLayerKind::Base),
+                Visibility::Visible,
+                InteractionGate::GameplayOnly,
+            ))
+            .id();
+
+        world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner_a)));
+
+        let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
+            SystemState::new(&mut world);
+        let mut layer_state: SystemState<
+            Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        > = SystemState::new(&mut world);
+
+        let capture_query = capture_state.get(&world);
+        let layer_query = layer_state.get(&world);
+        let active = active_layers_by_owner_scoped(None, &capture_query, &layer_query);
+
+        assert_eq!(
+            active_layer_for_owner(&active, owner_a).map(|layer| layer.entity),
+            Some(owner_a_pause_menu)
+        );
+        assert_eq!(
+            active_layer_for_owner(&active, owner_b).map(|layer| layer.entity),
+            Some(owner_b_gameplay)
+        );
+        assert!(!is_active_layer_entity_for_owner(&active, owner_b, owner_b_pause_menu));
+    }
 }
