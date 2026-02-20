@@ -219,6 +219,7 @@ pub(super) fn spawn_page_content(
                     SelectableMenu::new(0, vec![], vec![], vec![], true)
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                     MenuSurface::new(menu_entity)
+                        .without_layer()
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                     system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
                     Transform::from_xyz(0.0, 0.0, 1.1),

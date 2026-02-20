@@ -4,6 +4,10 @@
 //! - ensures a `UiLayer` exists for active-layer arbitration
 //! - ensures a `SelectableMenu` exists for navigation
 //! - configures click activation policy for pointer behavior
+//!
+//! Nested interaction roots (for example tab bars that live inside a parent
+//! menu surface) can opt out of layer insertion via `without_layer()` so they
+//! don't compete with their owner's active base layer.
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
@@ -20,6 +24,7 @@ use crate::systems::{
 pub struct MenuSurface {
     pub owner: Entity,
     pub layer: UiLayerKind,
+    pub insert_layer: bool,
     pub click_activation: SelectableClickActivation,
 }
 
@@ -28,12 +33,19 @@ impl MenuSurface {
         Self {
             owner,
             layer: UiLayerKind::Base,
+            insert_layer: true,
             click_activation: SelectableClickActivation::SelectedOnAnyClick,
         }
     }
 
     pub const fn with_layer(mut self, layer: UiLayerKind) -> Self {
         self.layer = layer;
+        self.insert_layer = true;
+        self
+    }
+
+    pub const fn without_layer(mut self) -> Self {
+        self.insert_layer = false;
         self
     }
 
@@ -50,7 +62,7 @@ impl MenuSurface {
             return;
         };
 
-        if world.entity(entity).get::<UiLayer>().is_none() {
+        if surface.insert_layer && world.entity(entity).get::<UiLayer>().is_none() {
             world
                 .commands()
                 .entity(entity)
@@ -128,5 +140,26 @@ mod tests {
         assert!(!menu.wrap);
         assert_eq!(menu.click_activation, SelectableClickActivation::HoveredOnly);
     }
-}
 
+    #[test]
+    fn menu_surface_can_opt_out_of_layer_insertion() {
+        let mut world = World::new();
+        let owner = world.spawn_empty().id();
+        let surface = world
+            .spawn(
+                MenuSurface::new(owner)
+                    .without_layer()
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            )
+            .id();
+
+        assert!(world.entity(surface).get::<UiLayer>().is_none());
+        assert_eq!(
+            world
+                .entity(surface)
+                .get::<SelectableMenu>()
+                .map(|menu| menu.click_activation),
+            Some(SelectableClickActivation::HoveredOnly)
+        );
+    }
+}
