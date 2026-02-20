@@ -25,11 +25,75 @@ use super::{
     SCROLLBAR_THUMB_INSET, SCROLLBAR_THUMB_Z, SCROLLBAR_TRACK_FILL_COLOR, SCROLLBAR_TRACK_Z,
 };
 
+pub(super) fn seed_scrollbar_parts(
+    commands: &mut Commands,
+    scrollbar_entity: Entity,
+    scrollbar: &ScrollBar,
+    gate: InteractionGate,
+) {
+    let mut track_entity = None;
+    let mut thumb_entity = None;
+    commands.entity(scrollbar_entity).with_children(|parent| {
+        let track = parent
+            .spawn((
+                Name::new("scrollbar_track"),
+                ScrollBarTrack,
+                gate,
+                Clickable::with_region(vec![ScrollUiActions::Activate], Vec2::splat(10.0)),
+                BorderedRectangle {
+                    boundary: HollowRectangle {
+                        dimensions: Vec2::new(scrollbar.width, 64.0),
+                        thickness: SCROLLBAR_BORDER_THICKNESS,
+                        color: scrollbar.track_color,
+                        ..default()
+                    },
+                    fill_color: SCROLLBAR_TRACK_FILL_COLOR,
+                },
+                Transform::from_xyz(0.0, 0.0, SCROLLBAR_TRACK_Z),
+            ))
+            .id();
+        track_entity = Some(track);
+
+        let thumb = parent
+            .spawn((
+                Name::new("scrollbar_thumb"),
+                ScrollBarThumb,
+                gate,
+                Clickable::with_region(vec![ScrollUiActions::Activate], Vec2::splat(10.0)),
+                BorderedRectangle {
+                    boundary: HollowRectangle {
+                        dimensions: Vec2::new(scrollbar.width, 24.0),
+                        thickness: SCROLLBAR_BORDER_THICKNESS,
+                        color: scrollbar.track_color,
+                        ..default()
+                    },
+                    fill_color: scrollbar.thumb_color,
+                },
+                Transform::from_xyz(0.0, 0.0, SCROLLBAR_THUMB_Z),
+            ))
+            .id();
+        thumb_entity = Some(thumb);
+    });
+
+    let Some(track_entity) = track_entity else {
+        return;
+    };
+    let Some(thumb_entity) = thumb_entity else {
+        return;
+    };
+    commands.entity(scrollbar_entity).insert(ScrollBarParts {
+        track: track_entity,
+        thumb: thumb_entity,
+    });
+}
+
 pub(super) fn ensure_scrollbar_parts(
     mut commands: Commands,
     root_gate_query: Query<Option<&InteractionGate>, With<ScrollableRoot>>,
     scrollbar_query: Query<(Entity, &ScrollBar, Option<&ChildOf>), Without<ScrollBarParts>>,
 ) {
+    // Insert hooks seed parts on spawn; this system is a runtime drift-correction
+    // path for cases where part entities are removed or parent links are rebuilt.
     for (scrollbar_entity, scrollbar, parent) in scrollbar_query.iter() {
         if parent.is_none_or(|parent| parent.parent() != scrollbar.scrollable_root) {
             commands
@@ -43,63 +107,7 @@ pub(super) fn ensure_scrollbar_parts(
             .flatten()
             .copied()
             .unwrap_or_default();
-
-        let mut track_entity = None;
-        let mut thumb_entity = None;
-        commands.entity(scrollbar_entity).with_children(|parent| {
-            let track = parent
-                .spawn((
-                    Name::new("scrollbar_track"),
-                    ScrollBarTrack,
-                    gate,
-                    Clickable::with_region(vec![ScrollUiActions::Activate], Vec2::splat(10.0)),
-                    BorderedRectangle {
-                        boundary: HollowRectangle {
-                            dimensions: Vec2::new(scrollbar.width, 64.0),
-                            thickness: SCROLLBAR_BORDER_THICKNESS,
-                            color: scrollbar.track_color,
-                            ..default()
-                        },
-                        fill_color: SCROLLBAR_TRACK_FILL_COLOR,
-                    },
-                    Transform::from_xyz(0.0, 0.0, SCROLLBAR_TRACK_Z),
-                ))
-                .id();
-            track_entity = Some(track);
-
-            let thumb = parent
-                .spawn((
-                    Name::new("scrollbar_thumb"),
-                    ScrollBarThumb,
-                    gate,
-                    Clickable::with_region(vec![ScrollUiActions::Activate], Vec2::splat(10.0)),
-                    BorderedRectangle {
-                        boundary: HollowRectangle {
-                            dimensions: Vec2::new(scrollbar.width, 24.0),
-                            thickness: SCROLLBAR_BORDER_THICKNESS,
-                            color: scrollbar.track_color,
-                            ..default()
-                        },
-                        fill_color: scrollbar.thumb_color,
-                    },
-                    Transform::from_xyz(0.0, 0.0, SCROLLBAR_THUMB_Z),
-                ))
-                .id();
-            thumb_entity = Some(thumb);
-        });
-
-        let Some(track_entity) = track_entity else {
-            continue;
-        };
-        let Some(thumb_entity) = thumb_entity else {
-            continue;
-        };
-        commands.entity(scrollbar_entity).insert((
-            ScrollBarParts {
-                track: track_entity,
-                thumb: thumb_entity,
-            },
-        ));
+        seed_scrollbar_parts(&mut commands, scrollbar_entity, scrollbar, gate);
     }
 }
 

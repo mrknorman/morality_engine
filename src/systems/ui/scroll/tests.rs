@@ -10,13 +10,15 @@ use rstest::rstest;
 
 use crate::{
     startup::cursor::CustomCursor,
+    systems::interaction::InteractionGate,
     systems::ui::layer::{UiLayer, UiLayerKind},
 };
 
 use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
-    ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollPlugin, ScrollRenderSettings,
-    ScrollState, ScrollableContent, ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
+    ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
+    ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent, ScrollableContentExtent,
+    ScrollableRoot, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -41,13 +43,51 @@ fn default_scroll_render_target_format_is_rgba16float() {
 
 #[test]
 fn scrollbar_insertion_adds_required_components() {
-    let mut world = World::new();
-    let root = world.spawn_empty().id();
-    let scrollbar = world.spawn(ScrollBar::new(root)).id();
+    let mut app = make_scroll_test_app();
+    let root = app.world_mut().spawn_empty().id();
+    let scrollbar = app.world_mut().spawn(ScrollBar::new(root)).id();
 
-    assert!(world.entity(scrollbar).get::<Transform>().is_some());
-    assert!(world.entity(scrollbar).get::<Visibility>().is_some());
-    assert!(world.entity(scrollbar).get::<ScrollBarDragState>().is_some());
+    assert!(app.world().entity(scrollbar).get::<Transform>().is_some());
+    assert!(app.world().entity(scrollbar).get::<Visibility>().is_some());
+    assert!(app.world().entity(scrollbar).get::<ScrollBarDragState>().is_some());
+}
+
+#[test]
+fn scrollbar_insert_hook_seeds_parts_and_parents_to_scroll_root() {
+    let mut app = make_scroll_test_app();
+    let owner = app.world_mut().spawn_empty().id();
+    let root = app
+        .world_mut()
+        .spawn((
+            ScrollableRoot::new(owner, ScrollAxis::Vertical),
+            InteractionGate::PauseMenuOnly,
+        ))
+        .id();
+    let scrollbar = app.world_mut().spawn(ScrollBar::new(root)).id();
+
+    let parent = app
+        .world()
+        .entity(scrollbar)
+        .get::<ChildOf>()
+        .expect("scrollbar parent");
+    assert_eq!(parent.parent(), root);
+
+    let parts = app
+        .world()
+        .entity(scrollbar)
+        .get::<ScrollBarParts>()
+        .copied()
+        .expect("scrollbar parts");
+    assert!(app.world().entity(parts.track).contains::<ScrollBarTrack>());
+    assert!(app.world().entity(parts.thumb).contains::<ScrollBarThumb>());
+    assert_eq!(
+        app.world().entity(parts.track).get::<InteractionGate>(),
+        Some(&InteractionGate::PauseMenuOnly),
+    );
+    assert_eq!(
+        app.world().entity(parts.thumb).get::<InteractionGate>(),
+        Some(&InteractionGate::PauseMenuOnly),
+    );
 }
 
 fn spawn_owner_and_scroll_root(
