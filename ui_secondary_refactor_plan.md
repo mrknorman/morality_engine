@@ -112,6 +112,7 @@ Deliverable:
 Progress notes:
 - `command_reducer` and menu flow tests are in place (`src/systems/ui/menu/command_reducer.rs`, `src/systems/ui/menu/flow_tests.rs`).
 - Debug showcase now has targeted unit coverage for core index-cycling behavior (`src/systems/ui/menu/debug_showcase.rs`).
+- Owner-scoped dropdown open/select/close integration behavior is covered in `src/systems/ui/menu/flow_tests.rs`.
 
 ## Stage 8: Documentation and Adoption
 
