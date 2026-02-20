@@ -264,4 +264,69 @@ mod tests {
         assert!(world.entity(tab_bar).get::<TabActivationPolicy>().is_some());
         assert!(world.entity(tab_bar).get::<TabBarStateSync>().is_some());
     }
+
+    #[test]
+    fn sync_tab_bar_state_updates_active_index_and_emits_message() {
+        let mut app = App::new();
+        app.add_message::<TabChanged>();
+        let owner = app.world_mut().spawn_empty().id();
+        let tab_bar = app
+            .world_mut()
+            .spawn((
+                TabBar::new(owner),
+                SelectableMenu::new(2, vec![], vec![], vec![], true),
+                TabBarState { active_index: 0 },
+            ))
+            .id();
+
+        app.add_systems(Update, sync_tab_bar_state);
+        app.update();
+
+        let state = app
+            .world()
+            .get::<TabBarState>(tab_bar)
+            .copied()
+            .expect("tab state");
+        assert_eq!(state.active_index, 2);
+
+        let mut reader = app.world_mut().resource_mut::<Messages<TabChanged>>().get_cursor();
+        let messages: Vec<TabChanged> = reader.read(app.world().resource::<Messages<TabChanged>>()).copied().collect();
+        assert_eq!(
+            messages,
+            vec![TabChanged {
+                tab_bar,
+                index: 2
+            }]
+        );
+    }
+
+    #[test]
+    fn sync_tab_bar_state_respects_explicit_mode() {
+        let mut app = App::new();
+        app.add_message::<TabChanged>();
+        let owner = app.world_mut().spawn_empty().id();
+        let tab_bar = app
+            .world_mut()
+            .spawn((
+                TabBar::new(owner),
+                SelectableMenu::new(1, vec![], vec![], vec![], true),
+                TabBarState { active_index: 0 },
+                TabBarStateSync::Explicit,
+            ))
+            .id();
+
+        app.add_systems(Update, sync_tab_bar_state);
+        app.update();
+
+        let state = app
+            .world()
+            .get::<TabBarState>(tab_bar)
+            .copied()
+            .expect("tab state");
+        assert_eq!(state.active_index, 0);
+
+        let mut reader = app.world_mut().resource_mut::<Messages<TabChanged>>().get_cursor();
+        let messages: Vec<TabChanged> = reader.read(app.world().resource::<Messages<TabChanged>>()).copied().collect();
+        assert!(messages.is_empty());
+    }
 }

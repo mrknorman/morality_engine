@@ -97,6 +97,7 @@ Deliverable:
 
 Progress notes:
 - Layer-priority ordering (`Modal > Dropdown > Base`) is now covered by integration tests in `src/systems/ui/menu/flow_tests.rs`.
+- Scroll primitives now validate owner/layer gating behavior (base, dropdown, modal) in `src/systems/ui/scroll/tests.rs`.
 
 ## Stage 6: Query-Safety Hardening
 
@@ -109,6 +110,7 @@ Deliverable:
 
 Progress notes:
 - Debug showcase dropdown close path now enforces disjoint trigger/panel queries via `Without<T>` filters and explicit query contract comments.
+- Full UI test subset now passes (`cargo test --manifest-path Cargo.toml systems::ui:: --quiet`) with no B0001 panics.
 
 ## Stage 7: Test Coverage
 
@@ -127,6 +129,7 @@ Progress notes:
 - `command_reducer` and menu flow tests are in place (`src/systems/ui/menu/command_reducer.rs`, `src/systems/ui/menu/flow_tests.rs`).
 - Debug showcase now has targeted unit coverage for core index-cycling behavior (`src/systems/ui/menu/debug_showcase.rs`).
 - Owner-scoped dropdown open/select/close integration behavior is covered in `src/systems/ui/menu/flow_tests.rs`.
+- Tabs now have sync behavior tests for activation + explicit-mode semantics in `src/systems/ui/tabs.rs`.
 
 ## Stage 8: Documentation and Adoption
 
