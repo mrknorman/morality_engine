@@ -106,6 +106,7 @@ Progress notes:
 - Layer-priority ordering (`Modal > Dropdown > Base`) is now covered by integration tests in `src/systems/ui/menu/flow_tests.rs`.
 - Scroll primitives now validate owner/layer gating behavior (base, dropdown, modal) in `src/systems/ui/scroll/tests.rs`.
 - Selector/cycler mixed input arbitration is now covered by mouse+keyboard integration in `src/systems/ui/menu/flow_tests.rs`.
+- Added regression coverage for nested tab interaction surfaces to ensure `MenuSurface::without_layer()` preserves owner base-layer activity (`src/systems/ui/menu/flow_tests.rs`).
 
 ## Stage 6: Query-Safety Hardening
 
