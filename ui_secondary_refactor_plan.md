@@ -96,6 +96,9 @@ Deliverable:
 Deliverable:
 - No B0001 panics under stress interactions in menus/debug showcase.
 
+Progress notes:
+- Debug showcase dropdown close path now enforces disjoint trigger/panel queries via `Without<T>` filters and explicit query contract comments.
+
 ## Stage 7: Test Coverage
 
 - [x] Add/extend unit tests for primitive reducers and state transitions.
