@@ -117,7 +117,7 @@ Progress notes:
 
 - [x] Update docs/examples to use primitive-root construction patterns.
 - [x] Add "do/dont" examples for primitive composition in `docs/ui_ecs_reference.md`.
-- [ ] Mark deprecated bundle-first helper surfaces as migration targets.
+- [x] Mark deprecated bundle-first helper surfaces as migration targets.
 
 Deliverable:
 - Documentation aligned with implementation and enforced conventions.
