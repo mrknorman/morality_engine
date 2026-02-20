@@ -14,7 +14,7 @@ This contract defines strict boundaries for UI code so features remain composabl
   - Scene-specific enums or menu page/domain logic.
   - Video-settings-specific data structures.
 
-### `src/startup/menus/*` (composition/policy)
+### `src/systems/ui/menu/*` (composition/policy)
 - Composes primitives into concrete menu UX and routes domain commands.
 - Allowed responsibilities:
   - Menu page composition.
@@ -38,6 +38,31 @@ Every layered UI element must resolve through an explicit owner/root identity.
 
 ## 3. Primitive Contract Rules
 
+### Primitive Construction Style (Required Components + Insert Hooks)
+- New UI primitives must not use Bundle-first construction APIs as their primary integration path.
+- For reusable UI primitives, use:
+  - A root component.
+  - `#[require(...)]` for mandatory contracts.
+  - `#[component(on_insert = ...)]` to spawn and wire internal hierarchy.
+- Adding the root primitive component should produce a functional unit without callers manually spawning hidden internal child contracts.
+- Primitive internals (selection roots, clickables, layer markers, state resources, visuals) should be owned and wired by the primitive itself.
+- Existing Bundle-based helpers may remain temporarily for compatibility, but are migration targets and should not be expanded.
+
+### Self-Contained Primitive Rule
+- Each primitive should be independently operable in any parent context (`menu`, `window`, `scene`), provided owner/layer gates are supplied.
+- Composition modules should configure primitives, not re-implement primitive internals.
+- If a primitive cannot be fully self-contained, document the minimal external contract explicitly near the primitive and in UI docs.
+
+### Interaction Source of Truth
+- Behavioral truth must come from interaction primitives:
+  - Hover: `Hoverable.hovered`
+  - Pointer/select activation: `Clickable<T>.triggered`
+  - Keyboard activation: `Pressable<T>.triggered_mapping`
+  - Selection/focus arbitration: `SelectableMenu.selected_index` and `SelectableMenu.keyboard_locked`
+  - Cycling intent/bounds: `OptionCycler`
+- `InteractionVisualState` is visual-only derived state and must not be used as behavioral input.
+- Any new interaction system must consume primitives above and only write visual state for rendering feedback.
+
 ### Dropdowns
 - Generic open/close/single-visible/outside-click logic lives in `systems/ui/dropdown`.
 - Composition modules may only provide:
@@ -53,16 +78,17 @@ Every layered UI element must resolve through an explicit owner/root identity.
 - `SelectableMenu` + `Selectable` control selection.
 - `OptionCycler` handles left/right trigger intent.
 - Feature modules consume intent; they should not duplicate core intent generation logic.
+- Feature modules must not rely on `InteractionVisualState.selected/pressed/hovered` for commands.
 
 ## 4. Dependency Direction
 
 Allowed direction:
 1. `systems/ui` -> may depend on `systems/interaction` types and generic engine data.
-2. `startup/menus` -> may depend on `systems/ui` and `systems/interaction`.
-3. `scenes/*` -> may depend on `startup/menus` and `systems/ui` public APIs.
+2. `systems/ui/menu` -> may depend on `systems/ui` and `systems/interaction`.
+3. `startup/*` and `scenes/*` -> may depend on `systems/ui/menu` and `systems/ui` public APIs.
 
 Disallowed direction:
-- `systems/ui` -> `startup/menus` or `scenes/*`.
+- `systems/ui` -> `systems/ui/menu` or `scenes/*`.
 - `systems/ui` -> domain-specific menu/video command enums.
 
 ## 5. Query-Safety Rules (B0001 prevention)
@@ -88,12 +114,13 @@ Priority order is fixed:
 4. Hover fallback.
 
 No "first matching query entity wins" behavior for core navigation decisions.
+Do not substitute `InteractionVisualState` flags for this arbitration order.
 
 ## 7. Composition and Extension Rules
 
 To add new UI behavior:
 1. Extend a primitive in `systems/ui` if behavior is reusable.
-2. Compose it in `startup/menus` (or other startup UI modules) with domain wiring.
+2. Compose it in `systems/ui/menu` (or other UI composition modules) with domain wiring.
 3. Keep scene modules as consumers of composition APIs.
 
 If a feature cannot be primitive-backed, document why in-code near the system.

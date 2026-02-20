@@ -23,6 +23,30 @@ Covered systems and modules:
 - Keyboard/mouse behavior should be consistent across menus and submenus.
 - Menu layering (root menu, dropdown, modal) should be explicit and conflict-safe.
 - New UI elements should reuse shared systems (`Clickable`, `SelectableMenu`, `OptionCycler`, etc.) instead of adding one-off handlers.
+- Interaction behavior must use interaction primitives as source of truth; visual state is derived output only.
+- Primitive authoring should prefer required-components plus insert hooks over new Bundle-first APIs.
+
+## Primitive Construction Guidelines
+
+### Preferred Pattern (Required Components + Insert Hooks)
+
+When adding a reusable primitive:
+
+1. Define a root component for the primitive.
+2. Use `#[require(...)]` to declare mandatory component contracts.
+3. Use `#[component(on_insert = ...)]` to spawn and wire child entities and internal state.
+4. Keep caller API minimal: inserting the root primitive should create a working, interactive unit.
+
+### Why this pattern
+
+- Prevents partial wiring bugs where visuals exist but interaction contracts are missing.
+- Keeps primitive internals encapsulated and reusable across menus, windows, and scenes.
+- Reduces composition duplication and makes behavior portable.
+
+### Hard rule for new UI work
+
+- Do not introduce new Bundle-first construction APIs for reusable UI primitives.
+- Existing Bundle helpers are compatibility shims and should be migrated over time, not expanded.
 
 ## Core Interaction Primitives
 
@@ -36,6 +60,24 @@ Pattern:
 
 - Gameplay entities: `InteractionGate::GameplayOnly`
 - Menu entities opened over gameplay: `InteractionGate::PauseMenuOnly`
+
+### `Hoverable`
+
+Pointer hover truth for behavior systems.
+
+Fields:
+
+- `hovered: bool`: one-frame hover result from `hoverable_system`.
+
+Use when:
+
+- Any system needs to know whether an entity is currently hovered (click routing, drag start, hover-driven effects, menu/tab/dropdown pointer selection).
+
+Rules:
+
+- Treat `Hoverable.hovered` as the canonical hover signal.
+- Do not use `InteractionVisualState.hovered` as hover truth for behavior.
+- `Clickable<T>` requires `Hoverable`, so pointer click behavior and hover behavior stay aligned.
 
 ### `Clickable<T>`
 
@@ -52,6 +94,12 @@ Use when:
 - Entity should respond to mouse click.
 - Entity is also selectable and you want keyboard activation to funnel into the same click path.
 
+Rules:
+
+- Treat `Clickable<T>.triggered` as the canonical "activated by click/select" signal.
+- Systems that consume activation should read this latch, then clear/allow frame reset via interaction systems.
+- Do not infer activation from `InteractionVisualState.pressed`.
+
 ### `Pressable<T>`
 
 Component for keyboard-triggered actions through key mappings.
@@ -65,6 +113,11 @@ Use when:
 
 - The action does not need pointer hit-testing and should map directly to keys.
 
+Rules:
+
+- Treat `Pressable<T>.triggered_mapping` as the canonical keyboard activation signal.
+- Do not use `InteractionVisualState.pressed` as keyboard action truth.
+
 ### `SelectableMenu` + `Selectable`
 
 Provides menu-style selection and activation.
@@ -75,6 +128,7 @@ Provides menu-style selection and activation.
 `SelectableMenu` key fields:
 
 - `selected_index`
+- `keyboard_locked`
 - `up_keys`
 - `down_keys`
 - `activate_keys`
@@ -87,6 +141,12 @@ Click activation modes:
 - `HoveredOnly`: only clicked hovered item activates.
 
 Use `HoveredOnly` for dropdowns (avoids accidental forced activation), and use `SelectedOnAnyClick` for full-screen modal/pause-style menus where forced click is desired.
+
+Rules:
+
+- Treat `SelectableMenu.selected_index` as the canonical selected option.
+- Treat `SelectableMenu.keyboard_locked` as the canonical pointer-vs-keyboard arbitration state.
+- Do not use `InteractionVisualState.selected`/`keyboard_locked` as source of truth for menu logic.
 
 ### `OptionCycler`
 
@@ -107,7 +167,7 @@ Flow:
 
 ### `InteractionVisualState`
 
-Single-frame visual intent:
+Single-frame visual output (derived):
 
 - `hovered`
 - `pressed`
@@ -116,11 +176,35 @@ Single-frame visual intent:
 
 Reset each frame by `reset_interaction_visual_state`, then rebuilt by interaction systems.
 
+Hard rule:
+
+- `InteractionVisualState` is visual-only and must not be used as behavioral state in reducers, command handlers, navigation, tab/dropdown/modal flow, or interaction arbitration.
+- If behavior needs hover/press/select information, read `Hoverable`, `Clickable`, `Pressable`, `SelectableMenu`, `Selectable`, and `OptionCycler` instead.
+
 ### `InteractionVisualPalette`
 
 Color palette applied by `apply_interaction_visuals`.
 
 Use this instead of manual per-frame color writes when possible.
+
+## Interaction Source-of-Truth Hierarchy
+
+Use this order when writing UI behavior:
+
+1. Gating and scope: `InteractionGate`, `InteractionCapture`, `UiLayer`/active-layer resolution.
+2. Hover: `Hoverable.hovered`.
+3. Activation:
+   - Pointer/selection activation: `Clickable<T>.triggered`.
+   - Keyboard mapping activation: `Pressable<T>.triggered_mapping`.
+4. Selection/navigation: `SelectableMenu.selected_index`, `Selectable.menu_entity/index`, `SelectableMenu.keyboard_locked`.
+5. Value cycling: `OptionCycler` trigger/bounds fields.
+6. Visuals only: `InteractionVisualState` + `InteractionVisualPalette`.
+
+Developer checklist before adding new UI behavior:
+
+- If you read `InteractionVisualState` outside visual sync systems, stop and switch to primitive components above.
+- Reuse existing primitive systems before adding menu/page-specific input code.
+- Keep visual mutation (`TextColor`, bars/arrows, scale/glow) in visual systems and keep behavior systems side-effect focused.
 
 ## System Menu Building Blocks (`system_menu.rs`)
 
