@@ -75,12 +75,17 @@ Progress notes:
 
 ## Stage 3: Menu Composition Migration
 
-- [ ] Refactor `src/systems/ui/menu/*` to compose primitives only, not rebuild primitive internals.
-- [ ] Reduce menu-specific branching where primitive state machines already exist.
-- [ ] Keep reducer/effects split intact while moving mechanics to primitives.
+- [x] Refactor `src/systems/ui/menu/*` to compose primitives only, not rebuild primitive internals.
+- [x] Reduce menu-specific branching where primitive state machines already exist.
+- [x] Keep reducer/effects split intact while moving mechanics to primitives.
 
 Deliverable:
 - Menu modules focused on policy and command mapping.
+
+Progress notes:
+- Menu composition no longer directly constructs primitive internals in runtime paths (`Selectable`, `OptionCycler`, `UiLayer`) and instead uses primitive roots (`MenuSurface`, `SelectorSurface`, `DropdownSurface`).
+- Dropdown behavior paths now consistently route through shared dropdown primitive helpers (`open_for_parent`, `close_for_parent`, `close_all`) with row-support checks centralized in `src/systems/ui/menu/dropdown_flow.rs`.
+- Reducer/effects split remains intact (`command_reducer` pure transition logic, `command_effects` Bevy side effects), with menu modules acting as policy/input orchestration.
 
 ## Stage 4: Debug UI Showcase Rebuild
 
