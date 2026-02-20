@@ -12,6 +12,15 @@ pub struct MainMenuEntry {
     pub command: MenuCommand,
 }
 
+pub fn resolve_main_menu_command_id(command_id: &str) -> Result<MenuCommand, String> {
+    match command_id {
+        "enter_game" => Ok(MenuCommand::NextScene),
+        "open_options" => Ok(MenuCommand::OpenMainMenuOptionsOverlay),
+        "exit_desktop" => Ok(MenuCommand::ExitApplication),
+        _ => Err(format!("unknown main menu command `{command_id}`")),
+    }
+}
+
 pub fn spawn_main_menu_option_list(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,

@@ -76,7 +76,9 @@ pub use defs::{
     MainMenuOptionsOverlay, MenuCommand, MenuHost, MenuOptionCommand, MenuPage, MenuPageContent,
     MenuRoot, MenuStack, PauseMenuAudio,
 };
-pub use main_menu::{spawn_main_menu_option_list, MainMenuEntry};
+pub use main_menu::{
+    resolve_main_menu_command_id, spawn_main_menu_option_list, MainMenuEntry,
+};
 pub use root_spawn::spawn_menu_root;
 use defs::*;
 use command_flow::{

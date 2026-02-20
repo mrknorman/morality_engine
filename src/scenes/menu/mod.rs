@@ -28,8 +28,8 @@ use crate::{
         },
         time::Dilation,
         ui::menu::{
-            schema, spawn_main_menu_option_list, MainMenuEntry, MainMenuOptionsOverlay,
-            MenuCommand,
+            resolve_main_menu_command_id, schema, spawn_main_menu_option_list, MainMenuEntry,
+            MainMenuOptionsOverlay,
         },
     },
 };
@@ -41,9 +41,11 @@ const SYSTEM_MUSIC_PATH: &str = "./audio/music/the_last_decision.ogg";
 const MAIN_MENU_SCHEMA_JSON: &str = include_str!("./content/main_menu_ui.json");
 
 static MAIN_MENU_OPTIONS: Lazy<Vec<MainMenuEntry>> = Lazy::new(|| {
-    let resolved =
-        schema::load_and_resolve_menu_schema(MAIN_MENU_SCHEMA_JSON, resolve_main_menu_action)
-            .unwrap_or_else(|error| panic!("invalid main menu schema: {error}"));
+    let resolved = schema::load_and_resolve_menu_schema(
+        MAIN_MENU_SCHEMA_JSON,
+        resolve_main_menu_command_id,
+    )
+    .unwrap_or_else(|error| panic!("invalid main menu schema: {error}"));
 
     resolved
         .options
@@ -92,15 +94,6 @@ impl Plugin for MenuScenePlugin {
 pub enum MenuSounds {
     Static,
     Office,
-}
-
-fn resolve_main_menu_action(command_id: &str) -> Result<MenuCommand, String> {
-    match command_id {
-        "enter_game" => Ok(MenuCommand::NextScene),
-        "open_options" => Ok(MenuCommand::OpenMainMenuOptionsOverlay),
-        "exit_desktop" => Ok(MenuCommand::ExitApplication),
-        _ => Err(format!("unknown main menu command `{command_id}`")),
-    }
 }
 
 #[derive(Component)]
