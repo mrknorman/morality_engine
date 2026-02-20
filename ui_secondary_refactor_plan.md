@@ -87,6 +87,9 @@ Deliverable:
 Deliverable:
 - Deterministic interaction behavior under mixed mouse+keyboard input.
 
+Progress notes:
+- Layer-priority ordering (`Modal > Dropdown > Base`) is now covered by integration tests in `src/systems/ui/menu/flow_tests.rs`.
+
 ## Stage 6: Query-Safety Hardening
 
 - [ ] Audit all UI systems for overlapping mutable query risk.
