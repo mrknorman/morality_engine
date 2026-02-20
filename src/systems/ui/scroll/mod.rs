@@ -5,11 +5,15 @@
 //! keyboard, and scrollbar input deterministic.
 use std::collections::{HashMap, HashSet};
 
-use bevy::{prelude::*, render::render_resource::TextureFormat};
+use bevy::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    render::render_resource::TextureFormat,
+};
 
 use crate::{
     systems::{
-        interaction::InteractionSystem,
+        interaction::{InteractionGate, InteractionSystem},
         ui::layer::UiLayerKind,
     },
 };
@@ -189,6 +193,7 @@ struct ScrollLayerManaged;
 
 #[derive(Component, Clone, Copy, Debug)]
 #[require(Transform, Visibility, ScrollBarDragState)]
+#[component(on_insert = ScrollBar::on_insert)]
 pub struct ScrollBar {
     pub scrollable_root: Entity,
     pub width: f32,
@@ -208,6 +213,34 @@ impl ScrollBar {
             track_color: Color::srgb(0.2, 0.9, 0.2),
             thumb_color: Color::srgb(0.2, 0.9, 0.2),
         }
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let Some(scrollbar) = world.entity(entity).get::<ScrollBar>().copied() else {
+            return;
+        };
+
+        let parent_mismatch = world
+            .entity(entity)
+            .get::<ChildOf>()
+            .is_none_or(|parent| parent.parent() != scrollbar.scrollable_root);
+        if parent_mismatch {
+            world
+                .commands()
+                .entity(scrollbar.scrollable_root)
+                .add_child(entity);
+        }
+
+        if world.entity(entity).contains::<ScrollBarParts>() {
+            return;
+        }
+
+        let gate = world
+            .get_entity(scrollbar.scrollable_root)
+            .ok()
+            .and_then(|root| root.get::<InteractionGate>().copied())
+            .unwrap_or_default();
+        scrollbar::seed_scrollbar_parts(&mut world.commands(), entity, &scrollbar, gate);
     }
 }
 
