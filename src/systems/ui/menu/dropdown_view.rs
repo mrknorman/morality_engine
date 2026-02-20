@@ -91,6 +91,11 @@ pub(super) fn sync_resolution_dropdown_items(
         &mut Visibility,
     ), (With<VideoResolutionDropdownItem>, Without<VideoResolutionDropdown>)>,
 ) {
+    // Query contract:
+    // - `dropdown_query` only mutates dropdown container geometry/visibility.
+    // - `item_query` only mutates dropdown row entities (text/selectable/clickable/visibility).
+    // - `table_query` and scroll/menu/tab queries are read-only lookup sources.
+    // This keeps mutable access disjoint between parent dropdown surfaces and row items.
     if !settings.initialized {
         return;
     }
@@ -311,6 +316,11 @@ pub(super) fn update_resolution_dropdown_value_arrows(
     >,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
+    // Query contract:
+    // - `arrow_query` mutates arrow entities only.
+    // - `dropdown_parent_query` and menu/tab/dropdown state are read-only.
+    // - material mutation is isolated to `Assets<ColorMaterial>` writes.
+    // This avoids aliasing mutable component access across dropdown rows/containers.
     if !settings.initialized {
         return;
     }
@@ -388,6 +398,9 @@ pub(super) fn recenter_resolution_dropdown_item_text(
         With<VideoResolutionDropdownItem>,
     >,
 ) {
+    // Query contract:
+    // - single-query mutation over dropdown item text transforms only.
+    // - no overlapping mutable text queries in this system.
     for (base_y, anchor, bounds, text_layout, mut transform) in item_query.iter_mut() {
         let center_correction = centered_text_y_correction(anchor, bounds, text_layout);
         let target_y = base_y.0 + center_correction;

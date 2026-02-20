@@ -83,7 +83,9 @@ Legend:
 - Stage 16 Known Bug Sprint: `status: partial`
   - Several historical issues fixed; current active bugs still exist (see Active Bug Backlog).
 - Stage 17 Query-Safety Hardening: `status: partial`
-  - Many `ParamSet`/`Without` contracts are present; still requires full pass and stress validation.
+  - Many `ParamSet`/`Without` contracts are present.
+  - Added explicit query-disjointness contract comments in dropdown view sync systems (`sync_resolution_dropdown_items`, `update_resolution_dropdown_value_arrows`, `recenter_resolution_dropdown_item_text`).
+  - Still requires full pass and stress validation.
 - Stage 18 Test Coverage Expansion: `status: partial`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
   - Added scroll focus-follow regression for option-lock path without navigation key input.
