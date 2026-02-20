@@ -2146,22 +2146,28 @@ fn is_point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
 
 pub fn option_cycler_input_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&InteractionVisualState, &mut OptionCycler)>,
+    menu_query: Query<&SelectableMenu>,
+    mut query: Query<(&Selectable, &mut OptionCycler)>,
 ) {
     let left_pressed = keyboard_input.just_pressed(KeyCode::ArrowLeft);
     let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
 
-    for (visual_state, mut cycler) in query.iter_mut() {
+    for (selectable, mut cycler) in query.iter_mut() {
         cycler.left_triggered = false;
         cycler.right_triggered = false;
 
-        if visual_state.selected {
-            if left_pressed && !cycler.at_min {
-                cycler.left_triggered = true;
-            }
-            if right_pressed && !cycler.at_max {
-                cycler.right_triggered = true;
-            }
+        let Ok(menu) = menu_query.get(selectable.menu_entity) else {
+            continue;
+        };
+        if menu.selected_index != selectable.index {
+            continue;
+        }
+
+        if left_pressed && !cycler.at_min {
+            cycler.left_triggered = true;
+        }
+        if right_pressed && !cycler.at_max {
+            cycler.right_triggered = true;
         }
     }
 }

@@ -7,6 +7,14 @@ cargo check --manifest-path Cargo.toml
 cargo test --manifest-path Cargo.toml -- --nocapture
 ```
 
+## UI Regression Script
+
+```bash
+./scripts/ui_regression.sh
+```
+
+This runs compile checks, no-run test build, targeted UI regression tests, and `cargo nextest run` when `cargo-nextest` is available.
+
 ## Nextest (if installed)
 
 ```bash

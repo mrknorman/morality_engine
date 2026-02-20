@@ -9,7 +9,7 @@ use crate::{
             SelectableClickActivation, SelectableMenu, SystemMenuActions,
         },
         ui::{
-            dropdown::{self, DropdownLayerState},
+            dropdown::{self, DropdownAnchorState, DropdownLayerState},
             layer::{self, UiLayer, UiLayerKind},
             menu_surface::MenuSurface,
             tabs::{TabBar, TabBarState, TabItem},
@@ -21,8 +21,10 @@ use super::{
     command_reducer::reduce_menu_command,
     defs::{
         MenuCommand, MenuHost, MenuPage, MenuRoot, VideoDisplayMode, VideoSettingsState, VideoTabKind,
-        VIDEO_RESOLUTION_OPTION_INDEX,
+        VideoResolutionDropdown, VIDEO_FOOTER_OPTION_COUNT, VIDEO_FOOTER_OPTION_START_INDEX,
+        VIDEO_RESOLUTION_OPTION_INDEX, VIDEO_TOP_OPTION_COUNT,
     },
+    dropdown_flow::sync_video_tab_content_state,
     stack::MenuNavigationState,
     tabbed_focus::{resolve_tabbed_focus, TabbedFocusInputs, TabbedMenuFocus},
     tabbed_menu::{self, TabbedMenuConfig},
@@ -561,4 +563,107 @@ fn mouse_selection_then_keyboard_cycle_uses_same_selected_row() {
         .copied()
         .expect("second cycler");
     assert!(cycler.right_triggered);
+}
+
+#[test]
+fn tab_change_closes_open_video_dropdown_for_owner() {
+    let mut app = App::new();
+    app.add_message::<crate::systems::ui::tabs::TabChanged>();
+    app.init_resource::<DropdownLayerState>();
+    app.init_resource::<DropdownAnchorState>();
+    app.add_systems(Update, sync_video_tab_content_state);
+
+    let menu_entity = app
+        .world_mut()
+        .spawn((
+            MenuRoot {
+                host: MenuHost::Pause,
+                gate: InteractionGate::PauseMenuOnly,
+            },
+            SelectableMenu::new(
+                VIDEO_RESOLUTION_OPTION_INDEX,
+                vec![KeyCode::ArrowUp],
+                vec![KeyCode::ArrowDown],
+                vec![KeyCode::Enter],
+                true,
+            ),
+        ))
+        .id();
+
+    let tab_root = app
+        .world_mut()
+        .spawn((
+            TabBar::new(menu_entity),
+            TabBarState { active_index: 0 },
+            TabbedMenuConfig::new(
+                VIDEO_TOP_OPTION_COUNT,
+                VIDEO_FOOTER_OPTION_START_INDEX,
+                VIDEO_FOOTER_OPTION_COUNT,
+            ),
+        ))
+        .id();
+
+    let dropdown_entity = app
+        .world_mut()
+        .spawn((
+            VideoResolutionDropdown,
+            UiLayer::new(menu_entity, UiLayerKind::Dropdown),
+            Visibility::Hidden,
+            selectable_menu_for_tests(),
+        ))
+        .id();
+    app.world_mut()
+        .entity_mut(menu_entity)
+        .add_child(dropdown_entity);
+
+    let mut dropdown_state = app
+        .world_mut()
+        .remove_resource::<DropdownLayerState>()
+        .expect("dropdown state");
+    {
+        let world = app.world_mut();
+        let mut query_state: SystemState<(
+            Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+            Query<&mut SelectableMenu, With<VideoResolutionDropdown>>,
+        )> = SystemState::new(world);
+        let (mut dropdown_query, mut dropdown_menu_query) = query_state.get_mut(world);
+        dropdown::open_for_parent::<VideoResolutionDropdown>(
+            menu_entity,
+            menu_entity,
+            0,
+            &mut dropdown_state,
+            &mut dropdown_query,
+            &mut dropdown_menu_query,
+        );
+        query_state.apply(world);
+    }
+    app.insert_resource(dropdown_state);
+
+    assert_eq!(
+        app.world()
+            .resource::<DropdownLayerState>()
+            .open_parent_for_owner(menu_entity),
+        Some(menu_entity)
+    );
+    assert_eq!(
+        app.world().get::<Visibility>(dropdown_entity),
+        Some(&Visibility::Visible)
+    );
+
+    app.world_mut().write_message(crate::systems::ui::tabs::TabChanged {
+        tab_bar: tab_root,
+        index: 1,
+    });
+    app.update();
+
+    assert_eq!(
+        app.world()
+            .resource::<DropdownLayerState>()
+            .open_parent_for_owner(menu_entity),
+        None
+    );
+    assert_eq!(
+        app.world().get::<Visibility>(dropdown_entity),
+        Some(&Visibility::Hidden)
+    );
 }

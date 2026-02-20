@@ -270,7 +270,7 @@ mod tests {
         settings.initialized = true;
         settings.saved = default_video_settings();
         settings.pending = settings.saved;
-        settings.pending.vsync_enabled = !settings.pending.vsync_enabled;
+        settings.pending.display_mode = VideoDisplayMode::Borderless;
         let mut dropdown_state = DropdownLayerState::default();
         let mut navigation_state = MenuNavigationState::default();
 
@@ -295,7 +295,8 @@ mod tests {
     #[test]
     fn toggle_resolution_dropdown_opens_dropdown_for_multi_choice_option() {
         let menu_entity = test_menu_entity();
-        let mut menu_stack = MenuStack::new(MenuPage::Video);
+        let mut menu_stack = MenuStack::new(MenuPage::Options);
+        menu_stack.push(MenuPage::Video);
         let mut selectable_menu = test_selectable_menu();
         let mut settings = VideoSettingsState::default();
         settings.initialized = true;
@@ -304,7 +305,7 @@ mod tests {
         let mut navigation_state = MenuNavigationState::default();
 
         let result = reduce_menu_command(
-            MenuCommand::ToggleResolutionDropdown,
+            MenuCommand::ToggleVideoTopOption(VIDEO_RESOLUTION_OPTION_INDEX),
             menu_entity,
             menu_stack.current_page(),
             VideoTabKind::Display,
@@ -315,7 +316,10 @@ mod tests {
             &mut navigation_state,
         );
 
-        assert_eq!(result.open_dropdown.map(|(row, _)| row), Some(1));
+        assert_eq!(
+            result.open_dropdown.map(|(row, _)| row),
+            Some(VIDEO_RESOLUTION_OPTION_INDEX)
+        );
         assert!(!result.close_menu);
     }
 }

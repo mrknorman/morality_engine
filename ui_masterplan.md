@@ -38,15 +38,18 @@ Legend:
 - Stage 1 Audit and Classification: `status: partial`
   - Core module inventory exists; formal compliance matrix is still missing.
 - Stage 2 Architecture Boundaries and Contracts: `status: partial`
-  - Contract docs exist (`docs/ui_architecture_contract.md`, `docs/ui_ecs_reference.md`), but code still has compatibility-era bundle-first paths.
+  - Contract docs exist (`docs/ui_architecture_contract.md`, `docs/ui_ecs_reference.md`); remaining work is tighter audit coverage and enforcement.
 - Stage 3 Owner-Scoped Interaction Context + Layer Manager: `status: partial`
   - Owner-scoped layer arbitration is broadly used; some behavior still feels nondeterministic under mixed input.
 - Stage 4 Primitive Contract Normalization: `status: partial`
   - Primitive roots exist for menu surface, dropdown, tabs, selector, scroll, hover box, slider.
+  - `SystemMenuOptionRoot` now owns option wiring via `#[require]` + `on_insert`.
   - Remaining gap: fully removing bundle-first composition from reusable paths.
 - Stage 5 Menu Composition Migration: `status: partial`
   - Reducer/effects + composition split exists.
-  - Remaining gap: `page_content`/`modal_flow` still depend on `SystemMenuOptionBundle`.
+  - `page_content`, `modal_flow`, and main menu option rows now spawn via primitive `system_menu::spawn_option`.
+  - `spawn_menu_root` no longer accepts generic extra bundle injection; markers are attached explicitly by composition callers.
+  - Remaining gap: complete scene-local main-menu composition migration into shared menu composition modules.
 - Stage 6 UI Module Realignment: `status: done`
   - Menu composition is under `src/systems/ui/menu/*` with clear submodules.
 - Stage 7 Dropdown, Tabs, Footer Primitive Unification: `status: partial`
@@ -68,7 +71,9 @@ Legend:
   - RTT scroll primitive + scrollbar + adapter are implemented and used.
   - Remaining: broader context validation and residual interaction regressions.
 - Stage 14 HoverBox Primitive + Video Pilot: `status: partial`
-  - Primitive exists, but hover content reintroduction/regression hardening is still in progress.
+  - Option and dropdown hover descriptions are reintroduced and synced from video option metadata.
+  - Timing/gating/mapping/exclusion regression tests are in place.
+  - Remaining: mixed keyboard/mouse overlay validation pass.
 - Stage 15 Debug UI Showcase Rebuild: `status: partial`
   - Showcase exists and uses primitives, but interaction reliability/readability polish remains.
 - Stage 16 Known Bug Sprint: `status: partial`
@@ -76,14 +81,15 @@ Legend:
 - Stage 17 Query-Safety Hardening: `status: partial`
   - Many `ParamSet`/`Without` contracts are present; still requires full pass and stress validation.
 - Stage 18 Test Coverage Expansion: `status: partial`
-  - Many unit/integration tests exist.
-  - Test toolchain is incomplete in `Cargo.toml` for currently authored tests.
+  - Added targeted regression tests for footer highlight resolution and hover description mapping.
+  - Remaining: expand coverage for broader tab/dropdown/scroll interplay and stress paths.
 - Stage 19 Runtime Stress Validation: `status: pending`
   - Not yet formalized as a repeatable validation pass.
 - Stage 20 Documentation and Adoption: `status: partial`
   - Docs are substantial and mostly current; still need final alignment with latest bugfix/refactor outcome.
-- Stage 21 Tooling and Test Framework Rollout: `status: pending`
-  - `mdBook` content exists, but `rstest`/`proptest` dev-deps are missing from manifest, so full test suite does not run.
+- Stage 21 Tooling and Test Framework Rollout: `status: partial`
+  - `mdBook` content now includes the `./scripts/ui_regression.sh` flow and `nextest` profile usage.
+  - Remaining: decide if property-testing crates are required or keep deterministic sampled coverage only.
 - Stage 22 Cleanup and Redundancy Pass: `status: pending`
   - Not yet complete.
 
@@ -92,28 +98,27 @@ Legend:
 1. Video menu consistency regressions after recent hotfixes
    - Ensure top-table owner resolution is stable with scroll-parented tables.
    - Ensure dropdown placement and open/close behavior remain stable under scroll/tab changes.
-2. Hover descriptions missing/inconsistent
-   - Reintroduce HoverBox descriptions for video option names.
-   - Reintroduce HoverBox descriptions for relevant dropdown values (exclude resolution values).
-3. Regression hardening
-   - Add explicit tests for footer one-highlight invariant and tab/dropdown/scroll interplay.
+2. Regression hardening
+   - Footer and hover-description regression tests are added.
+   - Remaining: broader tab/dropdown/scroll interplay coverage.
 
 ## Contract Drift Notes (to reconcile during Stage 2/4/9)
 
 1. `InteractionVisualState` is still read for behavior arbitration in some menu/tab/scroll adapter paths.
+   - `option_cycler_input_system` now keys from `Selectable` + `SelectableMenu.selected_index` (not visual-state selected).
    - Target: move behavior arbitration to primitive truth (`Hoverable`, `Clickable`, `SelectableMenu`) and keep visual state as output only.
-2. Compatibility bundle APIs are still heavily used in composition (`SystemMenuOptionBundle`, generic `spawn_menu_root(..., extra_components: Bundle)`).
-   - Target: keep compatibility, but migrate reusable construction to primitive-root insertion.
+2. Some composition callsites still rely on ad-hoc post-spawn wiring instead of deeper primitive root hooks.
+   - Target: continue migrating behavior-critical contracts to required-component + `on_insert` ownership where practical.
 3. Main menu still contains scene-local option list composition.
    - Target: complete migration to shared composition path to avoid divergent menu behavior.
 
 ## Next Execution Sequence
 
-1. Reintroduce and harden HoverBox descriptions for video option names and relevant value options.
-2. Add focused regression tests for footer/tabs/dropdown interaction and hover description mapping.
-3. Resume bundle-first migration cleanup in menu composition paths.
-4. Complete tooling pass (`rstest`/`proptest` + repeatable test commands).
-5. Run a dedicated mixed keyboard+mouse stress pass for owner-scoped arbitration.
+1. [x] Reintroduce and harden HoverBox descriptions for video option names and relevant value options.
+2. [x] Add focused regression tests for footer/tabs/dropdown interaction and hover description mapping.
+3. [x] Resume bundle-first migration cleanup in menu composition paths.
+4. [x] Complete tooling pass with repeatable test commands (`./scripts/ui_regression.sh`, `cargo nextest` when available).
+5. [ ] Run a dedicated mixed keyboard+mouse stress pass for owner-scoped arbitration.
 
 ## Stage 0: Safety + Checkpoint
 - [ ] Create a clean checkpoint commit before functional changes.
@@ -289,7 +294,7 @@ Deliverable:
 - [x] Add style/config components (`HoverBoxStyle`, `HoverBoxContent`).
 - [x] Integrate option-name descriptions in video menu (short, descriptive, layperson-readable).
 - [x] Integrate dropdown value descriptions where relevant (exclude resolution values).
-- [ ] Add regression tests for timing, gating, mapping, and exclusions.
+- [x] Add regression tests for timing, gating, mapping, and exclusions.
 - [ ] Validate behavior under mixed keyboard/mouse with overlays.
 
 Deliverable:
@@ -324,7 +329,7 @@ Deliverable:
 - [ ] B0001-safe UI query architecture.
 
 ## Stage 18: Test Coverage Expansion
-- [ ] Add/extend unit tests for primitive reducers and state transitions.
+- [-] Add/extend unit tests for primitive reducers and state transitions.
 - [ ] Add integration tests for tabs, dropdowns, selectors/cyclers, modals, scrollbars, and layer gating.
 - [ ] Add debug showcase smoke hooks for interaction and query safety.
 - [ ] Add owner-scoped stress tests for layered coexistence.

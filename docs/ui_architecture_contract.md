@@ -48,17 +48,10 @@ Every layered UI element must resolve through an explicit owner/root identity.
 - Primitive internals (selection roots, clickables, layer markers, state resources, visuals) should be owned and wired by the primitive itself.
 - Existing Bundle-based helpers may remain temporarily for compatibility, but are migration targets and should not be expanded.
 
-### Current Bundle-First Migration Targets
+### Current Migration Rule
 
-These surfaces are allowed for compatibility but should be migrated toward
-primitive-root insertion patterns:
-
-- `src/startup/system_menu.rs`: `SystemMenuOptionBundle` helpers.
-- `src/systems/ui/menu/root_spawn.rs`: `spawn_menu_root(..., extra_components: B where B: Bundle)`.
-- `src/systems/ui/menu/page_content.rs`: page composition paths that rely on direct bundle-style option spawning.
-
-Rule:
-- Do not add new reusable bundle-first helper APIs alongside these; migrate callsites toward root components + insert hooks instead.
+- Reusable UI primitives must not introduce bundle-first construction helpers.
+- Composition layers may attach scene/domain markers after primitive creation, but primitive contracts must remain rooted in component insertion hooks and required components.
 
 ### Self-Contained Primitive Rule
 - Each primitive should be independently operable in any parent context (`menu`, `window`, `scene`), provided owner/layer gates are supplied.

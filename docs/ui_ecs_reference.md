@@ -239,12 +239,15 @@ Developer checklist before adding new UI behavior:
 - `spawn_chrome_with_marker(...)`: panel, border, title, hint.
 - `play_navigation_switch(...)`: shared keyboard-nav sound utility used by both main-scene and UI menu systems.
 
-### Option Construction (Legacy + Preferred)
+### Option Construction
 
-- Legacy compatibility helper: `SystemMenuOptionBundle::new_at(...)` creates text option + selection + visual palette state.
-- Preferred pattern for new/reusable surfaces:
-  - Use primitive roots (`MenuSurface`, `SelectorSurface`, `DropdownSurface`) and let insert hooks wire required contracts.
-  - Keep bundle-style helpers as migration shims; do not add new reusable bundle-first APIs.
+- Preferred primitive path:
+  - `system_menu::spawn_option(...)` for option composition.
+  - `SystemMenuOptionRoot` is the option primitive root (`#[require]` + `on_insert`) that wires text/visual/selectable contracts.
+  - `SelectorSurface` insert hooks wire `Selectable`/`OptionCycler` contracts.
+  - `MenuSurface`, `SelectorSurface`, and `DropdownSurface` remain the reusable primitive roots.
+- Rule:
+  - Do not add bundle-first helper APIs for reusable option primitives.
 
 ### Indicators and Bars
 

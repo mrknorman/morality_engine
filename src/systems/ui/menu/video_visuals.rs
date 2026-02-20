@@ -859,3 +859,233 @@ pub(super) fn sync_video_top_option_hover_descriptions(
         write_hover_box_content(&mut content, description);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::SystemState;
+
+    use crate::systems::ui::{
+        dropdown,
+        layer::{UiLayer, UiLayerKind},
+        tabs::{TabBar, TabBarState},
+    };
+
+    fn test_menu_root(gate: InteractionGate) -> MenuRoot {
+        MenuRoot {
+            host: MenuHost::Pause,
+            gate,
+        }
+    }
+
+    fn test_selectable_menu(selected_index: usize) -> SelectableMenu {
+        SelectableMenu::new(
+            selected_index,
+            vec![KeyCode::ArrowUp],
+            vec![KeyCode::ArrowDown],
+            vec![KeyCode::Enter],
+            true,
+        )
+    }
+
+    #[test]
+    fn footer_highlight_resolver_prefers_pressed_then_hovered_then_selected() {
+        let mut world = World::new();
+        let menu_entity = world
+            .spawn((
+                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_selectable_menu(VIDEO_FOOTER_OPTION_START_INDEX),
+            ))
+            .id();
+
+        world.spawn((
+            Selectable::new(menu_entity, VIDEO_FOOTER_OPTION_START_INDEX),
+            VideoOptionRow {
+                index: VIDEO_FOOTER_OPTION_START_INDEX,
+            },
+            InteractionVisualState {
+                selected: true,
+                ..default()
+            },
+        ));
+        world.spawn((
+            Selectable::new(menu_entity, VIDEO_FOOTER_OPTION_START_INDEX + 1),
+            VideoOptionRow {
+                index: VIDEO_FOOTER_OPTION_START_INDEX + 1,
+            },
+            InteractionVisualState {
+                hovered: true,
+                ..default()
+            },
+        ));
+        world.spawn((
+            Selectable::new(menu_entity, VIDEO_FOOTER_OPTION_START_INDEX + 2),
+            VideoOptionRow {
+                index: VIDEO_FOOTER_OPTION_START_INDEX + 2,
+            },
+            InteractionVisualState {
+                pressed: true,
+                ..default()
+            },
+        ));
+
+        let mut state: SystemState<(
+            Query<(Entity, &SelectableMenu), With<MenuRoot>>,
+            Query<(
+                &Selectable,
+                &VideoOptionRow,
+                &InteractionVisualState,
+                Option<&InheritedVisibility>,
+            )>,
+        )> = SystemState::new(&mut world);
+        let (menu_query, option_query) = state.get(&world);
+        let highlighted = resolve_video_footer_highlight_by_menu(&menu_query, &option_query);
+        assert_eq!(highlighted.get(&menu_entity).copied(), Some(2));
+    }
+
+    #[test]
+    fn footer_highlight_resolver_breaks_ties_by_higher_selectable_index() {
+        let mut world = World::new();
+        let menu_entity = world
+            .spawn((
+                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_selectable_menu(VIDEO_FOOTER_OPTION_START_INDEX),
+            ))
+            .id();
+
+        world.spawn((
+            Selectable::new(menu_entity, VIDEO_FOOTER_OPTION_START_INDEX),
+            VideoOptionRow {
+                index: VIDEO_FOOTER_OPTION_START_INDEX,
+            },
+            InteractionVisualState {
+                hovered: true,
+                ..default()
+            },
+        ));
+        world.spawn((
+            Selectable::new(menu_entity, VIDEO_FOOTER_OPTION_START_INDEX + 1),
+            VideoOptionRow {
+                index: VIDEO_FOOTER_OPTION_START_INDEX + 1,
+            },
+            InteractionVisualState {
+                hovered: true,
+                ..default()
+            },
+        ));
+
+        let mut state: SystemState<(
+            Query<(Entity, &SelectableMenu), With<MenuRoot>>,
+            Query<(
+                &Selectable,
+                &VideoOptionRow,
+                &InteractionVisualState,
+                Option<&InheritedVisibility>,
+            )>,
+        )> = SystemState::new(&mut world);
+        let (menu_query, option_query) = state.get(&world);
+        let highlighted = resolve_video_footer_highlight_by_menu(&menu_query, &option_query);
+        assert_eq!(highlighted.get(&menu_entity).copied(), Some(1));
+    }
+
+    #[test]
+    fn hover_description_sync_populates_option_and_open_dropdown_value_content() {
+        let mut app = App::new();
+        app.add_systems(Update, sync_video_top_option_hover_descriptions);
+
+        let menu_entity = app
+            .world_mut()
+            .spawn((
+                test_menu_root(InteractionGate::PauseMenuOnly),
+                MenuStack::new(MenuPage::Video),
+                test_selectable_menu(0),
+            ))
+            .id();
+
+        app.world_mut().spawn((
+            TabBar::new(menu_entity),
+            TabBarState { active_index: 2 }, // Advanced
+            tabbed_menu::TabbedMenuConfig::new(
+                VIDEO_TOP_OPTION_COUNT,
+                VIDEO_FOOTER_OPTION_START_INDEX,
+                VIDEO_FOOTER_OPTION_COUNT,
+            ),
+        ));
+
+        let option_entity = app
+            .world_mut()
+            .spawn((
+                Selectable::new(menu_entity, 0),
+                VideoOptionRow { index: 0 }, // Tonemapping in Advanced tab
+                hover_box::HoverBoxContent::default(),
+            ))
+            .id();
+
+        let dropdown_entity = app
+            .world_mut()
+            .spawn((
+                VideoResolutionDropdown,
+                UiLayer::new(menu_entity, UiLayerKind::Dropdown),
+                Visibility::Hidden,
+                test_selectable_menu(1),
+            ))
+            .id();
+        app.world_mut().entity_mut(menu_entity).add_child(dropdown_entity);
+
+        let dropdown_item = app
+            .world_mut()
+            .spawn((
+                VideoResolutionDropdownItem { index: 1 },
+                hover_box::HoverBoxContent::default(),
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(dropdown_entity)
+            .add_child(dropdown_item);
+
+        let mut dropdown_state = DropdownLayerState::default();
+        {
+            let world = app.world_mut();
+            let mut query_state: SystemState<(
+                Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+                Query<&mut SelectableMenu, With<VideoResolutionDropdown>>,
+            )> = SystemState::new(world);
+            let (mut dropdown_query, mut dropdown_menu_query) = query_state.get_mut(world);
+            dropdown::open_for_parent::<VideoResolutionDropdown>(
+                menu_entity,
+                menu_entity,
+                1,
+                &mut dropdown_state,
+                &mut dropdown_query,
+                &mut dropdown_menu_query,
+            );
+            query_state.apply(world);
+        }
+        app.insert_resource(dropdown_state);
+        let mut dropdown_anchor_state = DropdownAnchorState::default();
+        dropdown_anchor_state.set_for_parent(menu_entity, menu_entity, 0);
+        app.insert_resource(dropdown_anchor_state);
+
+        app.update();
+
+        let option_content = app
+            .world()
+            .get::<hover_box::HoverBoxContent>(option_entity)
+            .expect("option hover box content");
+        assert_eq!(
+            option_content.text,
+            VideoTopOptionKey::Tonemapping.description()
+        );
+
+        let dropdown_content = app
+            .world()
+            .get::<hover_box::HoverBoxContent>(dropdown_item)
+            .expect("dropdown hover box content");
+        assert_eq!(
+            dropdown_content.text,
+            VideoTopOptionKey::Tonemapping
+                .value_description(1)
+                .expect("tonemapping index description")
+        );
+    }
+}

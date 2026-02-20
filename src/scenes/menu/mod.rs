@@ -314,20 +314,22 @@ impl MenuScene {
 
         commands.entity(menu_list_entity).with_children(|parent| {
             for (index, option) in MAIN_MENU_OPTIONS.iter().enumerate() {
-                let mut entity_commands = parent.spawn((
+                let option_entity = system_menu::spawn_option(
+                    parent,
+                    option.label.clone(),
+                    0.0,
+                    option.y,
+                    menu_list_entity,
+                    index,
+                    system_menu::SystemMenuOptionVisualStyle::default()
+                        .without_selection_indicators(),
+                );
+
+                let mut child_commands = parent.commands();
+                let mut entity_commands = child_commands.entity(option_entity);
+                entity_commands.insert((
                     Name::new(option.name.clone()),
                     MainMenuInteractive,
-                    system_menu::SystemMenuOptionBundle::new_at(
-                        option.label.clone(),
-                        0.0,
-                        option.y,
-                        menu_list_entity,
-                        index,
-                    )
-                    .with_visual_style(
-                        system_menu::SystemMenuOptionVisualStyle::default()
-                            .without_selection_indicators(),
-                    ),
                     Clickable::new(vec![option.action]),
                     MenuScene::actions_for_option(option.action),
                     option_click_audio(),
@@ -406,8 +408,10 @@ fn open_main_menu_options_overlay(
         ),
         MenuPage::Options,
         InteractionGate::PauseMenuOnly,
-        (MainMenuOptionsOverlay, DespawnOnExit(MainState::Menu)),
     );
+    commands
+        .entity(menu_entity)
+        .insert((MainMenuOptionsOverlay, DespawnOnExit(MainState::Menu)));
 
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((

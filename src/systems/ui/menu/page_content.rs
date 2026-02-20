@@ -396,32 +396,34 @@ pub(super) fn spawn_page_content(
 
             let mut entity_id = None;
             commands.entity(target_parent).with_children(|parent| {
-                let mut entity = parent.spawn((
+                let option_entity = system_menu::spawn_option(
+                    parent,
+                    option_label,
+                    option_position.x,
+                    option_position.y,
+                    menu_entity,
+                    index,
+                    visual_style,
+                );
+                let mut child_commands = parent.commands();
+                child_commands.entity(option_entity).insert((
                     Name::new(option.name),
                     MenuPageContent,
                     gate,
                     tabbed_menu::TabbedMenuOption::new(menu_entity),
                     VideoOptionRow { index },
-                    system_menu::SystemMenuOptionBundle::new_at(
-                        option_label,
-                        option_position.x,
-                        option_position.y,
-                        menu_entity,
-                        index,
-                    )
-                    .with_visual_style(visual_style),
                     clickable,
                     MenuOptionCommand(option.command.clone()),
                     click_audio(),
                 ));
                 if index < VIDEO_TOP_OPTION_COUNT {
-                    entity.insert(ScrollableItem::new(
+                    child_commands.entity(option_entity).insert(ScrollableItem::new(
                         index as u64 + 1,
                         index,
                         VIDEO_TABLE_ROW_HEIGHT,
                     ));
                     if let Some(hover_root) = video_option_hover_box_root {
-                        entity.insert((
+                        child_commands.entity(option_entity).insert((
                             hover_box::HoverBoxTarget::new(
                                 hover_root,
                                 Vec2::new(VIDEO_TABLE_LABEL_COLUMN_WIDTH, VIDEO_OPTION_REGION_HEIGHT),
@@ -434,7 +436,7 @@ pub(super) fn spawn_page_content(
                         ));
                     }
                 }
-                entity_id = Some(entity.id());
+                entity_id = Some(option_entity);
             });
 
             let Some(entity_id) = entity_id else {
@@ -457,25 +459,24 @@ pub(super) fn spawn_page_content(
         } else {
             let mut entity_id = None;
             commands.entity(target_parent).with_children(|parent| {
-                entity_id = Some(
-                    parent
-                        .spawn((
-                            Name::new(option.name),
-                            MenuPageContent,
-                            gate,
-                            system_menu::SystemMenuOptionBundle::new_at(
-                                option_label,
-                                option_position.x,
-                                option_position.y,
-                                menu_entity,
-                                index,
-                            ),
-                            clickable,
-                            MenuOptionCommand(option.command.clone()),
-                            click_audio(),
-                        ))
-                        .id(),
+                let option_entity = system_menu::spawn_option(
+                    parent,
+                    option_label,
+                    option_position.x,
+                    option_position.y,
+                    menu_entity,
+                    index,
+                    system_menu::SystemMenuOptionVisualStyle::default(),
                 );
+                parent.commands().entity(option_entity).insert((
+                    Name::new(option.name),
+                    MenuPageContent,
+                    gate,
+                    clickable,
+                    MenuOptionCommand(option.command.clone()),
+                    click_audio(),
+                ));
+                entity_id = Some(option_entity);
             });
 
             if let Some(shortcut) = option.shortcut {

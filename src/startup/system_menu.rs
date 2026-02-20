@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use bevy::{ecs::query::QueryFilter, prelude::*, sprite::Anchor};
+use bevy::{
+    ecs::{lifecycle::HookContext, query::QueryFilter, world::DeferredWorld},
+    prelude::*,
+    sprite::Anchor,
+};
 use enum_map::{Enum, EnumArray};
 
 use crate::{
@@ -46,6 +50,80 @@ pub struct SystemMenu;
 
 #[derive(Component)]
 pub struct SystemMenuOption;
+
+#[derive(Component, Clone)]
+#[require(
+    SystemMenuOption = SystemMenuOption,
+    TextButton = TextButton,
+    Text2d,
+    TextFont,
+    TextLayout,
+    TextColor,
+    ColorAnchor,
+    InteractionVisualState,
+    InteractionVisualPalette,
+    Transform
+)]
+#[component(on_insert = SystemMenuOptionRoot::on_insert)]
+pub struct SystemMenuOptionRoot {
+    pub label: String,
+    pub x: f32,
+    pub y: f32,
+    pub menu_entity: Entity,
+    pub index: usize,
+    pub visual_style: SystemMenuOptionVisualStyle,
+}
+
+impl SystemMenuOptionRoot {
+    pub fn new(
+        label: impl Into<String>,
+        x: f32,
+        y: f32,
+        menu_entity: Entity,
+        index: usize,
+        visual_style: SystemMenuOptionVisualStyle,
+    ) -> Self {
+        Self {
+            label: label.into(),
+            x,
+            y,
+            menu_entity,
+            index,
+            visual_style,
+        }
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let Some(root) = world.entity(entity).get::<SystemMenuOptionRoot>().cloned() else {
+            return;
+        };
+
+        world.commands().entity(entity).insert((
+            Text2d::new(root.label),
+            TextFont {
+                font_size: OPTION_FONT_SIZE,
+                weight: OPTION_FONT_WEIGHT,
+                ..default()
+            },
+            TextLayout {
+                justify: Justify::Center,
+                ..default()
+            },
+            TextColor(SYSTEM_MENU_COLOR),
+            ColorAnchor(SYSTEM_MENU_COLOR),
+            InteractionVisualState::default(),
+            InteractionVisualPalette::new(
+                SYSTEM_MENU_COLOR,
+                SYSTEM_MENU_COLOR,
+                SYSTEM_MENU_COLOR,
+                SYSTEM_MENU_COLOR,
+            ),
+            root.visual_style,
+            Transform::from_xyz(root.x, root.y, 1.0),
+            SelectorSurface::new(root.menu_entity, root.index),
+        ));
+    }
+}
 
 #[derive(Component)]
 pub struct SystemMenuSelectionIndicator;
@@ -149,66 +227,25 @@ impl SystemMenuLayout {
     }
 }
 
-#[derive(Bundle)]
-pub struct SystemMenuOptionBundle {
-    option: SystemMenuOption,
-    text_button: TextButton,
-    text: Text2d,
-    text_font: TextFont,
-    text_layout: TextLayout,
-    text_color: TextColor,
-    color_anchor: ColorAnchor,
-    visual_state: InteractionVisualState,
-    visual_palette: InteractionVisualPalette,
+pub fn spawn_option(
+    parent: &mut ChildSpawnerCommands<'_>,
+    label: impl Into<String>,
+    x: f32,
+    y: f32,
+    menu_entity: Entity,
+    index: usize,
     visual_style: SystemMenuOptionVisualStyle,
-    transform: Transform,
-    selector_surface: SelectorSurface,
-}
-
-impl SystemMenuOptionBundle {
-    pub fn new(label: impl Into<String>, y: f32, menu_entity: Entity, index: usize) -> Self {
-        Self::new_at(label, 0.0, y, menu_entity, index)
-    }
-
-    pub fn new_at(
-        label: impl Into<String>,
-        x: f32,
-        y: f32,
-        menu_entity: Entity,
-        index: usize,
-    ) -> Self {
-        Self {
-            option: SystemMenuOption,
-            text_button: TextButton,
-            text: Text2d::new(label.into()),
-            text_font: TextFont {
-                font_size: OPTION_FONT_SIZE,
-                weight: OPTION_FONT_WEIGHT,
-                ..default()
-            },
-            text_layout: TextLayout {
-                justify: Justify::Center,
-                ..default()
-            },
-            text_color: TextColor(SYSTEM_MENU_COLOR),
-            color_anchor: ColorAnchor(SYSTEM_MENU_COLOR),
-            visual_state: InteractionVisualState::default(),
-            visual_palette: InteractionVisualPalette::new(
-                SYSTEM_MENU_COLOR,
-                SYSTEM_MENU_COLOR,
-                SYSTEM_MENU_COLOR,
-                SYSTEM_MENU_COLOR,
-            ),
-            visual_style: SystemMenuOptionVisualStyle::default(),
-            transform: Transform::from_xyz(x, y, 1.0),
-            selector_surface: SelectorSurface::new(menu_entity, index),
-        }
-    }
-
-    pub fn with_visual_style(mut self, style: SystemMenuOptionVisualStyle) -> Self {
-        self.visual_style = style;
-        self
-    }
+) -> Entity {
+    parent
+        .spawn(SystemMenuOptionRoot::new(
+            label,
+            x,
+            y,
+            menu_entity,
+            index,
+            visual_style,
+        ))
+        .id()
 }
 
 pub fn ensure_selection_indicators(
@@ -415,18 +452,16 @@ where
     )])
 }
 
-pub fn spawn_root<S, B>(
+pub fn spawn_root<S>(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     name: &str,
     translation: Vec3,
     switch_sound: S,
-    extra_components: B,
 ) -> Entity
 where
     S: Enum + EnumArray<Vec<Entity>> + Send + Sync + Clone + Copy + 'static,
     <S as EnumArray<Vec<Entity>>>::Array: Send + Sync + Clone,
-    B: Bundle,
 {
     commands
         .spawn((
@@ -442,7 +477,6 @@ where
             ),
             Transform::from_translation(translation),
             Visibility::Visible,
-            extra_components,
         ))
         .id()
 }

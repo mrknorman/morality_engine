@@ -5,8 +5,6 @@ use bevy::{
     prelude::*,
     render::render_resource::TextureFormat,
 };
-use proptest::prelude::*;
-use rstest::rstest;
 
 use crate::{
     startup::cursor::CustomCursor,
@@ -191,18 +189,17 @@ fn write_wheel(app: &mut App, y: f32) {
     });
 }
 
-#[rstest]
-#[case(120.0, 20.0, 300.0, 18.0, 18.0)]
-#[case(120.0, 500.0, 300.0, 18.0, 120.0)]
-fn thumb_extent_respects_minimum_and_track_bounds(
-    #[case] track_extent: f32,
-    #[case] viewport_extent: f32,
-    #[case] content_extent: f32,
-    #[case] min_thumb_extent: f32,
-    #[case] expected: f32,
-) {
-    let thumb = thumb_extent_for_state(track_extent, viewport_extent, content_extent, min_thumb_extent);
-    assert_eq!(thumb, expected);
+#[test]
+fn thumb_extent_respects_minimum_and_track_bounds() {
+    let cases = [
+        (120.0, 20.0, 300.0, 18.0, 18.0),
+        (120.0, 500.0, 300.0, 18.0, 120.0),
+    ];
+    for (track_extent, viewport_extent, content_extent, min_thumb_extent, expected) in cases {
+        let thumb =
+            thumb_extent_for_state(track_extent, viewport_extent, content_extent, min_thumb_extent);
+        assert_eq!(thumb, expected);
+    }
 }
 
 #[test]
@@ -229,35 +226,65 @@ fn horizontal_thumb_round_trip_maps_offset_consistently() {
     assert!((mapped - offset).abs() < 0.001);
 }
 
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(64))]
-
-    #[test]
-    fn vertical_thumb_round_trip_property_is_bounded(
-        track in 24.0f32..400.0f32,
-        thumb_ratio in 0.15f32..0.95f32,
-        max in 1.0f32..5000.0f32,
-        normalized in 0.0f32..1.0f32,
-    ) {
-        let thumb = (track * thumb_ratio).clamp(1.0, track);
-        let offset = max * normalized;
-        let center = thumb_center_for_offset(track, thumb, offset, max, ScrollAxis::Vertical);
-        let mapped = offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Vertical);
-        prop_assert!((mapped - offset).abs() <= 0.01);
+#[test]
+fn vertical_thumb_round_trip_property_is_bounded_samples() {
+    let tracks: [f32; 5] = [24.0, 72.0, 144.0, 288.0, 400.0];
+    let thumb_ratios: [f32; 5] = [0.15, 0.3, 0.5, 0.75, 0.95];
+    let max_values: [f32; 5] = [1.0, 25.0, 250.0, 1500.0, 5000.0];
+    let normalized_values: [f32; 5] = [0.0, 0.1, 0.33, 0.66, 1.0];
+    for track in tracks {
+        for thumb_ratio in thumb_ratios {
+            for max in max_values {
+                for normalized in normalized_values {
+                    let thumb = (track * thumb_ratio).clamp(1.0, track);
+                    let offset = max * normalized;
+                    let center =
+                        thumb_center_for_offset(track, thumb, offset, max, ScrollAxis::Vertical);
+                    let mapped =
+                        offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Vertical);
+                    assert!(
+                        (mapped - offset).abs() <= 0.01,
+                        "vertical round-trip drift: track={track}, thumb={thumb}, max={max}, normalized={normalized}, offset={offset}, mapped={mapped}",
+                    );
+                }
+            }
+        }
     }
+}
 
-    #[test]
-    fn horizontal_thumb_round_trip_property_is_bounded(
-        track in 24.0f32..400.0f32,
-        thumb_ratio in 0.15f32..0.95f32,
-        max in 1.0f32..5000.0f32,
-        normalized in 0.0f32..1.0f32,
-    ) {
-        let thumb = (track * thumb_ratio).clamp(1.0, track);
-        let offset = max * normalized;
-        let center = thumb_center_for_offset(track, thumb, offset, max, ScrollAxis::Horizontal);
-        let mapped = offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Horizontal);
-        prop_assert!((mapped - offset).abs() <= 0.01);
+#[test]
+fn horizontal_thumb_round_trip_property_is_bounded_samples() {
+    let tracks: [f32; 5] = [24.0, 72.0, 144.0, 288.0, 400.0];
+    let thumb_ratios: [f32; 5] = [0.15, 0.3, 0.5, 0.75, 0.95];
+    let max_values: [f32; 5] = [1.0, 25.0, 250.0, 1500.0, 5000.0];
+    let normalized_values: [f32; 5] = [0.0, 0.1, 0.33, 0.66, 1.0];
+    for track in tracks {
+        for thumb_ratio in thumb_ratios {
+            for max in max_values {
+                for normalized in normalized_values {
+                    let thumb = (track * thumb_ratio).clamp(1.0, track);
+                    let offset = max * normalized;
+                    let center = thumb_center_for_offset(
+                        track,
+                        thumb,
+                        offset,
+                        max,
+                        ScrollAxis::Horizontal,
+                    );
+                    let mapped = offset_from_thumb_center(
+                        track,
+                        thumb,
+                        center,
+                        max,
+                        ScrollAxis::Horizontal,
+                    );
+                    assert!(
+                        (mapped - offset).abs() <= 0.01,
+                        "horizontal round-trip drift: track={track}, thumb={thumb}, max={max}, normalized={normalized}, offset={offset}, mapped={mapped}",
+                    );
+                }
+            }
+        }
     }
 }
 

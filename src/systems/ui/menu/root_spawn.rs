@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn spawn_menu_root<B>(
+pub fn spawn_menu_root(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     host: MenuHost,
@@ -8,24 +8,17 @@ pub fn spawn_menu_root<B>(
     translation: Vec3,
     initial_page: MenuPage,
     gate: InteractionGate,
-    extra_components: B,
-) -> Entity
-where
-    B: Bundle,
-{
+) -> Entity {
     let menu_entity = system_menu::spawn_root(
         commands,
         asset_server,
         name,
         translation,
         SystemMenuSounds::Switch,
-        (
-            MenuRoot { host, gate },
-            MenuStack::new(initial_page),
-            gate,
-            extra_components,
-        ),
     );
+    commands
+        .entity(menu_entity)
+        .insert((MenuRoot { host, gate }, MenuStack::new(initial_page), gate));
     let click_activation = if host == MenuHost::Debug {
         SelectableClickActivation::HoveredOnly
     } else {

@@ -158,8 +158,10 @@ fn setup_pause_menu_overlay(
         ),
         MenuPage::PauseRoot,
         InteractionGate::PauseMenuOnly,
-        (PauseMenuOverlay, DespawnOnExit(PauseState::Paused)),
     );
+    commands
+        .entity(menu_entity)
+        .insert((PauseMenuOverlay, DespawnOnExit(PauseState::Paused)));
 
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((

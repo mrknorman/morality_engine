@@ -246,7 +246,7 @@ fn spawn_debug_menu_overlay(
     asset_server: &Res<AssetServer>,
     camera_translation: Vec3,
 ) {
-    menu::spawn_menu_root(
+    let menu_entity = menu::spawn_menu_root(
         commands,
         asset_server,
         MenuHost::Debug,
@@ -258,12 +258,10 @@ fn spawn_debug_menu_overlay(
         ),
         MenuPage::DebugRoot,
         InteractionGate::GameplayOnly,
-        (
-            DebugOverlay,
-            DebugMenuOverlay,
-            DespawnOnExit(MainState::Debug),
-        ),
     );
+    commands
+        .entity(menu_entity)
+        .insert((DebugOverlay, DebugMenuOverlay, DespawnOnExit(MainState::Debug)));
 }
 
 fn spawn_debug_firework(commands: &mut Commands, cursor_position: Vec2) {

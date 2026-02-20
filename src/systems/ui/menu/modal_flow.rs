@@ -83,16 +83,21 @@ fn spawn_video_modal_option(
     label: &'static str,
 ) {
     commands.entity(modal_entity).with_children(|modal| {
-        modal.spawn((
+        let option_entity = system_menu::spawn_option(
+            modal,
+            label,
+            x,
+            VIDEO_MODAL_OPTIONS_Y,
+            modal_entity,
+            index,
+            system_menu::SystemMenuOptionVisualStyle::default()
+                .with_indicator_offset(VIDEO_MODAL_OPTION_INDICATOR_X),
+        );
+        modal.commands().entity(option_entity).insert((
             Name::new(format!("video_modal_option_{index}")),
             MenuPageContent,
             gate,
             button,
-            system_menu::SystemMenuOptionBundle::new_at(label, x, VIDEO_MODAL_OPTIONS_Y, modal_entity, index)
-                .with_visual_style(
-                    system_menu::SystemMenuOptionVisualStyle::default()
-                        .with_indicator_offset(VIDEO_MODAL_OPTION_INDICATOR_X),
-                ),
             Clickable::with_region(vec![SystemMenuActions::Activate], VIDEO_MODAL_OPTION_REGION),
             system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
         ));
