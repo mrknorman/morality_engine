@@ -785,6 +785,9 @@ pub(super) fn handle_dropdown_trigger_commands(
     owner_query: Query<&DebugDropdownDemoState>,
     mut panel_query: Query<(&mut Visibility, &mut SelectableMenu), With<DebugDropdownDemoPanel>>,
 ) {
+    // Query contract:
+    // - Trigger click consumption is isolated in `trigger_query`.
+    // - Panel visibility/selectable mutations are isolated in `panel_query`.
     for (trigger, mut clickable) in trigger_query.iter_mut() {
         if !clickable.triggered {
             continue;
@@ -816,6 +819,10 @@ pub(super) fn handle_dropdown_item_commands(
     mut owner_query: Query<&mut DebugDropdownDemoState>,
     mut panel_query: Query<&mut Visibility, With<DebugDropdownDemoPanel>>,
 ) {
+    // Query contract:
+    // - Item click latches are consumed in `item_query`.
+    // - Committed dropdown state and panel visibility are updated via
+    //   separate owner/panel queries to avoid aliasing concerns.
     let mut chosen_by_owner: HashMap<Entity, (usize, u64)> = HashMap::new();
     for (entity, item, mut clickable) in item_query.iter_mut() {
         if !clickable.triggered {
