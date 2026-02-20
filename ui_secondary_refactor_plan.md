@@ -119,6 +119,7 @@ Deliverable:
 
 Progress notes:
 - Debug showcase dropdown close path now enforces disjoint trigger/panel queries via `Without<T>` filters and explicit query contract comments.
+- Added query-safety contract comments to additional multi-query systems (`sync_discrete_slider_slots`, dropdown outside-click close path) to keep alias boundaries explicit as UI primitives evolve.
 - Full UI test subset now passes (`cargo test --manifest-path Cargo.toml systems::ui:: --quiet`) with no B0001 panics.
 
 ## Stage 7: Test Coverage

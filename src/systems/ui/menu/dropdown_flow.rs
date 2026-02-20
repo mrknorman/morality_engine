@@ -11,7 +11,16 @@ pub(super) fn open_dropdown_for_menu(
         &mut SelectableMenu,
         (With<VideoResolutionDropdown>, Without<MenuRoot>),
     >,
+    scroll_root_query: &mut Query<
+        (
+            &scroll_adapter::ScrollableTableAdapter,
+            &mut crate::systems::ui::scroll::ScrollState,
+            &mut crate::systems::ui::scroll::ScrollFocusFollowLock,
+        ),
+        With<VideoTopOptionsScrollRoot>,
+    >,
 ) {
+    scroll_adapter::ensure_video_top_row_visible(menu_entity, row, scroll_root_query);
     dropdown_anchor_state.set_for_parent(menu_entity, menu_entity, row);
     dropdown::open_for_parent::<VideoResolutionDropdown>(
         menu_entity,
@@ -70,6 +79,8 @@ pub(super) fn sync_video_tab_content_state(
 
 pub(super) fn handle_resolution_dropdown_item_commands(
     mut commands: Commands,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    cursor: Res<crate::startup::cursor::CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     mut settings: ResMut<VideoSettingsState>,
@@ -86,6 +97,9 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         &ChildOf,
         &VideoResolutionDropdownItem,
         &mut Clickable<SystemMenuActions>,
+        &Transform,
+        &GlobalTransform,
+        Option<&InheritedVisibility>,
         Option<&TransientAudioPallet<SystemMenuSounds>>,
     )>,
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
@@ -119,8 +133,39 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     }
 
     let mut chosen_by_owner: HashMap<Entity, (usize, u64, Entity, Entity)> = HashMap::new();
-    for (entity, parent, item, mut clickable, _) in item_query.iter_mut() {
-        if !clickable.triggered {
+    let primary_mouse_click = mouse_input.just_pressed(MouseButton::Left);
+    let click_position = if primary_mouse_click {
+        cursor.position
+    } else {
+        None
+    };
+    for (
+        entity,
+        parent,
+        item,
+        mut clickable,
+        transform,
+        global_transform,
+        inherited_visibility,
+        _,
+    ) in item_query.iter_mut()
+    {
+        let cursor_pressed_inside_item = click_position.is_some_and(|cursor_position| {
+            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                return false;
+            }
+            clickable.region.is_some_and(|region| {
+                crate::systems::interaction::is_cursor_within_region(
+                    cursor_position,
+                    transform,
+                    global_transform,
+                    region,
+                    Vec2::ZERO,
+                )
+            })
+        });
+        let pressed_click = primary_mouse_click && cursor_pressed_inside_item;
+        if !(clickable.triggered || pressed_click) {
             continue;
         }
         clickable.triggered = false;
@@ -142,8 +187,7 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         let candidate = (item.index, entity.to_bits(), entity, menu_entity);
         match chosen_by_owner.get_mut(&owner) {
             Some((best_index, best_rank, best_entity, best_menu_entity)) => {
-                if candidate.0 < *best_index || (candidate.0 == *best_index && candidate.1 > *best_rank)
-                {
+                if candidate.1 > *best_rank {
                     *best_index = candidate.0;
                     *best_rank = candidate.1;
                     *best_entity = candidate.2;
@@ -169,7 +213,7 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         else {
             continue;
         };
-        if let Ok((_, _, _, _, click_pallet)) = item_query.get_mut(item_entity) {
+        if let Ok((_, _, _, _, _, _, _, click_pallet)) = item_query.get_mut(item_entity) {
             if let Some(click_pallet) = click_pallet {
                 TransientAudioPallet::play_transient_audio(
                     item_entity,
@@ -220,6 +264,7 @@ pub(super) fn handle_resolution_dropdown_item_commands(
 
 pub(super) fn close_resolution_dropdown_on_outside_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
+    cursor: Res<crate::startup::cursor::CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     settings: Res<VideoSettingsState>,
@@ -228,15 +273,32 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
     mut dropdown_state: ResMut<DropdownLayerState>,
+    dropdown_hit_query: Query<
+        (
+            Entity,
+            &Transform,
+            &GlobalTransform,
+            &Sprite,
+            Option<&InheritedVisibility>,
+        ),
+        With<VideoResolutionDropdown>,
+    >,
     item_query: Query<
         (
             &ChildOf,
             &Clickable<SystemMenuActions>,
-            &InteractionVisualState,
+            &Transform,
+            &GlobalTransform,
+            Option<&InheritedVisibility>,
         ),
         With<VideoResolutionDropdownItem>,
     >,
 ) {
+    // Query contract:
+    // - `layer_queries` separates read-only active-layer resolution (`p0`) from
+    //   dropdown visibility mutation (`p1`) to keep visibility access disjoint.
+    // - dropdown hit/item queries are read-only and keyed by explicit dropdown
+    //   markers, so outside-click evaluation cannot alias menu mutators.
     if !settings.initialized || !mouse_input.just_pressed(MouseButton::Left) {
         return;
     }
@@ -256,11 +318,61 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
         .filter_map(|active| (active.kind == UiLayerKind::Dropdown).then_some(active.entity))
         .collect();
 
-    // If a dropdown row handled this click, keep normal item-selection flow.
-    let clicked_item = item_query.iter().any(|(parent, clickable, visual_state)| {
-        active_dropdowns.contains(&parent.parent()) && (clickable.triggered || visual_state.pressed)
+    let cursor_position = cursor.position;
+    let click_inside_item = cursor_position.is_some_and(|cursor_position| {
+        item_query.iter().any(
+            |(
+                parent,
+                clickable,
+                transform,
+                global_transform,
+                inherited_visibility,
+            )| {
+                if !active_dropdowns.contains(&parent.parent()) {
+                    return false;
+                }
+                if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                    return false;
+                }
+                clickable.region.is_some_and(|region| {
+                    crate::systems::interaction::is_cursor_within_region(
+                        cursor_position,
+                        transform,
+                        global_transform,
+                        region,
+                        Vec2::ZERO,
+                    )
+                })
+            },
+        )
     });
-    if clicked_item {
+    if click_inside_item {
+        return;
+    }
+
+    let click_inside_dropdown_surface = cursor_position.is_some_and(|cursor_position| {
+        dropdown_hit_query
+            .iter()
+            .any(|(dropdown_entity, transform, global_transform, sprite, inherited_visibility)| {
+                if !active_dropdowns.contains(&dropdown_entity) {
+                    return false;
+                }
+                if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                    return false;
+                }
+                let Some(size) = sprite.custom_size else {
+                    return false;
+                };
+                crate::systems::interaction::is_cursor_within_region(
+                    cursor_position,
+                    transform,
+                    global_transform,
+                    size,
+                    Vec2::ZERO,
+                )
+            })
+    });
+    if click_inside_dropdown_surface {
         return;
     }
 
@@ -293,10 +405,18 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
         Query<(Entity, &MenuStack, &MenuRoot, &mut SelectableMenu)>,
         Query<&mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>,
     )>,
+    mut scroll_root_query: Query<
+        (
+            &scroll_adapter::ScrollableTableAdapter,
+            &mut crate::systems::ui::scroll::ScrollState,
+            &mut crate::systems::ui::scroll::ScrollFocusFollowLock,
+        ),
+        With<VideoTopOptionsScrollRoot>,
+    >,
     mut option_query: Query<
         (
             &Selectable,
-            &mut InteractionVisualState,
+            &mut Hoverable,
             &mut Clickable<SystemMenuActions>,
         ),
         With<MenuOptionCommand>,
@@ -377,17 +497,14 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                     close_dropdowns_for_menu(menu_entity, &mut dropdown_state, &mut dropdown_query);
                     return;
                 }
-                for (selectable, mut visual_state, mut clickable) in option_query.iter_mut() {
+                for (selectable, mut hoverable, mut clickable) in option_query.iter_mut()
+                {
                     if selectable.menu_entity != menu_entity {
                         continue;
                     }
                     clickable.triggered = false;
-                    if selectable.index == selected_row {
-                        visual_state.selected = true;
-                    } else {
-                        visual_state.selected = false;
-                        visual_state.hovered = false;
-                        visual_state.pressed = false;
+                    if selectable.index != selected_row {
+                        hoverable.hovered = false;
                     }
                 }
 
@@ -403,6 +520,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                             &mut dropdown_state,
                             &mut dropdown_query,
                             &mut dropdown_menu_query,
+                            &mut scroll_root_query,
                         );
                     }
                 } else if (left_pressed && !right_pressed) || backspace_pressed || escape_pressed {
@@ -430,6 +548,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                     &mut dropdown_state,
                     &mut dropdown_query,
                     &mut dropdown_menu_query,
+                    &mut scroll_root_query,
                 );
             }
         }
@@ -456,6 +575,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                 &mut dropdown_state,
                 &mut dropdown_query,
                 &mut dropdown_menu_query,
+                &mut scroll_root_query,
             );
         }
     }
