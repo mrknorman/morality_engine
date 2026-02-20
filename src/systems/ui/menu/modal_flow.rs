@@ -1,5 +1,6 @@
 use super::*;
 use bevy::sprite::Anchor;
+use std::collections::HashMap;
 use crate::{
     entities::{
         sprites::compound::HollowRectangle,
@@ -267,24 +268,19 @@ pub(super) fn handle_video_modal_shortcuts(
 
     let active_layers =
         layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
-    let mut eligible_modals: Vec<(Entity, Entity, bool, bool)> = Vec::new();
+    let mut modal_kind_by_owner: HashMap<Entity, (bool, bool)> = HashMap::new();
     for (modal_entity, ui_layer, is_apply_modal, is_exit_modal) in modal_query.iter() {
         if layer::active_layer_kind_for_owner(&active_layers, ui_layer.owner) != UiLayerKind::Modal
             || !layer::is_active_layer_entity_for_owner(&active_layers, ui_layer.owner, modal_entity)
         {
             continue;
         }
-        eligible_modals.push((
-            ui_layer.owner,
-            modal_entity,
-            is_apply_modal.is_some(),
-            is_exit_modal.is_some(),
-        ));
+        modal_kind_by_owner.insert(ui_layer.owner, (is_apply_modal.is_some(), is_exit_modal.is_some()));
     }
-    eligible_modals
-        .sort_by_key(|(owner, modal_entity, _, _)| (owner.index(), modal_entity.index()));
-
-    for (_, _, is_apply_modal, is_exit_modal) in eligible_modals {
+    for owner in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Modal) {
+        let Some((is_apply_modal, is_exit_modal)) = modal_kind_by_owner.get(&owner).copied() else {
+            continue;
+        };
 
         let target_button = if is_apply_modal {
             if yes_pressed {

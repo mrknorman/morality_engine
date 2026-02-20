@@ -228,11 +228,8 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         return;
     }
 
-    let mut sorted_owners: Vec<Entity> = chosen_by_owner.keys().copied().collect();
-    sorted_owners.sort_by_key(|entity| entity.index());
-
     let mut close_targets: Vec<(Entity, Entity)> = Vec::new();
-    for owner in sorted_owners {
+    for owner in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Dropdown) {
         let Some((selected_index, _, item_entity, menu_entity)) = chosen_by_owner.get(&owner).copied()
         else {
             continue;
@@ -277,9 +274,6 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         );
         close_targets.push((owner, menu_entity));
     }
-
-    close_targets.sort_by_key(|(owner, menu)| (owner.index(), menu.index()));
-    close_targets.dedup();
 
     let mut dropdown_query = layer_queries.p1();
     for (owner, menu_entity) in close_targets {
@@ -430,7 +424,6 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     mut selectable_menu_queries: ParamSet<(
         Query<(Entity, &MenuStack, &MenuRoot, &mut SelectableMenu)>,
         Query<&mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>,
-        Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     )>,
     mut scroll_root_query: Query<
         (
@@ -484,30 +477,14 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     };
     let mut dropdown_query = layer_queries.p1();
     let mut selected_dropdown_menu: Option<(Entity, usize, VideoTabKind)> = None;
-    let mut ordered_video_menus: Vec<Entity> = {
-        let menu_query = selectable_menu_queries.p2();
-        let mut menu_entities = Vec::new();
-        for (menu_entity, menu_stack, menu_root, _) in menu_query.iter() {
-            if !interaction_gate_allows_for_owner(
-                Some(&menu_root.gate),
-                pause_state,
-                &capture_query,
-                menu_entity,
-            ) {
-                continue;
-            }
-            if menu_stack.current_page() != Some(MenuPage::Video) {
-                continue;
-            }
-            menu_entities.push(menu_entity);
-        }
-        menu_entities
-    };
-    ordered_video_menus.sort_by_key(|menu_entity| menu_entity.index());
+    let ordered_menu_owners: Vec<Entity> = layer::ordered_active_layers_by_owner(&active_layers)
+        .into_iter()
+        .map(|(owner, _)| owner)
+        .collect();
 
     {
         let mut menu_query = selectable_menu_queries.p0();
-        for menu_entity in ordered_video_menus {
+        for menu_entity in ordered_menu_owners {
             let Ok((_, menu_stack, menu_root, mut selectable_menu)) = menu_query.get_mut(menu_entity) else {
                 continue;
             };

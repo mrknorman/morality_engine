@@ -70,6 +70,27 @@ pub fn is_active_layer_entity_for_owner(
         .is_some_and(|active| active.entity == layer_entity)
 }
 
+pub fn ordered_active_layers_by_owner(
+    active_layers: &HashMap<Entity, ActiveUiLayer>,
+) -> Vec<(Entity, ActiveUiLayer)> {
+    let mut ordered: Vec<(Entity, ActiveUiLayer)> = active_layers
+        .iter()
+        .map(|(owner, active_layer)| (*owner, *active_layer))
+        .collect();
+    ordered.sort_by_key(|(owner, active_layer)| (owner.index(), active_layer.entity.index()));
+    ordered
+}
+
+pub fn ordered_active_owners_by_kind(
+    active_layers: &HashMap<Entity, ActiveUiLayer>,
+    kind: UiLayerKind,
+) -> Vec<Entity> {
+    ordered_active_layers_by_owner(active_layers)
+        .into_iter()
+        .filter_map(|(owner, active_layer)| (active_layer.kind == kind).then_some(owner))
+        .collect()
+}
+
 fn is_visible(visibility: Option<&Visibility>) -> bool {
     visibility.copied().unwrap_or(Visibility::Visible) != Visibility::Hidden
 }
@@ -164,5 +185,69 @@ mod tests {
             Some(second)
         };
         assert_eq!(resolved, expected);
+    }
+
+    #[test]
+    fn ordered_active_layers_by_owner_returns_stable_owner_order() {
+        let mut world = World::new();
+        let owner_a = world.spawn_empty().id();
+        let owner_b = world.spawn_empty().id();
+        assert!(owner_a.index() < owner_b.index());
+        let mut active_layers = HashMap::new();
+        active_layers.insert(
+            owner_b,
+            ActiveUiLayer {
+                entity: world.spawn_empty().id(),
+                kind: UiLayerKind::Dropdown,
+            },
+        );
+        active_layers.insert(
+            owner_a,
+            ActiveUiLayer {
+                entity: world.spawn_empty().id(),
+                kind: UiLayerKind::Base,
+            },
+        );
+
+        let ordered = ordered_active_layers_by_owner(&active_layers);
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].0, owner_a);
+        assert_eq!(ordered[1].0, owner_b);
+    }
+
+    #[test]
+    fn ordered_active_owners_by_kind_filters_and_keeps_owner_order() {
+        let mut world = World::new();
+        let owner_a = world.spawn_empty().id();
+        let owner_b = world.spawn_empty().id();
+        let owner_c = world.spawn_empty().id();
+        assert!(owner_a.index() < owner_b.index());
+        assert!(owner_b.index() < owner_c.index());
+
+        let mut active_layers = HashMap::new();
+        active_layers.insert(
+            owner_b,
+            ActiveUiLayer {
+                entity: world.spawn_empty().id(),
+                kind: UiLayerKind::Dropdown,
+            },
+        );
+        active_layers.insert(
+            owner_a,
+            ActiveUiLayer {
+                entity: world.spawn_empty().id(),
+                kind: UiLayerKind::Base,
+            },
+        );
+        active_layers.insert(
+            owner_c,
+            ActiveUiLayer {
+                entity: world.spawn_empty().id(),
+                kind: UiLayerKind::Dropdown,
+            },
+        );
+
+        let ordered = ordered_active_owners_by_kind(&active_layers, UiLayerKind::Dropdown);
+        assert_eq!(ordered, vec![owner_b, owner_c]);
     }
 }

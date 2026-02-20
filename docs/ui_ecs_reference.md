@@ -431,10 +431,13 @@ These helpers are reusable for any dropdown component type `D` and any root-owne
   - `Visibility`
   - owner-scoped interaction capture + `InteractionGate`
   - kind priority (`Modal > Dropdown > Base`)
+- `ordered_active_layers_by_owner(...)`: deterministic owner-first traversal helper.
+- `ordered_active_owners_by_kind(...)`: deterministic owner traversal filtered by active layer kind.
 
 Usage rule:
 
 - Attach `UiLayer` to every menu-layer root you spawn, then use `active_layers_by_owner_scoped(...)` in shortcut/command systems instead of custom modal/dropdown-open checks.
+- For owner-level shortcut/command routing, iterate owners via `ordered_active_owners_by_kind(...)` instead of local hash/query sorting.
 
 ### Selector/Shortcut Utilities (Shared UI)
 
@@ -527,6 +530,7 @@ Conflict safety:
 - If a system reads layer visibility (`Option<&Visibility>`) and also mutates dropdown visibility (`&mut Visibility`), place those queries in one `ParamSet` and access them sequentially.
 - Prefer this over relying on implicit disjointness.
 - Where systems aggregate by menu (`HashMap<Entity, ...>`), process owners in stable entity order to avoid query-iteration-order behavior drift.
+- Prefer shared layer ordering helpers (`ordered_active_layers_by_owner`, `ordered_active_owners_by_kind`) over ad-hoc per-system sorting.
 - For shortcut dispatch paths (escape/directional/modal/dropdown), avoid first-match query iteration behavior:
   collect candidates, then resolve by explicit owner/menu/entity ranking.
 - For multi-owner dropdown keyboard-open paths, resolve one owner deterministically (stable owner/index ranking) before mutating dropdown visibility.

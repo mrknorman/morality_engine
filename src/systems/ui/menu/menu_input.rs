@@ -38,8 +38,11 @@ fn handle_escape_shortcut_for_active_menus(
         return;
     }
 
-    let mut eligible_menus: Vec<(Entity, MenuPage, InteractionGate)> = Vec::new();
-    for (menu_entity, menu_stack, menu_root, _) in menu_query.iter() {
+    let mut selected_menu: Option<(Entity, MenuPage, InteractionGate)> = None;
+    for menu_entity in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Base) {
+        let Ok((_, menu_stack, menu_root, _)) = menu_query.get(menu_entity) else {
+            continue;
+        };
         if !menu_is_active_base_layer(
             menu_entity,
             menu_root,
@@ -53,10 +56,10 @@ fn handle_escape_shortcut_for_active_menus(
         let Some(page) = menu_stack.current_page() else {
             continue;
         };
-        eligible_menus.push((menu_entity, page, menu_root.gate));
+        selected_menu = Some((menu_entity, page, menu_root.gate));
+        break;
     }
-    eligible_menus.sort_by_key(|(menu_entity, _, _)| menu_entity.index());
-    let Some((menu_entity, page, gate)) = eligible_menus.first().copied() else {
+    let Some((menu_entity, page, gate)) = selected_menu else {
         return;
     };
 
@@ -79,7 +82,10 @@ fn collect_active_menu_shortcut_context(
     tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
 ) -> ActiveMenuShortcutContext {
     let mut context = ActiveMenuShortcutContext::default();
-    for (menu_entity, menu_stack, menu_root, selectable_menu) in menu_query.iter() {
+    for menu_entity in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Base) {
+        let Ok((_, menu_stack, menu_root, selectable_menu)) = menu_query.get(menu_entity) else {
+            continue;
+        };
         if !menu_is_active_base_layer(
             menu_entity,
             menu_root,
@@ -275,12 +281,7 @@ pub(super) fn play_menu_navigation_sound(
     let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
     let tab_pressed = keyboard_input.just_pressed(KeyCode::Tab);
     let horizontal_pressed = left_pressed ^ right_pressed;
-    let mut ordered_active_layers: Vec<(Entity, layer::ActiveUiLayer)> = active_layers
-        .iter()
-        .map(|(owner, active_layer)| (*owner, *active_layer))
-        .collect();
-    ordered_active_layers.sort_by_key(|(owner, active_layer)| (owner.index(), active_layer.entity.index()));
-    for (_, active_layer) in ordered_active_layers {
+    for (_, active_layer) in layer::ordered_active_layers_by_owner(&active_layers) {
         let Ok((layer_entity, menu_stack, menu, pallet)) = layer_menu_query.get(active_layer.entity) else {
             continue;
         };

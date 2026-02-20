@@ -41,6 +41,9 @@ Legend:
   - Contract docs are aligned with current boundaries and now cross-referenced by the compliance matrix (`docs/ui_compliance_matrix.md`).
 - Stage 3 Owner-Scoped Interaction Context + Layer Manager: `status: partial`
   - Owner-scoped layer arbitration is broadly used; some behavior still feels nondeterministic under mixed input.
+  - Recent progress: shared deterministic owner ordering helper (`layer::ordered_active_layers_by_owner`) is now used in menu navigation routing instead of ad-hoc local sorting.
+  - Recent progress: shared owner-kind helper (`layer::ordered_active_owners_by_kind`) now drives owner iteration in escape shortcut routing, modal shortcut routing, and dropdown item resolution.
+  - Recent progress: dropdown keyboard-navigation owner traversal now uses shared active-layer ordering instead of local menu-query sorting.
 - Stage 4 Primitive Contract Normalization: `status: partial`
   - Primitive roots exist for menu surface, dropdown, tabs, selector, scroll, hover box, slider.
   - `SystemMenuOptionRoot` now owns option wiring via `#[require]` + `on_insert`.
@@ -66,6 +69,7 @@ Legend:
   - Recent progress: directional shortcut dispatch now resolves deterministically per menu by entity rank, and emits intents in stable owner order.
   - Recent progress: escape/modal/dropdown keyboard shortcut routing now uses deterministic owner/menu ordering rather than query first-match behavior.
   - Recent progress: dropdown keyboard-open flow now deterministically chooses the lowest owner index when multiple owners match in-frame.
+  - Recent progress: dropdown value-apply routing now resolves active dropdown owners in shared layer order, removing local hash-key sort/dedup behavior.
   - Remaining work is focused on mixed-input determinism tests and eliminating remaining behavior fallbacks that still read visual-state output.
 - Stage 10 Main Menu Composition Migration: `status: done`
   - Main menu options now route through shared `MenuCommand` reducer/effects, including `NextScene` and options-overlay spawn effects.
@@ -106,6 +110,7 @@ Legend:
     - `debug_showcase::debug_showcase_systems_initialize_without_query_alias_panics`
     - `tabbed_menu::tabbed_menu_systems_initialize_without_query_alias_panics`
     - `video_visuals::video_visual_systems_initialize_without_query_alias_panics`
+  - `./scripts/ui_query_safety.sh` passes after the latest layer-ordering refactor.
   - Still requires full pass and stress validation.
 - Stage 18 Test Coverage Expansion: `status: partial`
   - Added targeted regression tests for footer highlight resolution and hover description mapping.
