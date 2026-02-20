@@ -63,6 +63,7 @@ Progress notes:
 - `ScrollBar` now enforces required root contracts (`Transform`, `Visibility`, drag state) in `src/systems/ui/scroll/mod.rs`.
 - `SelectorSurface` now provides a root primitive contract for selector/cycler rows (`Selectable` + optional `OptionCycler` via insert hook) in `src/systems/ui/selector.rs`.
 - Menu composition now adopts `SelectorSurface` for video tabs/dropdown rows/cyclers and debug showcase tabs/dropdowns in `src/systems/ui/menu/page_content.rs` and `src/systems/ui/menu/debug_showcase.rs`.
+- `SystemMenuOptionBundle` now routes selection construction through `SelectorSurface` (instead of directly embedding `Selectable`) in `src/startup/system_menu.rs`.
 
 ## Stage 3: Menu Composition Migration
 
