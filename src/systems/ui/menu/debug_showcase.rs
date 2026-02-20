@@ -740,9 +740,15 @@ pub(super) fn sync_tabs_demo_visuals(
         &mut Text2d,
         &mut TextFont,
         &mut TextColor,
-    )>,
-    mut content_query: Query<(&DebugTabsDemoContent, &mut Text2d)>,
+    ), Without<DebugTabsDemoContent>>,
+    mut content_query: Query<
+        (&DebugTabsDemoContent, &mut Text2d),
+        Without<DebugTabsDemoLabel>,
+    >,
 ) {
+    // Query contract:
+    // - Label/content text queries are disjoint via reciprocal `Without` filters.
+    // - This keeps mutable `Text2d` access B0001-safe.
     for (label, hoverable, mut text, mut font, mut color) in label_query.iter_mut() {
         let Ok(tab_state) = tab_state_query.get(label.root) else {
             continue;
@@ -924,7 +930,7 @@ pub(super) fn sync_dropdown_demo_visuals(
         &mut Text2d,
         &mut TextFont,
         &mut TextColor,
-    )>,
+    ), Without<DebugDropdownDemoItem>>,
     mut item_query: Query<(
         &DebugDropdownDemoItem,
         &Hoverable,
@@ -932,8 +938,11 @@ pub(super) fn sync_dropdown_demo_visuals(
         &mut Text2d,
         &mut TextFont,
         &mut TextColor,
-    )>,
+    ), Without<DebugDropdownDemoTrigger>>,
 ) {
+    // Query contract:
+    // - Trigger/item text queries are disjoint via reciprocal `Without` filters.
+    // - This keeps mutable `Text2d`/`TextFont`/`TextColor` access B0001-safe.
     for (trigger, hoverable, mut text, mut font, mut color) in trigger_query.iter_mut() {
         let Ok((menu, state)) = owner_query.get(trigger.owner) else {
             continue;
@@ -1006,5 +1015,13 @@ mod tests {
     fn cycle_index_handles_empty_collections() {
         assert_eq!(cycle_index(0, 0, 1), 0);
         assert_eq!(cycle_index(3, 0, -1), 0);
+    }
+
+    #[test]
+    fn visual_sync_systems_run_without_query_alias_panics() {
+        let mut world = World::new();
+        let mut schedule = Schedule::default();
+        schedule.add_systems((sync_tabs_demo_visuals, sync_dropdown_demo_visuals));
+        schedule.run(&mut world);
     }
 }
