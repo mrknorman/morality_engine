@@ -10,7 +10,7 @@ use bevy::{
 use std::collections::{HashMap, HashSet};
 
 use crate::systems::{
-    interaction::SelectableMenu,
+    interaction::{SelectableClickActivation, SelectableMenu},
     ui::layer::{UiLayer, UiLayerKind},
 };
 
@@ -19,11 +19,23 @@ use crate::systems::{
 #[component(on_insert = DropdownSurface::on_insert)]
 pub struct DropdownSurface {
     pub owner: Entity,
+    pub click_activation: SelectableClickActivation,
 }
 
 impl DropdownSurface {
     pub const fn new(owner: Entity) -> Self {
-        Self { owner }
+        Self {
+            owner,
+            click_activation: SelectableClickActivation::SelectedOnAnyClick,
+        }
+    }
+
+    pub const fn with_click_activation(
+        mut self,
+        click_activation: SelectableClickActivation,
+    ) -> Self {
+        self.click_activation = click_activation;
+        self
     }
 
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
@@ -36,6 +48,18 @@ impl DropdownSurface {
                 .commands()
                 .entity(entity)
                 .insert(UiLayer::new(surface.owner, UiLayerKind::Dropdown));
+        }
+
+        if let Some(existing) = world.entity(entity).get::<SelectableMenu>().cloned() {
+            if existing.click_activation != surface.click_activation {
+                world.commands().entity(entity).insert(
+                    existing.with_click_activation(surface.click_activation),
+                );
+            }
+        } else {
+            world.commands().entity(entity).insert(
+                SelectableMenu::default().with_click_activation(surface.click_activation),
+            );
         }
 
         let visibility_is_default = world
@@ -145,7 +169,7 @@ impl DropdownAnchorState {
 mod tests {
     use super::{DropdownAnchorState, DropdownSurface};
     use crate::systems::{
-        interaction::SelectableMenu,
+        interaction::{SelectableClickActivation, SelectableMenu},
         ui::layer::{UiLayer, UiLayerKind},
     };
     use bevy::prelude::{Entity, Visibility, World};
@@ -168,12 +192,24 @@ mod tests {
     fn dropdown_surface_insertion_adds_required_layer_and_hidden_visibility() {
         let mut world = World::new();
         let owner = world.spawn_empty().id();
-        let dropdown = world.spawn(DropdownSurface::new(owner)).id();
+        let dropdown = world
+            .spawn(
+                DropdownSurface::new(owner)
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            )
+            .id();
 
         assert!(world.entity(dropdown).get::<SelectableMenu>().is_some());
         assert_eq!(
             world.entity(dropdown).get::<UiLayer>(),
             Some(&UiLayer::new(owner, UiLayerKind::Dropdown))
+        );
+        assert_eq!(
+            world
+                .entity(dropdown)
+                .get::<SelectableMenu>()
+                .map(|menu| menu.click_activation),
+            Some(SelectableClickActivation::HoveredOnly)
         );
         assert_eq!(
             world.entity(dropdown).get::<Visibility>(),
