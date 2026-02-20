@@ -7,6 +7,8 @@ use crate::{
         colors::SYSTEM_MENU_COLOR,
         ui::{
             discrete_slider::DiscreteSlider,
+            hover_box,
+            selector::SelectorSurface,
             scroll::{
                 ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
                 ScrollableRoot, ScrollableViewport,
@@ -70,6 +72,7 @@ pub(super) fn spawn_page_content(
     let page_def = page_definition(page);
     let is_video_page = matches!(page, MenuPage::Video);
     let mut video_top_options_parent = None;
+    let mut video_option_hover_box_root = None;
 
     system_menu::spawn_chrome_with_marker(
         commands,
@@ -85,6 +88,36 @@ pub(super) fn spawn_page_content(
 
     if is_video_page {
         commands.entity(menu_entity).with_children(|parent| {
+            let hover_box_clamp_size = Vec2::new(
+                (page_def.layout.panel_size.x - VIDEO_HOVER_BOX_CLAMP_INSET.x * 2.0).max(120.0),
+                (page_def.layout.panel_size.y - VIDEO_HOVER_BOX_CLAMP_INSET.y * 2.0).max(120.0),
+            );
+            let hover_box_style = hover_box::HoverBoxStyle::default()
+                .with_size(VIDEO_HOVER_BOX_SIZE)
+                .with_font_size(VIDEO_HOVER_BOX_TEXT_SIZE);
+            let option_hover_root = hover_box::spawn_hover_box_root(
+                parent,
+                "system_video_option_hover_box",
+                menu_entity,
+                UiLayerKind::Base,
+                hover_box_clamp_size,
+                hover_box_style,
+                VIDEO_HOVER_BOX_DELAY_SECONDS,
+                (MenuPageContent, VideoOptionHoverBoxRoot),
+            );
+            let dropdown_hover_style = hover_box_style.with_z(VIDEO_DROPDOWN_HOVER_BOX_Z);
+            let dropdown_hover_root = hover_box::spawn_hover_box_root(
+                parent,
+                "system_video_dropdown_hover_box",
+                menu_entity,
+                UiLayerKind::Dropdown,
+                hover_box_clamp_size,
+                dropdown_hover_style,
+                VIDEO_HOVER_BOX_DELAY_SECONDS,
+                (MenuPageContent, VideoDropdownHoverBoxRoot),
+            );
+            video_option_hover_box_root = Some(option_hover_root);
+
             let top_scroll_root = parent
                 .spawn((
                     Name::new("system_video_top_options_scroll_root"),
@@ -92,6 +125,7 @@ pub(super) fn spawn_page_content(
                     VideoTopOptionsScrollRoot,
                     gate,
                     ScrollableRoot::new(menu_entity, ScrollAxis::Vertical)
+                        .with_edge_zones(12.0, VIDEO_TOP_SCROLL_VIEWPORT_VERTICAL_INSET)
                         .with_input_layer(UiLayerKind::Base),
                     ScrollableViewport::new(Vec2::new(
                         VIDEO_TABLE_TOTAL_WIDTH,
@@ -200,7 +234,7 @@ pub(super) fn spawn_page_content(
                         gate,
                         VideoTabOption { index: tab_index },
                         tabs::TabItem { index: tab_index },
-                        Selectable::new(tabs_entity, tab_index),
+                        SelectorSurface::new(tabs_entity, tab_index),
                         Clickable::with_region(
                             vec![SystemMenuActions::Activate],
                             Vec2::new(tab_hitbox_width, tab_hitbox_height),
@@ -274,14 +308,14 @@ pub(super) fn spawn_page_content(
 
                     for index in 0..VIDEO_DROPDOWN_MAX_ROWS {
                         let base_y = dropdown_item_local_center_y(index, dropdown_rows);
-                        dropdown
+                        let dropdown_item_entity = dropdown
                             .spawn((
                                 Name::new(format!("system_video_resolution_dropdown_item_{index}")),
                                 MenuPageContent,
                                 VideoResolutionDropdownItem { index },
                                 TextButton,
                                 gate,
-                                Selectable::new(dropdown_entity, index),
+                                SelectorSurface::new(dropdown_entity, index),
                                 Clickable::with_region(
                                     vec![SystemMenuActions::Activate],
                                     Vec2::new(
@@ -307,7 +341,18 @@ pub(super) fn spawn_page_content(
                                 Transform::from_xyz(0.0, base_y, VIDEO_RESOLUTION_DROPDOWN_ITEM_Z),
                                 click_audio(),
                             ))
-                            .insert(VideoResolutionDropdownItemBaseY(base_y));
+                            .id();
+                        dropdown.commands().entity(dropdown_item_entity).insert((
+                            VideoResolutionDropdownItemBaseY(base_y),
+                            hover_box::HoverBoxTarget::new(
+                                dropdown_hover_root,
+                                Vec2::new(
+                                    VIDEO_RESOLUTION_DROPDOWN_WIDTH - 8.0,
+                                    VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT,
+                                ),
+                            ),
+                            hover_box::HoverBoxContent::default(),
+                        ));
                     }
                 });
         });
@@ -380,6 +425,19 @@ pub(super) fn spawn_page_content(
                         index,
                         VIDEO_TABLE_ROW_HEIGHT,
                     ));
+                    if let Some(hover_root) = video_option_hover_box_root {
+                        entity.insert((
+                            hover_box::HoverBoxTarget::new(
+                                hover_root,
+                                Vec2::new(VIDEO_TABLE_LABEL_COLUMN_WIDTH, VIDEO_OPTION_REGION_HEIGHT),
+                            )
+                            .with_hover_region(
+                                Vec2::new(VIDEO_TABLE_LABEL_COLUMN_WIDTH, VIDEO_OPTION_REGION_HEIGHT),
+                                Vec2::new(VIDEO_NAME_COLUMN_CENTER_X, 0.0),
+                            ),
+                            hover_box::HoverBoxContent::default(),
+                        ));
+                    }
                 }
                 entity_id = Some(entity.id());
             });
@@ -393,7 +451,9 @@ pub(super) fn spawn_page_content(
             }
 
             if option.cyclable {
-                commands.entity(entity_id).insert(OptionCycler::default());
+                commands
+                    .entity(entity_id)
+                    .insert(SelectorSurface::new(menu_entity, index).with_cycler());
             }
 
             if index < VIDEO_TOP_OPTION_COUNT {
