@@ -574,9 +574,6 @@ fn apply_snapshot_to_post_processing(
             VideoMsaa::Off => Msaa::Off,
             VideoMsaa::Sample2 => Msaa::Sample2,
             VideoMsaa::Sample4 => Msaa::Sample4,
-            // HDR render target formats commonly cap guaranteed MSAA at 4x.
-            // Clamp 8x to 4x to avoid device validation panics.
-            VideoMsaa::Sample8 => Msaa::Sample4,
         };
     }
 }

@@ -148,17 +148,9 @@ impl Default for HoverBoxDelay {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum HoverBoxAnchor {
-    #[default]
-    Below,
-    Above,
-}
-
 #[derive(Component, Clone, Copy, Debug)]
 pub struct HoverBoxTarget {
     pub root: Entity,
-    pub anchor: HoverBoxAnchor,
     pub anchor_offset: Vec2,
     pub target_size: Vec2,
     pub hover_region: Option<Vec2>,
@@ -169,22 +161,11 @@ impl HoverBoxTarget {
     pub const fn new(root: Entity, target_size: Vec2) -> Self {
         Self {
             root,
-            anchor: HoverBoxAnchor::Below,
             anchor_offset: Vec2::ZERO,
             target_size,
             hover_region: None,
             hover_region_offset: Vec2::ZERO,
         }
-    }
-
-    pub const fn with_anchor(mut self, anchor: HoverBoxAnchor) -> Self {
-        self.anchor = anchor;
-        self
-    }
-
-    pub const fn with_anchor_offset(mut self, offset: Vec2) -> Self {
-        self.anchor_offset = offset;
-        self
     }
 
     pub const fn with_hover_region(mut self, region: Vec2, offset: Vec2) -> Self {
@@ -200,10 +181,6 @@ pub struct HoverBoxContent {
 }
 
 impl HoverBoxContent {
-    pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into() }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.text.trim().is_empty()
     }
@@ -274,7 +251,6 @@ struct HoverBoxCandidate {
     target_entity: Entity,
     target_center_world: Vec2,
     target_size: Vec2,
-    anchor: HoverBoxAnchor,
     anchor_offset: Vec2,
     content: String,
     z: f32,
@@ -465,7 +441,6 @@ fn sync_hover_boxes(
                 target_entity,
                 target_center_world: target_global.translation().truncate(),
                 target_size: target.target_size,
-                anchor: target.anchor,
                 anchor_offset: target.anchor_offset,
                 content: content.text.clone(),
                 z: target_global.translation().z,
@@ -529,10 +504,7 @@ fn sync_hover_boxes(
         let mut hover_center_world = candidate.target_center_world + candidate.anchor_offset;
         let target_half_height = candidate.target_size.y * 0.5;
         let box_half_size = style.size * 0.5;
-        hover_center_world.y += match candidate.anchor {
-            HoverBoxAnchor::Below => -(target_half_height + style.target_gap + box_half_size.y),
-            HoverBoxAnchor::Above => target_half_height + style.target_gap + box_half_size.y,
-        };
+        hover_center_world.y -= target_half_height + style.target_gap + box_half_size.y;
 
         let owner_center_world = owner_global.translation().truncate();
         let half_clamp = root.clamp_size * 0.5;
@@ -664,7 +636,9 @@ mod tests {
             .id();
         app.world_mut().spawn((
             HoverBoxTarget::new(root, Vec2::new(100.0, 24.0)),
-            HoverBoxContent::new("tooltip"),
+            HoverBoxContent {
+                text: "tooltip".to_string(),
+            },
             Hoverable { hovered: true },
             Transform::default(),
             GlobalTransform::default(),

@@ -383,7 +383,6 @@ pub(super) enum VideoMsaa {
     Off,
     Sample2,
     Sample4,
-    Sample8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1603,8 +1602,6 @@ impl VideoTopOptionKey {
                 VideoMsaa::Off => 0,
                 VideoMsaa::Sample2 => 1,
                 VideoMsaa::Sample4 => 2,
-                // 8x is represented by the highest supported option in the UI model.
-                VideoMsaa::Sample8 => 2,
             },
             VideoTopOptionKey::WindowResizable => {
                 if snapshot.window_resizable { 0 } else { 1 }
@@ -2326,7 +2323,6 @@ pub(super) fn msaa_text(msaa: VideoMsaa) -> &'static str {
         VideoMsaa::Off => "Off",
         VideoMsaa::Sample2 => "2x",
         VideoMsaa::Sample4 => "4x",
-        VideoMsaa::Sample8 => "8x",
     }
 }
 
