@@ -66,6 +66,7 @@ Progress notes:
 - `DropdownSurface` now provides a root dropdown primitive contract (`UiLayer::Dropdown`, default hidden visibility, selectable menu baseline) via insert hook in `src/systems/ui/dropdown.rs`, and video dropdown composition now consumes it in `src/systems/ui/menu/page_content.rs`.
 - `SystemMenuOptionBundle` now routes selection construction through `SelectorSurface` (instead of directly embedding `Selectable`) in `src/startup/system_menu.rs`.
 - `MenuSurface` now provides a root menu primitive contract (`UiLayer`, `SelectableMenu`, click-activation policy) via insert hook in `src/systems/ui/menu_surface.rs`, and root menu spawning now consumes it in `src/systems/ui/menu/root_spawn.rs`.
+- Debug showcase menu roots now also consume `MenuSurface` (including dropdown-layer panel ownership) in `src/systems/ui/menu/debug_showcase.rs`.
 
 ## Stage 3: Menu Composition Migration
 
