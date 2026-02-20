@@ -1,5 +1,10 @@
 use super::*;
 
+#[inline]
+fn video_row_supports_dropdown(active_tab: VideoTabKind, row: usize) -> bool {
+    row < VIDEO_TOP_OPTION_COUNT && video_top_option_uses_dropdown(active_tab, row)
+}
+
 pub(super) fn open_dropdown_for_menu(
     menu_entity: Entity,
     row: usize,
@@ -69,8 +74,7 @@ pub(super) fn sync_video_tab_content_state(
             menu.selected_index
         };
         let active_tab = video_tab_kind(tab_state.active_index);
-        let supports_dropdown =
-            row < VIDEO_TOP_OPTION_COUNT && video_top_option_uses_dropdown(active_tab, row);
+        let supports_dropdown = video_row_supports_dropdown(active_tab, row);
         if !supports_dropdown {
             close_dropdowns_for_menu(tab_bar.owner, &mut dropdown_state, &mut dropdown_query);
         }
@@ -481,8 +485,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                 menu_entity,
                 selected_row,
             );
-            let supports_dropdown = selected_row < VIDEO_TOP_OPTION_COUNT
-                && video_top_option_uses_dropdown(active_tab, selected_row);
+            let supports_dropdown = video_row_supports_dropdown(active_tab, selected_row);
             let active_kind = layer::active_layer_kind_for_owner(&active_layers, menu_entity);
             if active_kind == UiLayerKind::Modal {
                 continue;
@@ -491,8 +494,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
             if active_kind == UiLayerKind::Dropdown {
                 let selected_row = anchored_row;
                 selectable_menu.selected_index = selected_row;
-                let supports_dropdown = selected_row < VIDEO_TOP_OPTION_COUNT
-                    && video_top_option_uses_dropdown(active_tab, selected_row);
+                let supports_dropdown = video_row_supports_dropdown(active_tab, selected_row);
                 if !supports_dropdown {
                     close_dropdowns_for_menu(menu_entity, &mut dropdown_state, &mut dropdown_query);
                     return;
