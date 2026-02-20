@@ -70,7 +70,9 @@ Legend:
   - Legacy scene-local `MenuActions`/`ActionPallet` path and duplicate overlay-open handler were removed.
   - Scene module now only composes scene visuals/content and invokes shared menu composition.
 - Stage 11 JSON Menu/Settings Schema Interface: `status: partial`
-  - JSON schema path exists and is used for main menu options, but not generalized across settings/menu pages.
+  - JSON schema path exists and is used for main menu options.
+  - Typed command registry bridge (`schema::CommandRegistry`) now resolves string command ids to typed commands.
+  - Remaining gap: generalize schema composition across settings/menu pages.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`
   - `DiscreteSlider` primitive exists and is integrated in video options.
 - Stage 13 Scrollable RTT Primitive: `status: partial`
@@ -242,7 +244,7 @@ Deliverable:
 
 ## Stage 11: JSON Menu/Settings Schema Interface
 - [ ] Define JSON schema for menu structure (title, hint, options, shortcuts, layout bindings).
-- [ ] Implement typed command registry bridge (`string id -> typed Rust handler`).
+- [x] Implement typed command registry bridge (`string id -> typed Rust handler`).
 - [ ] Add explicit validation failures (no silent fallback).
 - [ ] Migrate one menu as pilot and evaluate extension cost.
 

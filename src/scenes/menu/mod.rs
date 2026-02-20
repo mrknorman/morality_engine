@@ -22,7 +22,7 @@ use crate::{
             InteractionPlugin, InteractionVisualPalette,
         },
         ui::menu::{
-            resolve_main_menu_command_id, schema, spawn_main_menu_option_list, MainMenuEntry,
+            main_menu_command_registry, schema, spawn_main_menu_option_list, MainMenuEntry,
         },
     },
 };
@@ -34,9 +34,9 @@ const SYSTEM_MUSIC_PATH: &str = "./audio/music/the_last_decision.ogg";
 const MAIN_MENU_SCHEMA_JSON: &str = include_str!("./content/main_menu_ui.json");
 
 static MAIN_MENU_OPTIONS: Lazy<Vec<MainMenuEntry>> = Lazy::new(|| {
-    let resolved = schema::load_and_resolve_menu_schema(
+    let resolved = schema::load_and_resolve_menu_schema_with_registry(
         MAIN_MENU_SCHEMA_JSON,
-        resolve_main_menu_command_id,
+        main_menu_command_registry(),
     )
     .unwrap_or_else(|error| panic!("invalid main menu schema: {error}"));
 

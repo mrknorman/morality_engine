@@ -1,4 +1,8 @@
-use std::{collections::HashSet, error::Error, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+    fmt,
+};
 
 use serde::Deserialize;
 
@@ -60,6 +64,35 @@ pub enum MenuSchemaError {
         command_id: String,
         reason: String,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct CommandRegistry<C> {
+    by_id: HashMap<String, C>,
+}
+
+impl<C: Clone> CommandRegistry<C> {
+    pub fn from_entries<I, S>(entries: I) -> Result<Self, String>
+    where
+        I: IntoIterator<Item = (S, C)>,
+        S: Into<String>,
+    {
+        let mut by_id = HashMap::new();
+        for (id, command) in entries {
+            let id = id.into();
+            if by_id.insert(id.clone(), command).is_some() {
+                return Err(format!("duplicate command id `{id}` in command registry"));
+            }
+        }
+        Ok(Self { by_id })
+    }
+
+    pub fn resolve(&self, command_id: &str) -> Result<C, String> {
+        self.by_id
+            .get(command_id)
+            .cloned()
+            .ok_or_else(|| format!("unknown command `{command_id}`"))
+    }
 }
 
 impl fmt::Display for MenuSchemaError {
@@ -188,9 +221,19 @@ where
     resolve_menu_schema(schema, command_resolver)
 }
 
+pub fn load_and_resolve_menu_schema_with_registry<C: Clone>(
+    json: &str,
+    registry: &CommandRegistry<C>,
+) -> Result<ResolvedMenuSchema<C>, MenuSchemaError> {
+    load_and_resolve_menu_schema(json, |command| registry.resolve(command))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{load_and_resolve_menu_schema, parse_menu_schema};
+    use super::{
+        load_and_resolve_menu_schema, load_and_resolve_menu_schema_with_registry, parse_menu_schema,
+        CommandRegistry,
+    };
 
     const VALID_SCHEMA: &str = r#"
 {
@@ -221,5 +264,32 @@ mod tests {
         let message = format!("{error}");
         assert!(message.contains("command resolution error"));
         assert!(message.contains("exit"));
+    }
+
+    #[test]
+    fn command_registry_maps_known_ids_and_reports_unknown() {
+        let registry =
+            CommandRegistry::from_entries([("start", 1usize), ("exit", 2usize)]).expect("valid");
+        assert_eq!(registry.resolve("start").expect("start should resolve"), 1usize);
+        let error = registry.resolve("invalid").expect_err("unknown command should fail");
+        assert!(error.contains("unknown command"));
+    }
+
+    #[test]
+    fn command_registry_rejects_duplicate_ids() {
+        let error = CommandRegistry::from_entries([("start", 1usize), ("start", 2usize)])
+            .expect_err("duplicate ids should fail");
+        assert!(error.contains("duplicate command id"));
+    }
+
+    #[test]
+    fn schema_can_resolve_commands_from_registry() {
+        let registry = CommandRegistry::from_entries([("start", 10usize), ("exit", 20usize)])
+            .expect("valid");
+        let resolved = load_and_resolve_menu_schema_with_registry(VALID_SCHEMA, &registry)
+            .expect("schema should resolve");
+        assert_eq!(resolved.options.len(), 2);
+        assert_eq!(resolved.options[0].command, 10usize);
+        assert_eq!(resolved.options[1].command, 20usize);
     }
 }

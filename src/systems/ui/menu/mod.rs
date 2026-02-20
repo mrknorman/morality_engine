@@ -77,7 +77,7 @@ pub use defs::{
     MenuRoot, MenuStack, PauseMenuAudio,
 };
 pub use main_menu::{
-    resolve_main_menu_command_id, spawn_main_menu_option_list, MainMenuEntry,
+    main_menu_command_registry, spawn_main_menu_option_list, MainMenuEntry,
 };
 pub use root_spawn::spawn_menu_root;
 use defs::*;

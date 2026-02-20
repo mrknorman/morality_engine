@@ -374,6 +374,19 @@ Extension rule:
 - Add a new top-row video option by adding one `VideoTopOptionKey` variant and updating its methods,
   then wire it into `video_top_option_keys(...)`.
 
+### Menu Schema Command Registry
+
+`src/systems/ui/menu/schema.rs` now includes a typed command-id bridge:
+
+- `CommandRegistry<C>` maps schema `command` strings to typed Rust commands.
+- `CommandRegistry::from_entries(...)` validates duplicate command ids up front.
+- `load_and_resolve_menu_schema_with_registry(...)` resolves a schema directly with a typed registry.
+
+Usage rule:
+
+- For schema-driven menus, prefer `CommandRegistry` over ad-hoc `match` closures so command-id
+  validation remains centralized and reusable.
+
 ### Dropdown State Resource (Shared UI)
 
 `DropdownLayerState` (`src/systems/ui/dropdown.rs`):

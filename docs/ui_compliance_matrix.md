@@ -32,7 +32,7 @@ Legend:
 | `command_effects.rs` | Compliant | Side-effect boundary for reducer outputs. | Keep deterministic effect dispatch. |
 | `command_flow.rs` | Compliant | Reducer + effects orchestration. | None. |
 | `stack.rs` | Compliant | Menu stack/navigation state model. | None. |
-| `schema.rs` | Partial | Typed schema parsing exists for main menu only. | Expand schema usage across settings/menu pages. |
+| `schema.rs` | Partial | Typed schema parsing exists; typed command registry bridge (`CommandRegistry`) is in place and used by main menu command-id mapping. | Expand schema usage across settings/menu pages. |
 | `footer_nav.rs` | Compliant | Footer navigation utility systems. | None. |
 | `main_menu.rs` | Compliant | Shared main-menu option-list composition + command-id mapping + overlay follow/navigation systems. | Keep main-menu behavior routed through shared menu command flow. |
 | `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns; focus-follow now reads tabbed option-lock state instead of visual-state outputs. | Push reusable pieces into scroll primitive layer. |

@@ -1,4 +1,5 @@
 use super::*;
+use once_cell::sync::Lazy;
 use crate::systems::{
     colors::ColorAnchor,
     interaction::InteractionVisualPalette,
@@ -26,13 +27,22 @@ pub struct MainMenuEntry {
 #[derive(Component)]
 pub struct MainMenuOptionList;
 
-pub fn resolve_main_menu_command_id(command_id: &str) -> Result<MenuCommand, String> {
-    match command_id {
-        "enter_game" => Ok(MenuCommand::NextScene),
-        "open_options" => Ok(MenuCommand::OpenMainMenuOptionsOverlay),
-        "exit_desktop" => Ok(MenuCommand::ExitApplication),
-        _ => Err(format!("unknown main menu command `{command_id}`")),
-    }
+static MAIN_MENU_COMMAND_REGISTRY: Lazy<schema::CommandRegistry<MenuCommand>> = Lazy::new(|| {
+    schema::CommandRegistry::from_entries([
+        ("enter_game", MenuCommand::NextScene),
+        ("open_options", MenuCommand::OpenMainMenuOptionsOverlay),
+        ("exit_desktop", MenuCommand::ExitApplication),
+    ])
+    .expect("main menu command registry must have unique command ids")
+});
+
+pub fn main_menu_command_registry() -> &'static schema::CommandRegistry<MenuCommand> {
+    &MAIN_MENU_COMMAND_REGISTRY
+}
+
+#[cfg(test)]
+fn resolve_main_menu_command_id(command_id: &str) -> Result<MenuCommand, String> {
+    MAIN_MENU_COMMAND_REGISTRY.resolve(command_id)
 }
 
 pub fn spawn_main_menu_option_list(
@@ -178,6 +188,6 @@ mod tests {
     #[test]
     fn resolve_main_menu_command_id_rejects_unknown_commands() {
         let error = resolve_main_menu_command_id("unknown").expect_err("unknown should fail");
-        assert!(error.contains("unknown main menu command"));
+        assert!(error.contains("unknown command"));
     }
 }
