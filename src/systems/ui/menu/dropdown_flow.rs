@@ -867,4 +867,124 @@ mod tests {
             IntoSystem::into_system(handle_resolution_dropdown_keyboard_navigation);
         keyboard_nav_system.initialize(&mut world);
     }
+
+    #[test]
+    fn keyboard_dropdown_open_prefers_lowest_owner_index_when_multiple_menus_match() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.init_resource::<DropdownLayerState>();
+        app.init_resource::<DropdownAnchorState>();
+        app.init_resource::<tabbed_menu::TabbedMenuFocusState>();
+        app.add_systems(Update, handle_resolution_dropdown_keyboard_navigation);
+
+        let mut settings = VideoSettingsState::default();
+        settings.initialized = true;
+        app.insert_resource(settings);
+
+        let menu_high = app
+            .world_mut()
+            .spawn((
+                MenuRoot {
+                    host: MenuHost::Debug,
+                    gate: InteractionGate::GameplayOnly,
+                },
+                MenuStack::new(MenuPage::Video),
+                SelectableMenu::new(
+                    VIDEO_RESOLUTION_OPTION_INDEX,
+                    vec![KeyCode::ArrowUp],
+                    vec![KeyCode::ArrowDown],
+                    vec![KeyCode::Enter],
+                    true,
+                ),
+                UiLayer::new(Entity::PLACEHOLDER, UiLayerKind::Base),
+                Visibility::Visible,
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(menu_high)
+            .insert(UiLayer::new(menu_high, UiLayerKind::Base));
+
+        let menu_low = app
+            .world_mut()
+            .spawn((
+                MenuRoot {
+                    host: MenuHost::Debug,
+                    gate: InteractionGate::GameplayOnly,
+                },
+                MenuStack::new(MenuPage::Video),
+                SelectableMenu::new(
+                    VIDEO_RESOLUTION_OPTION_INDEX,
+                    vec![KeyCode::ArrowUp],
+                    vec![KeyCode::ArrowDown],
+                    vec![KeyCode::Enter],
+                    true,
+                ),
+                UiLayer::new(Entity::PLACEHOLDER, UiLayerKind::Base),
+                Visibility::Visible,
+            ))
+            .id();
+        app.world_mut()
+            .entity_mut(menu_low)
+            .insert(UiLayer::new(menu_low, UiLayerKind::Base));
+
+        let (expected_first, expected_second) = if menu_low.index() < menu_high.index() {
+            (menu_low, menu_high)
+        } else {
+            (menu_high, menu_low)
+        };
+
+        let dropdown_high = app
+            .world_mut()
+            .spawn((
+                VideoResolutionDropdown,
+                UiLayer::new(menu_high, UiLayerKind::Dropdown),
+                Visibility::Hidden,
+                SelectableMenu::new(0, vec![], vec![], vec![], true),
+            ))
+            .id();
+        app.world_mut().entity_mut(menu_high).add_child(dropdown_high);
+
+        let dropdown_low = app
+            .world_mut()
+            .spawn((
+                VideoResolutionDropdown,
+                UiLayer::new(menu_low, UiLayerKind::Dropdown),
+                Visibility::Hidden,
+                SelectableMenu::new(0, vec![], vec![], vec![], true),
+            ))
+            .id();
+        app.world_mut().entity_mut(menu_low).add_child(dropdown_low);
+
+        app.world_mut().spawn((
+            tabs::TabBar::new(menu_high),
+            tabs::TabBarState { active_index: 0 },
+            tabbed_menu::TabbedMenuConfig::new(
+                VIDEO_TOP_OPTION_COUNT,
+                VIDEO_FOOTER_OPTION_START_INDEX,
+                VIDEO_FOOTER_OPTION_COUNT,
+            ),
+        ));
+        app.world_mut().spawn((
+            tabs::TabBar::new(menu_low),
+            tabs::TabBarState { active_index: 0 },
+            tabbed_menu::TabbedMenuConfig::new(
+                VIDEO_TOP_OPTION_COUNT,
+                VIDEO_FOOTER_OPTION_START_INDEX,
+                VIDEO_FOOTER_OPTION_COUNT,
+            ),
+        ));
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ArrowRight);
+        app.update();
+
+        let state = app.world().resource::<DropdownLayerState>();
+        assert_eq!(
+            state.open_parent_for_owner(expected_first),
+            Some(expected_first)
+        );
+        assert_eq!(state.open_parent_for_owner(expected_second), None);
+    }
 }

@@ -529,6 +529,7 @@ Conflict safety:
 - Where systems aggregate by menu (`HashMap<Entity, ...>`), process owners in stable entity order to avoid query-iteration-order behavior drift.
 - For shortcut dispatch paths (escape/directional/modal/dropdown), avoid first-match query iteration behavior:
   collect candidates, then resolve by explicit owner/menu/entity ranking.
+- For multi-owner dropdown keyboard-open paths, resolve one owner deterministically (stable owner/index ranking) before mutating dropdown visibility.
 - Add a query-safety smoke test for high-risk systems by initializing them via `IntoSystem::into_system(...).initialize(&mut world)`;
   this catches B0001-style alias conflicts before runtime. Current examples live in:
   `command_flow.rs`, `dropdown_view.rs`, `menu_input.rs`, `dropdown_flow.rs`, `main_menu.rs`, `modal_flow.rs`, `scroll_adapter.rs`, `tabbed_menu.rs`, `debug_showcase.rs`, `video_visuals.rs`.
