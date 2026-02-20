@@ -68,6 +68,7 @@ Progress notes:
 - `SystemMenuOptionBundle` now routes selection construction through `SelectorSurface` (instead of directly embedding `Selectable`) in `src/startup/system_menu.rs`.
 - `MenuSurface` now provides a root menu primitive contract (`UiLayer`, `SelectableMenu`, click-activation policy) via insert hook in `src/systems/ui/menu_surface.rs`, and root menu spawning now consumes it in `src/systems/ui/menu/root_spawn.rs`.
 - Debug showcase menu roots now also consume `MenuSurface` (including dropdown-layer panel ownership) in `src/systems/ui/menu/debug_showcase.rs`.
+- Video modal roots now compose through `MenuSurface` with `UiLayerKind::Modal`, and video tabs/dropdown roots removed redundant `SelectableMenu` boilerplate where primitive defaults already apply (`src/systems/ui/menu/modal_flow.rs`, `src/systems/ui/menu/page_content.rs`).
 
 ## Stage 3: Menu Composition Migration
 
@@ -103,6 +104,7 @@ Deliverable:
 Progress notes:
 - Layer-priority ordering (`Modal > Dropdown > Base`) is now covered by integration tests in `src/systems/ui/menu/flow_tests.rs`.
 - Scroll primitives now validate owner/layer gating behavior (base, dropdown, modal) in `src/systems/ui/scroll/tests.rs`.
+- Selector/cycler mixed input arbitration is now covered by mouse+keyboard integration in `src/systems/ui/menu/flow_tests.rs`.
 
 ## Stage 6: Query-Safety Hardening
 
@@ -120,12 +122,12 @@ Progress notes:
 ## Stage 7: Test Coverage
 
 - [x] Add/extend unit tests for primitive reducers and state transitions.
-- [ ] Add integration-level tests for:
+- [x] Add integration-level tests for:
   - Tabs activation and content switching
   - Dropdown open/select/close paths
   - Selector/cycler keyboard+mouse interaction
   - Scrollbar drag and wheel behavior
-- [ ] Add debug showcase interaction smoke test hooks where feasible.
+- [x] Add debug showcase interaction smoke test hooks where feasible.
 
 Deliverable:
 - Regression safety for primitive behavior and composition.
@@ -135,6 +137,10 @@ Progress notes:
 - Debug showcase now has targeted unit coverage for core index-cycling behavior (`src/systems/ui/menu/debug_showcase.rs`).
 - Owner-scoped dropdown open/select/close integration behavior is covered in `src/systems/ui/menu/flow_tests.rs`.
 - Tabs now have sync behavior tests for activation + explicit-mode semantics in `src/systems/ui/tabs.rs`.
+- Tabbed focus activation/content-switch behavior is now covered in `src/systems/ui/menu/flow_tests.rs`.
+- Selector/cycler mouse-selection + keyboard-cycle behavior is now covered in `src/systems/ui/menu/flow_tests.rs`.
+- Scrollbar wheel + drag-path clamp behavior is now covered in `src/systems/ui/scroll/tests.rs`.
+- Debug showcase smoke hooks continue to validate visual sync systems execute without query alias panics in `src/systems/ui/menu/debug_showcase.rs`.
 
 ## Stage 8: Documentation and Adoption
 
@@ -151,4 +157,4 @@ Deliverable:
 - [ ] Primitive-root insertion is sufficient to stand up each major UI feature.
 - [ ] No new reusable UI bundles introduced.
 - [ ] Layering and input arbitration are owner-scoped and deterministic.
-- [ ] No known B0001 query conflicts in UI systems.
+- [x] No known B0001 query conflicts in UI systems.
