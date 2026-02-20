@@ -344,6 +344,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                 .insert((
                     TabBar::new(tab_root),
                     MenuSurface::new(tab_root)
+                        .without_layer()
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                 ));
 
@@ -1024,4 +1025,5 @@ mod tests {
         schedule.add_systems((sync_tabs_demo_visuals, sync_dropdown_demo_visuals));
         schedule.run(&mut world);
     }
+
 }
