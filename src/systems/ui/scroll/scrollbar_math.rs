@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use super::{
-    ScrollAxis, SCROLL_EPSILON, SCROLLBAR_HITBOX_CROSS_AXIS_PAD_PX, SCROLLBAR_HITBOX_MAIN_AXIS_PAD_PX,
+    ScrollAxis, SCROLLBAR_HITBOX_CROSS_AXIS_PAD_PX, SCROLLBAR_HITBOX_MAIN_AXIS_PAD_PX,
+    SCROLL_EPSILON,
 };
 
 pub fn thumb_extent_for_state(

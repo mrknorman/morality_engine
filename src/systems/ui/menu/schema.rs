@@ -212,12 +212,13 @@ where
 {
     let mut resolved_options = Vec::with_capacity(schema.options.len());
     for option in schema.options {
-        let command =
-            command_resolver(&option.command).map_err(|reason| MenuSchemaError::CommandResolution {
+        let command = command_resolver(&option.command).map_err(|reason| {
+            MenuSchemaError::CommandResolution {
                 option_id: option.id.clone(),
                 command_id: option.command.clone(),
                 reason,
-            })?;
+            }
+        })?;
 
         resolved_options.push(ResolvedMenuOption {
             id: option.id,
@@ -258,8 +259,8 @@ pub fn load_and_resolve_menu_schema_with_registry<C: Clone>(
 #[cfg(test)]
 mod tests {
     use super::{
-        load_and_resolve_menu_schema, load_and_resolve_menu_schema_with_registry, parse_menu_schema,
-        CommandRegistry,
+        load_and_resolve_menu_schema, load_and_resolve_menu_schema_with_registry,
+        parse_menu_schema, CommandRegistry,
     };
 
     const VALID_SCHEMA: &str = r#"
@@ -297,8 +298,13 @@ mod tests {
     fn command_registry_maps_known_ids_and_reports_unknown() {
         let registry =
             CommandRegistry::from_entries([("start", 1usize), ("exit", 2usize)]).expect("valid");
-        assert_eq!(registry.resolve("start").expect("start should resolve"), 1usize);
-        let error = registry.resolve("invalid").expect_err("unknown command should fail");
+        assert_eq!(
+            registry.resolve("start").expect("start should resolve"),
+            1usize
+        );
+        let error = registry
+            .resolve("invalid")
+            .expect_err("unknown command should fail");
         assert!(error.contains("unknown command"));
     }
 
@@ -311,8 +317,8 @@ mod tests {
 
     #[test]
     fn schema_can_resolve_commands_from_registry() {
-        let registry = CommandRegistry::from_entries([("start", 10usize), ("exit", 20usize)])
-            .expect("valid");
+        let registry =
+            CommandRegistry::from_entries([("start", 10usize), ("exit", 20usize)]).expect("valid");
         let resolved = load_and_resolve_menu_schema_with_registry(VALID_SCHEMA, &registry)
             .expect("schema should resolve");
         assert_eq!(resolved.options.len(), 2);

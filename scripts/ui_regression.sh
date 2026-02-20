@@ -28,4 +28,9 @@ else
   echo "[ui-regression] cargo-nextest not installed; skipping nextest run"
 fi
 
+if [[ "${UI_RUN_GPU_SMOKE:-0}" == "1" ]]; then
+  echo "[ui-regression] UI_RUN_GPU_SMOKE=1 -> running GPU smoke lane"
+  ./scripts/ui_gpu_smoke.sh
+fi
+
 echo "[ui-regression] complete"

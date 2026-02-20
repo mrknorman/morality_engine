@@ -140,7 +140,8 @@ pub(super) const VIDEO_FOOTER_INDICATOR_X: f32 = VIDEO_FOOTER_COLUMN_WIDTH * 0.4
 // VIDEO_TABLE_X + LABEL_WIDTH + VALUE_WIDTH/2 = -390 + 390 + 195 = 195
 pub(super) const VIDEO_VALUE_COLUMN_CENTER_X: f32 =
     VIDEO_TABLE_X + VIDEO_TABLE_LABEL_COLUMN_WIDTH + VIDEO_TABLE_VALUE_COLUMN_WIDTH * 0.5;
-pub(super) const VIDEO_NAME_COLUMN_CENTER_X: f32 = VIDEO_TABLE_X + VIDEO_TABLE_LABEL_COLUMN_WIDTH * 0.5;
+pub(super) const VIDEO_NAME_COLUMN_CENTER_X: f32 =
+    VIDEO_TABLE_X + VIDEO_TABLE_LABEL_COLUMN_WIDTH * 0.5;
 // Keep the name highlight above table cell backgrounds (z≈0.95 world)
 // while staying below text (text z is boosted separately).
 pub(super) const VIDEO_NAME_HIGHLIGHT_Z: f32 = -0.02;
@@ -802,7 +803,9 @@ fn resolve_shortcut_keycode(shortcut: &str) -> Result<KeyCode, String> {
     }
 }
 
-fn options_menu_layout_from_schema(layout: &schema::MenuLayoutBindings) -> Result<SystemMenuLayout, String> {
+fn options_menu_layout_from_schema(
+    layout: &schema::MenuLayoutBindings,
+) -> Result<SystemMenuLayout, String> {
     if layout.container != "system_options_menu_selectable_list" {
         return Err(format!(
             "unsupported options menu layout container `{}`",
@@ -1109,22 +1112,26 @@ pub(super) fn video_tabs_table() -> Table {
 }
 
 pub(super) fn video_footer_options_table() -> Table {
-    let columns = [VIDEO_MENU_APPLY_TEXT, VIDEO_MENU_RESET_TEXT, VIDEO_MENU_BACK_TEXT]
-        .iter()
-        .map(|label| {
-            Column::new(
-                vec![Cell::new(TextContent::new(
-                    (*label).to_string(),
-                    SYSTEM_MENU_COLOR,
-                    VIDEO_TABLE_TEXT_SIZE,
-                ))],
-                VIDEO_FOOTER_COLUMN_WIDTH,
-                Vec2::new(10.0, 8.0),
-                Anchor::CENTER,
-                false,
-            )
-        })
-        .collect();
+    let columns = [
+        VIDEO_MENU_APPLY_TEXT,
+        VIDEO_MENU_RESET_TEXT,
+        VIDEO_MENU_BACK_TEXT,
+    ]
+    .iter()
+    .map(|label| {
+        Column::new(
+            vec![Cell::new(TextContent::new(
+                (*label).to_string(),
+                SYSTEM_MENU_COLOR,
+                VIDEO_TABLE_TEXT_SIZE,
+            ))],
+            VIDEO_FOOTER_COLUMN_WIDTH,
+            Vec2::new(10.0, 8.0),
+            Anchor::CENTER,
+            false,
+        )
+    })
+    .collect();
 
     Table {
         columns,
@@ -1187,7 +1194,9 @@ pub(super) enum VideoTopOptionKey {
     ScanVignette,
 }
 
-pub(super) fn video_top_option_keys(tab: VideoTabKind) -> [VideoTopOptionKey; VIDEO_TOP_OPTION_COUNT] {
+pub(super) fn video_top_option_keys(
+    tab: VideoTabKind,
+) -> [VideoTopOptionKey; VIDEO_TOP_OPTION_COUNT] {
     match tab {
         VideoTabKind::Display => [
             VideoTopOptionKey::DisplayMode,
@@ -1309,15 +1318,11 @@ impl VideoTopOptionKey {
             VideoTopOptionKey::BloomThreshold => {
                 "How bright a pixel must be before bloom is applied."
             }
-            VideoTopOptionKey::BloomComposite => {
-                "How bloom is combined back into the final image."
-            }
+            VideoTopOptionKey::BloomComposite => "How bloom is combined back into the final image.",
             VideoTopOptionKey::AnamorphicScale => {
                 "Stretches bloom sideways for a cinematic lens-streak look."
             }
-            VideoTopOptionKey::BloomBoost => {
-                "Adds extra weight to larger, softer bloom glow."
-            }
+            VideoTopOptionKey::BloomBoost => "Adds extra weight to larger, softer bloom glow.",
             VideoTopOptionKey::Tonemapping => {
                 "Converts HDR brightness into displayable colors while keeping detail."
             }
@@ -1345,9 +1350,7 @@ impl VideoTopOptionKey {
             VideoTopOptionKey::ScanThickness => "Thickness of each CRT scan line.",
             VideoTopOptionKey::ScanDarkness => "How dark the scan-line overlay appears.",
             VideoTopOptionKey::ScanJitter => "Amount of horizontal wobble and instability.",
-            VideoTopOptionKey::ScanAberration => {
-                "Amount of RGB channel separation (color bleed)."
-            }
+            VideoTopOptionKey::ScanAberration => "Amount of RGB channel separation (color bleed).",
             VideoTopOptionKey::ScanPhosphor => {
                 "Strength of phosphor mask pattern and glow response."
             }
@@ -1764,13 +1767,25 @@ impl VideoTopOptionKey {
                 VideoMsaa::Sample4 => 2,
             },
             VideoTopOptionKey::WindowResizable => {
-                if snapshot.window_resizable { 0 } else { 1 }
+                if snapshot.window_resizable {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::WindowDecorations => {
-                if snapshot.window_decorations { 0 } else { 1 }
+                if snapshot.window_decorations {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::WindowTransparent => {
-                if snapshot.window_transparent { 0 } else { 1 }
+                if snapshot.window_transparent {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::CompositeAlpha => match snapshot.composite_alpha {
                 VideoCompositeAlpha::Auto => 0,
@@ -1780,7 +1795,11 @@ impl VideoTopOptionKey {
                 VideoCompositeAlpha::Inherit => 4,
             },
             VideoTopOptionKey::BloomEnabled => {
-                if snapshot.bloom_enabled { 0 } else { 1 }
+                if snapshot.bloom_enabled {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::BloomStyle => match snapshot.bloom_style {
                 BloomStyle::Natural => 0,
@@ -1828,10 +1847,18 @@ impl VideoTopOptionKey {
                 VideoTonemapping::BlenderFilmic => 7,
             },
             VideoTopOptionKey::DebandDither => {
-                if snapshot.deband_dither_enabled { 0 } else { 1 }
+                if snapshot.deband_dither_enabled {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::FxaaEnabled => {
-                if snapshot.fxaa_enabled { 0 } else { 1 }
+                if snapshot.fxaa_enabled {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::FxaaQuality => match snapshot.fxaa_quality {
                 FxaaQuality::Low => 0,
@@ -1841,7 +1868,11 @@ impl VideoTopOptionKey {
                 FxaaQuality::Extreme => 4,
             },
             VideoTopOptionKey::CasEnabled => {
-                if snapshot.cas_enabled { 0 } else { 1 }
+                if snapshot.cas_enabled {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::CasStrength => match snapshot.cas_strength {
                 CasStrength::Off => 0,
@@ -1850,7 +1881,11 @@ impl VideoTopOptionKey {
                 CasStrength::High => 3,
             },
             VideoTopOptionKey::ChromaticEnabled => {
-                if snapshot.chromatic_enabled { 0 } else { 1 }
+                if snapshot.chromatic_enabled {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::ChromaticIntensity => match snapshot.chromatic_intensity {
                 CrtEffectLevel::Off => 0,
@@ -1859,7 +1894,11 @@ impl VideoTopOptionKey {
                 CrtEffectLevel::High => 3,
             },
             VideoTopOptionKey::CrtEnabled => {
-                if snapshot.crt_enabled { 0 } else { 1 }
+                if snapshot.crt_enabled {
+                    0
+                } else {
+                    1
+                }
             }
             VideoTopOptionKey::ScanSpacing => match snapshot.scan_spacing {
                 ScanSpacing::Off => 0,
@@ -2360,13 +2399,11 @@ pub(super) fn video_top_option_choice_count(tab: VideoTabKind, row: usize) -> us
 }
 
 pub(super) fn video_top_option_uses_dropdown(tab: VideoTabKind, row: usize) -> bool {
-    video_top_option_key(tab, row)
-        .is_some_and(VideoTopOptionKey::uses_dropdown)
+    video_top_option_key(tab, row).is_some_and(VideoTopOptionKey::uses_dropdown)
 }
 
 pub(super) fn video_top_option_uses_slider(tab: VideoTabKind, row: usize) -> bool {
-    video_top_option_key(tab, row)
-        .is_some_and(VideoTopOptionKey::uses_slider)
+    video_top_option_key(tab, row).is_some_and(VideoTopOptionKey::uses_slider)
 }
 
 pub(super) fn video_top_option_values(tab: VideoTabKind, row: usize) -> Vec<String> {
@@ -2395,8 +2432,7 @@ pub(super) fn video_slider_cycle_arrow_positions(steps: usize, slot_width: f32) 
     let (left_edge, right_edge) =
         slot_span_bounds(steps, layout_steps, slot_width, VIDEO_DISCRETE_SLIDER_GAP);
     (
-        VIDEO_DISCRETE_SLIDER_ROOT_X
-            + left_edge
+        VIDEO_DISCRETE_SLIDER_ROOT_X + left_edge
             - VIDEO_SLIDER_ARROW_MARGIN
             - CYCLE_ARROW_HALF_WIDTH,
         VIDEO_DISCRETE_SLIDER_ROOT_X
@@ -2715,7 +2751,9 @@ pub(super) fn dropdown_item_local_center_y(index: usize, num_rows: usize) -> f32
     dropdown_height * 0.5 - (index as f32 + 0.5) * VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT
 }
 
-pub(super) fn dropdown_digit_shortcut_index(keyboard_input: &ButtonInput<KeyCode>) -> Option<usize> {
+pub(super) fn dropdown_digit_shortcut_index(
+    keyboard_input: &ButtonInput<KeyCode>,
+) -> Option<usize> {
     let digit_keys = [
         KeyCode::Digit1,
         KeyCode::Digit2,
@@ -2812,15 +2850,30 @@ mod tests {
         let cutoff = first_center - VIDEO_DISCRETE_SLIDER_ZERO_CUTOFF_LEFT_BIAS_PX;
 
         assert_eq!(
-            key.slider_selected_index_from_local_x(first_center - 6.0, 22.0, VIDEO_DISCRETE_SLIDER_GAP, 4),
+            key.slider_selected_index_from_local_x(
+                first_center - 6.0,
+                22.0,
+                VIDEO_DISCRETE_SLIDER_GAP,
+                4
+            ),
             Some(0)
         );
         assert_eq!(
-            key.slider_selected_index_from_local_x(first_center + 6.0, 22.0, VIDEO_DISCRETE_SLIDER_GAP, 4),
+            key.slider_selected_index_from_local_x(
+                first_center + 6.0,
+                22.0,
+                VIDEO_DISCRETE_SLIDER_GAP,
+                4
+            ),
             Some(1)
         );
         assert_eq!(
-            key.slider_selected_index_from_local_x(cutoff + 0.25, 22.0, VIDEO_DISCRETE_SLIDER_GAP, 4),
+            key.slider_selected_index_from_local_x(
+                cutoff + 0.25,
+                22.0,
+                VIDEO_DISCRETE_SLIDER_GAP,
+                4
+            ),
             Some(1)
         );
     }
@@ -2833,11 +2886,21 @@ mod tests {
         let midpoint = (c0 + c1) * 0.5;
 
         assert_eq!(
-            key.slider_selected_index_from_local_x(midpoint - 0.25, 22.0, VIDEO_DISCRETE_SLIDER_GAP, 4),
+            key.slider_selected_index_from_local_x(
+                midpoint - 0.25,
+                22.0,
+                VIDEO_DISCRETE_SLIDER_GAP,
+                4
+            ),
             Some(0)
         );
         assert_eq!(
-            key.slider_selected_index_from_local_x(midpoint + 0.25, 22.0, VIDEO_DISCRETE_SLIDER_GAP, 4),
+            key.slider_selected_index_from_local_x(
+                midpoint + 0.25,
+                22.0,
+                VIDEO_DISCRETE_SLIDER_GAP,
+                4
+            ),
             Some(1)
         );
     }
@@ -2857,12 +2920,8 @@ mod tests {
         let mut snapshot = default_video_settings();
         snapshot.present_mode = VideoPresentMode::Mailbox;
 
-        let changed = step_video_top_option_for_input(
-            &mut snapshot,
-            VideoTabKind::Display,
-            2,
-            true,
-        );
+        let changed =
+            step_video_top_option_for_input(&mut snapshot, VideoTabKind::Display, 2, true);
 
         assert!(changed);
         assert_eq!(snapshot.present_mode, VideoPresentMode::AutoVsync);
@@ -2873,12 +2932,7 @@ mod tests {
         let mut snapshot = default_video_settings();
         snapshot.scan_spacing = ScanSpacing::Sparse;
 
-        let changed = step_video_top_option_for_input(
-            &mut snapshot,
-            VideoTabKind::Crt,
-            1,
-            true,
-        );
+        let changed = step_video_top_option_for_input(&mut snapshot, VideoTabKind::Crt, 1, true);
 
         assert!(!changed);
         assert_eq!(snapshot.scan_spacing, ScanSpacing::Sparse);
@@ -2959,13 +3013,20 @@ mod tests {
     fn resolve_shortcut_keycode_accepts_letters_and_named_keys() {
         assert_eq!(resolve_shortcut_keycode("a"), Ok(KeyCode::KeyA));
         assert_eq!(resolve_shortcut_keycode("9"), Ok(KeyCode::Digit9));
-        assert_eq!(resolve_shortcut_keycode("Backspace"), Ok(KeyCode::Backspace));
-        assert_eq!(resolve_shortcut_keycode("ArrowLeft"), Ok(KeyCode::ArrowLeft));
+        assert_eq!(
+            resolve_shortcut_keycode("Backspace"),
+            Ok(KeyCode::Backspace)
+        );
+        assert_eq!(
+            resolve_shortcut_keycode("ArrowLeft"),
+            Ok(KeyCode::ArrowLeft)
+        );
     }
 
     #[test]
     fn resolve_shortcut_keycode_rejects_unknown_values() {
-        let error = resolve_shortcut_keycode("not-a-key").expect_err("unknown shortcut should fail");
+        let error =
+            resolve_shortcut_keycode("not-a-key").expect_err("unknown shortcut should fail");
         assert!(error.contains("unsupported shortcut"));
     }
 }

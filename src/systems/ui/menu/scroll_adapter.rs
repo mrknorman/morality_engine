@@ -60,7 +60,11 @@ pub(super) fn sync_video_top_scroll_focus_follow(
 pub(super) fn sync_video_top_option_hit_regions_to_viewport(
     root_query: Query<(&ScrollableTableAdapter, &ScrollState), With<VideoTopOptionsScrollRoot>>,
     mut option_query: Query<
-        (&Selectable, &VideoOptionRow, &mut Clickable<SystemMenuActions>),
+        (
+            &Selectable,
+            &VideoOptionRow,
+            &mut Clickable<SystemMenuActions>,
+        ),
         With<MenuOptionCommand>,
     >,
 ) {
@@ -74,7 +78,8 @@ pub(super) fn sync_video_top_option_hit_regions_to_viewport(
             continue;
         }
 
-        let Some((adapter, state)) = adapter_state_by_menu.get(&selectable.menu_entity).copied() else {
+        let Some((adapter, state)) = adapter_state_by_menu.get(&selectable.menu_entity).copied()
+        else {
             clickable.region = Some(video_option_region(row.index));
             continue;
         };
@@ -120,8 +125,8 @@ mod tests {
     use bevy::ecs::system::IntoSystem;
     use bevy::prelude::*;
 
-    use super::{focus_scroll_offset_to_row, row_visible_in_viewport};
     use super::*;
+    use super::{focus_scroll_offset_to_row, row_visible_in_viewport};
     use crate::systems::ui::scroll::ScrollState;
 
     #[test]
@@ -271,7 +276,10 @@ mod tests {
 
         app.update();
 
-        let state = app.world().get::<ScrollState>(scroll_root).expect("scroll state");
+        let state = app
+            .world()
+            .get::<ScrollState>(scroll_root)
+            .expect("scroll state");
         assert!((state.offset_px - 60.0).abs() < 0.001);
     }
 

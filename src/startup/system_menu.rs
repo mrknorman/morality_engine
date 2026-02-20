@@ -17,10 +17,9 @@ use crate::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, SYSTEM_MENU_COLOR},
         interaction::{
-            interaction_gate_allows_for_owner, Clickable, InteractionCapture,
+            interaction_gate_allows_for_owner, Clickable, Hoverable, InteractionCapture,
             InteractionCaptureOwner, InteractionGate, InteractionVisualPalette,
-            InteractionVisualState, Hoverable, OptionCycler, SelectableMenu,
-            SystemMenuActions,
+            InteractionVisualState, OptionCycler, SelectableMenu, SystemMenuActions,
         },
         ui::selector::SelectorSurface,
     },
@@ -254,7 +253,10 @@ pub fn ensure_selection_indicators(
     mut materials: ResMut<Assets<ColorMaterial>>,
     option_query: Query<
         (Entity, Option<&SystemMenuOptionVisualStyle>),
-        (With<SystemMenuOption>, Without<SystemMenuSelectionIndicatorsAttached>),
+        (
+            With<SystemMenuOption>,
+            Without<SystemMenuSelectionIndicatorsAttached>,
+        ),
     >,
 ) {
     let triangle_mesh = meshes.add(Mesh::from(Triangle2d::new(
@@ -356,7 +358,10 @@ pub fn ensure_selection_bars(
     mut commands: Commands,
     option_query: Query<
         (Entity, Option<&SystemMenuOptionVisualStyle>),
-        (With<SystemMenuOption>, Without<SystemMenuSelectionBarsAttached>),
+        (
+            With<SystemMenuOption>,
+            Without<SystemMenuSelectionBarsAttached>,
+        ),
     >,
 ) {
     for (option_entity, style) in option_query.iter() {
@@ -382,7 +387,11 @@ pub fn ensure_selection_bars(
 
 pub fn update_selection_bars(
     option_query: Query<
-        (&Hoverable, &InteractionVisualState, Option<&SystemMenuOptionVisualStyle>),
+        (
+            &Hoverable,
+            &InteractionVisualState,
+            Option<&SystemMenuOptionVisualStyle>,
+        ),
         With<SystemMenuOption>,
     >,
     mut bar_query: Query<
@@ -569,7 +578,15 @@ pub fn play_navigation_sound_owner_scoped<S, F>(
     keyboard_input: &ButtonInput<KeyCode>,
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    menu_query: &Query<(Entity, &SelectableMenu, &TransientAudioPallet<S>, Option<&InteractionGate>), F>,
+    menu_query: &Query<
+        (
+            Entity,
+            &SelectableMenu,
+            &TransientAudioPallet<S>,
+            Option<&InteractionGate>,
+        ),
+        F,
+    >,
     audio_query: &mut Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     switch_sound: S,
     dilation: f32,
@@ -595,7 +612,10 @@ pub fn play_navigation_sound_owner_scoped<S, F>(
     }
 }
 
-pub fn navigation_switch_pressed(menu: &SelectableMenu, keyboard_input: &ButtonInput<KeyCode>) -> bool {
+pub fn navigation_switch_pressed(
+    menu: &SelectableMenu,
+    keyboard_input: &ButtonInput<KeyCode>,
+) -> bool {
     let up_pressed = menu
         .up_keys
         .iter()
@@ -647,7 +667,11 @@ pub fn ensure_cycle_arrows(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     option_query: Query<
-        (Entity, Option<&SystemMenuOptionVisualStyle>, Option<&InteractionGate>),
+        (
+            Entity,
+            Option<&SystemMenuOptionVisualStyle>,
+            Option<&InteractionGate>,
+        ),
         (
             With<OptionCycler>,
             With<SystemMenuOption>,
@@ -670,8 +694,8 @@ pub fn ensure_cycle_arrows(
     )));
 
     for (option_entity, style, gate) in option_query.iter() {
-        let center_x = style
-            .and_then(|style| style.cycle_arrows.map(|cycle_style| cycle_style.center_x));
+        let center_x =
+            style.and_then(|style| style.cycle_arrows.map(|cycle_style| cycle_style.center_x));
         let Some(center_x) = center_x else {
             continue;
         };
@@ -716,7 +740,10 @@ pub fn ensure_cycle_arrows(
 }
 
 pub fn update_cycle_arrows(
-    option_query: Query<(&Hoverable, &InteractionVisualState, &OptionCycler), With<SystemMenuOption>>,
+    option_query: Query<
+        (&Hoverable, &InteractionVisualState, &OptionCycler),
+        With<SystemMenuOption>,
+    >,
     mut arrow_query: Query<(
         &ChildOf,
         &SystemMenuCycleArrow,

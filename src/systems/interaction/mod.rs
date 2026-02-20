@@ -134,7 +134,11 @@ impl Plugin for InteractionPlugin {
             .add_systems(Startup, activate_prerequisite_states)
             .add_systems(
                 Update,
-                (reset_clickable_aggregate, reset_hoverable_state, reset_interaction_visual_state)
+                (
+                    reset_clickable_aggregate,
+                    reset_hoverable_state,
+                    reset_interaction_visual_state,
+                )
                     .before(InteractionSystem::Clickable),
             )
             .add_systems(
@@ -314,7 +318,8 @@ pub fn interaction_gate_allows_for_owner(
     capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     owner: Entity,
 ) -> bool {
-    let interaction_captured = interaction_context_active_for_owner(pause_state, capture_query, owner);
+    let interaction_captured =
+        interaction_context_active_for_owner(pause_state, capture_query, owner);
     interaction_gate_allows(gate, interaction_captured)
 }
 
@@ -806,16 +811,19 @@ pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<(), With<InteractionCapture>>,
     cursor: Res<CustomCursor>,
-    scroll_edge_query: Query<
+    scroll_edge_query: Query<(
+        &ScrollableRoot,
+        &ScrollableViewport,
+        &GlobalTransform,
+        Option<&InheritedVisibility>,
+    )>,
+    window_query: Query<
         (
-            &ScrollableRoot,
-            &ScrollableViewport,
+            &Window,
+            &Transform,
             &GlobalTransform,
             Option<&InheritedVisibility>,
         ),
-    >,
-    window_query: Query<
-        (&Window, &Transform, &GlobalTransform, Option<&InheritedVisibility>),
         Without<TextSpan>,
     >,
     mut hoverable_query: Query<
@@ -991,16 +999,19 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     capture_query: Query<(), With<InteractionCapture>>,
     mut aggregate: ResMut<InteractionAggregate>,
     cursor: Res<CustomCursor>,
-    scroll_edge_query: Query<
+    scroll_edge_query: Query<(
+        &ScrollableRoot,
+        &ScrollableViewport,
+        &GlobalTransform,
+        Option<&InheritedVisibility>,
+    )>,
+    window_query: Query<
         (
-            &ScrollableRoot,
-            &ScrollableViewport,
+            &Window,
+            &Transform,
             &GlobalTransform,
             Option<&InheritedVisibility>,
         ),
-    >,
-    window_query: Query<
-        (&Window, &Transform, &GlobalTransform, Option<&InheritedVisibility>),
         Without<TextSpan>,
     >,
     mut clickable_query: Query<
@@ -1042,8 +1053,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             root.axis,
             root.edge_zone_inside_px,
             root.edge_zone_outside_px,
-        )
-        {
+        ) {
             edge_blocked_menus.insert(root.owner);
         }
     }
@@ -1209,14 +1219,12 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<(), With<InteractionCapture>>,
-    scroll_edge_query: Query<
-        (
-            &ScrollableRoot,
-            &ScrollableViewport,
-            &GlobalTransform,
-            Option<&InheritedVisibility>,
-        ),
-    >,
+    scroll_edge_query: Query<(
+        &ScrollableRoot,
+        &ScrollableViewport,
+        &GlobalTransform,
+        Option<&InheritedVisibility>,
+    )>,
     mut menus: Query<(Entity, &mut SelectableMenu, Option<&InteractionGate>)>,
     mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
@@ -1295,16 +1303,23 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
                 root.axis,
                 root.edge_zone_inside_px,
                 root.edge_zone_outside_px,
-            )
-            {
+            ) {
                 edge_blocked_menus.insert(root.owner);
             }
         }
     }
 
     let mut candidates_by_menu: HashMap<Entity, Vec<SelectableCandidate>> = HashMap::new();
-    for (entity, selectable, bound, transform, global_transform, inherited_visibility, gate, clickable) in
-        selectable_queries.p0().iter()
+    for (
+        entity,
+        selectable,
+        bound,
+        transform,
+        global_transform,
+        inherited_visibility,
+        gate,
+        clickable,
+    ) in selectable_queries.p0().iter()
     {
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
@@ -1436,7 +1451,8 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             .activate_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
-        let force_selected_click = menu.click_activation == SelectableClickActivation::SelectedOnAnyClick
+        let force_selected_click = menu.click_activation
+            == SelectableClickActivation::SelectedOnAnyClick
             && mouse_input.just_pressed(MouseButton::Left);
         selection_state_by_menu.insert(
             menu_entity,

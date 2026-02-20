@@ -1,20 +1,15 @@
 use super::*;
-use once_cell::sync::Lazy;
-use crate::systems::{
-    colors::ColorAnchor,
-    interaction::InteractionVisualPalette,
-};
+use crate::systems::{colors::ColorAnchor, interaction::InteractionVisualPalette};
 use crate::{
     data::states::PauseState,
     startup::render::{MainCamera, OffscreenCamera},
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
-        interaction::{
-            InteractionCapture, InteractionCaptureOwner, InteractionGate,
-        },
+        interaction::{InteractionCapture, InteractionCaptureOwner, InteractionGate},
         time::Dilation,
     },
 };
+use once_cell::sync::Lazy;
 
 #[derive(Clone, Debug)]
 pub struct MainMenuEntry {
@@ -106,26 +101,13 @@ pub fn spawn_main_menu_option_list(
     menu_entity
 }
 
-fn menu_camera_center(
-    offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
-    main_camera_query: &Query<&GlobalTransform, With<MainCamera>>,
-) -> Option<Vec3> {
-    if let Ok(camera) = offscreen_camera_query.single() {
-        Some(camera.translation())
-    } else if let Ok(camera) = main_camera_query.single() {
-        Some(camera.translation())
-    } else {
-        None
-    }
-}
-
 pub(super) fn sync_main_menu_options_overlay_position(
     offscreen_camera_query: Query<&GlobalTransform, With<OffscreenCamera>>,
     main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
     mut overlay_query: Query<&mut Transform, With<MainMenuOptionsOverlay>>,
 ) {
     let Some(camera_translation) =
-        menu_camera_center(&offscreen_camera_query, &main_camera_query)
+        super::camera::menu_camera_center(&offscreen_camera_query, &main_camera_query)
     else {
         return;
     };

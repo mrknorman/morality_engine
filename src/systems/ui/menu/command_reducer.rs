@@ -1,6 +1,10 @@
 use super::*;
 
-fn apply_push_transition(menu_stack: &mut MenuStack, selectable_menu: &mut SelectableMenu, page: MenuPage) {
+fn apply_push_transition(
+    menu_stack: &mut MenuStack,
+    selectable_menu: &mut SelectableMenu,
+    page: MenuPage,
+) {
     menu_stack.push(page);
     selectable_menu.selected_index = menu_stack.current_selected_index();
 }

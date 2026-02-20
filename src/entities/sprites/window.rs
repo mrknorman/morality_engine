@@ -11,10 +11,7 @@ use enum_map::{enum_map, Enum};
 use crate::{
     entities::sprites::compound::*,
     entities::text::scaled_font_size,
-    startup::{
-        cursor::CustomCursor,
-        render::OffscreenCamera,
-    },
+    startup::{cursor::CustomCursor, render::OffscreenCamera},
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},

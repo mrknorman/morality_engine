@@ -1,6 +1,4 @@
 use super::*;
-use bevy::sprite::Anchor;
-use bevy::text::TextBounds;
 use crate::{
     entities::{sprites::compound::HollowRectangle, text::TextButton},
     systems::{
@@ -9,14 +7,16 @@ use crate::{
             discrete_slider::DiscreteSlider,
             dropdown::DropdownSurface,
             hover_box,
-            selector::SelectorSurface,
             scroll::{
                 ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
                 ScrollableRoot, ScrollableTableAdapter, ScrollableViewport,
             },
+            selector::SelectorSurface,
         },
     },
 };
+use bevy::sprite::Anchor;
+use bevy::text::TextBounds;
 
 fn spawn_video_option_slider_widget(
     mut commands: Commands,
@@ -24,43 +24,48 @@ fn spawn_video_option_slider_widget(
     menu_entity: Entity,
     row: usize,
 ) {
-    commands.entity(option_entity).with_children(|option_parent| {
-        let slider_entity = option_parent
-            .spawn((
-                Name::new(format!("system_video_option_slider_{row}")),
-                MenuPageContent,
-                VideoOptionDiscreteSlider { menu_entity, row },
-                DiscreteSlider::new(VIDEO_DISCRETE_SLIDER_MAX_STEPS, 0)
-                    .with_layout_steps(VIDEO_DISCRETE_SLIDER_MAX_STEPS)
-                    .with_slot_size(VIDEO_DISCRETE_SLIDER_SLOT_SIZE)
-                    .with_slot_gap(VIDEO_DISCRETE_SLIDER_GAP)
-                    .with_fill_color(Color::NONE)
-                    .with_empty_color(Color::NONE)
-                    .with_border_color(Color::NONE)
-                    .with_border_thickness(2.0)
-                    .with_fill_inset(3.0),
-                Transform::from_xyz(VIDEO_DISCRETE_SLIDER_ROOT_X, 0.0, VIDEO_DISCRETE_SLIDER_Z),
-                Visibility::Hidden,
-            ))
-            .id();
+    commands
+        .entity(option_entity)
+        .with_children(|option_parent| {
+            let slider_entity = option_parent
+                .spawn((
+                    Name::new(format!("system_video_option_slider_{row}")),
+                    MenuPageContent,
+                    VideoOptionDiscreteSlider { menu_entity, row },
+                    DiscreteSlider::new(VIDEO_DISCRETE_SLIDER_MAX_STEPS, 0)
+                        .with_layout_steps(VIDEO_DISCRETE_SLIDER_MAX_STEPS)
+                        .with_slot_size(VIDEO_DISCRETE_SLIDER_SLOT_SIZE)
+                        .with_slot_gap(VIDEO_DISCRETE_SLIDER_GAP)
+                        .with_fill_color(Color::NONE)
+                        .with_empty_color(Color::NONE)
+                        .with_border_color(Color::NONE)
+                        .with_border_thickness(2.0)
+                        .with_fill_inset(3.0),
+                    Transform::from_xyz(VIDEO_DISCRETE_SLIDER_ROOT_X, 0.0, VIDEO_DISCRETE_SLIDER_Z),
+                    Visibility::Hidden,
+                ))
+                .id();
 
-        option_parent.commands().entity(slider_entity).with_children(|slider| {
-            slider.spawn((
-                Name::new(format!("system_video_option_slider_label_{row}")),
-                MenuPageContent,
-                VideoOptionDiscreteSliderLabel,
-                Text2d::new(""),
-                TextFont {
-                    font_size: VIDEO_TABLE_TEXT_SIZE,
-                    ..default()
-                },
-                TextColor(SYSTEM_MENU_COLOR),
-                Anchor::CENTER_LEFT,
-                Transform::from_xyz(VIDEO_DISCRETE_SLIDER_LABEL_OFFSET_X, 0.0, 0.02),
-                Visibility::Hidden,
-            ));
+            option_parent
+                .commands()
+                .entity(slider_entity)
+                .with_children(|slider| {
+                    slider.spawn((
+                        Name::new(format!("system_video_option_slider_label_{row}")),
+                        MenuPageContent,
+                        VideoOptionDiscreteSliderLabel,
+                        Text2d::new(""),
+                        TextFont {
+                            font_size: VIDEO_TABLE_TEXT_SIZE,
+                            ..default()
+                        },
+                        TextColor(SYSTEM_MENU_COLOR),
+                        Anchor::CENTER_LEFT,
+                        Transform::from_xyz(VIDEO_DISCRETE_SLIDER_LABEL_OFFSET_X, 0.0, 0.02),
+                        Visibility::Hidden,
+                    ));
+                });
         });
-    });
 }
 
 #[derive(Default, Clone, Copy)]
@@ -150,29 +155,38 @@ fn spawn_video_page_scaffold(
             ))
             .id();
 
-        parent.commands().entity(top_scroll_root).add_child(top_scroll_content);
-        parent.commands().entity(top_scroll_root).with_children(|scroll_root| {
-            scroll_root.spawn((
-                Name::new("system_video_top_options_scrollbar"),
-                MenuPageContent,
-                ScrollBar::new(top_scroll_root),
-                Transform::from_xyz(0.0, 0.0, 0.12),
-            ));
-        });
+        parent
+            .commands()
+            .entity(top_scroll_root)
+            .add_child(top_scroll_content);
+        parent
+            .commands()
+            .entity(top_scroll_root)
+            .with_children(|scroll_root| {
+                scroll_root.spawn((
+                    Name::new("system_video_top_options_scrollbar"),
+                    MenuPageContent,
+                    ScrollBar::new(top_scroll_root),
+                    Transform::from_xyz(0.0, 0.0, 0.12),
+                ));
+            });
 
-        parent.commands().entity(top_scroll_content).with_children(|content| {
-            content.spawn((
-                Name::new("system_video_top_options_table"),
-                MenuPageContent,
-                VideoTopOptionsTable,
-                video_top_options_table(),
-                Transform::from_xyz(
-                    VIDEO_TABLE_X,
-                    video_top_scroll_local_y(VIDEO_TABLE_Y),
-                    0.95,
-                ),
-            ));
-        });
+        parent
+            .commands()
+            .entity(top_scroll_content)
+            .with_children(|content| {
+                content.spawn((
+                    Name::new("system_video_top_options_table"),
+                    MenuPageContent,
+                    VideoTopOptionsTable,
+                    video_top_options_table(),
+                    Transform::from_xyz(
+                        VIDEO_TABLE_X,
+                        video_top_scroll_local_y(VIDEO_TABLE_Y),
+                        0.95,
+                    ),
+                ));
+            });
 
         context.top_options_parent = Some(top_scroll_content);
 
@@ -225,28 +239,31 @@ fn spawn_video_page_scaffold(
 
         let tab_hitbox_width = VIDEO_TABLE_TOTAL_WIDTH / VIDEO_TABS.len() as f32 - 8.0;
         let tab_hitbox_height = VIDEO_TABS_ROW_HEIGHT - 4.0;
-        parent.commands().entity(tabs_entity).with_children(|tabs_parent| {
-            for tab_index in 0..VIDEO_TABS.len() {
-                tabs_parent.spawn((
-                    Name::new(format!("system_video_tab_option_{tab_index}")),
-                    MenuPageContent,
-                    gate,
-                    VideoTabOption { index: tab_index },
-                    tabs::TabItem { index: tab_index },
-                    SelectorSurface::new(tabs_entity, tab_index),
-                    Clickable::with_region(
-                        vec![SystemMenuActions::Activate],
-                        Vec2::new(tab_hitbox_width, tab_hitbox_height),
-                    ),
-                    system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
-                    Transform::from_xyz(
-                        video_tab_column_center_x(tab_index),
-                        video_tabs_row_center_y(),
-                        0.0,
-                    ),
-                ));
-            }
-        });
+        parent
+            .commands()
+            .entity(tabs_entity)
+            .with_children(|tabs_parent| {
+                for tab_index in 0..VIDEO_TABS.len() {
+                    tabs_parent.spawn((
+                        Name::new(format!("system_video_tab_option_{tab_index}")),
+                        MenuPageContent,
+                        gate,
+                        VideoTabOption { index: tab_index },
+                        tabs::TabItem { index: tab_index },
+                        SelectorSurface::new(tabs_entity, tab_index),
+                        Clickable::with_region(
+                            vec![SystemMenuActions::Activate],
+                            Vec2::new(tab_hitbox_width, tab_hitbox_height),
+                        ),
+                        system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
+                        Transform::from_xyz(
+                            video_tab_column_center_x(tab_index),
+                            video_tabs_row_center_y(),
+                            0.0,
+                        ),
+                    ));
+                }
+            });
 
         let resolution_row_index = video_resolution_option_index();
         let dropdown_rows = VIDEO_DROPDOWN_MAX_ROWS;
@@ -399,7 +416,10 @@ pub(super) fn spawn_page_content(
             menu_entity
         };
         let clickable = if is_video_page {
-            Clickable::with_region(vec![SystemMenuActions::Activate], video_option_region(index))
+            Clickable::with_region(
+                vec![SystemMenuActions::Activate],
+                video_option_region(index),
+            )
         } else {
             Clickable::new(vec![SystemMenuActions::Activate])
         };
@@ -409,11 +429,7 @@ pub(super) fn spawn_page_content(
                 system_menu::SystemMenuOptionVisualStyle::default()
                     .without_selection_indicators()
                     .with_selection_bar(system_menu::SystemMenuSelectionBarStyle {
-                        offset: Vec3::new(
-                            VIDEO_NAME_COLUMN_CENTER_X,
-                            0.0,
-                            VIDEO_NAME_HIGHLIGHT_Z,
-                        ),
+                        offset: Vec3::new(VIDEO_NAME_COLUMN_CENTER_X, 0.0, VIDEO_NAME_HIGHLIGHT_Z),
                         size: Vec2::new(VIDEO_NAME_HIGHLIGHT_WIDTH, VIDEO_NAME_HIGHLIGHT_HEIGHT),
                         color: SYSTEM_MENU_COLOR,
                     })
@@ -448,19 +464,27 @@ pub(super) fn spawn_page_content(
                     click_audio(),
                 ));
                 if index < VIDEO_TOP_OPTION_COUNT {
-                    child_commands.entity(option_entity).insert(ScrollableItem::new(
-                        index as u64 + 1,
-                        index,
-                        VIDEO_TABLE_ROW_HEIGHT,
-                    ));
+                    child_commands
+                        .entity(option_entity)
+                        .insert(ScrollableItem::new(
+                            index as u64 + 1,
+                            index,
+                            VIDEO_TABLE_ROW_HEIGHT,
+                        ));
                     if let Some(hover_root) = video_context.option_hover_box_root {
                         child_commands.entity(option_entity).insert((
                             hover_box::HoverBoxTarget::new(
                                 hover_root,
-                                Vec2::new(VIDEO_TABLE_LABEL_COLUMN_WIDTH, VIDEO_OPTION_REGION_HEIGHT),
+                                Vec2::new(
+                                    VIDEO_TABLE_LABEL_COLUMN_WIDTH,
+                                    VIDEO_OPTION_REGION_HEIGHT,
+                                ),
                             )
                             .with_hover_region(
-                                Vec2::new(VIDEO_TABLE_LABEL_COLUMN_WIDTH, VIDEO_OPTION_REGION_HEIGHT),
+                                Vec2::new(
+                                    VIDEO_TABLE_LABEL_COLUMN_WIDTH,
+                                    VIDEO_OPTION_REGION_HEIGHT,
+                                ),
                                 Vec2::new(VIDEO_NAME_COLUMN_CENTER_X, 0.0),
                             ),
                             hover_box::HoverBoxContent::default(),
@@ -485,7 +509,12 @@ pub(super) fn spawn_page_content(
             }
 
             if index < VIDEO_TOP_OPTION_COUNT {
-                spawn_video_option_slider_widget(commands.reborrow(), entity_id, menu_entity, index);
+                spawn_video_option_slider_widget(
+                    commands.reborrow(),
+                    entity_id,
+                    menu_entity,
+                    index,
+                );
             }
         } else {
             let mut entity_id = None;

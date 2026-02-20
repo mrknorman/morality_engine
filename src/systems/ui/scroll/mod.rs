@@ -14,31 +14,29 @@ use bevy::{
     render::render_resource::TextureFormat,
 };
 
-use crate::{
-    systems::{
-        interaction::{InteractionGate, InteractionSystem},
-        ui::layer::UiLayerKind,
-    },
+use crate::systems::{
+    interaction::{InteractionGate, InteractionSystem},
+    ui::layer::UiLayerKind,
 };
 
 mod behavior;
 mod geometry;
 mod lifecycle;
-mod scrollbar_math;
 mod scrollbar;
+mod scrollbar_math;
 #[cfg(test)]
 mod tests;
 
 use self::behavior::{
     handle_scrollable_pointer_and_keyboard_input, sync_scroll_content_offsets, sync_scroll_extents,
 };
+pub use self::geometry::cursor_in_edge_auto_scroll_zone;
 use self::lifecycle::{
     cleanup_scroll_layer_pool, ensure_scrollable_render_targets,
     ensure_scrollable_runtime_entities, sync_scroll_content_layers,
     sync_scrollable_render_entities, sync_scrollable_render_targets,
 };
 use self::scrollbar::{ensure_scrollbar_parts, handle_scrollbar_input, sync_scrollbar_visuals};
-pub use self::geometry::cursor_in_edge_auto_scroll_zone;
 
 const SCROLL_LAYER_START: u8 = 8;
 const SCROLL_LAYER_COUNT: u8 = 20;
@@ -431,23 +429,23 @@ impl Plugin for ScrollPlugin {
         app.init_resource::<ScrollLayerPool>()
             .init_resource::<ScrollRenderSettings>()
             .add_systems(
-            Update,
-            (
-                cleanup_scroll_layer_pool,
-                ensure_scrollable_render_targets,
-                sync_scrollable_render_targets,
-                ensure_scrollable_runtime_entities,
-                sync_scrollable_render_entities,
-                sync_scroll_content_layers,
-                sync_scroll_extents,
-                handle_scrollable_pointer_and_keyboard_input,
-                sync_scroll_content_offsets,
-                ensure_scrollbar_parts,
-                sync_scrollbar_visuals,
-                handle_scrollbar_input,
-            )
-                .chain()
-                .after(InteractionSystem::Selectable),
-        );
+                Update,
+                (
+                    cleanup_scroll_layer_pool,
+                    ensure_scrollable_render_targets,
+                    sync_scrollable_render_targets,
+                    ensure_scrollable_runtime_entities,
+                    sync_scrollable_render_entities,
+                    sync_scroll_content_layers,
+                    sync_scroll_extents,
+                    handle_scrollable_pointer_and_keyboard_input,
+                    sync_scroll_content_offsets,
+                    ensure_scrollbar_parts,
+                    sync_scrollbar_visuals,
+                    handle_scrollbar_input,
+                )
+                    .chain()
+                    .after(InteractionSystem::Selectable),
+            );
     }
 }

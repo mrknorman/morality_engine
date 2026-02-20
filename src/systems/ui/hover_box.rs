@@ -17,8 +17,8 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_gate_allows_for_owner, Hoverable, InteractionCapture, InteractionCaptureOwner,
-            InteractionGate,
+            interaction_gate_allows_for_owner, Hoverable, InteractionCapture,
+            InteractionCaptureOwner, InteractionGate,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -285,7 +285,9 @@ fn cursor_within_region(
 ) -> bool {
     let half = region * 0.5;
     let inverse = global_transform.to_matrix().inverse();
-    let local = inverse.transform_point3(cursor_position.extend(0.0)).truncate();
+    let local = inverse
+        .transform_point3(cursor_position.extend(0.0))
+        .truncate();
     local.x >= offset.x - half.x
         && local.x <= offset.x + half.x
         && local.y >= offset.y - half.y
@@ -338,15 +340,13 @@ fn sync_hover_boxes(
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     owner_global_query: Query<&GlobalTransform>,
     mut root_queries: ParamSet<(
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
-        Query<
-            (
-                Entity,
-                &HoverBoxRoot,
-                &HoverBoxStyle,
-                &HoverBoxDelay,
-            ),
-        >,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
+        Query<(Entity, &HoverBoxRoot, &HoverBoxStyle, &HoverBoxDelay)>,
         Query<
             (
                 Entity,
@@ -361,17 +361,15 @@ fn sync_hover_boxes(
             (With<HoverBoxRoot>, Without<HoverBoxLabel>),
         >,
     )>,
-    target_query: Query<
-        (
-            Entity,
-            &HoverBoxTarget,
-            &HoverBoxContent,
-            &Hoverable,
-            &GlobalTransform,
-            Option<&InheritedVisibility>,
-            Option<&InteractionGate>,
-        ),
-    >,
+    target_query: Query<(
+        Entity,
+        &HoverBoxTarget,
+        &HoverBoxContent,
+        &Hoverable,
+        &GlobalTransform,
+        Option<&InheritedVisibility>,
+        Option<&InteractionGate>,
+    )>,
     mut label_query: Query<
         (
             &ChildOf,
@@ -389,8 +387,11 @@ fn sync_hover_boxes(
     // - root layer reads (`p0`) are disjoint from root mutation (`p2`) via ParamSet
     // - labels/borders are child marker queries and only mutate their own components
     // - target query is read-only hover/content input
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &root_queries.p0());
+    let active_layers = layer::active_layers_by_owner_scoped(
+        pause_state.as_ref(),
+        &capture_query,
+        &root_queries.p0(),
+    );
 
     let mut root_meta = HashMap::new();
     {
@@ -421,16 +422,24 @@ fn sync_hover_boxes(
             let Some((root, _, _)) = root_meta.get(&target.root).copied() else {
                 continue;
             };
-            if !interaction_gate_allows_for_owner(gate, pause_state.as_ref(), &capture_query, root.owner)
-            {
+            if !interaction_gate_allows_for_owner(
+                gate,
+                pause_state.as_ref(),
+                &capture_query,
+                root.owner,
+            ) {
                 continue;
             }
             if layer::active_layer_kind_for_owner(&active_layers, root.owner) != root.input_layer {
                 continue;
             }
             if let Some(region) = target.hover_region {
-                if !cursor_within_region(cursor_position, target_global, region, target.hover_region_offset)
-                {
+                if !cursor_within_region(
+                    cursor_position,
+                    target_global,
+                    region,
+                    target.hover_region_offset,
+                ) {
                     continue;
                 }
             }
@@ -507,15 +516,19 @@ fn sync_hover_boxes(
         let owner_center_world = owner_global.translation().truncate();
         let half_clamp = root.clamp_size * 0.5;
         if half_clamp.x > 0.0 {
-            let min_x = owner_center_world.x - half_clamp.x + box_half_size.x + style.clamp_margin.x;
-            let max_x = owner_center_world.x + half_clamp.x - box_half_size.x - style.clamp_margin.x;
+            let min_x =
+                owner_center_world.x - half_clamp.x + box_half_size.x + style.clamp_margin.x;
+            let max_x =
+                owner_center_world.x + half_clamp.x - box_half_size.x - style.clamp_margin.x;
             if min_x <= max_x {
                 hover_center_world.x = hover_center_world.x.clamp(min_x, max_x);
             }
         }
         if half_clamp.y > 0.0 {
-            let min_y = owner_center_world.y - half_clamp.y + box_half_size.y + style.clamp_margin.y;
-            let max_y = owner_center_world.y + half_clamp.y - box_half_size.y - style.clamp_margin.y;
+            let min_y =
+                owner_center_world.y - half_clamp.y + box_half_size.y + style.clamp_margin.y;
+            let max_y =
+                owner_center_world.y + half_clamp.y - box_half_size.y - style.clamp_margin.y;
             if min_y <= max_y {
                 hover_center_world.y = hover_center_world.y.clamp(min_y, max_y);
             }
@@ -531,7 +544,8 @@ fn sync_hover_boxes(
             if parent.parent() != root_entity {
                 continue;
             }
-            border.dimensions = Vec2::new((style.size.x - 2.0).max(1.0), (style.size.y - 2.0).max(1.0));
+            border.dimensions =
+                Vec2::new((style.size.x - 2.0).max(1.0), (style.size.y - 2.0).max(1.0));
             border.thickness = style.border_thickness;
             border.color = style.border_color;
             break;
@@ -579,13 +593,43 @@ mod tests {
         let target_b = Entity::from_bits(2);
         let mut state = HoverBoxState::default();
 
-        assert!(!reduce_hover_box_visibility(&mut state, Some(target_a), 0.5, 0.25));
-        assert!(!reduce_hover_box_visibility(&mut state, Some(target_a), 0.5, 0.24));
-        assert!(!reduce_hover_box_visibility(&mut state, Some(target_a), 0.5, 0.25));
-        assert!(reduce_hover_box_visibility(&mut state, Some(target_a), 0.5, 0.01));
+        assert!(!reduce_hover_box_visibility(
+            &mut state,
+            Some(target_a),
+            0.5,
+            0.25
+        ));
+        assert!(!reduce_hover_box_visibility(
+            &mut state,
+            Some(target_a),
+            0.5,
+            0.24
+        ));
+        assert!(!reduce_hover_box_visibility(
+            &mut state,
+            Some(target_a),
+            0.5,
+            0.25
+        ));
+        assert!(reduce_hover_box_visibility(
+            &mut state,
+            Some(target_a),
+            0.5,
+            0.01
+        ));
 
-        assert!(!reduce_hover_box_visibility(&mut state, Some(target_b), 0.5, 0.5));
-        assert!(reduce_hover_box_visibility(&mut state, Some(target_b), 0.5, 0.5));
+        assert!(!reduce_hover_box_visibility(
+            &mut state,
+            Some(target_b),
+            0.5,
+            0.5
+        ));
+        assert!(reduce_hover_box_visibility(
+            &mut state,
+            Some(target_b),
+            0.5,
+            0.5
+        ));
 
         assert!(!reduce_hover_box_visibility(&mut state, None, 0.5, 0.5));
         assert_eq!(state.active_target, None);
@@ -607,10 +651,8 @@ mod tests {
             .world_mut()
             .spawn((Transform::default(), GlobalTransform::default()))
             .id();
-        app.world_mut().spawn((
-            UiLayer::new(owner, UiLayerKind::Base),
-            Visibility::Visible,
-        ));
+        app.world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
         let dropdown_layer = app
             .world_mut()
             .spawn((
@@ -683,10 +725,8 @@ mod tests {
             .world_mut()
             .spawn((Transform::default(), GlobalTransform::default()))
             .id();
-        app.world_mut().spawn((
-            UiLayer::new(owner, UiLayerKind::Base),
-            Visibility::Visible,
-        ));
+        app.world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
         let dropdown_layer = app
             .world_mut()
             .spawn((
@@ -766,7 +806,13 @@ mod tests {
     fn hover_box_root_insertion_adds_required_components_and_children() {
         let mut world = World::new();
         let owner = world.spawn_empty().id();
-        let root = world.spawn(HoverBoxRoot::new(owner, UiLayerKind::Base, Vec2::splat(240.0))).id();
+        let root = world
+            .spawn(HoverBoxRoot::new(
+                owner,
+                UiLayerKind::Base,
+                Vec2::splat(240.0),
+            ))
+            .id();
 
         assert!(world.entity(root).get::<HoverBoxState>().is_some());
         assert!(world.entity(root).get::<HoverBoxDelay>().is_some());
@@ -779,7 +825,10 @@ mod tests {
             Some(&UiLayer::new(owner, UiLayerKind::Base))
         );
 
-        let children = world.entity(root).get::<Children>().expect("hover box children");
+        let children = world
+            .entity(root)
+            .get::<Children>()
+            .expect("hover box children");
         let mut has_label = false;
         let mut has_border = false;
         for child in children.iter() {

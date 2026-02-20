@@ -13,14 +13,11 @@ use crate::{
     style::ui::IOPlugin,
     systems::{
         audio::{
-            continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet,
-            MusicAudio,
+            continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, MusicAudio,
         },
         backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
         colors::{CLICKED_BUTTON, DIM_BACKGROUND_COLOR, HOVERED_BUTTON, MENU_COLOR},
-        interaction::{
-            InteractionPlugin, InteractionVisualPalette,
-        },
+        interaction::{InteractionPlugin, InteractionVisualPalette},
         ui::menu::{
             main_menu_command_registry, schema, spawn_main_menu_option_list, MainMenuEntry,
         },
@@ -87,8 +84,7 @@ struct MenuScene;
 impl MenuScene {
     const TITLE_TRANSLATION: Vec3 = Vec3::new(0.0, 225.0, 1.0);
     const TRAIN_TRANSLATION: Vec3 = Vec3::new(110.0, -35.0, 0.5);
-    const TRACK_DISPLACEMENT: Vec3 =
-        Vec3::new(-120.0, Train::track_alignment_offset_y(), 0.4);
+    const TRACK_DISPLACEMENT: Vec3 = Vec3::new(-120.0, Train::track_alignment_offset_y(), 0.4);
     const SIGNATURE_TRANSLATION: Vec3 = Vec3::new(0.0, -100.0, 1.0);
     const OPTIONS_LIST_TRANSLATION: Vec3 = Vec3::new(0.0, -230.0, 1.0);
 
@@ -99,7 +95,9 @@ impl MenuScene {
         existing_scene_query: Query<Entity, With<MenuScene>>,
     ) {
         for existing_scene in &existing_scene_query {
-            commands.entity(existing_scene).despawn_related::<Children>();
+            commands
+                .entity(existing_scene)
+                .despawn_related::<Children>();
             commands.entity(existing_scene).despawn();
         }
 

@@ -1,7 +1,7 @@
-use super::*;
 use super::command_reducer::{MenuReducerResult, MenuStateTransition};
 use super::debug_showcase;
 use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
+use super::*;
 
 const MAIN_MENU_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const MAIN_MENU_OVERLAY_DIM_SIZE: f32 = 6000.0;
@@ -33,7 +33,7 @@ fn handle_apply_video_settings_command(
     asset_server: &Res<AssetServer>,
     settings: &mut VideoSettingsState,
     dropdown_state: &mut DropdownLayerState,
-    dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+    dropdown_query: &mut VideoDropdownVisibilityQuery,
     crt_settings: &mut CrtSettings,
     main_camera_query: &mut Query<
         (
@@ -72,19 +72,6 @@ fn handle_exit_application_command(window_exit: &mut WindowExitContext) {
     );
 }
 
-fn menu_camera_center(
-    offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
-    main_camera_query: &Query<&GlobalTransform, With<MainCamera>>,
-) -> Option<Vec3> {
-    if let Ok(camera) = offscreen_camera_query.single() {
-        Some(camera.translation())
-    } else if let Ok(camera) = main_camera_query.single() {
-        Some(camera.translation())
-    } else {
-        None
-    }
-}
-
 fn handle_open_main_menu_options_overlay_command(
     commands: &mut Commands,
     menu_root: &MenuRoot,
@@ -98,7 +85,7 @@ fn handle_open_main_menu_options_overlay_command(
     }
 
     let Some(camera_translation) =
-        menu_camera_center(offscreen_camera_query, main_camera_transform_query)
+        super::camera::menu_camera_center(offscreen_camera_query, main_camera_transform_query)
     else {
         return;
     };
@@ -108,7 +95,11 @@ fn handle_open_main_menu_options_overlay_command(
         asset_server,
         MenuHost::Main,
         "main_menu_options_overlay",
-        Vec3::new(camera_translation.x, camera_translation.y, system_menu::MENU_Z),
+        Vec3::new(
+            camera_translation.x,
+            camera_translation.y,
+            system_menu::MENU_Z,
+        ),
         MenuPage::Options,
         InteractionGate::PauseMenuOnly,
     );
@@ -168,7 +159,7 @@ pub(super) fn apply_menu_reducer_result(
     asset_server: &Res<AssetServer>,
     settings: &mut VideoSettingsState,
     dropdown_state: &mut DropdownLayerState,
-    dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+    dropdown_query: &mut VideoDropdownVisibilityQuery,
     crt_settings: &mut CrtSettings,
     main_camera_query: &mut Query<
         (

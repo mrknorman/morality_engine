@@ -64,7 +64,9 @@ pub(super) fn handle_menu_option_commands(
         let close_menu_system = ctx.navigation_state.pending_exit_closes_menu_system;
         ctx.navigation_state.pending_exit_closes_menu_system = false;
 
-        if let Ok((menu_root, mut menu_stack, mut selectable_menu)) = menu_query.get_mut(menu_entity) {
+        if let Ok((menu_root, mut menu_stack, mut selectable_menu)) =
+            menu_query.get_mut(menu_entity)
+        {
             if close_menu_system {
                 match menu_root.host {
                     MenuHost::Pause => ctx.next_pause_state.set(PauseState::Unpaused),
@@ -260,7 +262,12 @@ pub(super) fn handle_option_cycler_commands(
     dilation: Res<Dilation>,
     mut settings: ResMut<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
 ) {
     // Query contract:
@@ -288,7 +295,8 @@ pub(super) fn handle_option_cycler_commands(
     pending_cyclers.sort_by_key(|(entity, _)| entity.to_bits());
 
     for (entity, forward) in pending_cyclers {
-        let Ok((_, selectable, _cycler, option_command, click_pallet)) = option_query.get_mut(entity)
+        let Ok((_, selectable, _cycler, option_command, click_pallet)) =
+            option_query.get_mut(entity)
         else {
             continue;
         };
@@ -315,7 +323,8 @@ pub(super) fn handle_option_cycler_commands(
         if video_top_option_uses_dropdown(active_tab, row) {
             continue;
         }
-        let changed = step_video_top_option_for_input(&mut settings.pending, active_tab, row, forward);
+        let changed =
+            step_video_top_option_for_input(&mut settings.pending, active_tab, row, forward);
         if !changed {
             continue;
         }
@@ -339,17 +348,24 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
     mut suppressions: ResMut<OptionCommandSuppressions>,
     mut settings: ResMut<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
-    mut slot_query: Query<
-        (
-            Entity,
-            &ChildOf,
-            &DiscreteSliderSlot,
-            &mut Clickable<SystemMenuActions>,
-        ),
-    >,
-    slider_query: Query<(&VideoOptionDiscreteSlider, &DiscreteSlider, &GlobalTransform)>,
+    mut slot_query: Query<(
+        Entity,
+        &ChildOf,
+        &DiscreteSliderSlot,
+        &mut Clickable<SystemMenuActions>,
+    )>,
+    slider_query: Query<(
+        &VideoOptionDiscreteSlider,
+        &DiscreteSlider,
+        &GlobalTransform,
+    )>,
     option_audio_query: Query<
         (
             Entity,
@@ -380,8 +396,10 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
     }
     click_targets.sort_by_key(|(slot_entity, _, _)| slot_entity.to_bits());
 
-    let mut audio_by_menu_row: std::collections::HashMap<(Entity, usize), (Entity, &TransientAudioPallet<SystemMenuSounds>)> =
-        std::collections::HashMap::new();
+    let mut audio_by_menu_row: std::collections::HashMap<
+        (Entity, usize),
+        (Entity, &TransientAudioPallet<SystemMenuSounds>),
+    > = std::collections::HashMap::new();
     for (option_entity, selectable, row, pallet) in option_audio_query.iter() {
         if row.index >= VIDEO_TOP_OPTION_COUNT {
             continue;
@@ -390,7 +408,8 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
     }
 
     for (_slot_entity, slider_entity, slot_index) in click_targets {
-        let Ok((slider_meta, slider_widget, slider_global)) = slider_query.get(slider_entity) else {
+        let Ok((slider_meta, slider_widget, slider_global)) = slider_query.get(slider_entity)
+        else {
             continue;
         };
         if slider_meta.row >= VIDEO_TOP_OPTION_COUNT {
@@ -399,7 +418,9 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
         if tabbed_focus.is_tabs_focused(slider_meta.menu_entity) {
             continue;
         }
-        if layer::active_layer_kind_for_owner(&active_layers, slider_meta.menu_entity) != UiLayerKind::Base {
+        if layer::active_layer_kind_for_owner(&active_layers, slider_meta.menu_entity)
+            != UiLayerKind::Base
+        {
             continue;
         }
 

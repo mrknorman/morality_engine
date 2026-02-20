@@ -64,8 +64,7 @@ fn resolve_video_footer_highlight_by_menu(
         let rank = selectable.index as u64;
         match highlighted_by_menu.get_mut(&selectable.menu_entity) {
             Some((best_priority, best_index, best_rank)) => {
-                if priority > *best_priority || (priority == *best_priority && rank >= *best_rank)
-                {
+                if priority > *best_priority || (priority == *best_priority && rank >= *best_rank) {
                     *best_priority = priority;
                     *best_index = footer_index;
                     *best_rank = rank;
@@ -236,7 +235,8 @@ pub(super) fn sync_video_footer_table_values(
     cell_children_query: Query<&Children, With<Cell>>,
     mut text_query: Query<(&mut TextColor, &mut TextFont, &mut Transform)>,
 ) {
-    let highlighted_by_menu = resolve_video_footer_highlight_by_menu(&menu_query, &video_option_query);
+    let highlighted_by_menu =
+        resolve_video_footer_highlight_by_menu(&menu_query, &video_option_query);
 
     for (table_parent, table_children) in table_query.iter() {
         let menu_entity = table_parent.parent();
@@ -287,7 +287,8 @@ pub(super) fn sync_video_footer_selection_indicators(
         With<system_menu::SystemMenuSelectionIndicator>,
     >,
 ) {
-    let highlighted_by_menu = resolve_video_footer_highlight_by_menu(&menu_query, &video_option_query);
+    let highlighted_by_menu =
+        resolve_video_footer_highlight_by_menu(&menu_query, &video_option_query);
 
     for (parent, mut visibility) in indicator_query.iter_mut() {
         let Ok((selectable, row)) = option_query.get(parent.parent()) else {
@@ -434,7 +435,10 @@ pub(super) fn sync_video_discrete_slider_widgets(
             } else {
                 selected_index.min(steps - 1)
             };
-            let filled = key.slider_filled_slots(settings.pending).unwrap_or(0).min(steps);
+            let filled = key
+                .slider_filled_slots(settings.pending)
+                .unwrap_or(0)
+                .min(steps);
             let highlighted = highlighted_by_menu_row
                 .get(&(slider_meta.menu_entity, slider_meta.row))
                 .copied()
@@ -462,8 +466,11 @@ pub(super) fn sync_video_discrete_slider_widgets(
     }
 
     let mut label_query = slider_queries.p1();
-    for (parent, mut text, mut color, mut font, mut transform, mut visibility) in label_query.iter_mut() {
-        let Some((label, highlighted, slider_visible)) = label_by_slider.get(&parent.parent()) else {
+    for (parent, mut text, mut color, mut font, mut transform, mut visibility) in
+        label_query.iter_mut()
+    {
+        let Some((label, highlighted, slider_visible)) = label_by_slider.get(&parent.parent())
+        else {
             *visibility = Visibility::Hidden;
             continue;
         };
@@ -502,7 +509,10 @@ pub(super) fn sync_video_option_cycler_bounds(
             continue;
         }
 
-        let Some(active_tab) = active_tabs.get(&selectable.menu_entity).copied().map(video_tab_kind)
+        let Some(active_tab) = active_tabs
+            .get(&selectable.menu_entity)
+            .copied()
+            .map(video_tab_kind)
         else {
             cycler.at_min = true;
             cycler.at_max = true;
@@ -521,9 +531,10 @@ pub(super) fn sync_video_option_cycler_bounds(
             continue;
         }
 
-        let selected_index = video_top_option_selected_index(settings.pending, active_tab, row.index)
-            .unwrap_or(0)
-            .min(choice_count - 1);
+        let selected_index =
+            video_top_option_selected_index(settings.pending, active_tab, row.index)
+                .unwrap_or(0)
+                .min(choice_count - 1);
         cycler.at_min = selected_index == 0;
         cycler.at_max = selected_index >= choice_count - 1;
     }
@@ -579,7 +590,10 @@ pub(super) fn sync_video_cycle_arrow_positions(
         if row.index >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        let Some(active_tab) = active_tabs.get(&selectable.menu_entity).copied().map(video_tab_kind)
+        let Some(active_tab) = active_tabs
+            .get(&selectable.menu_entity)
+            .copied()
+            .map(video_tab_kind)
         else {
             continue;
         };
@@ -741,7 +755,11 @@ pub(super) fn sync_video_tabs_visuals(
 pub(super) fn suppress_left_cycle_arrow_for_dropdown_options(
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     option_query: Query<(Entity, &Selectable, &VideoOptionRow), With<OptionCycler>>,
-    mut arrow_query: Query<(&ChildOf, &system_menu::SystemMenuCycleArrow, &mut Visibility)>,
+    mut arrow_query: Query<(
+        &ChildOf,
+        &system_menu::SystemMenuCycleArrow,
+        &mut Visibility,
+    )>,
 ) {
     let active_tabs = active_video_tabs_by_menu(&tab_query);
     let mut dropdown_style_options = HashSet::new();
@@ -749,7 +767,10 @@ pub(super) fn suppress_left_cycle_arrow_for_dropdown_options(
         if row.index >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        let Some(active_tab) = active_tabs.get(&selectable.menu_entity).copied().map(video_tab_kind)
+        let Some(active_tab) = active_tabs
+            .get(&selectable.menu_entity)
+            .copied()
+            .map(video_tab_kind)
         else {
             continue;
         };
@@ -783,7 +804,11 @@ pub(super) fn sync_video_top_option_hover_descriptions(
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
     mut option_query: Query<
-        (&Selectable, &VideoOptionRow, &mut hover_box::HoverBoxContent),
+        (
+            &Selectable,
+            &VideoOptionRow,
+            &mut hover_box::HoverBoxContent,
+        ),
         (
             Without<VideoResolutionDropdownItem>,
             Without<VideoResolutionDropdown>,
@@ -791,10 +816,17 @@ pub(super) fn sync_video_top_option_hover_descriptions(
     >,
     dropdown_query: Query<
         (Entity, &ChildOf, &Visibility),
-        (With<VideoResolutionDropdown>, Without<VideoResolutionDropdownItem>),
+        (
+            With<VideoResolutionDropdown>,
+            Without<VideoResolutionDropdownItem>,
+        ),
     >,
     mut dropdown_item_query: Query<
-        (&ChildOf, &VideoResolutionDropdownItem, &mut hover_box::HoverBoxContent),
+        (
+            &ChildOf,
+            &VideoResolutionDropdownItem,
+            &mut hover_box::HoverBoxContent,
+        ),
         (With<VideoResolutionDropdownItem>, Without<VideoOptionRow>),
     >,
 ) {
@@ -1037,7 +1069,9 @@ mod tests {
                 test_selectable_menu(1),
             ))
             .id();
-        app.world_mut().entity_mut(menu_entity).add_child(dropdown_entity);
+        app.world_mut()
+            .entity_mut(menu_entity)
+            .add_child(dropdown_entity);
 
         let dropdown_item = app
             .world_mut()
@@ -1138,11 +1172,10 @@ mod tests {
                 ),
             ))
             .id();
-        let scroll_content = app
-            .world_mut()
-            .spawn(VideoTopOptionsScrollContent)
-            .id();
-        app.world_mut().entity_mut(scroll_root).add_child(scroll_content);
+        let scroll_content = app.world_mut().spawn(VideoTopOptionsScrollContent).id();
+        app.world_mut()
+            .entity_mut(scroll_root)
+            .add_child(scroll_content);
 
         let table = Table {
             columns: vec![
@@ -1216,12 +1249,10 @@ mod tests {
 
         let expected_label = video_top_option_labels(VideoTabKind::Display)[0];
         let expected_value = video_top_value_strings(
-            app.world()
-                .resource::<VideoSettingsState>()
-                .pending,
+            app.world().resource::<VideoSettingsState>().pending,
             VideoTabKind::Display,
         )[0]
-            .clone();
+        .clone();
 
         let name_text = world
             .get::<Text2d>(name_text_entity)

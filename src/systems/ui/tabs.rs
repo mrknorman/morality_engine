@@ -5,8 +5,8 @@
 //! focus policy should remain in composition modules.
 use std::collections::HashMap;
 
-use bevy::prelude::*;
 use bevy::ecs::query::QueryFilter;
+use bevy::prelude::*;
 use enum_map::{Enum, EnumArray};
 
 use crate::systems::{
@@ -81,7 +81,8 @@ pub fn keyboard_activation_target(
     active_index: usize,
 ) -> Option<usize> {
     let activate_pressed = activation_policy.is_none_or(|policy| policy.activate_keys.is_empty())
-        && (keyboard_input.just_pressed(KeyCode::Enter) || keyboard_input.just_pressed(KeyCode::Tab))
+        && (keyboard_input.just_pressed(KeyCode::Enter)
+            || keyboard_input.just_pressed(KeyCode::Tab))
         || activation_policy.is_some_and(|policy| {
             policy
                 .activate_keys
@@ -95,7 +96,9 @@ pub fn keyboard_activation_target(
     }
 }
 
-fn tab_indices_by_bar(tab_item_query: &Query<&Selectable, With<TabItem>>) -> HashMap<Entity, Vec<usize>> {
+fn tab_indices_by_bar(
+    tab_item_query: &Query<&Selectable, With<TabItem>>,
+) -> HashMap<Entity, Vec<usize>> {
     let mut indices_by_bar: HashMap<Entity, Vec<usize>> = HashMap::new();
     for selectable in tab_item_query.iter() {
         indices_by_bar
@@ -243,9 +246,9 @@ mod tests {
         clickable_a.triggered = true;
         let first = world
             .spawn((
-            TabItem { index: 0 },
-            Selectable::new(tab_root, 0),
-            clickable_a,
+                TabItem { index: 0 },
+                Selectable::new(tab_root, 0),
+                clickable_a,
             ))
             .id();
 
@@ -264,7 +267,11 @@ mod tests {
         let query = state.get(&world);
 
         let clicked = collect_clicked_tab_indices(&query);
-        let expected_index = if winner.to_bits() >= first.to_bits() { 1 } else { 0 };
+        let expected_index = if winner.to_bits() >= first.to_bits() {
+            1
+        } else {
+            0
+        };
         assert_eq!(clicked.get(&tab_root).copied(), Some(expected_index));
 
         // Current implementation resolves ties by entity rank (`to_bits`).
@@ -306,15 +313,15 @@ mod tests {
             .expect("tab state");
         assert_eq!(state.active_index, 2);
 
-        let mut reader = app.world_mut().resource_mut::<Messages<TabChanged>>().get_cursor();
-        let messages: Vec<TabChanged> = reader.read(app.world().resource::<Messages<TabChanged>>()).copied().collect();
-        assert_eq!(
-            messages,
-            vec![TabChanged {
-                tab_bar,
-                index: 2
-            }]
-        );
+        let mut reader = app
+            .world_mut()
+            .resource_mut::<Messages<TabChanged>>()
+            .get_cursor();
+        let messages: Vec<TabChanged> = reader
+            .read(app.world().resource::<Messages<TabChanged>>())
+            .copied()
+            .collect();
+        assert_eq!(messages, vec![TabChanged { tab_bar, index: 2 }]);
     }
 
     #[test]
@@ -342,8 +349,14 @@ mod tests {
             .expect("tab state");
         assert_eq!(state.active_index, 0);
 
-        let mut reader = app.world_mut().resource_mut::<Messages<TabChanged>>().get_cursor();
-        let messages: Vec<TabChanged> = reader.read(app.world().resource::<Messages<TabChanged>>()).copied().collect();
+        let mut reader = app
+            .world_mut()
+            .resource_mut::<Messages<TabChanged>>()
+            .get_cursor();
+        let messages: Vec<TabChanged> = reader
+            .read(app.world().resource::<Messages<TabChanged>>())
+            .copied()
+            .collect();
         assert!(messages.is_empty());
     }
 }

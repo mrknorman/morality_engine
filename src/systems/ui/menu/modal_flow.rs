@@ -1,6 +1,4 @@
 use super::*;
-use bevy::sprite::Anchor;
-use std::collections::HashMap;
 use crate::{
     entities::{
         sprites::compound::HollowRectangle,
@@ -8,6 +6,8 @@ use crate::{
     },
     systems::colors::SYSTEM_MENU_COLOR,
 };
+use bevy::sprite::Anchor;
+use std::collections::HashMap;
 
 pub(super) fn any_video_modal_open(modal_query: &Query<(), With<VideoModalRoot>>) -> bool {
     !modal_query.is_empty()
@@ -245,7 +245,12 @@ pub(super) fn handle_video_modal_shortcuts(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     modal_query: Query<
         (
             Entity,
@@ -271,11 +276,18 @@ pub(super) fn handle_video_modal_shortcuts(
     let mut modal_kind_by_owner: HashMap<Entity, (bool, bool)> = HashMap::new();
     for (modal_entity, ui_layer, is_apply_modal, is_exit_modal) in modal_query.iter() {
         if layer::active_layer_kind_for_owner(&active_layers, ui_layer.owner) != UiLayerKind::Modal
-            || !layer::is_active_layer_entity_for_owner(&active_layers, ui_layer.owner, modal_entity)
+            || !layer::is_active_layer_entity_for_owner(
+                &active_layers,
+                ui_layer.owner,
+                modal_entity,
+            )
         {
             continue;
         }
-        modal_kind_by_owner.insert(ui_layer.owner, (is_apply_modal.is_some(), is_exit_modal.is_some()));
+        modal_kind_by_owner.insert(
+            ui_layer.owner,
+            (is_apply_modal.is_some(), is_exit_modal.is_some()),
+        );
     }
     for owner in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Modal) {
         let Some((is_apply_modal, is_exit_modal)) = modal_kind_by_owner.get(&owner).copied() else {
@@ -315,7 +327,12 @@ pub(super) fn handle_video_modal_button_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     modal_layer_query: Query<&UiLayer, With<VideoModalRoot>>,
     mut settings: ResMut<VideoSettingsState>,
     mut crt_settings: ResMut<CrtSettings>,
@@ -348,11 +365,8 @@ pub(super) fn handle_video_modal_button_commands(
     // - modal-layer ownership lookup is read-only (`modal_layer_query`).
     // - button click consumption/mutation is isolated to `button_query`.
     // Active-layer arbitration keeps modal button resolution owner-scoped.
-    let active_layers = layer::active_layers_by_owner_scoped(
-        pause_state.as_ref(),
-        &capture_query,
-        &ui_layer_query,
-    );
+    let active_layers =
+        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
 
     let mut selected_button: Option<(Entity, VideoModalButton, usize, u64, Entity)> = None;
     for (entity, selectable, button, mut clickable, _) in button_query.iter_mut() {
@@ -365,10 +379,13 @@ pub(super) fn handle_video_modal_button_commands(
         let Ok(modal_layer) = modal_layer_query.get(modal_entity) else {
             continue;
         };
-        if layer::active_layer_kind_for_owner(&active_layers, modal_layer.owner) != UiLayerKind::Modal {
+        if layer::active_layer_kind_for_owner(&active_layers, modal_layer.owner)
+            != UiLayerKind::Modal
+        {
             continue;
         }
-        if !layer::is_active_layer_entity_for_owner(&active_layers, modal_layer.owner, modal_entity) {
+        if !layer::is_active_layer_entity_for_owner(&active_layers, modal_layer.owner, modal_entity)
+        {
             continue;
         }
 
@@ -424,7 +441,11 @@ pub(super) fn handle_video_modal_button_commands(
                 if let Ok(mut window) = primary_window.single_mut() {
                     apply_snapshot_to_window(&mut window, snapshot);
                 }
-                apply_snapshot_to_post_processing(snapshot, &mut crt_settings, &mut main_camera_query);
+                apply_snapshot_to_post_processing(
+                    snapshot,
+                    &mut crt_settings,
+                    &mut main_camera_query,
+                );
             }
             settings.apply_timer = None;
         }
@@ -504,7 +525,8 @@ mod tests {
         let mut shortcuts_system = IntoSystem::into_system(handle_video_modal_shortcuts);
         shortcuts_system.initialize(&mut world);
 
-        let mut button_commands_system = IntoSystem::into_system(handle_video_modal_button_commands);
+        let mut button_commands_system =
+            IntoSystem::into_system(handle_video_modal_button_commands);
         button_commands_system.initialize(&mut world);
 
         let mut countdown_system = IntoSystem::into_system(update_apply_confirmation_countdown);
@@ -541,7 +563,10 @@ mod tests {
             .press(KeyCode::KeyY);
         app.update();
 
-        let mut reader = app.world_mut().resource_mut::<Messages<MenuIntent>>().get_cursor();
+        let mut reader = app
+            .world_mut()
+            .resource_mut::<Messages<MenuIntent>>()
+            .get_cursor();
         let intents: Vec<MenuIntent> = reader
             .read(app.world().resource::<Messages<MenuIntent>>())
             .cloned()

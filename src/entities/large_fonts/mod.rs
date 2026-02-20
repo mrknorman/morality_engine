@@ -75,7 +75,10 @@ impl AsciiString {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         // If this component is reinserted on the same entity, clear old glyph children
         // so large-font titles cannot duplicate and overlap.
-        world.commands().entity(entity).despawn_related::<Children>();
+        world
+            .commands()
+            .entity(entity)
+            .despawn_related::<Children>();
 
         // Get the text and components early to avoid borrow conflicts
         let (text, color, beep, emotion) = {
@@ -133,8 +136,11 @@ impl AsciiString {
         let mut commands = world.commands();
         commands.entity(entity).with_children(|parent| {
             for (ascii_char, translation) in placements {
-                let centered_translation =
-                    Vec3::new(translation.x - center.x, translation.y - center.y, translation.z);
+                let centered_translation = Vec3::new(
+                    translation.x - center.x,
+                    translation.y - center.y,
+                    translation.z,
+                );
 
                 // Spawn entity with base components
                 let mut entity_cmd = parent.spawn((

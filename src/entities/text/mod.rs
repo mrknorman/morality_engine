@@ -533,14 +533,8 @@ impl TextWindow {
             ),
         >,
     ) {
-        for (
-            text_layout,
-            text_bounds,
-            bounds_policy,
-            text_content,
-            text_font,
-            mut layout_state,
-        ) in text_windows.iter_mut()
+        for (text_layout, text_bounds, bounds_policy, text_content, text_font, mut layout_state) in
+            text_windows.iter_mut()
         {
             let measured_size =
                 Self::measured_text_size(text_layout, &text_bounds).max(Vec2::splat(1.0));
@@ -925,7 +919,8 @@ impl Cell {
             let height = bounds.height.unwrap_or(text_layout.size.y).max(1.0);
             let offset = get_anchor_offset(anchor, Vec2::new(width, height));
             transform.translation.x = offset.x;
-            transform.translation.y = offset.y + centered_text_y_correction(anchor, bounds, text_layout);
+            transform.translation.y =
+                offset.y + centered_text_y_correction(anchor, bounds, text_layout);
         }
     }
 }

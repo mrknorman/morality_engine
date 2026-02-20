@@ -6,11 +6,11 @@
 use std::collections::{HashMap, HashSet};
 
 use bevy::{
-    app::AppExit,
     anti_alias::{
         contrast_adaptive_sharpening::ContrastAdaptiveSharpening,
         fxaa::{Fxaa, Sensitivity},
     },
+    app::AppExit,
     audio::Volume,
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
     post_process::bloom::{Bloom, BloomCompositeMode},
@@ -26,15 +26,14 @@ use bevy::{
 use crate::{
     data::states::{DilemmaPhase, GameState, MainState, PauseState},
     scenes::{Scene, SceneQueue},
-    startup::system_menu,
     startup::render::{CrtSettings, MainCamera, OffscreenCamera},
+    startup::system_menu,
     systems::{
         audio::{continuous_audio, DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
-            interaction_gate_allows_for_owner, option_cycler_input_system, Clickable,
-            Hoverable, InteractionCapture, InteractionCaptureOwner, InteractionGate,
-            InteractionSystem, InteractionVisualState, OptionCycler, Selectable,
-            SelectableClickActivation,
+            interaction_gate_allows_for_owner, option_cycler_input_system, Clickable, Hoverable,
+            InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionSystem,
+            InteractionVisualState, OptionCycler, Selectable, SelectableClickActivation,
             SelectableMenu, SystemMenuActions, SystemMenuSounds,
         },
         time::Dilation,
@@ -50,44 +49,40 @@ use crate::{
     },
 };
 
-mod defs;
-mod command_flow;
+mod camera;
 mod command_effects;
+mod command_flow;
 mod command_reducer;
 mod debug_showcase;
+mod defs;
 mod dropdown_flow;
 mod dropdown_view;
+#[cfg(test)]
+mod flow_tests;
 mod footer_nav;
 mod main_menu;
 mod menu_input;
 mod modal_flow;
 mod page_content;
 mod root_spawn;
-mod scroll_adapter;
 pub mod schema;
+mod scroll_adapter;
 mod stack;
 mod tabbed_focus;
 mod tabbed_menu;
 mod video_visuals;
-#[cfg(test)]
-mod flow_tests;
 
+use command_effects::apply_menu_reducer_result;
+use command_flow::{
+    handle_menu_option_commands, handle_option_cycler_commands,
+    handle_video_discrete_slider_slot_commands, OptionCommandSuppressions,
+};
+use command_reducer::reduce_menu_command;
+use defs::*;
 pub use defs::{
     MainMenuOptionsOverlay, MenuCommand, MenuHost, MenuOptionCommand, MenuPage, MenuPageContent,
     MenuRoot, MenuStack, PauseMenuAudio,
 };
-pub use main_menu::{
-    main_menu_command_registry, spawn_main_menu_option_list, MainMenuEntry,
-};
-pub use root_spawn::spawn_menu_root;
-use defs::*;
-use command_flow::{
-    handle_menu_option_commands, handle_option_cycler_commands,
-    handle_video_discrete_slider_slot_commands,
-    OptionCommandSuppressions,
-};
-use command_effects::apply_menu_reducer_result;
-use command_reducer::reduce_menu_command;
 use dropdown_flow::{
     close_dropdowns_for_menu, close_resolution_dropdown_on_outside_click,
     handle_resolution_dropdown_item_commands, handle_resolution_dropdown_keyboard_navigation,
@@ -97,16 +92,17 @@ use dropdown_view::{
     ensure_resolution_dropdown_value_arrows, recenter_resolution_dropdown_item_text,
     sync_resolution_dropdown_items, update_resolution_dropdown_value_arrows,
 };
+pub use main_menu::{main_menu_command_registry, spawn_main_menu_option_list, MainMenuEntry};
+use menu_input::{
+    apply_menu_intents, enforce_active_layer_focus, handle_menu_shortcuts,
+    play_menu_navigation_sound, suppress_option_visuals_for_inactive_layers_and_tab_focus,
+};
 use modal_flow::{
     any_video_modal_open, handle_video_modal_button_commands, handle_video_modal_shortcuts,
     update_apply_confirmation_countdown,
 };
-use menu_input::{
-    apply_menu_intents, enforce_active_layer_focus, handle_menu_shortcuts,
-    play_menu_navigation_sound,
-    suppress_option_visuals_for_inactive_layers_and_tab_focus,
-};
 use page_content::{rebuild_menu_page, spawn_page_content};
+pub use root_spawn::spawn_menu_root;
 use stack::MenuNavigationState;
 use video_visuals::{
     ensure_video_discrete_slider_slot_clickables, suppress_left_cycle_arrow_for_dropdown_options,
@@ -140,12 +136,7 @@ struct WindowExitContext<'w, 's> {
         'w,
         's,
         (
-            Query<
-                'w,
-                's,
-                Entity,
-                (With<Window>, With<PrimaryWindow>, Without<ClosingWindow>),
-            >,
+            Query<'w, 's, Entity, (With<Window>, With<PrimaryWindow>, Without<ClosingWindow>)>,
             Query<'w, 's, &'static mut Window, With<PrimaryWindow>>,
         ),
     >,
@@ -159,14 +150,17 @@ struct MenuCommandContext<'w, 's> {
         'w,
         's,
         (
-            Query<'w, 's, (&'static MenuRoot, &'static mut MenuStack, &'static mut SelectableMenu)>,
-            Query<'w, 's, (&'static MenuRoot, &'static MenuStack)>,
             Query<
                 'w,
                 's,
-                &'static mut SelectableMenu,
-                (With<VideoResolutionDropdown>, Without<MenuRoot>),
+                (
+                    &'static MenuRoot,
+                    &'static mut MenuStack,
+                    &'static mut SelectableMenu,
+                ),
             >,
+            Query<'w, 's, (&'static MenuRoot, &'static MenuStack)>,
+            VideoDropdownMenuQuery<'w, 's>,
         ),
     >,
     page_content_query: Query<'w, 's, (Entity, &'static ChildOf), With<MenuPageContent>>,
@@ -216,25 +210,10 @@ struct MenuCommandContext<'w, 's> {
                     Option<&'static InteractionGate>,
                 ),
             >,
-            Query<
-                'w,
-                's,
-                (
-                    Entity,
-                    &'static ChildOf,
-                    &'static UiLayer,
-                    &'static mut Visibility,
-                ),
-                With<VideoResolutionDropdown>,
-            >,
+            VideoDropdownVisibilityQuery<'w, 's>,
         ),
     >,
-    video_tab_query: Query<
-        'w,
-        's,
-        (&'static tabs::TabBar, &'static tabs::TabBarState),
-        With<tabbed_menu::TabbedMenuConfig>,
-    >,
+    video_tab_query: VideoTabBarQuery<'w, 's>,
     video_top_scroll_query: Query<
         'w,
         's,
@@ -251,6 +230,28 @@ struct MenuCommandContext<'w, 's> {
 struct InactiveLayerSelectionCache {
     by_layer: HashMap<Entity, usize>,
 }
+
+type VideoDropdownVisibilityQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static ChildOf,
+        &'static UiLayer,
+        &'static mut Visibility,
+    ),
+    With<VideoResolutionDropdown>,
+>;
+
+type VideoDropdownMenuQuery<'w, 's> =
+    Query<'w, 's, &'static mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>;
+
+type VideoTabBarQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static tabs::TabBar, &'static tabs::TabBarState),
+    With<tabbed_menu::TabbedMenuConfig>,
+>;
 
 fn resolution_index_from_window(window: &Window) -> usize {
     let current = (window.resolution.width(), window.resolution.height());
@@ -652,15 +653,14 @@ fn initialize_video_settings_from_window(
         } else {
             ScanDarkness::High
         };
-        snapshot.scan_jitter = crt_effect_level_from_scalar((crt_settings.jitter_strength / 0.36).clamp(0.0, 1.0));
-        snapshot.scan_aberration = crt_effect_level_from_scalar(
-            (crt_settings.aberration_strength / 0.7).clamp(0.0, 1.0),
-        );
+        snapshot.scan_jitter =
+            crt_effect_level_from_scalar((crt_settings.jitter_strength / 0.36).clamp(0.0, 1.0));
+        snapshot.scan_aberration =
+            crt_effect_level_from_scalar((crt_settings.aberration_strength / 0.7).clamp(0.0, 1.0));
         snapshot.scan_phosphor =
             crt_effect_level_from_scalar(crt_settings.phosphor_strength.clamp(0.0, 1.0));
-        snapshot.scan_vignette = crt_effect_level_from_scalar(
-            (crt_settings.vignette_strength / 0.85).clamp(0.0, 1.0),
-        );
+        snapshot.scan_vignette =
+            crt_effect_level_from_scalar((crt_settings.vignette_strength / 0.85).clamp(0.0, 1.0));
     }
 
     if let Ok((bloom, tonemapping, deband_dither, fxaa, cas, chromatic, msaa)) =
@@ -810,7 +810,7 @@ fn enforce_menu_layer_invariants(
     mut dropdown_anchor_state: ResMut<DropdownAnchorState>,
     menu_root_query: Query<Entity, With<MenuRoot>>,
     modal_query: Query<(), With<VideoModalRoot>>,
-    mut dropdown_query: Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+    mut dropdown_query: VideoDropdownVisibilityQuery,
 ) {
     stack::clear_stale_menu_targets(&mut navigation_state, &menu_root_query);
     dropdown::enforce_single_visible_layer::<VideoResolutionDropdown, MenuRoot>(

@@ -41,12 +41,14 @@ impl SelectorSurface {
             return;
         };
 
-        let selectable_mismatch = world
-            .entity(entity)
-            .get::<Selectable>()
-            .is_none_or(|selectable| {
-                selectable.menu_entity != surface.menu_entity || selectable.index != surface.index
-            });
+        let selectable_mismatch =
+            world
+                .entity(entity)
+                .get::<Selectable>()
+                .is_none_or(|selectable| {
+                    selectable.menu_entity != surface.menu_entity
+                        || selectable.index != surface.index
+                });
         if selectable_mismatch {
             world
                 .commands()
@@ -153,8 +155,10 @@ mod tests {
         let commands = collect_shortcut_commands(&keyboard, &active_parents, &query);
 
         assert_eq!(commands.len(), 2);
-        let by_parent: HashMap<Entity, &str> =
-            commands.into_iter().map(|(menu, cmd)| (menu, cmd.0)).collect();
+        let by_parent: HashMap<Entity, &str> = commands
+            .into_iter()
+            .map(|(menu, cmd)| (menu, cmd.0))
+            .collect();
         assert_eq!(by_parent.get(&menu_a).copied(), Some("a_low"));
         assert_eq!(by_parent.get(&menu_b).copied(), Some("b_only"));
     }

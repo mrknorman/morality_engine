@@ -84,8 +84,7 @@ pub fn is_active_layer_entity_for_owner(
     owner: Entity,
     layer_entity: Entity,
 ) -> bool {
-    active_layer_for_owner(active_layers, owner)
-        .is_some_and(|active| active.entity == layer_entity)
+    active_layer_for_owner(active_layers, owner).is_some_and(|active| active.entity == layer_entity)
 }
 
 /// Returns active layers sorted by owner/entity rank for deterministic routing.
@@ -122,7 +121,12 @@ fn is_visible(visibility: Option<&Visibility>) -> bool {
 pub fn active_layers_by_owner_scoped(
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    layer_query: &Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    layer_query: &Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
 ) -> HashMap<Entity, ActiveUiLayer> {
     let mut active: HashMap<Entity, ActiveUiLayer> = HashMap::new();
     for (entity, layer, visibility, gate) in layer_query.iter() {
@@ -167,10 +171,16 @@ mod tests {
             .spawn((UiLayer::new(owner, UiLayerKind::Modal), Visibility::Visible))
             .id();
 
-        let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-            SystemState::new(&mut world);
+        let mut capture_state: SystemState<
+            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
-            Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+            Query<(
+                Entity,
+                &UiLayer,
+                Option<&Visibility>,
+                Option<&InteractionGate>,
+            )>,
         > = SystemState::new(&mut world);
 
         let capture_query = capture_state.get(&world);
@@ -192,10 +202,16 @@ mod tests {
             .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible))
             .id();
 
-        let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-            SystemState::new(&mut world);
+        let mut capture_state: SystemState<
+            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
-            Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+            Query<(
+                Entity,
+                &UiLayer,
+                Option<&Visibility>,
+                Option<&InteractionGate>,
+            )>,
         > = SystemState::new(&mut world);
 
         let capture_query = capture_state.get(&world);
@@ -282,26 +298,47 @@ mod tests {
         let owner_b = world.spawn_empty().id();
 
         let owner_a_base = world
-            .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible))
+            .spawn((
+                UiLayer::new(owner_a, UiLayerKind::Base),
+                Visibility::Visible,
+            ))
             .id();
         let owner_a_modal = world
-            .spawn((UiLayer::new(owner_a, UiLayerKind::Modal), Visibility::Visible))
+            .spawn((
+                UiLayer::new(owner_a, UiLayerKind::Modal),
+                Visibility::Visible,
+            ))
             .id();
 
         let owner_b_base = world
-            .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible))
+            .spawn((
+                UiLayer::new(owner_b, UiLayerKind::Base),
+                Visibility::Visible,
+            ))
             .id();
         let owner_b_dropdown = world
-            .spawn((UiLayer::new(owner_b, UiLayerKind::Dropdown), Visibility::Visible))
+            .spawn((
+                UiLayer::new(owner_b, UiLayerKind::Dropdown),
+                Visibility::Visible,
+            ))
             .id();
         let owner_b_modal = world
-            .spawn((UiLayer::new(owner_b, UiLayerKind::Modal), Visibility::Hidden))
+            .spawn((
+                UiLayer::new(owner_b, UiLayerKind::Modal),
+                Visibility::Hidden,
+            ))
             .id();
 
-        let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-            SystemState::new(&mut world);
+        let mut capture_state: SystemState<
+            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
-            Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+            Query<(
+                Entity,
+                &UiLayer,
+                Option<&Visibility>,
+                Option<&InteractionGate>,
+            )>,
         > = SystemState::new(&mut world);
 
         let capture_query = capture_state.get(&world);
@@ -342,10 +379,26 @@ mod tests {
             Some(owner_b_modal)
         );
 
-        assert!(is_active_layer_entity_for_owner(&active, owner_a, owner_a_base));
-        assert!(!is_active_layer_entity_for_owner(&active, owner_a, owner_a_modal));
-        assert!(is_active_layer_entity_for_owner(&active, owner_b, owner_b_modal));
-        assert!(!is_active_layer_entity_for_owner(&active, owner_b, owner_b_base));
+        assert!(is_active_layer_entity_for_owner(
+            &active,
+            owner_a,
+            owner_a_base
+        ));
+        assert!(!is_active_layer_entity_for_owner(
+            &active,
+            owner_a,
+            owner_a_modal
+        ));
+        assert!(is_active_layer_entity_for_owner(
+            &active,
+            owner_b,
+            owner_b_modal
+        ));
+        assert!(!is_active_layer_entity_for_owner(
+            &active,
+            owner_b,
+            owner_b_base
+        ));
     }
 
     #[test]
@@ -378,10 +431,16 @@ mod tests {
 
         world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner_a)));
 
-        let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-            SystemState::new(&mut world);
+        let mut capture_state: SystemState<
+            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
-            Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+            Query<(
+                Entity,
+                &UiLayer,
+                Option<&Visibility>,
+                Option<&InteractionGate>,
+            )>,
         > = SystemState::new(&mut world);
 
         let capture_query = capture_state.get(&world);
@@ -396,6 +455,10 @@ mod tests {
             active_layer_for_owner(&active, owner_b).map(|layer| layer.entity),
             Some(owner_b_gameplay)
         );
-        assert!(!is_active_layer_entity_for_owner(&active, owner_b, owner_b_pause_menu));
+        assert!(!is_active_layer_entity_for_owner(
+            &active,
+            owner_b,
+            owner_b_pause_menu
+        ));
     }
 }

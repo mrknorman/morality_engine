@@ -56,14 +56,16 @@ impl DropdownSurface {
 
         if let Some(existing) = world.entity(entity).get::<SelectableMenu>().cloned() {
             if existing.click_activation != surface.click_activation {
-                world.commands().entity(entity).insert(
-                    existing.with_click_activation(surface.click_activation),
-                );
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(existing.with_click_activation(surface.click_activation));
             }
         } else {
-            world.commands().entity(entity).insert(
-                SelectableMenu::default().with_click_activation(surface.click_activation),
-            );
+            world
+                .commands()
+                .entity(entity)
+                .insert(SelectableMenu::default().with_click_activation(surface.click_activation));
         }
 
         let visibility_is_default = world
@@ -71,10 +73,7 @@ impl DropdownSurface {
             .get::<Visibility>()
             .is_none_or(|visibility| *visibility == Visibility::Inherited);
         if visibility_is_default {
-            world
-                .commands()
-                .entity(entity)
-                .insert(Visibility::Hidden);
+            world.commands().entity(entity).insert(Visibility::Hidden);
         }
     }
 }
@@ -351,7 +350,8 @@ pub fn enforce_single_visible_layer<D: Component, R: Component>(
     }
 
     for (dropdown_entity, _, ui_layer, mut visibility) in dropdown_query.iter_mut() {
-        if keep_by_owner.contains_key(&ui_layer.owner) && keep_dropdowns.contains(&dropdown_entity) {
+        if keep_by_owner.contains_key(&ui_layer.owner) && keep_dropdowns.contains(&dropdown_entity)
+        {
             *visibility = Visibility::Visible;
         } else {
             *visibility = Visibility::Hidden;

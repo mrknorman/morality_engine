@@ -12,9 +12,9 @@ use bevy::{
 
 use super::{
     geometry::viewport_texture_size, ScrollBackend, ScrollLayerManaged, ScrollLayerPool,
-    ScrollRenderExhaustionPolicy, ScrollRenderSettings, ScrollableContent,
-    ScrollableContentCamera, ScrollableRenderTarget, ScrollableRoot, ScrollableSurface,
-    ScrollableViewport, SCROLL_CAMERA_Z, SCROLL_LAYER_COUNT, SCROLL_SURFACE_Z,
+    ScrollRenderExhaustionPolicy, ScrollRenderSettings, ScrollableContent, ScrollableContentCamera,
+    ScrollableRenderTarget, ScrollableRoot, ScrollableSurface, ScrollableViewport, SCROLL_CAMERA_Z,
+    SCROLL_LAYER_COUNT, SCROLL_SURFACE_Z,
 };
 
 fn create_scroll_target_image(size_px: UVec2, format: TextureFormat) -> Image {
@@ -30,9 +30,8 @@ fn create_scroll_target_image(size_px: UVec2, format: TextureFormat) -> Image {
         format,
         RenderAssetUsages::default(),
     );
-    image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING
-        | TextureUsages::COPY_DST
-        | TextureUsages::RENDER_ATTACHMENT;
+    image.texture_descriptor.usage =
+        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
     image
 }
 
@@ -95,7 +94,11 @@ pub(super) fn sync_scrollable_render_targets(
     mut images: ResMut<Assets<Image>>,
     render_settings: Res<ScrollRenderSettings>,
     mut root_query: Query<
-        (&ScrollableRoot, &ScrollableViewport, &mut ScrollableRenderTarget),
+        (
+            &ScrollableRoot,
+            &ScrollableViewport,
+            &mut ScrollableRenderTarget,
+        ),
         With<ScrollableRoot>,
     >,
 ) {
@@ -111,7 +114,8 @@ pub(super) fn sync_scrollable_render_targets(
 
         render_target.size_px = required_size;
         render_target.format = required_format;
-        render_target.image = images.add(create_scroll_target_image(required_size, required_format));
+        render_target.image =
+            images.add(create_scroll_target_image(required_size, required_format));
     }
 }
 
@@ -191,15 +195,18 @@ pub(super) fn ensure_scrollable_runtime_entities(
 
 pub(super) fn sync_scrollable_render_entities(
     root_query: Query<(Entity, &ScrollableViewport, &ScrollableRenderTarget), With<ScrollableRoot>>,
-    mut camera_query: Query<
-        (
-            &ScrollableContentCamera,
-            &mut Camera,
-            &mut RenderLayers,
-            &mut RenderTarget,
-        ),
-    >,
-    mut surface_query: Query<(&ScrollableSurface, &mut Sprite, &mut Transform, &mut Visibility)>,
+    mut camera_query: Query<(
+        &ScrollableContentCamera,
+        &mut Camera,
+        &mut RenderLayers,
+        &mut RenderTarget,
+    )>,
+    mut surface_query: Query<(
+        &ScrollableSurface,
+        &mut Sprite,
+        &mut Transform,
+        &mut Visibility,
+    )>,
 ) {
     // Query contract:
     // - root state is read-only and cached into `root_map`.
@@ -210,7 +217,11 @@ pub(super) fn sync_scrollable_render_entities(
     for (root_entity, viewport, render_target) in root_query.iter() {
         root_map.insert(
             root_entity,
-            (viewport.size, render_target.image.clone(), render_target.layer),
+            (
+                viewport.size,
+                render_target.image.clone(),
+                render_target.layer,
+            ),
         );
     }
 
@@ -275,8 +286,7 @@ pub(super) fn sync_scroll_content_layers(
                 entity == content_entity || managed.is_some() || existing_layers.is_none();
             if should_manage {
                 let already_synced = managed.is_some_and(|_| {
-                    existing_layers
-                        .is_some_and(|existing_layers| *existing_layers == target_layers)
+                    existing_layers.is_some_and(|existing_layers| *existing_layers == target_layers)
                 });
                 if !already_synced {
                     commands

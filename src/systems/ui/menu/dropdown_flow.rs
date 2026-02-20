@@ -11,11 +11,8 @@ pub(super) fn open_dropdown_for_menu(
     selected_index: usize,
     dropdown_anchor_state: &mut DropdownAnchorState,
     dropdown_state: &mut DropdownLayerState,
-    dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
-    dropdown_menu_query: &mut Query<
-        &mut SelectableMenu,
-        (With<VideoResolutionDropdown>, Without<MenuRoot>),
-    >,
+    dropdown_query: &mut VideoDropdownVisibilityQuery,
+    dropdown_menu_query: &mut VideoDropdownMenuQuery,
     scroll_root_query: &mut Query<
         (
             &crate::systems::ui::scroll::ScrollableTableAdapter,
@@ -39,7 +36,7 @@ pub(super) fn open_dropdown_for_menu(
 
 pub(super) fn close_all_dropdowns(
     dropdown_state: &mut DropdownLayerState,
-    dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+    dropdown_query: &mut VideoDropdownVisibilityQuery,
 ) {
     dropdown::close_all::<VideoResolutionDropdown>(dropdown_state, dropdown_query);
 }
@@ -47,7 +44,7 @@ pub(super) fn close_all_dropdowns(
 pub(super) fn close_dropdowns_for_menu(
     menu_entity: Entity,
     dropdown_state: &mut DropdownLayerState,
-    dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+    dropdown_query: &mut VideoDropdownVisibilityQuery,
 ) {
     dropdown::close_for_parent::<VideoResolutionDropdown>(
         menu_entity,
@@ -66,7 +63,7 @@ pub(super) fn sync_video_tab_content_state(
         With<tabbed_menu::TabbedMenuConfig>,
     >,
     menu_query: Query<&SelectableMenu, With<MenuRoot>>,
-    mut dropdown_query: Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
+    mut dropdown_query: VideoDropdownVisibilityQuery,
 ) {
     let mut owner_by_tab_root: HashMap<Entity, Entity> = HashMap::new();
     for (tab_root, tab_bar, _) in tab_query.iter() {
@@ -112,7 +109,12 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     mut layer_queries: ParamSet<(
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
     mut dropdown_state: ResMut<DropdownLayerState>,
@@ -230,7 +232,8 @@ pub(super) fn handle_resolution_dropdown_item_commands(
 
     let mut close_targets: Vec<(Entity, Entity)> = Vec::new();
     for owner in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Dropdown) {
-        let Some((selected_index, _, item_entity, menu_entity)) = chosen_by_owner.get(&owner).copied()
+        let Some((selected_index, _, item_entity, menu_entity)) =
+            chosen_by_owner.get(&owner).copied()
         else {
             continue;
         };
@@ -247,10 +250,12 @@ pub(super) fn handle_resolution_dropdown_item_commands(
             }
         }
 
-        let Ok((resolved_menu_entity, menu_stack, selectable_menu)) = menu_query.get(menu_entity) else {
+        let Ok((resolved_menu_entity, menu_stack, selectable_menu)) = menu_query.get(menu_entity)
+        else {
             continue;
         };
-        if resolved_menu_entity != menu_entity || menu_stack.current_page() != Some(MenuPage::Video) {
+        if resolved_menu_entity != menu_entity || menu_stack.current_page() != Some(MenuPage::Video)
+        {
             continue;
         }
         let row = dropdown_anchor_state.row_for_parent(
@@ -266,12 +271,8 @@ pub(super) fn handle_resolution_dropdown_item_commands(
             continue;
         }
         let clamped = selected_index.min(choice_count - 1);
-        let _ = apply_video_top_option_selected_index(
-            &mut settings.pending,
-            active_tab,
-            row,
-            clamped,
-        );
+        let _ =
+            apply_video_top_option_selected_index(&mut settings.pending, active_tab, row, clamped);
         close_targets.push((owner, menu_entity));
     }
 
@@ -289,7 +290,12 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     settings: Res<VideoSettingsState>,
     mut layer_queries: ParamSet<(
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
     mut dropdown_state: ResMut<DropdownLayerState>,
@@ -341,13 +347,7 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
     let cursor_position = cursor.position;
     let click_inside_item = cursor_position.is_some_and(|cursor_position| {
         item_query.iter().any(
-            |(
-                parent,
-                clickable,
-                transform,
-                global_transform,
-                inherited_visibility,
-            )| {
+            |(parent, clickable, transform, global_transform, inherited_visibility)| {
                 if !active_dropdowns.contains(&parent.parent()) {
                     return false;
                 }
@@ -371,9 +371,8 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
     }
 
     let click_inside_dropdown_surface = cursor_position.is_some_and(|cursor_position| {
-        dropdown_hit_query
-            .iter()
-            .any(|(dropdown_entity, transform, global_transform, sprite, inherited_visibility)| {
+        dropdown_hit_query.iter().any(
+            |(dropdown_entity, transform, global_transform, sprite, inherited_visibility)| {
                 if !active_dropdowns.contains(&dropdown_entity) {
                     return false;
                 }
@@ -390,7 +389,8 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
                     size,
                     Vec2::ZERO,
                 )
-            })
+            },
+        )
     });
     if click_inside_dropdown_surface {
         return;
@@ -413,7 +413,12 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     mut layer_queries: ParamSet<(
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
     settings: Res<VideoSettingsState>,
@@ -485,7 +490,9 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     {
         let mut menu_query = selectable_menu_queries.p0();
         for menu_entity in ordered_menu_owners {
-            let Ok((_, menu_stack, menu_root, mut selectable_menu)) = menu_query.get_mut(menu_entity) else {
+            let Ok((_, menu_stack, menu_root, mut selectable_menu)) =
+                menu_query.get_mut(menu_entity)
+            else {
                 continue;
             };
             if !interaction_gate_allows_for_owner(
@@ -507,11 +514,8 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                 continue;
             };
             let selected_row = selectable_menu.selected_index;
-            let anchored_row = dropdown_anchor_state.row_for_parent(
-                menu_entity,
-                menu_entity,
-                selected_row,
-            );
+            let anchored_row =
+                dropdown_anchor_state.row_for_parent(menu_entity, menu_entity, selected_row);
             let supports_dropdown = video_row_supports_dropdown(active_tab, selected_row);
             let active_kind = layer::active_layer_kind_for_owner(&active_layers, menu_entity);
             if active_kind == UiLayerKind::Modal {
@@ -526,8 +530,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
                     close_dropdowns_for_menu(menu_entity, &mut dropdown_state, &mut dropdown_query);
                     return;
                 }
-                for (selectable, mut hoverable, mut clickable) in option_query.iter_mut()
-                {
+                for (selectable, mut hoverable, mut clickable) in option_query.iter_mut() {
                     if selectable.menu_entity != menu_entity {
                         continue;
                     }
@@ -593,8 +596,8 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
 
     if right_pressed && !left_pressed && !backspace_pressed && !escape_pressed {
         if let Some((menu_entity, row, active_tab)) = selected_dropdown_menu {
-            let selected_index = video_top_option_selected_index(settings.pending, active_tab, row)
-                .unwrap_or(0);
+            let selected_index =
+                video_top_option_selected_index(settings.pending, active_tab, row).unwrap_or(0);
             let mut dropdown_menu_query = selectable_menu_queries.p1();
             open_dropdown_for_menu(
                 menu_entity,
@@ -666,7 +669,12 @@ mod tests {
         let scroll_root = world
             .spawn((
                 VideoTopOptionsScrollRoot,
-                crate::systems::ui::scroll::ScrollableTableAdapter::new(menu_entity, 10, 40.0, 60.0),
+                crate::systems::ui::scroll::ScrollableTableAdapter::new(
+                    menu_entity,
+                    10,
+                    40.0,
+                    60.0,
+                ),
                 crate::systems::ui::scroll::ScrollState {
                     offset_px: 0.0,
                     content_extent: 520.0,
@@ -788,10 +796,7 @@ mod tests {
             let world = app.world_mut();
             let mut query_state: SystemState<(
                 ResMut<DropdownLayerState>,
-                Query<
-                    (Entity, &ChildOf, &UiLayer, &mut Visibility),
-                    With<VideoResolutionDropdown>,
-                >,
+                Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
                 Query<&mut SelectableMenu, With<VideoResolutionDropdown>>,
             )> = SystemState::new(world);
             let (mut dropdown_state, mut dropdown_query, mut dropdown_menu_query) =
@@ -833,7 +838,8 @@ mod tests {
         let mut sync_tabs_system = IntoSystem::into_system(sync_video_tab_content_state);
         sync_tabs_system.initialize(&mut world);
 
-        let mut item_command_system = IntoSystem::into_system(handle_resolution_dropdown_item_commands);
+        let mut item_command_system =
+            IntoSystem::into_system(handle_resolution_dropdown_item_commands);
         item_command_system.initialize(&mut world);
 
         let mut outside_click_system =
@@ -920,7 +926,9 @@ mod tests {
                 SelectableMenu::new(0, vec![], vec![], vec![], true),
             ))
             .id();
-        app.world_mut().entity_mut(menu_high).add_child(dropdown_high);
+        app.world_mut()
+            .entity_mut(menu_high)
+            .add_child(dropdown_high);
 
         let dropdown_low = app
             .world_mut()

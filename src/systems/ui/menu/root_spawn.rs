@@ -16,9 +16,11 @@ pub fn spawn_menu_root(
         translation,
         SystemMenuSounds::Switch,
     );
-    commands
-        .entity(menu_entity)
-        .insert((MenuRoot { host, gate }, MenuStack::new(initial_page), gate));
+    commands.entity(menu_entity).insert((
+        MenuRoot { host, gate },
+        MenuStack::new(initial_page),
+        gate,
+    ));
     let click_activation = if host == MenuHost::Debug {
         SelectableClickActivation::HoveredOnly
     } else {

@@ -23,7 +23,10 @@ fn dropdown_anchor_in_menu_space(
     if let Some(offset_px) = scroll_offset_by_menu.get(&menu_entity).copied() {
         let dropdown_height = dropdown_rows as f32 * VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT;
         let row_top_y = video_top_row_top_y(row) + offset_px;
-        return Vec2::new(VIDEO_VALUE_COLUMN_CENTER_X, row_top_y - dropdown_height * 0.5);
+        return Vec2::new(
+            VIDEO_VALUE_COLUMN_CENTER_X,
+            row_top_y - dropdown_height * 0.5,
+        );
     }
 
     for (parent, table, table_transform) in table_query.iter() {
@@ -81,18 +84,24 @@ pub(super) fn sync_resolution_dropdown_items(
         ),
     >,
     mut border_query: Query<(&ChildOf, &mut HollowRectangle), With<VideoResolutionDropdownBorder>>,
-    mut item_query: Query<(
-        &ChildOf,
-        &VideoResolutionDropdownItem,
-        &mut Selectable,
-        &mut VideoResolutionDropdownItemBaseY,
-        &InteractionVisualState,
-        &mut Text2d,
-        &mut TextColor,
-        &mut TextFont,
-        &mut Clickable<SystemMenuActions>,
-        &mut Visibility,
-    ), (With<VideoResolutionDropdownItem>, Without<VideoResolutionDropdown>)>,
+    mut item_query: Query<
+        (
+            &ChildOf,
+            &VideoResolutionDropdownItem,
+            &mut Selectable,
+            &mut VideoResolutionDropdownItemBaseY,
+            &InteractionVisualState,
+            &mut Text2d,
+            &mut TextColor,
+            &mut TextFont,
+            &mut Clickable<SystemMenuActions>,
+            &mut Visibility,
+        ),
+        (
+            With<VideoResolutionDropdownItem>,
+            Without<VideoResolutionDropdown>,
+        ),
+    >,
 ) {
     // Query contract:
     // - `dropdown_query` only mutates dropdown container geometry/visibility.
@@ -172,7 +181,8 @@ pub(super) fn sync_resolution_dropdown_items(
         let dropdown_rows = values.len().max(1);
         let dropdown_height = dropdown_rows as f32 * VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT;
         border.dimensions = Vec2::new(
-            VIDEO_RESOLUTION_DROPDOWN_WIDTH + VIDEO_RESOLUTION_DROPDOWN_BACKGROUND_PAD_X * 2.0 - 6.0,
+            VIDEO_RESOLUTION_DROPDOWN_WIDTH + VIDEO_RESOLUTION_DROPDOWN_BACKGROUND_PAD_X * 2.0
+                - 6.0,
             dropdown_height - 6.0,
         );
     }
@@ -197,7 +207,8 @@ pub(super) fn sync_resolution_dropdown_items(
             selectable.menu_entity = Entity::PLACEHOLDER;
             continue;
         };
-        let Some((_, open_values, open_selected_index)) = open_context_by_menu.get(menu_entity) else {
+        let Some((_, open_values, open_selected_index)) = open_context_by_menu.get(menu_entity)
+        else {
             text.0.clear();
             clickable.region = None;
             *visibility = Visibility::Hidden;

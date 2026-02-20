@@ -71,9 +71,10 @@ impl MenuSurface {
 
         if let Some(existing) = world.entity(entity).get::<SelectableMenu>().cloned() {
             if existing.click_activation != surface.click_activation {
-                world.commands().entity(entity).insert(
-                    existing.with_click_activation(surface.click_activation),
-                );
+                world
+                    .commands()
+                    .entity(entity)
+                    .insert(existing.with_click_activation(surface.click_activation));
             }
             return;
         }
@@ -94,7 +95,10 @@ mod tests {
         let mut world = World::new();
         let owner = world.spawn_empty().id();
         let surface = world
-            .spawn(MenuSurface::new(owner).with_click_activation(SelectableClickActivation::HoveredOnly))
+            .spawn(
+                MenuSurface::new(owner)
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            )
             .id();
 
         assert_eq!(
@@ -138,7 +142,10 @@ mod tests {
         assert_eq!(menu.down_keys, vec![KeyCode::KeyS]);
         assert_eq!(menu.activate_keys, vec![KeyCode::Space]);
         assert!(!menu.wrap);
-        assert_eq!(menu.click_activation, SelectableClickActivation::HoveredOnly);
+        assert_eq!(
+            menu.click_activation,
+            SelectableClickActivation::HoveredOnly
+        );
     }
 
     #[test]

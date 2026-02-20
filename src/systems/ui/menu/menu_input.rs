@@ -1,5 +1,5 @@
-use super::*;
 use super::modal_flow::spawn_exit_unsaved_modal;
+use super::*;
 
 #[derive(Default)]
 struct ActiveMenuShortcutContext {
@@ -117,7 +117,12 @@ fn emit_directional_shortcut_intents(
     activate_left: bool,
     context: &ActiveMenuShortcutContext,
     tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
-    option_command_query: &Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+    option_command_query: &Query<(
+        Entity,
+        &Selectable,
+        &MenuOptionCommand,
+        Option<&OptionCycler>,
+    )>,
     menu_intents: &mut MessageWriter<MenuIntent>,
 ) {
     if !(activate_right || activate_left) {
@@ -178,18 +183,24 @@ fn emit_directional_shortcut_intents(
         .collect();
     ordered_targets.sort_by_key(|(menu_entity, _)| menu_entity.index());
     for (menu_entity, command) in ordered_targets {
-        menu_intents.write(MenuIntent::TriggerCommand { menu_entity, command });
+        menu_intents.write(MenuIntent::TriggerCommand {
+            menu_entity,
+            command,
+        });
     }
 }
 
 pub(super) fn apply_menu_intents(
     mut menu_intents: MessageReader<MenuIntent>,
-    mut option_query: Query<(
-        Entity,
-        &Selectable,
-        &MenuOptionCommand,
-        &mut Clickable<SystemMenuActions>,
-    ), Without<VideoModalButton>>,
+    mut option_query: Query<
+        (
+            Entity,
+            &Selectable,
+            &MenuOptionCommand,
+            &mut Clickable<SystemMenuActions>,
+        ),
+        Without<VideoModalButton>,
+    >,
     mut modal_button_query: Query<
         (Entity, &VideoModalButton, &mut Clickable<SystemMenuActions>),
         Without<MenuOptionCommand>,
@@ -221,7 +232,8 @@ pub(super) fn apply_menu_intents(
             let candidate = (selectable.index, entity.to_bits(), entity);
             let replace = match best_target {
                 Some((best_index, best_rank, _)) => {
-                    candidate.0 < best_index || (candidate.0 == best_index && candidate.1 > best_rank)
+                    candidate.0 < best_index
+                        || (candidate.0 == best_index && candidate.1 > best_rank)
                 }
                 None => true,
             };
@@ -265,7 +277,12 @@ pub(super) fn play_menu_navigation_sound(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     layer_menu_query: Query<(
         Entity,
         &MenuStack,
@@ -282,7 +299,9 @@ pub(super) fn play_menu_navigation_sound(
     let tab_pressed = keyboard_input.just_pressed(KeyCode::Tab);
     let horizontal_pressed = left_pressed ^ right_pressed;
     for (_, active_layer) in layer::ordered_active_layers_by_owner(&active_layers) {
-        let Ok((layer_entity, menu_stack, menu, pallet)) = layer_menu_query.get(active_layer.entity) else {
+        let Ok((layer_entity, menu_stack, menu, pallet)) =
+            layer_menu_query.get(active_layer.entity)
+        else {
             continue;
         };
         let mut should_play = system_menu::navigation_switch_pressed(menu, &keyboard_input);
@@ -293,7 +312,8 @@ pub(super) fn play_menu_navigation_sound(
             } else {
                 should_play = horizontal_pressed
                     && menu.selected_index >= VIDEO_FOOTER_OPTION_START_INDEX
-                    && menu.selected_index < VIDEO_FOOTER_OPTION_START_INDEX + VIDEO_FOOTER_OPTION_COUNT;
+                    && menu.selected_index
+                        < VIDEO_FOOTER_OPTION_START_INDEX + VIDEO_FOOTER_OPTION_COUNT;
             }
         }
         if !should_play {
@@ -313,7 +333,12 @@ pub(super) fn play_menu_navigation_sound(
 pub(super) fn enforce_active_layer_focus(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     layer_meta_query: Query<&UiLayer>,
     mut layer_menu_query: Query<(Entity, &UiLayer, &mut SelectableMenu)>,
     mut option_query: Query<
@@ -388,10 +413,20 @@ pub(super) fn handle_menu_shortcuts(
     settings: Res<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     mut navigation_state: ResMut<MenuNavigationState>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     menu_query: Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     option_shortcut_query: Query<(&Selectable, &ShortcutKey, &MenuOptionCommand)>,
-    option_command_query: Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+    option_command_query: Query<(
+        Entity,
+        &Selectable,
+        &MenuOptionCommand,
+        Option<&OptionCycler>,
+    )>,
     mut menu_intents: MessageWriter<MenuIntent>,
 ) {
     let escape_pressed = keyboard_input.just_pressed(KeyCode::Escape);
@@ -424,8 +459,11 @@ pub(super) fn handle_menu_shortcuts(
         &tabbed_focus,
     );
 
-    let pending_shortcuts =
-        selector::collect_shortcut_commands(&keyboard_input, &context.active_menus, &option_shortcut_query);
+    let pending_shortcuts = selector::collect_shortcut_commands(
+        &keyboard_input,
+        &context.active_menus,
+        &option_shortcut_query,
+    );
     for (menu_entity, option_command) in pending_shortcuts {
         menu_intents.write(MenuIntent::TriggerCommand {
             menu_entity,
@@ -446,10 +484,19 @@ pub(super) fn handle_menu_shortcuts(
 pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     mut option_query: Query<
-        (&Selectable, Option<&VideoOptionRow>, &mut InteractionVisualState),
+        (
+            &Selectable,
+            Option<&VideoOptionRow>,
+            &mut InteractionVisualState,
+        ),
         With<MenuOptionCommand>,
     >,
 ) {
@@ -457,7 +504,8 @@ pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
         layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
 
     for (selectable, row, mut visual_state) in option_query.iter_mut() {
-        let active_kind = layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
+        let active_kind =
+            layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
         let suppress_for_layer = active_kind != UiLayerKind::Base;
         let suppress_for_tabs = tabbed_focus.is_tabs_focused(selectable.menu_entity)
             && row.is_some_and(|row| row.index < VIDEO_TOP_OPTION_COUNT);
@@ -482,7 +530,10 @@ mod tests {
     use super::*;
     use crate::systems::ui::menu::tabbed_menu::TabbedMenuFocus;
 
-    fn active_context_for_menu(menu_entity: Entity, selected_index: usize) -> ActiveMenuShortcutContext {
+    fn active_context_for_menu(
+        menu_entity: Entity,
+        selected_index: usize,
+    ) -> ActiveMenuShortcutContext {
         let mut context = ActiveMenuShortcutContext::default();
         context.active_menus.insert(menu_entity);
         context
@@ -518,7 +569,12 @@ mod tests {
         let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
 
         let mut system_state: SystemState<(
-            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(
+                Entity,
+                &Selectable,
+                &MenuOptionCommand,
+                Option<&OptionCycler>,
+            )>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -539,7 +595,8 @@ mod tests {
         let MenuIntent::TriggerCommand {
             menu_entity: triggered_menu,
             command,
-        } = intents[0].clone() else {
+        } = intents[0].clone()
+        else {
             panic!("expected trigger command intent");
         };
         assert_eq!(triggered_menu, menu_entity);
@@ -565,7 +622,12 @@ mod tests {
         let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
 
         let mut system_state: SystemState<(
-            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(
+                Entity,
+                &Selectable,
+                &MenuOptionCommand,
+                Option<&OptionCycler>,
+            )>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -586,7 +648,8 @@ mod tests {
         let MenuIntent::TriggerCommand {
             menu_entity: triggered_menu,
             command,
-        } = intents[0].clone() else {
+        } = intents[0].clone()
+        else {
             panic!("expected trigger command intent");
         };
         assert_eq!(triggered_menu, menu_entity);
@@ -606,10 +669,17 @@ mod tests {
 
         let context = active_context_for_menu(menu_entity, 1);
         let mut tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
-        tabbed_focus.by_menu.insert(menu_entity, TabbedMenuFocus::Tabs);
+        tabbed_focus
+            .by_menu
+            .insert(menu_entity, TabbedMenuFocus::Tabs);
 
         let mut system_state: SystemState<(
-            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(
+                Entity,
+                &Selectable,
+                &MenuOptionCommand,
+                Option<&OptionCycler>,
+            )>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -657,7 +727,12 @@ mod tests {
         let tabbed_focus = tabbed_menu::TabbedMenuFocusState::default();
 
         let mut system_state: SystemState<(
-            Query<(Entity, &Selectable, &MenuOptionCommand, Option<&OptionCycler>)>,
+            Query<(
+                Entity,
+                &Selectable,
+                &MenuOptionCommand,
+                Option<&OptionCycler>,
+            )>,
             MessageWriter<MenuIntent>,
         )> = SystemState::new(&mut world);
         {
@@ -777,9 +852,10 @@ mod tests {
         );
 
         let menu_entity = app.world_mut().spawn_empty().id();
-        app.world_mut()
-            .entity_mut(menu_entity)
-            .insert((UiLayer::new(menu_entity, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut().entity_mut(menu_entity).insert((
+            UiLayer::new(menu_entity, UiLayerKind::Base),
+            Visibility::Visible,
+        ));
         app.world_mut().spawn((
             UiLayer::new(menu_entity, UiLayerKind::Dropdown),
             Visibility::Visible,
@@ -824,9 +900,10 @@ mod tests {
         );
 
         let menu_entity = app.world_mut().spawn_empty().id();
-        app.world_mut()
-            .entity_mut(menu_entity)
-            .insert((UiLayer::new(menu_entity, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut().entity_mut(menu_entity).insert((
+            UiLayer::new(menu_entity, UiLayerKind::Base),
+            Visibility::Visible,
+        ));
         app.world_mut()
             .resource_mut::<tabbed_menu::TabbedMenuFocusState>()
             .by_menu

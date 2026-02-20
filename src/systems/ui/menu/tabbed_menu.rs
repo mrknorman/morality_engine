@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::*;
 
+pub use super::tabbed_focus::TabbedMenuFocus;
 use super::{
     defs::MenuRoot,
     tabbed_focus::{resolve_tabbed_focus, TabbedFocusInputs},
 };
-pub use super::tabbed_focus::TabbedMenuFocus;
 use crate::{
     data::states::PauseState,
     startup::cursor::CustomCursor,
@@ -33,7 +33,11 @@ pub struct TabbedMenuConfig {
 }
 
 impl TabbedMenuConfig {
-    pub const fn new(top_option_count: usize, footer_start_index: usize, footer_count: usize) -> Self {
+    pub const fn new(
+        top_option_count: usize,
+        footer_start_index: usize,
+        footer_count: usize,
+    ) -> Self {
         Self {
             top_option_count,
             footer_start_index,
@@ -151,7 +155,12 @@ pub fn sync_tabbed_menu_focus(
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     tab_item_query: Query<
         (
             Entity,
@@ -174,10 +183,7 @@ pub fn sync_tabbed_menu_focus(
     >,
     mut previous_cursor_position: Local<Option<Vec2>>,
     mut focus_state: ResMut<TabbedMenuFocusState>,
-    mut menu_query: Query<
-        &mut SelectableMenu,
-        (With<MenuRoot>, Without<TabbedMenuConfig>),
-    >,
+    mut menu_query: Query<&mut SelectableMenu, (With<MenuRoot>, Without<TabbedMenuConfig>)>,
     mut tab_queries: ParamSet<(
         Query<
             (
@@ -217,12 +223,14 @@ pub fn sync_tabbed_menu_focus(
     };
     *previous_cursor_position = cursor.position;
 
-    let mut tabbed_by_menu: HashMap<Entity, (Entity, usize, usize, TabbedMenuConfig)> = HashMap::new();
+    let mut tabbed_by_menu: HashMap<Entity, (Entity, usize, usize, TabbedMenuConfig)> =
+        HashMap::new();
     let mut owner_by_tab_root: HashMap<Entity, Entity> = HashMap::new();
     {
         let tab_root_query = tab_queries.p0();
         for (tab_root_entity, tab_bar, tab_state, tab_menu, config, gate) in tab_root_query.iter() {
-            if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner) {
+            if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner)
+            {
                 continue;
             }
             owner_by_tab_root.insert(tab_root_entity, tab_bar.owner);
@@ -262,7 +270,8 @@ pub fn sync_tabbed_menu_focus(
             }
         }
 
-        let pressed = clickable.triggered || (hoverable.hovered && mouse_input.pressed(MouseButton::Left));
+        let pressed =
+            clickable.triggered || (hoverable.hovered && mouse_input.pressed(MouseButton::Left));
         let priority = if pressed {
             2
         } else if mouse_moved && hoverable.hovered {
@@ -304,7 +313,8 @@ pub fn sync_tabbed_menu_focus(
                 }
             }
         }
-        let pressed = clickable.triggered || (hoverable.hovered && mouse_input.pressed(MouseButton::Left));
+        let pressed =
+            clickable.triggered || (hoverable.hovered && mouse_input.pressed(MouseButton::Left));
         let priority = if pressed {
             2
         } else if mouse_moved && hoverable.hovered {
@@ -327,7 +337,8 @@ pub fn sync_tabbed_menu_focus(
                 }
             }
             None => {
-                hovered_option_by_menu.insert(tabbed_option.owner, (selectable.index, priority, rank));
+                hovered_option_by_menu
+                    .insert(tabbed_option.owner, (selectable.index, priority, rank));
             }
         }
     }
@@ -490,7 +501,12 @@ pub fn commit_tab_activation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     focus_state: Res<TabbedMenuFocusState>,
     tab_item_query: Query<
         (Entity, &TabItem, &Selectable, &Clickable<SystemMenuActions>),
@@ -582,7 +598,8 @@ mod tests {
         let mut sync_focus_system = IntoSystem::into_system(sync_tabbed_menu_focus);
         sync_focus_system.initialize(&mut world);
 
-        let mut suppress_system = IntoSystem::into_system(suppress_tabbed_options_while_tabs_focused);
+        let mut suppress_system =
+            IntoSystem::into_system(suppress_tabbed_options_while_tabs_focused);
         suppress_system.initialize(&mut world);
 
         let mut commit_system = IntoSystem::into_system(commit_tab_activation);
@@ -665,10 +682,10 @@ mod tests {
             host: crate::systems::ui::menu::MenuHost::Pause,
             gate: InteractionGate::PauseMenuOnly,
         });
-        world.resource_mut::<TabbedMenuFocusState>().by_menu.insert(
-            stale_menu,
-            TabbedMenuFocus::Tabs,
-        );
+        world
+            .resource_mut::<TabbedMenuFocusState>()
+            .by_menu
+            .insert(stale_menu, TabbedMenuFocus::Tabs);
         world
             .resource_mut::<TabbedMenuFocusState>()
             .set_previous_selection(stale_menu, 2);

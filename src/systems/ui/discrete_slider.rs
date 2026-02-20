@@ -164,7 +164,12 @@ fn spawn_slider_slots(
     });
 }
 
-pub(crate) fn slot_center_x(index: usize, layout_steps: usize, slot_width: f32, slot_gap: f32) -> f32 {
+pub(crate) fn slot_center_x(
+    index: usize,
+    layout_steps: usize,
+    slot_width: f32,
+    slot_gap: f32,
+) -> f32 {
     let total_width =
         layout_steps as f32 * slot_width + (layout_steps.saturating_sub(1)) as f32 * slot_gap;
     let left = -total_width * 0.5 + slot_width * 0.5;
@@ -227,10 +232,7 @@ pub fn ensure_discrete_slider_slots(
 
 pub fn sync_discrete_slider_slots(
     mut queries: ParamSet<(
-        Query<
-            (&DiscreteSlider, &Children, Option<&Visibility>),
-            Without<DiscreteSliderSlot>,
-        >,
+        Query<(&DiscreteSlider, &Children, Option<&Visibility>), Without<DiscreteSliderSlot>>,
         Query<
             (
                 &DiscreteSliderSlot,
@@ -265,7 +267,8 @@ pub fn sync_discrete_slider_slots(
         let steps = slider.steps.max(1);
         let layout_steps = slider.layout_steps.max(steps);
         let filled = slider.filled_slots.min(steps);
-        let inner_size = (slider.slot_size - Vec2::splat(slider.fill_inset * 2.0)).max(Vec2::splat(1.0));
+        let inner_size =
+            (slider.slot_size - Vec2::splat(slider.fill_inset * 2.0)).max(Vec2::splat(1.0));
 
         for child in children {
             let Ok((slot, mut sprite, mut border, mut transform, mut visibility)) =
@@ -280,8 +283,12 @@ pub fn sync_discrete_slider_slots(
             }
 
             *visibility = Visibility::Visible;
-            transform.translation.x =
-                slot_center_x(slot.index, layout_steps, slider.slot_size.x, slider.slot_gap);
+            transform.translation.x = slot_center_x(
+                slot.index,
+                layout_steps,
+                slider.slot_size.x,
+                slider.slot_gap,
+            );
             border.dimensions = slider.slot_size;
             border.thickness = slider.border_thickness;
             border.color = slider.border_color;
@@ -361,10 +368,7 @@ mod tests {
     fn plugin_builds_slider_slots_without_menu_module() {
         let mut app = App::new();
         app.add_plugins(DiscreteSliderPlugin);
-        let slider = app
-            .world_mut()
-            .spawn(DiscreteSlider::new(4, 2))
-            .id();
+        let slider = app.world_mut().spawn(DiscreteSlider::new(4, 2)).id();
 
         app.update();
 
@@ -376,7 +380,11 @@ mod tests {
             .unwrap_or_default();
         let slot_count = children
             .iter()
-            .filter(|entity| app.world().entity(**entity).contains::<DiscreteSliderSlot>())
+            .filter(|entity| {
+                app.world()
+                    .entity(**entity)
+                    .contains::<DiscreteSliderSlot>()
+            })
             .count();
         assert_eq!(slot_count, 4);
     }
@@ -384,9 +392,7 @@ mod tests {
     #[test]
     fn insert_hook_seeds_slot_children_without_running_update() {
         let mut world = World::new();
-        let slider = world
-            .spawn(DiscreteSlider::new(3, 1))
-            .id();
+        let slider = world.spawn(DiscreteSlider::new(3, 1)).id();
 
         let slot_count = world
             .entity(slider)

@@ -20,9 +20,9 @@ use super::{
         thumb_extent_for_state,
     },
     ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
-    ScrollFocusFollowLock, ScrollState, ScrollableRoot, ScrollableViewport, SCROLL_EPSILON,
-    SCROLL_PAGE_FACTOR, SCROLLBAR_BORDER_THICKNESS, SCROLLBAR_INTERACTION_Z,
-    SCROLLBAR_THUMB_INSET, SCROLLBAR_THUMB_Z, SCROLLBAR_TRACK_FILL_COLOR, SCROLLBAR_TRACK_Z,
+    ScrollFocusFollowLock, ScrollState, ScrollableRoot, ScrollableViewport,
+    SCROLLBAR_BORDER_THICKNESS, SCROLLBAR_INTERACTION_Z, SCROLLBAR_THUMB_INSET, SCROLLBAR_THUMB_Z,
+    SCROLLBAR_TRACK_FILL_COLOR, SCROLLBAR_TRACK_Z, SCROLL_EPSILON, SCROLL_PAGE_FACTOR,
 };
 
 pub(super) fn seed_scrollbar_parts(
@@ -90,7 +90,12 @@ pub(super) fn seed_scrollbar_parts(
 pub(super) fn ensure_scrollbar_parts(
     mut commands: Commands,
     root_gate_query: Query<Option<&InteractionGate>, With<ScrollableRoot>>,
-    scrollbar_query: Query<(Entity, &ScrollBar, Option<&ChildOf>, Option<&ScrollBarParts>)>,
+    scrollbar_query: Query<(
+        Entity,
+        &ScrollBar,
+        Option<&ChildOf>,
+        Option<&ScrollBarParts>,
+    )>,
     track_query: Query<(), With<ScrollBarTrack>>,
     thumb_query: Query<(), With<ScrollBarThumb>>,
 ) {
@@ -140,7 +145,12 @@ pub(super) fn sync_scrollbar_visuals(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
     root_query: Query<
-        (&ScrollableRoot, &ScrollableViewport, &ScrollState, Option<&InheritedVisibility>),
+        (
+            &ScrollableRoot,
+            &ScrollableViewport,
+            &ScrollState,
+            Option<&InheritedVisibility>,
+        ),
         With<ScrollableRoot>,
     >,
     mut scrollbar_query: Query<
@@ -153,7 +163,12 @@ pub(super) fn sync_scrollbar_visuals(
         (Without<ScrollBarTrack>, Without<ScrollBarThumb>),
     >,
     mut query_set: ParamSet<(
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
         Query<
             (
                 &mut BorderedRectangle,
@@ -185,9 +200,11 @@ pub(super) fn sync_scrollbar_visuals(
         let ui_layer_query = query_set.p0();
         layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query)
     };
-    for (scrollbar, parts, mut scrollbar_transform, scrollbar_visibility) in scrollbar_query.iter_mut()
+    for (scrollbar, parts, mut scrollbar_transform, scrollbar_visibility) in
+        scrollbar_query.iter_mut()
     {
-        let Ok((root, viewport, state, root_visibility)) = root_query.get(scrollbar.scrollable_root)
+        let Ok((root, viewport, state, root_visibility)) =
+            root_query.get(scrollbar.scrollable_root)
         else {
             continue;
         };
@@ -264,8 +281,12 @@ pub(super) fn sync_scrollbar_visuals(
 
         {
             let mut track_query = query_set.p1();
-            let Ok((mut track_rect, mut track_transform, mut track_visibility, mut track_clickable)) =
-                track_query.get_mut(parts.track)
+            let Ok((
+                mut track_rect,
+                mut track_transform,
+                mut track_visibility,
+                mut track_clickable,
+            )) = track_query.get_mut(parts.track)
             else {
                 continue;
             };
@@ -280,8 +301,12 @@ pub(super) fn sync_scrollbar_visuals(
 
         {
             let mut thumb_query = query_set.p2();
-            let Ok((mut thumb_rect, mut thumb_transform, mut thumb_visibility, mut thumb_clickable)) =
-                thumb_query.get_mut(parts.thumb)
+            let Ok((
+                mut thumb_rect,
+                mut thumb_transform,
+                mut thumb_visibility,
+                mut thumb_clickable,
+            )) = thumb_query.get_mut(parts.thumb)
             else {
                 continue;
             };
@@ -299,7 +324,12 @@ pub(super) fn sync_scrollbar_visuals(
 pub(super) fn handle_scrollbar_input(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     cursor: Res<CustomCursor>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     root_meta_query: Query<
@@ -316,15 +346,13 @@ pub(super) fn handle_scrollbar_input(
         Query<&mut ScrollState, With<ScrollableRoot>>,
     )>,
     mut focus_lock_query: Query<&mut ScrollFocusFollowLock, With<ScrollableRoot>>,
-    mut scrollbar_query: Query<
-        (
-            Entity,
-            &ScrollBar,
-            &ScrollBarParts,
-            &mut ScrollBarDragState,
-            Option<&InheritedVisibility>,
-        ),
-    >,
+    mut scrollbar_query: Query<(
+        Entity,
+        &ScrollBar,
+        &ScrollBarParts,
+        &mut ScrollBarDragState,
+        Option<&InheritedVisibility>,
+    )>,
     mut track_query: Query<
         (
             &mut Clickable<ScrollUiActions>,
@@ -366,7 +394,8 @@ pub(super) fn handle_scrollbar_input(
     for (_scrollbar_entity, scrollbar, parts, mut drag_state, scrollbar_visibility) in
         scrollbar_query.iter_mut()
     {
-        let Ok((root, _viewport, gate, root_visibility)) = root_meta_query.get(scrollbar.scrollable_root)
+        let Ok((root, _viewport, gate, root_visibility)) =
+            root_meta_query.get(scrollbar.scrollable_root)
         else {
             continue;
         };
@@ -402,13 +431,23 @@ pub(super) fn handle_scrollbar_input(
             drag_state.dragging = false;
         }
 
-        let Ok((mut track_clickable, track_global, _track_transform, track_sprite, track_visibility)) =
-            track_query.get_mut(parts.track)
+        let Ok((
+            mut track_clickable,
+            track_global,
+            _track_transform,
+            track_sprite,
+            track_visibility,
+        )) = track_query.get_mut(parts.track)
         else {
             continue;
         };
-        let Ok((mut thumb_clickable, thumb_global, _thumb_transform, thumb_sprite, thumb_visibility)) =
-            thumb_query.get_mut(parts.thumb)
+        let Ok((
+            mut thumb_clickable,
+            thumb_global,
+            _thumb_transform,
+            thumb_sprite,
+            thumb_visibility,
+        )) = thumb_query.get_mut(parts.thumb)
         else {
             continue;
         };

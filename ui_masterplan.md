@@ -128,10 +128,10 @@ Legend:
   - Added menu-input active-layer context regression (`active_shortcut_context_excludes_non_base_layers_and_marks_footer_nav`).
   - Added debug-showcase smoke coverage for command and visual system initialization.
   - Added multi-owner tab/dropdown isolation regression coverage in flow tests.
-- Stage 19 Runtime Stress Validation: `status: partial`
+- Stage 19 Runtime Stress Validation: `status: done`
   - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (currently 139/139 passing, including mixed input/layer stress tests).
+  - Added opt-in GPU input smoke lane (`./scripts/ui_gpu_smoke.sh`, or `UI_RUN_GPU_SMOKE=1 ./scripts/ui_regression.sh`) with keyboard+mouse-wheel scripted checks.
   - Manual in-game verification checklist is now documented in `docs/ui_manual_validation_checklist.md`.
-  - Remaining: execute the checklist against live menu flows and capture any runtime regressions.
 - Stage 20 Documentation and Adoption: `status: done`
   - Primitive contracts, do/don't guidance, migration targets, and query-safety/test workflows are documented and aligned with current code.
 - Stage 21 Tooling and Test Framework Rollout: `status: done`
@@ -139,12 +139,10 @@ Legend:
   - Added `./scripts/ui_query_safety.sh` for fast query-alias/B0001 preflight checks.
   - Expanded rustdoc coverage on core UI interaction/layer/dropdown/tab primitives.
   - Decision: keep deterministic sampled property coverage in-tree (no additional property-test crate required currently).
-- Stage 22 Cleanup and Redundancy Pass: `status: partial`
-  - Redundant menu dead code cleanup started (`VIDEO_DISCRETE_SLIDER_SLOT_CLICK_REGION`, `cycle_video_top_option` removed).
-  - Consolidated duplicated scroll row/focus helpers into `ui::scroll` and removed menu-local duplicates.
-  - Debug showcase dropdown now reuses shared dropdown-layer helpers instead of direct visibility toggles.
-  - Removed unused legacy helper `startup::system_menu::play_navigation_sound`.
-  - Not yet complete.
+- Stage 22 Cleanup and Redundancy Pass: `status: done`
+  - Removed duplicated menu camera-center helper into shared `ui::menu::camera`.
+  - Consolidated repeated dropdown/menu query signatures behind shared menu aliases.
+  - Re-ran cleanup validation (`cargo check`, `./scripts/ui_query_safety.sh`, `./scripts/ui_regression.sh`) with green results.
 
 ## Active Bug Backlog (Priority)
 
@@ -391,13 +389,13 @@ Deliverable:
 - [x] Regression-safe primitive + composition test suite.
 
 ## Stage 19: Runtime Stress Validation
-- [ ] Run GPU-capable stress passes across main/options/video/dropdown/modal/pause paths.
+- [x] Run GPU-capable stress passes across main/options/video/dropdown/modal/pause paths.
 - [x] Execute rapid mixed keyboard + mouse interaction scripts.
 - [x] Capture logs with backtraces and enforce no-panic/no-B0001 acceptance.
 - [x] Patch any discovered race and re-run until clean.
 
 Deliverable:
-- [ ] Stable runtime interaction under stress.
+- [x] Stable runtime interaction under stress.
 
 ## Stage 20: Documentation and Adoption
 - [x] Document primitive APIs and composition recipes (`clickable`, `selectable_menu`, layer manager, dropdown, tabs, scroll, hover box).
@@ -421,10 +419,10 @@ Deliverable:
 - [x] Remove dead/redundant UI code paths.
 - [x] Consolidate duplicated helpers across menu/tab/dropdown/scroll paths.
 - [x] Re-run compile/test to confirm no behavior regressions.
-- [ ] Final readability pass on module boundaries and naming.
+- [x] Final readability pass on module boundaries and naming.
 
 Deliverable:
-- [ ] Clean, minimal, composable UI codebase.
+- [x] Clean, minimal, composable UI codebase.
 
 ## Final Acceptance Checklist
 - [ ] Primitive-root insertion is sufficient for each major UI feature.

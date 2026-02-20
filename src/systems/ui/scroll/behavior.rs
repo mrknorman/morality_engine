@@ -76,7 +76,12 @@ pub(super) fn sync_scroll_extents(
 pub(super) fn handle_scrollable_pointer_and_keyboard_input(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+    ui_layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&InteractionGate>,
+    )>,
     cursor: Res<CustomCursor>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut wheel_events: MessageReader<MouseWheel>,
@@ -213,8 +218,9 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
     let mut target_entity = None;
     let mut edge_delta = 0.0;
     let mut pointer_target_active = false;
-    if let Some((entity, _, _, resolved_edge_delta)) =
-        hovered_target.map(|(entity, z, rank)| (entity, z, rank, 0.0)).or(edge_target)
+    if let Some((entity, _, _, resolved_edge_delta)) = hovered_target
+        .map(|(entity, z, rank)| (entity, z, rank, 0.0))
+        .or(edge_target)
     {
         target_entity = Some(entity);
         edge_delta = resolved_edge_delta;

@@ -1,28 +1,26 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use crate::{
-    systems::{
-        interaction::{
-            clickable_system, hoverable_system, option_cycler_input_system, reset_hoverable_state,
-            selectable_system, Clickable, Hoverable, InteractionAggregate, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate, OptionCycler, Selectable,
-            SelectableClickActivation, SelectableMenu, SystemMenuActions,
-        },
-        ui::{
-            dropdown::{self, DropdownAnchorState, DropdownLayerState},
-            layer::{self, UiLayer, UiLayerKind},
-            menu_surface::MenuSurface,
-            tabs::{TabBar, TabBarState, TabItem},
-        },
+use crate::systems::{
+    interaction::{
+        clickable_system, hoverable_system, option_cycler_input_system, reset_hoverable_state,
+        selectable_system, Clickable, Hoverable, InteractionAggregate, InteractionCapture,
+        InteractionCaptureOwner, InteractionGate, OptionCycler, Selectable,
+        SelectableClickActivation, SelectableMenu, SystemMenuActions,
+    },
+    ui::{
+        dropdown::{self, DropdownAnchorState, DropdownLayerState},
+        layer::{self, UiLayer, UiLayerKind},
+        menu_surface::MenuSurface,
+        tabs::{TabBar, TabBarState, TabItem},
     },
 };
 
 use super::{
     command_reducer::reduce_menu_command,
     defs::{
-        MenuCommand, MenuHost, MenuPage, MenuRoot, VideoDisplayMode, VideoSettingsState, VideoTabKind,
-        VideoResolutionDropdown, VIDEO_FOOTER_OPTION_COUNT, VIDEO_FOOTER_OPTION_START_INDEX,
-        VIDEO_RESOLUTION_OPTION_INDEX, VIDEO_TOP_OPTION_COUNT,
+        MenuCommand, MenuHost, MenuPage, MenuRoot, VideoDisplayMode, VideoResolutionDropdown,
+        VideoSettingsState, VideoTabKind, VIDEO_FOOTER_OPTION_COUNT,
+        VIDEO_FOOTER_OPTION_START_INDEX, VIDEO_RESOLUTION_OPTION_INDEX, VIDEO_TOP_OPTION_COUNT,
     },
     dropdown_flow::sync_video_tab_content_state,
     stack::MenuNavigationState,
@@ -142,23 +140,33 @@ fn tabs_and_layer_gating_flow_remain_owner_scoped() {
             InteractionGate::PauseMenuOnly,
         ))
         .id();
-    world.spawn((
-        InteractionCapture,
-        InteractionCaptureOwner::new(owner),
-    ));
+    world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner)));
 
-    let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-        SystemState::new(&mut world);
+    let mut capture_state: SystemState<
+        Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    > = SystemState::new(&mut world);
     let mut layer_state: SystemState<
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
     > = SystemState::new(&mut world);
     let capture_query = capture_state.get(&world);
     let layer_query = layer_state.get(&world);
     let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
 
-    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Modal);
-    assert!(layer::is_active_layer_entity_for_owner(&active, owner, modal));
-    assert!(!layer::is_active_layer_entity_for_owner(&active, owner, base));
+    assert_eq!(
+        layer::active_layer_kind_for_owner(&active, owner),
+        UiLayerKind::Modal
+    );
+    assert!(layer::is_active_layer_entity_for_owner(
+        &active, owner, modal
+    ));
+    assert!(!layer::is_active_layer_entity_for_owner(
+        &active, owner, base
+    ));
 }
 
 #[test]
@@ -168,18 +176,29 @@ fn nested_tab_interaction_surface_without_layer_keeps_menu_root_active() {
     let menu_root = world.spawn(MenuSurface::new(owner)).id();
     let tab_interaction_root = world.spawn(MenuSurface::new(owner).without_layer()).id();
 
-    assert!(world.entity(tab_interaction_root).get::<UiLayer>().is_none());
+    assert!(world
+        .entity(tab_interaction_root)
+        .get::<UiLayer>()
+        .is_none());
 
-    let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-        SystemState::new(&mut world);
+    let mut capture_state: SystemState<
+        Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    > = SystemState::new(&mut world);
     let mut layer_state: SystemState<
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
     > = SystemState::new(&mut world);
     let capture_query = capture_state.get(&world);
     let layer_query = layer_state.get(&world);
     let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
 
-    assert!(layer::is_active_layer_entity_for_owner(&active, owner, menu_root));
+    assert!(layer::is_active_layer_entity_for_owner(
+        &active, owner, menu_root
+    ));
 }
 
 #[derive(Component)]
@@ -240,7 +259,10 @@ fn dropdown_open_select_close_flow_is_owner_scoped() {
         Some(&Visibility::Hidden)
     );
     assert_eq!(
-        world.entity(dropdown_a).get::<SelectableMenu>().map(|menu| menu.selected_index),
+        world
+            .entity(dropdown_a)
+            .get::<SelectableMenu>()
+            .map(|menu| menu.selected_index),
         Some(2)
     );
 
@@ -266,7 +288,10 @@ fn dropdown_open_select_close_flow_is_owner_scoped() {
         Some(&Visibility::Visible)
     );
     assert_eq!(
-        world.entity(dropdown_b).get::<SelectableMenu>().map(|menu| menu.selected_index),
+        world
+            .entity(dropdown_b)
+            .get::<SelectableMenu>()
+            .map(|menu| menu.selected_index),
         Some(1)
     );
 
@@ -319,34 +344,59 @@ fn owner_layer_priority_prefers_modal_then_dropdown_then_base() {
 
     world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner)));
 
-    let mut capture_state: SystemState<Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>> =
-        SystemState::new(&mut world);
+    let mut capture_state: SystemState<
+        Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    > = SystemState::new(&mut world);
     let mut layer_state: SystemState<
-        Query<(Entity, &UiLayer, Option<&Visibility>, Option<&InteractionGate>)>,
+        Query<(
+            Entity,
+            &UiLayer,
+            Option<&Visibility>,
+            Option<&InteractionGate>,
+        )>,
     > = SystemState::new(&mut world);
 
     let capture_query = capture_state.get(&world);
     let layer_query = layer_state.get(&world);
     let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
-    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Dropdown);
-    assert!(layer::is_active_layer_entity_for_owner(&active, owner, dropdown));
-    assert!(!layer::is_active_layer_entity_for_owner(&active, owner, base));
+    assert_eq!(
+        layer::active_layer_kind_for_owner(&active, owner),
+        UiLayerKind::Dropdown
+    );
+    assert!(layer::is_active_layer_entity_for_owner(
+        &active, owner, dropdown
+    ));
+    assert!(!layer::is_active_layer_entity_for_owner(
+        &active, owner, base
+    ));
 
     world.entity_mut(modal).insert(Visibility::Visible);
     let capture_query = capture_state.get(&world);
     let layer_query = layer_state.get(&world);
     let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
-    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Modal);
-    assert!(layer::is_active_layer_entity_for_owner(&active, owner, modal));
-    assert!(!layer::is_active_layer_entity_for_owner(&active, owner, dropdown));
+    assert_eq!(
+        layer::active_layer_kind_for_owner(&active, owner),
+        UiLayerKind::Modal
+    );
+    assert!(layer::is_active_layer_entity_for_owner(
+        &active, owner, modal
+    ));
+    assert!(!layer::is_active_layer_entity_for_owner(
+        &active, owner, dropdown
+    ));
 
     world.entity_mut(modal).insert(Visibility::Hidden);
     world.entity_mut(dropdown).insert(Visibility::Hidden);
     let capture_query = capture_state.get(&world);
     let layer_query = layer_state.get(&world);
     let active = layer::active_layers_by_owner_scoped(None, &capture_query, &layer_query);
-    assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Base);
-    assert!(layer::is_active_layer_entity_for_owner(&active, owner, base));
+    assert_eq!(
+        layer::active_layer_kind_for_owner(&active, owner),
+        UiLayerKind::Base
+    );
+    assert!(layer::is_active_layer_entity_for_owner(
+        &active, owner, base
+    ));
 }
 
 #[test]
@@ -356,30 +406,34 @@ fn option_cycler_input_only_triggers_for_selected_row_and_allowed_direction() {
     app.add_systems(Update, option_cycler_input_system);
 
     let menu = app.world_mut().spawn(selectable_menu_for_tests()).id();
-    app.world_mut()
-        .entity_mut(menu)
-        .insert(SelectableMenu::new(
-            1,
-            vec![KeyCode::ArrowUp],
-            vec![KeyCode::ArrowDown],
-            vec![KeyCode::Enter],
-            true,
-        ));
+    app.world_mut().entity_mut(menu).insert(SelectableMenu::new(
+        1,
+        vec![KeyCode::ArrowUp],
+        vec![KeyCode::ArrowDown],
+        vec![KeyCode::Enter],
+        true,
+    ));
 
-    let first = app.world_mut().spawn((
-        Selectable::new(menu, 0),
-        OptionCycler {
-            at_min: true,
-            ..default()
-        },
-    )).id();
-    let second = app.world_mut().spawn((
-        Selectable::new(menu, 1),
-        OptionCycler {
-            at_max: true,
-            ..default()
-        },
-    )).id();
+    let first = app
+        .world_mut()
+        .spawn((
+            Selectable::new(menu, 0),
+            OptionCycler {
+                at_min: true,
+                ..default()
+            },
+        ))
+        .id();
+    let second = app
+        .world_mut()
+        .spawn((
+            Selectable::new(menu, 1),
+            OptionCycler {
+                at_max: true,
+                ..default()
+            },
+        ))
+        .id();
 
     {
         let mut keyboard = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
@@ -481,9 +535,7 @@ fn tabbed_focus_down_from_tabs_activates_selected_tab_and_returns_to_options() {
     let tab_state = app.world().get::<TabBarState>(tab_root).expect("tab state");
     assert_eq!(tab_state.active_index, 1);
 
-    let focus_state = app
-        .world()
-        .resource::<tabbed_menu::TabbedMenuFocusState>();
+    let focus_state = app.world().resource::<tabbed_menu::TabbedMenuFocusState>();
     assert_eq!(
         focus_state.by_menu.get(&menu_entity).copied(),
         Some(TabbedMenuFocus::Options)
@@ -530,17 +582,21 @@ fn mouse_selection_then_keyboard_cycle_uses_same_selected_row() {
         Transform::from_xyz(0.0, 0.0, 0.0),
         GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
     ));
-    let second = app.world_mut().spawn((
-        Selectable::new(menu, 1),
-        OptionCycler::default(),
-        Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
-        Hoverable::default(),
-        Transform::from_xyz(0.0, 40.0, 1.0),
-        GlobalTransform::from_translation(Vec3::new(0.0, 40.0, 1.0)),
-    )).id();
+    let second = app
+        .world_mut()
+        .spawn((
+            Selectable::new(menu, 1),
+            OptionCycler::default(),
+            Clickable::with_region(vec![SystemMenuActions::Activate], Vec2::new(100.0, 30.0)),
+            Hoverable::default(),
+            Transform::from_xyz(0.0, 40.0, 1.0),
+            GlobalTransform::from_translation(Vec3::new(0.0, 40.0, 1.0)),
+        ))
+        .id();
 
-    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
-        Some(Vec2::new(0.0, 40.0));
+    app.world_mut()
+        .resource_mut::<crate::startup::cursor::CustomCursor>()
+        .position = Some(Vec2::new(0.0, 40.0));
     app.world_mut()
         .resource_mut::<ButtonInput<MouseButton>>()
         .press(MouseButton::Left);
@@ -600,8 +656,9 @@ fn keyboard_lock_prevents_hover_jitter_until_pointer_reengages() {
         GlobalTransform::from_translation(Vec3::new(0.0, 40.0, 0.0)),
     ));
 
-    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
-        Some(Vec2::new(0.0, 40.0));
+    app.world_mut()
+        .resource_mut::<crate::startup::cursor::CustomCursor>()
+        .position = Some(Vec2::new(0.0, 40.0));
     app.update();
     assert_eq!(
         app.world()
@@ -640,8 +697,9 @@ fn keyboard_lock_prevents_hover_jitter_until_pointer_reengages() {
     );
 
     // Re-engage pointer with movement: hover selection can reclaim focus.
-    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
-        Some(Vec2::new(1.0, 40.5));
+    app.world_mut()
+        .resource_mut::<crate::startup::cursor::CustomCursor>()
+        .position = Some(Vec2::new(1.0, 40.5));
     app.update();
     assert_eq!(
         app.world()
@@ -693,11 +751,16 @@ fn overlapping_hover_candidates_resolve_selection_deterministically() {
         ))
         .id();
 
-    app.world_mut().resource_mut::<crate::startup::cursor::CustomCursor>().position =
-        Some(Vec2::new(0.0, 0.0));
+    app.world_mut()
+        .resource_mut::<crate::startup::cursor::CustomCursor>()
+        .position = Some(Vec2::new(0.0, 0.0));
     app.update();
 
-    let expected = if first.index() >= second.index() { 0 } else { 1 };
+    let expected = if first.index() >= second.index() {
+        0
+    } else {
+        1
+    };
     assert_eq!(
         app.world()
             .get::<SelectableMenu>(menu)
@@ -802,10 +865,11 @@ fn tab_change_closes_open_video_dropdown_for_owner() {
         Some(&Visibility::Visible)
     );
 
-    app.world_mut().write_message(crate::systems::ui::tabs::TabChanged {
-        tab_bar: tab_root,
-        index: 1,
-    });
+    app.world_mut()
+        .write_message(crate::systems::ui::tabs::TabChanged {
+            tab_bar: tab_root,
+            index: 1,
+        });
     app.update();
 
     assert_eq!(
@@ -951,10 +1015,11 @@ fn tab_change_for_one_owner_does_not_close_other_owner_dropdown() {
         Some(menu_b)
     );
 
-    app.world_mut().write_message(crate::systems::ui::tabs::TabChanged {
-        tab_bar: tab_root_a,
-        index: 1,
-    });
+    app.world_mut()
+        .write_message(crate::systems::ui::tabs::TabChanged {
+            tab_bar: tab_root_a,
+            index: 1,
+        });
     app.update();
 
     assert_eq!(

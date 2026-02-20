@@ -259,9 +259,11 @@ fn spawn_debug_menu_overlay(
         MenuPage::DebugRoot,
         InteractionGate::GameplayOnly,
     );
-    commands
-        .entity(menu_entity)
-        .insert((DebugOverlay, DebugMenuOverlay, DespawnOnExit(MainState::Debug)));
+    commands.entity(menu_entity).insert((
+        DebugOverlay,
+        DebugMenuOverlay,
+        DespawnOnExit(MainState::Debug),
+    ));
 }
 
 fn spawn_debug_firework(commands: &mut Commands, cursor_position: Vec2) {

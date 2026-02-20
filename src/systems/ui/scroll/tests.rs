@@ -1,10 +1,12 @@
 use bevy::{
     asset::Assets,
+    audio::AudioPlugin as BevyAudioPlugin,
     camera::visibility::RenderLayers,
     input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
     render::render_resource::TextureFormat,
 };
+use std::any::Any;
 
 use crate::{
     startup::cursor::CustomCursor,
@@ -34,6 +36,48 @@ fn make_scroll_test_app() -> App {
     app
 }
 
+fn make_gpu_scroll_smoke_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(
+        DefaultPlugins
+            .build()
+            .disable::<BevyAudioPlugin>()
+            .disable::<bevy::winit::WinitPlugin>()
+            .disable::<bevy::window::WindowPlugin>(),
+    );
+    app.init_resource::<CustomCursor>();
+    app.add_plugins(ScrollPlugin);
+    app
+}
+
+fn panic_message(payload: &(dyn Any + Send)) -> String {
+    if let Some(msg) = payload.downcast_ref::<String>() {
+        return msg.clone();
+    }
+    if let Some(msg) = payload.downcast_ref::<&'static str>() {
+        return (*msg).to_string();
+    }
+    "non-string panic payload".to_string()
+}
+
+fn run_gpu_smoke_or_skip<F>(run: F)
+where
+    F: FnOnce(),
+{
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run));
+    if let Err(payload) = result {
+        let message = panic_message(payload.as_ref());
+        let expected_platform_failure = message.contains("Unable to find a GPU")
+            || message.contains("EventLoop")
+            || message.contains("main thread");
+        if expected_platform_failure {
+            eprintln!("[ui-gpu-smoke] skipped: {message}");
+            return;
+        }
+        std::panic::resume_unwind(payload);
+    }
+}
+
 #[test]
 fn default_scroll_render_target_format_is_rgba16float() {
     let settings = ScrollRenderSettings::default();
@@ -61,7 +105,11 @@ fn scrollbar_insertion_adds_required_components() {
 
     assert!(app.world().entity(scrollbar).get::<Transform>().is_some());
     assert!(app.world().entity(scrollbar).get::<Visibility>().is_some());
-    assert!(app.world().entity(scrollbar).get::<ScrollBarDragState>().is_some());
+    assert!(app
+        .world()
+        .entity(scrollbar)
+        .get::<ScrollBarDragState>()
+        .is_some());
 }
 
 #[test]
@@ -131,8 +179,14 @@ fn ensure_scrollbar_parts_rebuilds_when_part_entities_are_stale() {
         .copied()
         .expect("repaired parts");
     assert_ne!(repaired_parts.track, original_parts.track);
-    assert!(app.world().entity(repaired_parts.track).contains::<ScrollBarTrack>());
-    assert!(app.world().entity(repaired_parts.thumb).contains::<ScrollBarThumb>());
+    assert!(app
+        .world()
+        .entity(repaired_parts.track)
+        .contains::<ScrollBarTrack>());
+    assert!(app
+        .world()
+        .entity(repaired_parts.thumb)
+        .contains::<ScrollBarThumb>());
 }
 
 #[test]
@@ -196,8 +250,14 @@ fn render_target_budget_skips_new_roots_after_limit() {
 
     app.update();
 
-    let has_target_a = app.world().entity(root_a).contains::<ScrollableRenderTarget>();
-    let has_target_b = app.world().entity(root_b).contains::<ScrollableRenderTarget>();
+    let has_target_a = app
+        .world()
+        .entity(root_a)
+        .contains::<ScrollableRenderTarget>();
+    let has_target_b = app
+        .world()
+        .entity(root_b)
+        .contains::<ScrollableRenderTarget>();
     let target_count = [has_target_a, has_target_b]
         .into_iter()
         .filter(|has_target| *has_target)
@@ -248,8 +308,12 @@ fn thumb_extent_respects_minimum_and_track_bounds() {
         (120.0, 500.0, 300.0, 18.0, 120.0),
     ];
     for (track_extent, viewport_extent, content_extent, min_thumb_extent, expected) in cases {
-        let thumb =
-            thumb_extent_for_state(track_extent, viewport_extent, content_extent, min_thumb_extent);
+        let thumb = thumb_extent_for_state(
+            track_extent,
+            viewport_extent,
+            content_extent,
+            min_thumb_extent,
+        );
         assert_eq!(thumb, expected);
     }
 }
@@ -316,20 +380,10 @@ fn horizontal_thumb_round_trip_property_is_bounded_samples() {
                 for normalized in normalized_values {
                     let thumb = (track * thumb_ratio).clamp(1.0, track);
                     let offset = max * normalized;
-                    let center = thumb_center_for_offset(
-                        track,
-                        thumb,
-                        offset,
-                        max,
-                        ScrollAxis::Horizontal,
-                    );
-                    let mapped = offset_from_thumb_center(
-                        track,
-                        thumb,
-                        center,
-                        max,
-                        ScrollAxis::Horizontal,
-                    );
+                    let center =
+                        thumb_center_for_offset(track, thumb, offset, max, ScrollAxis::Horizontal);
+                    let mapped =
+                        offset_from_thumb_center(track, thumb, center, max, ScrollAxis::Horizontal);
                     assert!(
                         (mapped - offset).abs() <= 0.01,
                         "horizontal round-trip drift: track={track}, thumb={thumb}, max={max}, normalized={normalized}, offset={offset}, mapped={mapped}",
@@ -452,7 +506,10 @@ fn stress_layer_toggle_keeps_scroll_state_clamped_and_panics_free() {
         .id();
     let dropdown = app
         .world_mut()
-        .spawn((UiLayer::new(owner, UiLayerKind::Dropdown), Visibility::Hidden))
+        .spawn((
+            UiLayer::new(owner, UiLayerKind::Dropdown),
+            Visibility::Hidden,
+        ))
         .id();
     let modal = app
         .world_mut()
@@ -560,7 +617,9 @@ fn explicit_child_render_layer_is_not_overridden_by_scroll_layer_sync() {
         .world_mut()
         .spawn((RenderLayers::layer(31), Transform::default()))
         .id();
-    app.world_mut().entity_mut(content).add_child(custom_layer_child);
+    app.world_mut()
+        .entity_mut(content)
+        .add_child(custom_layer_child);
 
     app.update();
 
@@ -590,7 +649,11 @@ fn scrollbar_wheel_and_drag_path_stays_clamped() {
     write_wheel(&mut app, -1.0);
     app.update();
 
-    let after_wheel = app.world().get::<ScrollState>(root).expect("scroll state").offset_px;
+    let after_wheel = app
+        .world()
+        .get::<ScrollState>(root)
+        .expect("scroll state")
+        .offset_px;
     assert!(after_wheel > 0.0);
 
     let track_center = app
@@ -613,4 +676,98 @@ fn scrollbar_wheel_and_drag_path_stays_clamped() {
     let state_after_drag = app.world().get::<ScrollState>(root).expect("scroll state");
     assert!(state_after_drag.offset_px >= 0.0);
     assert!(state_after_drag.offset_px <= state_after_drag.max_offset + 0.001);
+}
+
+#[test]
+#[ignore = "requires render backend/window; run via scripts/ui_gpu_smoke.sh"]
+fn ui_gpu_smoke_scroll_keyboard_and_wheel_input_is_stable() {
+    run_gpu_smoke_or_skip(|| {
+        let mut app = make_gpu_scroll_smoke_app();
+        let (owner, root) = spawn_owner_and_scroll_root(&mut app, 640.0, 180.0);
+        app.world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+
+        let mut has_render_target = false;
+        for _ in 0..60 {
+            app.update();
+            has_render_target = app
+                .world()
+                .entity(root)
+                .contains::<ScrollableRenderTarget>();
+            if has_render_target {
+                break;
+            }
+        }
+        assert!(
+            has_render_target,
+            "scroll root never received render target"
+        );
+
+        let mut has_runtime_camera = false;
+        let mut has_runtime_surface = false;
+        if let Some(children) = app.world().entity(root).get::<Children>() {
+            for child in children.iter() {
+                let child_ref = app.world().entity(child);
+                has_runtime_camera |= child_ref.contains::<ScrollableContentCamera>();
+                has_runtime_surface |= child_ref.contains::<ScrollableSurface>();
+            }
+        }
+        assert!(has_runtime_camera, "missing runtime scroll content camera");
+        assert!(has_runtime_surface, "missing runtime scroll surface");
+
+        let before = app
+            .world()
+            .get::<ScrollState>(root)
+            .expect("scroll state")
+            .offset_px;
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ArrowDown);
+        write_wheel(&mut app, -1.0);
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .release(KeyCode::ArrowDown);
+        write_wheel(&mut app, -1.0);
+        app.update();
+
+        let state = app.world().get::<ScrollState>(root).expect("scroll state");
+        assert!(state.offset_px > before);
+        assert!(state.offset_px >= 0.0);
+        assert!(state.offset_px <= state.max_offset + 0.001);
+    });
+}
+
+#[test]
+#[ignore = "requires render backend/window; run via scripts/ui_gpu_smoke.sh"]
+fn ui_gpu_smoke_mixed_input_stays_clamped_over_many_frames() {
+    run_gpu_smoke_or_skip(|| {
+        let mut app = make_gpu_scroll_smoke_app();
+        let (owner, root) = spawn_owner_and_scroll_root(&mut app, 820.0, 180.0);
+        app.world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+
+        for frame in 0..120 {
+            if frame % 2 == 0 {
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .press(KeyCode::ArrowDown);
+            } else {
+                app.world_mut()
+                    .resource_mut::<ButtonInput<KeyCode>>()
+                    .release(KeyCode::ArrowDown);
+            }
+            if frame % 3 == 0 {
+                write_wheel(&mut app, -1.0);
+            }
+
+            app.update();
+            let state = app.world().get::<ScrollState>(root).expect("scroll state");
+            assert!(state.offset_px >= 0.0);
+            assert!(state.offset_px <= state.max_offset + 0.001);
+        }
+    });
 }

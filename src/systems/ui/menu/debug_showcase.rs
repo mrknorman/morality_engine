@@ -27,11 +27,11 @@ use crate::{
             hover_box,
             layer::UiLayer,
             menu_surface::MenuSurface,
-            selector::SelectorSurface,
             scroll::{
                 ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
                 ScrollableRoot, ScrollableViewport,
             },
+            selector::SelectorSurface,
             tabs::{TabBar, TabBarState, TabItem},
         },
     },
@@ -262,38 +262,41 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
                     .with_click_activation(SelectableClickActivation::HoveredOnly),
             );
 
-            window_parent.commands().entity(menu_root).with_children(|menu_parent| {
-                let option_specs = [
-                    (DebugMenuOptionKey::Quality, 0, 48.0),
-                    (DebugMenuOptionKey::Refresh, 1, 12.0),
-                    (DebugMenuOptionKey::Theme, 2, -24.0),
-                ];
+            window_parent
+                .commands()
+                .entity(menu_root)
+                .with_children(|menu_parent| {
+                    let option_specs = [
+                        (DebugMenuOptionKey::Quality, 0, 48.0),
+                        (DebugMenuOptionKey::Refresh, 1, 12.0),
+                        (DebugMenuOptionKey::Theme, 2, -24.0),
+                    ];
 
-                for (key, index, y) in option_specs {
-                    menu_parent.spawn((
-                        Name::new(format!("debug_menu_demo_option_{index}")),
-                        TextRaw,
-                        Text2d::new(""),
-                        TextFont {
-                            font_size: scaled_font_size(BASE_FONT_SIZE),
-                            ..default()
-                        },
-                        TextColor(SYSTEM_MENU_COLOR),
-                        Anchor::CENTER_LEFT,
-                        SelectorSurface::new(menu_root, index).with_cycler(),
-                        Clickable::with_region(
-                            vec![SystemMenuActions::Activate],
-                            MENU_OPTION_REGION,
-                        ),
-                        DebugMenuDemoOption {
-                            root: menu_root,
-                            key,
-                            index,
-                        },
-                        Transform::from_xyz(0.0, y, 0.02),
-                    ));
-                }
-            });
+                    for (key, index, y) in option_specs {
+                        menu_parent.spawn((
+                            Name::new(format!("debug_menu_demo_option_{index}")),
+                            TextRaw,
+                            Text2d::new(""),
+                            TextFont {
+                                font_size: scaled_font_size(BASE_FONT_SIZE),
+                                ..default()
+                            },
+                            TextColor(SYSTEM_MENU_COLOR),
+                            Anchor::CENTER_LEFT,
+                            SelectorSurface::new(menu_root, index).with_cycler(),
+                            Clickable::with_region(
+                                vec![SystemMenuActions::Activate],
+                                MENU_OPTION_REGION,
+                            ),
+                            DebugMenuDemoOption {
+                                root: menu_root,
+                                key,
+                                index,
+                            },
+                            Transform::from_xyz(0.0, y, 0.02),
+                        ));
+                    }
+                });
         });
 }
 
@@ -353,43 +356,43 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                     Transform::from_xyz(-168.0, 54.0, 0.2),
                 ))
                 .id();
+            window_parent.commands().entity(tab_root).insert((
+                TabBar::new(tab_root),
+                MenuSurface::new(tab_root)
+                    .without_layer()
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            ));
+
             window_parent
                 .commands()
                 .entity(tab_root)
-                .insert((
-                    TabBar::new(tab_root),
-                    MenuSurface::new(tab_root)
-                        .without_layer()
-                        .with_click_activation(SelectableClickActivation::HoveredOnly),
-                ));
-
-            window_parent.commands().entity(tab_root).with_children(|tabs_parent| {
-                for (index, label) in TABS_LABELS.into_iter().enumerate() {
-                    tabs_parent.spawn((
-                        Name::new(format!("debug_tabs_demo_label_{index}")),
-                        TextRaw,
-                        Text2d::new(label),
-                        TextFont {
-                            font_size: scaled_font_size(BASE_FONT_SIZE),
-                            ..default()
-                        },
-                        TextColor(SYSTEM_MENU_COLOR),
-                        Anchor::CENTER,
-                        TabItem { index },
-                        SelectorSurface::new(tab_root, index),
-                        Clickable::with_region(
-                            vec![SystemMenuActions::Activate],
-                            TAB_REGION,
-                        ),
-                        hover_box::HoverBoxTarget::new(hover_root, TAB_REGION),
-                        hover_box::HoverBoxContent {
-                            text: TABS_CONTENT[index].to_string(),
-                        },
-                        DebugTabsDemoLabel { root: tab_root, index },
-                        Transform::from_xyz(index as f32 * 120.0, 0.0, 0.02),
-                    ));
-                }
-            });
+                .with_children(|tabs_parent| {
+                    for (index, label) in TABS_LABELS.into_iter().enumerate() {
+                        tabs_parent.spawn((
+                            Name::new(format!("debug_tabs_demo_label_{index}")),
+                            TextRaw,
+                            Text2d::new(label),
+                            TextFont {
+                                font_size: scaled_font_size(BASE_FONT_SIZE),
+                                ..default()
+                            },
+                            TextColor(SYSTEM_MENU_COLOR),
+                            Anchor::CENTER,
+                            TabItem { index },
+                            SelectorSurface::new(tab_root, index),
+                            Clickable::with_region(vec![SystemMenuActions::Activate], TAB_REGION),
+                            hover_box::HoverBoxTarget::new(hover_root, TAB_REGION),
+                            hover_box::HoverBoxContent {
+                                text: TABS_CONTENT[index].to_string(),
+                            },
+                            DebugTabsDemoLabel {
+                                root: tab_root,
+                                index,
+                            },
+                            Transform::from_xyz(index as f32 * 120.0, 0.0, 0.02),
+                        ));
+                    }
+                });
 
             window_parent.spawn((
                 Name::new("debug_tabs_demo_content"),
@@ -474,7 +477,9 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                                 vec![SystemMenuActions::Activate],
                                 DROPDOWN_TRIGGER_REGION,
                             ),
-                            DebugDropdownDemoTrigger { owner: owner_entity },
+                            DebugDropdownDemoTrigger {
+                                owner: owner_entity,
+                            },
                             Transform::from_xyz(0.0, 0.0, 0.02),
                         ))
                         .id();
@@ -537,11 +542,14 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                     }
                 });
 
-            window_parent.commands().entity(owner_entity).insert(DebugDropdownDemoState {
-                selected_index: 0,
-                trigger_entity,
-                dropdown_parent: window_entity,
-            });
+            window_parent
+                .commands()
+                .entity(owner_entity)
+                .insert(DebugDropdownDemoState {
+                    selected_index: 0,
+                    trigger_entity,
+                    dropdown_parent: window_entity,
+                });
         });
 }
 
@@ -580,7 +588,8 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
             let scroll_root = window_parent
                 .spawn((
                     Name::new("debug_scroll_demo_root"),
-                    ScrollableRoot::new(window_entity, ScrollAxis::Vertical).with_edge_zones(18.0, 18.0),
+                    ScrollableRoot::new(window_entity, ScrollAxis::Vertical)
+                        .with_edge_zones(18.0, 18.0),
                     ScrollableViewport::new(viewport_size),
                     ScrollableContentExtent(content_extent),
                     Transform::from_xyz(-22.0, -2.0, 0.2),
@@ -593,19 +602,25 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
                     Transform::default(),
                 ))
                 .id();
-            window_parent.commands().entity(scroll_root).add_child(scroll_content);
-            window_parent.commands().entity(scroll_root).with_children(|scroll_parent| {
-                let mut scroll_bar = ScrollBar::new(scroll_root);
-                scroll_bar.width = 10.0;
-                scroll_bar.margin = 4.0;
-                scroll_bar.track_color = SYSTEM_MENU_COLOR;
-                scroll_bar.thumb_color = SYSTEM_MENU_COLOR;
-                scroll_parent.spawn((
-                    Name::new("debug_scroll_demo_scrollbar"),
-                    scroll_bar,
-                    Transform::from_xyz(0.0, 0.0, 0.22),
-                ));
-            });
+            window_parent
+                .commands()
+                .entity(scroll_root)
+                .add_child(scroll_content);
+            window_parent
+                .commands()
+                .entity(scroll_root)
+                .with_children(|scroll_parent| {
+                    let mut scroll_bar = ScrollBar::new(scroll_root);
+                    scroll_bar.width = 10.0;
+                    scroll_bar.margin = 4.0;
+                    scroll_bar.track_color = SYSTEM_MENU_COLOR;
+                    scroll_bar.thumb_color = SYSTEM_MENU_COLOR;
+                    scroll_parent.spawn((
+                        Name::new("debug_scroll_demo_scrollbar"),
+                        scroll_bar,
+                        Transform::from_xyz(0.0, 0.0, 0.22),
+                    ));
+                });
 
             window_parent
                 .commands()
@@ -628,10 +643,7 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
                         content_parent.spawn((
                             Name::new(format!("debug_scroll_demo_row_text_{index}")),
                             TextRaw,
-                            Text2d::new(format!(
-                                "{:02}. Lorem ipsum dolor sit amet",
-                                index + 1
-                            )),
+                            Text2d::new(format!("{:02}. Lorem ipsum dolor sit amet", index + 1)),
                             TextFont {
                                 font_size: scaled_font_size(12.0),
                                 ..default()
@@ -754,17 +766,17 @@ pub(super) fn sync_menu_demo_visuals(
 
 pub(super) fn sync_tabs_demo_visuals(
     tab_state_query: Query<&TabBarState, With<DebugTabsDemoRoot>>,
-    mut label_query: Query<(
-        &DebugTabsDemoLabel,
-        &Hoverable,
-        &mut Text2d,
-        &mut TextFont,
-        &mut TextColor,
-    ), Without<DebugTabsDemoContent>>,
-    mut content_query: Query<
-        (&DebugTabsDemoContent, &mut Text2d),
-        Without<DebugTabsDemoLabel>,
+    mut label_query: Query<
+        (
+            &DebugTabsDemoLabel,
+            &Hoverable,
+            &mut Text2d,
+            &mut TextFont,
+            &mut TextColor,
+        ),
+        Without<DebugTabsDemoContent>,
     >,
+    mut content_query: Query<(&DebugTabsDemoContent, &mut Text2d), Without<DebugTabsDemoLabel>>,
 ) {
     // Query contract:
     // - Label/content text queries are disjoint via reciprocal `Without` filters.
@@ -804,10 +816,7 @@ pub(super) fn sync_tabs_demo_visuals(
 }
 
 pub(super) fn handle_dropdown_trigger_commands(
-    mut trigger_query: Query<(
-        &DebugDropdownDemoTrigger,
-        &mut Clickable<SystemMenuActions>,
-    )>,
+    mut trigger_query: Query<(&DebugDropdownDemoTrigger, &mut Clickable<SystemMenuActions>)>,
     owner_query: Query<&DebugDropdownDemoState>,
     mut dropdown_state: ResMut<DropdownLayerState>,
     mut dropdown_query: Query<
@@ -816,7 +825,10 @@ pub(super) fn handle_dropdown_trigger_commands(
     >,
     mut dropdown_menu_query: Query<
         &mut SelectableMenu,
-        (With<DebugDropdownDemoPanel>, Without<DebugDropdownDemoTrigger>),
+        (
+            With<DebugDropdownDemoPanel>,
+            Without<DebugDropdownDemoTrigger>,
+        ),
     >,
 ) {
     // Query contract:
@@ -914,7 +926,10 @@ pub(super) fn close_dropdown_on_outside_click(
     owner_query: Query<&DebugDropdownDemoState>,
     trigger_query: Query<
         (&Transform, &GlobalTransform),
-        (With<DebugDropdownDemoTrigger>, Without<DebugDropdownDemoPanel>),
+        (
+            With<DebugDropdownDemoTrigger>,
+            Without<DebugDropdownDemoPanel>,
+        ),
     >,
     mut panel_query: Query<
         (
@@ -973,21 +988,27 @@ pub(super) fn sync_dropdown_demo_visuals(
     dropdown_state: Res<DropdownLayerState>,
     owner_query: Query<(&SelectableMenu, &DebugDropdownDemoState)>,
     panel_menu_query: Query<&SelectableMenu, With<DebugDropdownDemoPanel>>,
-    mut trigger_query: Query<(
-        &DebugDropdownDemoTrigger,
-        &Hoverable,
-        &mut Text2d,
-        &mut TextFont,
-        &mut TextColor,
-    ), Without<DebugDropdownDemoItem>>,
-    mut item_query: Query<(
-        &DebugDropdownDemoItem,
-        &Hoverable,
-        &Selectable,
-        &mut Text2d,
-        &mut TextFont,
-        &mut TextColor,
-    ), Without<DebugDropdownDemoTrigger>>,
+    mut trigger_query: Query<
+        (
+            &DebugDropdownDemoTrigger,
+            &Hoverable,
+            &mut Text2d,
+            &mut TextFont,
+            &mut TextColor,
+        ),
+        Without<DebugDropdownDemoItem>,
+    >,
+    mut item_query: Query<
+        (
+            &DebugDropdownDemoItem,
+            &Hoverable,
+            &Selectable,
+            &mut Text2d,
+            &mut TextFont,
+            &mut TextColor,
+        ),
+        Without<DebugDropdownDemoTrigger>,
+    >,
 ) {
     // Query contract:
     // - Trigger/item text queries are disjoint via reciprocal `Without` filters.
@@ -1004,7 +1025,11 @@ pub(super) fn sync_dropdown_demo_visuals(
             "{} TONEMAPPER: {} {}",
             if selected { ">" } else { " " },
             value,
-            if panel_visible { "\u{25BE}" } else { "\u{25B8}" },
+            if panel_visible {
+                "\u{25BE}"
+            } else {
+                "\u{25B8}"
+            },
         );
         font.font_size = scaled_font_size(if selected {
             SELECTED_FONT_SIZE
@@ -1120,10 +1145,21 @@ mod tests {
             .count();
         assert_eq!(window_count, 4);
 
-        assert!(world.query::<&SelectorSurface>().iter(world).next().is_some());
+        assert!(world
+            .query::<&SelectorSurface>()
+            .iter(world)
+            .next()
+            .is_some());
         assert!(world.query::<&TabBar>().iter(world).next().is_some());
-        assert!(world.query::<&DropdownSurface>().iter(world).next().is_some());
-        assert!(world.query::<&ScrollableRoot>().iter(world).next().is_some());
+        assert!(world
+            .query::<&DropdownSurface>()
+            .iter(world)
+            .next()
+            .is_some());
+        assert!(world
+            .query::<&ScrollableRoot>()
+            .iter(world)
+            .next()
+            .is_some());
     }
-
 }
