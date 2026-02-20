@@ -39,24 +39,18 @@ Legend:
   - Compliance matrix and migration backlog now captured in `docs/ui_compliance_matrix.md`.
 - Stage 2 Architecture Boundaries and Contracts: `status: done`
   - Contract docs are aligned with current boundaries and now cross-referenced by the compliance matrix (`docs/ui_compliance_matrix.md`).
-- Stage 3 Owner-Scoped Interaction Context + Layer Manager: `status: partial`
-  - Owner-scoped layer arbitration is broadly used; some behavior still feels nondeterministic under mixed input.
-  - Recent progress: shared deterministic owner ordering helper (`layer::ordered_active_layers_by_owner`) is now used in menu navigation routing instead of ad-hoc local sorting.
-  - Recent progress: shared owner-kind helper (`layer::ordered_active_owners_by_kind`) now drives owner iteration in escape shortcut routing, modal shortcut routing, and dropdown item resolution.
-  - Recent progress: dropdown keyboard-navigation owner traversal now uses shared active-layer ordering instead of local menu-query sorting.
-  - Recent progress: tabbed focus arbitration now iterates active base owners via shared layer-owner ordering.
-  - Recent progress: owner-scoped interaction-gate behavior now has explicit cross-owner coverage (`interaction_capture_is_owner_scoped_for_gate_resolution`).
-- Stage 4 Primitive Contract Normalization: `status: partial`
-  - Primitive roots exist for menu surface, dropdown, tabs, selector, scroll, hover box, slider.
-  - `SystemMenuOptionRoot` now owns option wiring via `#[require]` + `on_insert`.
-  - Remaining gap: continue reducing monolithic composition wiring in menu-specific modules.
-- Stage 5 Menu Composition Migration: `status: partial`
-  - Reducer/effects + composition split exists.
-  - `page_content`, `modal_flow`, and main menu option rows now spawn via primitive `system_menu::spawn_option`.
-  - Video page scaffold composition has been extracted into a dedicated helper (`spawn_video_page_scaffold`) to reduce `spawn_page_content` monolith complexity.
-  - `spawn_menu_root` no longer accepts generic extra bundle injection; markers are attached explicitly by composition callers.
-  - `menu_input::handle_menu_shortcuts` has been split into focused helpers (escape handling, active-menu context, directional dispatch).
-  - Remaining gap: complete scene-local main-menu composition migration into shared menu composition modules.
+- Stage 3 Owner-Scoped Interaction Context + Layer Manager: `status: done`
+  - Owner-scoped active-layer arbitration is centralized in `ui::layer` and routed through shared deterministic ordering helpers.
+  - Menu/tab/dropdown/modal systems now consume `active_layers_by_owner_scoped` + ordered owner/layer helpers instead of ad-hoc local scans.
+  - Owner-scoped arbitration has explicit regression coverage for cross-owner isolation and deterministic priority.
+- Stage 4 Primitive Contract Normalization: `status: done`
+  - Root primitives are normalized for menu surface, selector/cycler, tab bar, dropdown, scroll root/scrollbar, hover box, and discrete slider.
+  - Primitive insertion contracts are covered by insertion smoke tests (`MenuSurface`, `SelectorSurface`, `DropdownSurface`, `TabBar`, `HoverBoxRoot`, `DiscreteSlider`).
+  - Option composition is owned by `SystemMenuOptionRoot` via `#[require]` + `on_insert`.
+- Stage 5 Menu Composition Migration: `status: done`
+  - Menu composition paths are primitive-backed (`system_menu::spawn_option`, `MenuSurface`, `DropdownSurface`, `TabBar`, `DiscreteSlider`, `HoverBoxRoot`).
+  - Reducer/effects split remains in place (`command_reducer` + `command_effects` + `command_flow`).
+  - Main menu composition and command routing are on shared `ui::menu` modules; scene-local duplicate behavior path was removed.
 - Stage 6 UI Module Realignment: `status: done`
   - Menu composition is under `src/systems/ui/menu/*` with clear submodules.
 - Stage 7 Dropdown, Tabs, Footer Primitive Unification: `status: done`
@@ -213,10 +207,10 @@ Deliverable:
 - [x] Route dimming/focus/interaction decisions through one layer source-of-truth.
 
 Deliverable:
-- [ ] Deterministic owner-scoped layer arbitration across all UI surfaces.
+- [x] Deterministic owner-scoped layer arbitration across all UI surfaces.
 
 ## Stage 4: Primitive Contract Normalization
-- [ ] Standardize root primitives and contracts for:
+- [x] Standardize root primitives and contracts for:
   - menu surface
   - selector/cycler surface
   - tab bar
@@ -224,20 +218,20 @@ Deliverable:
   - scrollable root + scrollbar
   - hover box
   - discrete slider
-- [ ] Ensure each primitive owns required child hierarchy via insert/lifecycle hooks.
-- [ ] Remove hidden external wiring assumptions from primitive behavior systems.
+- [x] Ensure each primitive owns required child hierarchy via insert/lifecycle hooks.
+- [x] Remove hidden external wiring assumptions from primitive behavior systems.
 
 Deliverable:
-- [ ] Single-root primitive insertion stands up each primitive behavior unit.
+- [x] Single-root primitive insertion stands up each primitive behavior unit.
 
 ## Stage 5: Menu Composition Migration
-- [ ] Refactor `src/systems/ui/menu/*` to compose primitives only.
-- [ ] Remove menu-specific primitive reimplementations.
-- [ ] Keep reducer/effects split while moving mechanics to primitives.
-- [ ] Reduce feature-specific branching in generic menu flow paths.
+- [x] Refactor `src/systems/ui/menu/*` to compose primitives only.
+- [x] Remove menu-specific primitive reimplementations.
+- [x] Keep reducer/effects split while moving mechanics to primitives.
+- [x] Reduce feature-specific branching in generic menu flow paths.
 
 Deliverable:
-- [ ] Menu modules are policy + command mapping only.
+- [x] Menu modules are policy + command mapping only.
 
 ## Stage 6: UI Module Realignment
 - [x] Ensure menu modules live under `ui::menu` with clean public API boundaries.
