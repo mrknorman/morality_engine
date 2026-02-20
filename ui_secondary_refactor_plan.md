@@ -124,6 +124,8 @@ Progress notes:
 - Added query-safety contract comments to additional multi-query systems (`sync_discrete_slider_slots`, dropdown outside-click close path) to keep alias boundaries explicit as UI primitives evolve.
 - Added full regression run checkpoint after primitive/plugin changes: `cargo test --manifest-path Cargo.toml systems::ui:: --quiet` (82 passed, no B0001).
 - Full UI test subset now passes (`cargo test --manifest-path Cargo.toml systems::ui:: --quiet`) with no B0001 panics.
+- Scroll multi-query systems now carry explicit query contracts (`sync_scroll_extents`, `handle_scrollable_pointer_and_keyboard_input`, `sync_scroll_content_offsets`, `ensure_scrollable_runtime_entities`, `sync_scrollable_render_entities`, `sync_scroll_content_layers`) to keep alias boundaries readable as primitives evolve.
+- Edge auto-scroll geometry now consumes per-root scroll edge-zone settings (instead of module constants), so scroll behavior configuration remains primitive-scoped and deterministic.
 
 ## Stage 7: Test Coverage
 
