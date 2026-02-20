@@ -50,8 +50,8 @@ Deliverable:
   - Dropdown
   - Scrollable/scrollbar
   - Hover box
-- [ ] Ensure each root primitive owns its required child hierarchy via insert hooks.
-- [ ] Remove hidden external wiring assumptions from primitive behavior systems.
+- [x] Ensure each root primitive owns its required child hierarchy via primitive-owned insertion/lifecycle hooks.
+- [x] Remove hidden external wiring assumptions from primitive behavior systems.
 
 Deliverable:
 - Primitive APIs that can be used by adding a single root component plus config components.
@@ -71,6 +71,7 @@ Progress notes:
 - `MenuSurface` now provides a root menu primitive contract (`UiLayer`, `SelectableMenu`, click-activation policy) via insert hook in `src/systems/ui/menu_surface.rs`, and root menu spawning now consumes it in `src/systems/ui/menu/root_spawn.rs`.
 - Debug showcase menu roots now also consume `MenuSurface` (including dropdown-layer panel ownership) in `src/systems/ui/menu/debug_showcase.rs`.
 - Video modal roots now compose through `MenuSurface` with `UiLayerKind::Modal`, and video tabs/dropdown roots removed redundant `SelectableMenu` boilerplate where primitive defaults already apply (`src/systems/ui/menu/modal_flow.rs`, `src/systems/ui/menu/page_content.rs`).
+- `ScrollableRoot` runtime lifecycle now self-seeds a default `ScrollableContent` child when missing, alongside camera/surface children, removing menu-specific content-root wiring assumptions (`src/systems/ui/scroll/lifecycle.rs`).
 
 ## Stage 3: Menu Composition Migration
 
@@ -112,9 +113,9 @@ Progress notes:
 
 ## Stage 6: Query-Safety Hardening
 
-- [ ] Audit all UI systems for overlapping mutable query risk.
-- [ ] Apply `ParamSet` and `Without<T>` contracts where needed.
-- [ ] Add short query contract comments at each multi-query system.
+- [x] Audit all UI systems for overlapping mutable query risk.
+- [x] Apply `ParamSet` and `Without<T>` contracts where needed.
+- [x] Add short query contract comments at each multi-query system.
 
 Deliverable:
 - No B0001 panics under stress interactions in menus/debug showcase.
@@ -126,6 +127,7 @@ Progress notes:
 - Full UI test subset now passes (`cargo test --manifest-path Cargo.toml systems::ui:: --quiet`) with no B0001 panics.
 - Scroll multi-query systems now carry explicit query contracts (`sync_scroll_extents`, `handle_scrollable_pointer_and_keyboard_input`, `sync_scroll_content_offsets`, `ensure_scrollable_runtime_entities`, `sync_scrollable_render_entities`, `sync_scroll_content_layers`) to keep alias boundaries readable as primitives evolve.
 - Edge auto-scroll geometry now consumes per-root scroll edge-zone settings (instead of module constants), so scroll behavior configuration remains primitive-scoped and deterministic.
+- Updated regression checkpoint after scroll primitive lifecycle hardening: `cargo test --manifest-path Cargo.toml systems::ui:: --quiet` (85 passed, no B0001).
 
 ## Stage 7: Test Coverage
 
@@ -164,7 +166,7 @@ Deliverable:
 ## Acceptance Checklist
 
 - [x] Debug showcase windows are all interactive (not visual-only).
-- [ ] Primitive-root insertion is sufficient to stand up each major UI feature.
+- [x] Primitive-root insertion is sufficient to stand up each major UI feature.
 - [x] No new reusable UI bundles introduced.
 - [x] Layering and input arbitration are owner-scoped and deterministic.
 - [x] No known B0001 query conflicts in UI systems.
