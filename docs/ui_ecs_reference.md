@@ -530,6 +530,7 @@ Conflict safety:
 - Add a query-safety smoke test for high-risk systems by initializing them via `IntoSystem::into_system(...).initialize(&mut world)`;
   this catches B0001-style alias conflicts before runtime. Current examples live in:
   `command_flow.rs`, `dropdown_view.rs`, `menu_input.rs`, `dropdown_flow.rs`, `main_menu.rs`, `modal_flow.rs`, `tabbed_menu.rs`, `debug_showcase.rs`, `video_visuals.rs`.
+- Use `./scripts/ui_query_safety.sh` as a fast preflight to run the query-safety smoke set before full regression runs.
 
 ## Window Integration
 

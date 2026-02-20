@@ -123,6 +123,7 @@ Legend:
   - Docs are substantial and mostly current; still need final alignment with latest bugfix/refactor outcome.
 - Stage 21 Tooling and Test Framework Rollout: `status: partial`
   - `mdBook` content now includes the `./scripts/ui_regression.sh` flow and `nextest` profile usage.
+  - Added `./scripts/ui_query_safety.sh` for fast query-alias/B0001 preflight checks.
   - Remaining: decide if property-testing crates are required or keep deterministic sampled coverage only.
 - Stage 22 Cleanup and Redundancy Pass: `status: partial`
   - Redundant menu dead code cleanup started (`VIDEO_DISCRETE_SLIDER_SLOT_CLICK_REGION`, `cycle_video_top_option` removed).
