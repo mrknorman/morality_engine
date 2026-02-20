@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use super::*;
-use crate::systems::ui::discrete_slider::DiscreteSliderSlot;
+use crate::{
+    startup::cursor::CustomCursor,
+    systems::ui::discrete_slider::{DiscreteSlider, DiscreteSliderSlot},
+};
 
 #[derive(Resource, Default)]
 pub(super) struct OptionCommandSuppressions {
@@ -28,6 +31,7 @@ pub(super) fn handle_menu_option_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    showcase_root_query: Query<Entity, With<debug_showcase::DebugUiShowcaseRoot>>,
     mut dropdown_anchor_state: ResMut<DropdownAnchorState>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
     mut option_query: Query<(
@@ -96,6 +100,12 @@ pub(super) fn handle_menu_option_commands(
         }
         clickable.triggered = false;
 
+        let active_tab = video_tab_kind(
+            active_tabs
+                .get(&selectable.menu_entity)
+                .copied()
+                .unwrap_or(0),
+        );
         let active_kind =
             layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
 
@@ -103,18 +113,13 @@ pub(super) fn handle_menu_option_commands(
             continue;
         }
 
-        if active_kind == UiLayerKind::Dropdown
-            && !matches!(&option_command.0, MenuCommand::ToggleResolutionDropdown)
-        {
-            continue;
+        if active_kind == UiLayerKind::Dropdown {
+            let is_dropdown_toggle = video_top_row_for_command(&option_command.0)
+                .is_some_and(|row| video_top_option_uses_dropdown(active_tab, row));
+            if !is_dropdown_toggle {
+                continue;
+            }
         }
-
-        let active_tab = video_tab_kind(
-            active_tabs
-                .get(&selectable.menu_entity)
-                .copied()
-                .unwrap_or(0),
-        );
         if let Some(row) = video_top_row_for_command(&option_command.0) {
             if !video_top_option_uses_dropdown(active_tab, row) {
                 if suppressions.take_slider_row_click_suppression(selectable.menu_entity, row) {
@@ -173,6 +178,7 @@ pub(super) fn handle_menu_option_commands(
             &mut ctx.window_exit,
             &mut ctx.next_pause_state,
             &mut ctx.next_main_state,
+            &showcase_root_query,
             &mut dirty_menus,
             &mut closed_menus,
             &mut pending_dropdown_open,
@@ -193,6 +199,7 @@ pub(super) fn handle_menu_option_commands(
             &mut ctx.dropdown_state,
             &mut dropdown_query,
             &mut dropdown_menu_query,
+            &mut ctx.video_top_scroll_query,
         );
     }
 
@@ -321,6 +328,7 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    cursor: Res<CustomCursor>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
     mut settings: ResMut<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
@@ -334,7 +342,7 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
             &mut Clickable<SystemMenuActions>,
         ),
     >,
-    slider_query: Query<&VideoOptionDiscreteSlider>,
+    slider_query: Query<(&VideoOptionDiscreteSlider, &DiscreteSlider, &GlobalTransform)>,
     option_audio_query: Query<
         (
             Entity,
@@ -375,7 +383,7 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
     }
 
     for (_slot_entity, slider_entity, slot_index) in click_targets {
-        let Ok(slider_meta) = slider_query.get(slider_entity) else {
+        let Ok((slider_meta, slider_widget, slider_global)) = slider_query.get(slider_entity) else {
             continue;
         };
         if slider_meta.row >= VIDEO_TOP_OPTION_COUNT {
@@ -403,7 +411,23 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
 
         suppressions.suppress_slider_row_click(slider_meta.menu_entity, slider_meta.row);
 
-        let Some(next_index) = key.slider_selected_index_from_slot(slot_index) else {
+        let cursor_local_x = cursor.position.map(|cursor_position| {
+            let slider_world_to_local = slider_global.to_matrix().inverse();
+            slider_world_to_local
+                .transform_point3(cursor_position.extend(0.0))
+                .x
+        });
+        let Some(next_index) = cursor_local_x
+            .and_then(|local_x| {
+                key.slider_selected_index_from_local_x(
+                    local_x,
+                    slider_widget.slot_size.x,
+                    slider_widget.slot_gap,
+                    slider_widget.layout_steps,
+                )
+            })
+            .or_else(|| key.slider_selected_index_from_slot(slot_index))
+        else {
             continue;
         };
 
