@@ -99,7 +99,6 @@ pub(super) fn ensure_scrollbar_parts(
                 track: track_entity,
                 thumb: thumb_entity,
             },
-            ScrollBarDragState::default(),
         ));
     }
 }

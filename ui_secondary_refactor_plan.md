@@ -59,6 +59,8 @@ Deliverable:
 Progress notes:
 - `TabBar` now enforces required primitive contracts on insertion (`SelectableMenu`, `TabBarState`, activation policy/state sync) in `src/systems/ui/tabs.rs`.
 - `DiscreteSlider` now enforces baseline transform/visibility contracts in `src/systems/ui/discrete_slider.rs`.
+- `HoverBoxRoot` now self-initializes primitive defaults via insert hook (owner-scoped `UiLayer`, hidden root visuals, and required child label/border structure) in `src/systems/ui/hover_box.rs`.
+- `ScrollBar` now enforces required root contracts (`Transform`, `Visibility`, drag state) in `src/systems/ui/scroll/mod.rs`.
 
 ## Stage 3: Menu Composition Migration
 
