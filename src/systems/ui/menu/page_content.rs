@@ -210,15 +210,15 @@ pub(super) fn spawn_page_content(
                     VideoTabsInteractionRoot,
                     gate,
                     tabs::TabBar::new(menu_entity),
-                    tabs::TabBarState::default(),
                     tabs::TabBarStateSync::Explicit,
-                    tabs::TabActivationPolicy::default(),
                     tabbed_menu::TabbedMenuConfig::new(
                         VIDEO_TOP_OPTION_COUNT,
                         VIDEO_FOOTER_OPTION_START_INDEX,
                         VIDEO_FOOTER_OPTION_COUNT,
                     ),
                     SelectableMenu::new(0, vec![], vec![], vec![], true)
+                        .with_click_activation(SelectableClickActivation::HoveredOnly),
+                    MenuSurface::new(menu_entity)
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                     system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
                     Transform::from_xyz(0.0, 0.0, 1.1),
@@ -262,14 +262,6 @@ pub(super) fn spawn_page_content(
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                     gate,
                     system_menu::switch_audio_pallet(asset_server, SystemMenuSounds::Switch),
-                    SelectableMenu::new(
-                        0,
-                        vec![KeyCode::ArrowUp],
-                        vec![KeyCode::ArrowDown],
-                        vec![KeyCode::Enter],
-                        true,
-                    )
-                    .with_click_activation(SelectableClickActivation::HoveredOnly),
                     Sprite::from_color(
                         Color::BLACK,
                         Vec2::new(

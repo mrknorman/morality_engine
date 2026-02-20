@@ -28,7 +28,7 @@ fn spawn_video_modal_base(
                     Name::new(name.to_string()),
                     MenuPageContent,
                     VideoModalRoot,
-                    UiLayer::new(menu_entity, UiLayerKind::Modal),
+                    MenuSurface::new(menu_entity).with_layer(UiLayerKind::Modal),
                     gate,
                     system_menu::switch_audio_pallet(asset_server, SystemMenuSounds::Switch),
                     SelectableMenu::new(
@@ -318,7 +318,18 @@ pub(super) fn handle_video_modal_button_commands(
     )>,
     modal_query: Query<Entity, With<VideoModalRoot>>,
     mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut main_camera_query: Query<&mut Bloom, With<MainCamera>>,
+    mut main_camera_query: Query<
+        (
+            &mut Bloom,
+            &mut Tonemapping,
+            &mut DebandDither,
+            &mut Fxaa,
+            &mut ContrastAdaptiveSharpening,
+            &mut ChromaticAberration,
+            &mut Msaa,
+        ),
+        With<MainCamera>,
+    >,
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
 ) {
@@ -432,7 +443,18 @@ pub(super) fn update_apply_confirmation_countdown(
     mut countdown_text_query: Query<&mut Text2d, With<VideoApplyCountdownText>>,
     modal_query: Query<Entity, With<VideoModalRoot>>,
     mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
-    mut main_camera_query: Query<&mut Bloom, With<MainCamera>>,
+    mut main_camera_query: Query<
+        (
+            &mut Bloom,
+            &mut Tonemapping,
+            &mut DebandDither,
+            &mut Fxaa,
+            &mut ContrastAdaptiveSharpening,
+            &mut ChromaticAberration,
+            &mut Msaa,
+        ),
+        With<MainCamera>,
+    >,
 ) {
     let Some(timer) = settings.apply_timer.as_mut() else {
         return;
