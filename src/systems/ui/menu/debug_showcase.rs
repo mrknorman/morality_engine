@@ -24,6 +24,7 @@ use crate::{
         },
         ui::{
             dropdown::DropdownSurface,
+            hover_box,
             menu_surface::MenuSurface,
             selector::SelectorSurface,
             scroll::{
@@ -309,6 +310,19 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
         .commands()
         .entity(window_entity)
         .with_children(|window_parent| {
+            let hover_root = hover_box::spawn_hover_box_root(
+                window_parent,
+                "debug_tabs_demo_hover_box",
+                window_entity,
+                crate::systems::ui::layer::UiLayerKind::Base,
+                Vec2::new(398.0, 238.0),
+                hover_box::HoverBoxStyle::default()
+                    .with_size(Vec2::new(312.0, 96.0))
+                    .with_font_size(scaled_font_size(12.0))
+                    .with_z(0.42),
+                0.35,
+            );
+
             window_parent.spawn((
                 Name::new("debug_tabs_demo_hint"),
                 TextRaw,
@@ -366,6 +380,10 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                             vec![SystemMenuActions::Activate],
                             TAB_REGION,
                         ),
+                        hover_box::HoverBoxTarget::new(hover_root, TAB_REGION),
+                        hover_box::HoverBoxContent {
+                            text: TABS_CONTENT[index].to_string(),
+                        },
                         DebugTabsDemoLabel { root: tab_root, index },
                         Transform::from_xyz(index as f32 * 120.0, 0.0, 0.02),
                     ));

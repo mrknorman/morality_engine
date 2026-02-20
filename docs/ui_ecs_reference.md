@@ -296,7 +296,8 @@ The debug UI showcase is implemented as a primitive-backed reference in
 
 - Root component: `DebugUiShowcaseRoot` (`#[require]` + `on_insert`) spawns all demo windows.
 - Demos are interactive and composed from the same primitives used by real menus:
-  `SelectableMenu`, `Selectable`, `Clickable`, `OptionCycler`, `TabBar`, and `ScrollableRoot`.
+  `SelectableMenu`, `Selectable`, `Clickable`, `OptionCycler`, `TabBar`, `HoverBoxRoot`/`HoverBoxTarget`,
+  and `ScrollableRoot`.
 - The reducer/effects layer toggles the showcase root, instead of constructing one-off table visuals.
 
 This module is the preferred example for composing multiple reusable primitives inside `Window` entities without re-implementing menu engines.

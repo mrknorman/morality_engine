@@ -85,6 +85,7 @@ Legend:
   - Remaining: mixed keyboard/mouse overlay validation pass.
 - Stage 15 Debug UI Showcase Rebuild: `status: partial`
   - Showcase exists and uses primitives, but interaction reliability/readability polish remains.
+  - Tabs demo now includes live `HoverBox` primitive wiring on tab labels (owner/layer scoped, delayed display).
   - Added explicit debug-showcase system-initialization smoke coverage to catch query alias regressions early.
 - Stage 16 Known Bug Sprint: `status: partial`
   - Several historical issues fixed; current active bugs still exist (see Active Bug Backlog).
