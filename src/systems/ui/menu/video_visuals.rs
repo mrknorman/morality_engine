@@ -606,3 +606,5 @@ pub(super) fn suppress_left_cycle_arrow_for_dropdown_options(
         }
     }
 }
+
+pub(super) fn sync_video_top_option_hover_descriptions() {}

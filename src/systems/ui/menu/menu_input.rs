@@ -311,8 +311,7 @@ pub(super) fn handle_menu_shortcuts(
                 continue;
             }
 
-            let is_selector =
-                cycler.is_some() || matches!(option_command.0, MenuCommand::ToggleResolutionDropdown);
+            let is_selector = cycler.is_some();
             let is_back = matches!(option_command.0, MenuCommand::Pop);
             let activate = (activate_right && !is_selector) || (activate_left && is_back);
             if !activate {
@@ -329,3 +328,5 @@ pub(super) fn handle_menu_shortcuts(
         }
     }
 }
+
+pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus() {}

@@ -28,6 +28,7 @@ pub(super) struct MenuReducerResult {
     pub(super) dirty_menu: bool,
     pub(super) close_menu: bool,
     pub(super) spawn_exit_unsaved_modal: bool,
+    pub(super) toggle_debug_ui_showcase: bool,
     pub(super) apply_video_settings: bool,
     pub(super) state_transition: Option<MenuStateTransition>,
     pub(super) exit_application: bool,
@@ -154,15 +155,17 @@ pub(super) fn reduce_menu_command(
             state_transition: Some(MenuStateTransition::Pause(state)),
             ..MenuReducerResult::default()
         },
-        command @ (MenuCommand::ToggleDisplayMode
-        | MenuCommand::ToggleResolutionDropdown
-        | MenuCommand::ToggleVsync) => reduce_toggle_video_top_option_command(
+        command @ MenuCommand::ToggleVideoTopOption(_) => reduce_toggle_video_top_option_command(
             &command,
             menu_entity,
             active_tab,
             settings,
             dropdown_state,
         ),
+        MenuCommand::ToggleDebugUiShowcase => MenuReducerResult {
+            toggle_debug_ui_showcase: true,
+            ..MenuReducerResult::default()
+        },
         MenuCommand::ApplyVideoSettings => MenuReducerResult {
             apply_video_settings: true,
             ..MenuReducerResult::default()

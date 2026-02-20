@@ -118,26 +118,10 @@ fn scanline_uniform_from_settings(
     resolution: Vec2,
     real_time: f32,
 ) -> ScanLineUniform {
-    if !crt_settings.pipeline_enabled {
-        // Keep the post-process pipeline active, but neutralize CRT effects so
-        // color grading and bloom continue to run on the same camera path.
-        return neutral_scanline_uniform(resolution, real_time);
-    }
-
-    ScanLineUniform {
-        spacing: crt_settings.spacing.max(0),
-        thickness: crt_settings.thickness.max(1),
-        darkness: crt_settings.darkness.clamp(0.0, 1.0),
-        curvature_strength: crt_settings.curvature_strength.max(0.0),
-        static_strength: crt_settings.static_strength.max(0.0),
-        jitter_strength: crt_settings.jitter_strength.max(0.0),
-        aberration_strength: crt_settings.aberration_strength.max(0.0),
-        phosphor_strength: crt_settings.phosphor_strength.clamp(0.0, 1.0),
-        vignette_strength: crt_settings.vignette_strength.clamp(0.0, 1.0),
-        glow_strength: crt_settings.glow_strength.max(0.0),
-        resolution,
-        real_time,
-    }
+    // Temporary kill-switch: keep the post-process camera path alive while
+    // forcing CRT effects fully off.
+    let _ = crt_settings;
+    neutral_scanline_uniform(resolution, real_time)
 }
 
 fn setup_cameras(

@@ -1,0 +1,11 @@
+[profile.default]
+retries = 1
+status-level = "pass"
+failure-output = "immediate-final"
+success-output = "never"
+slow-timeout = { period = "30s", terminate-after = 2 }
+
+[profile.ci]
+inherits = "default"
+retries = 2
+failure-output = "final"
