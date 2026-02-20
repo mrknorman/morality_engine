@@ -106,7 +106,8 @@ use stack::MenuNavigationState;
 use video_visuals::{
     ensure_video_discrete_slider_slot_clickables, suppress_left_cycle_arrow_for_dropdown_options,
     sync_video_cycle_arrow_positions, sync_video_discrete_slider_widgets,
-    sync_video_footer_table_values, sync_video_option_cycler_bounds, sync_video_tabs_visuals,
+    sync_video_footer_selection_indicators, sync_video_footer_table_values,
+    sync_video_option_cycler_bounds, sync_video_tabs_visuals,
     sync_video_top_option_hover_descriptions, sync_video_top_selection_bars,
     sync_video_top_table_values,
 };
@@ -980,6 +981,7 @@ impl Plugin for MenusPlugin {
                 system_menu::ensure_selection_bars,
                 system_menu::update_selection_bars,
                 sync_video_top_selection_bars,
+                sync_video_footer_selection_indicators,
                 system_menu::ensure_cycle_arrows,
                 sync_video_cycle_arrow_positions,
                 system_menu::update_cycle_arrows,

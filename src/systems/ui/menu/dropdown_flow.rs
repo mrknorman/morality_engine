@@ -58,13 +58,33 @@ pub(super) fn close_dropdowns_for_menu(
 }
 
 pub(super) fn sync_video_tab_content_state(
+    mut tab_changed: MessageReader<tabs::TabChanged>,
     mut dropdown_state: ResMut<DropdownLayerState>,
     dropdown_anchor_state: Res<DropdownAnchorState>,
-    tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
+    tab_query: Query<
+        (Entity, &tabs::TabBar, &tabs::TabBarState),
+        With<tabbed_menu::TabbedMenuConfig>,
+    >,
     menu_query: Query<&SelectableMenu, With<MenuRoot>>,
     mut dropdown_query: Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
 ) {
-    for (tab_bar, tab_state) in tab_query.iter() {
+    let mut owner_by_tab_root: HashMap<Entity, Entity> = HashMap::new();
+    for (tab_root, tab_bar, _) in tab_query.iter() {
+        owner_by_tab_root.insert(tab_root, tab_bar.owner);
+    }
+    let mut changed_owners = HashSet::new();
+    for changed in tab_changed.read() {
+        let Some(owner) = owner_by_tab_root.get(&changed.tab_bar).copied() else {
+            continue;
+        };
+        changed_owners.insert(owner);
+    }
+
+    for (_, tab_bar, tab_state) in tab_query.iter() {
+        if changed_owners.contains(&tab_bar.owner) {
+            close_dropdowns_for_menu(tab_bar.owner, &mut dropdown_state, &mut dropdown_query);
+            continue;
+        }
         let Ok(menu) = menu_query.get(tab_bar.owner) else {
             continue;
         };
@@ -241,7 +261,9 @@ pub(super) fn handle_resolution_dropdown_item_commands(
             menu_entity,
             selectable_menu.selected_index,
         );
-        let active_tab = video_tab_kind(active_tabs.get(&menu_entity).copied().unwrap_or(0));
+        let Some(active_tab) = active_tabs.get(&menu_entity).copied().map(video_tab_kind) else {
+            continue;
+        };
         let choice_count = video_top_option_choice_count(active_tab, row);
         if choice_count == 0 {
             continue;
@@ -478,7 +500,10 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
             if tabbed_focus.is_tabs_focused(menu_entity) {
                 continue;
             }
-            let active_tab = video_tab_kind(active_tabs.get(&menu_entity).copied().unwrap_or(0));
+            let Some(active_tab) = active_tabs.get(&menu_entity).copied().map(video_tab_kind)
+            else {
+                continue;
+            };
             let selected_row = selectable_menu.selected_index;
             let anchored_row = dropdown_anchor_state.row_for_parent(
                 menu_entity,

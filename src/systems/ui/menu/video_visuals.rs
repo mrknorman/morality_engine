@@ -11,15 +11,92 @@ use crate::{
     systems::{
         colors::SYSTEM_MENU_COLOR,
         interaction::Clickable,
-        ui::discrete_slider::{DiscreteSlider, DiscreteSliderSlot},
+        ui::{
+            discrete_slider::{DiscreteSlider, DiscreteSliderSlot},
+            hover_box,
+        },
     },
 };
 
+fn resolve_video_footer_highlight_by_menu(
+    menu_query: &Query<(Entity, &SelectableMenu), With<MenuRoot>>,
+    video_option_query: &Query<(
+        &Selectable,
+        &VideoOptionRow,
+        &InteractionVisualState,
+        Option<&InheritedVisibility>,
+    )>,
+) -> HashMap<Entity, usize> {
+    let mut highlighted_by_menu: HashMap<Entity, (u8, usize, u64)> = HashMap::new();
+    for (menu_entity, menu) in menu_query.iter() {
+        if menu.selected_index < VIDEO_FOOTER_OPTION_START_INDEX
+            || menu.selected_index >= VIDEO_FOOTER_OPTION_START_INDEX + VIDEO_FOOTER_OPTION_COUNT
+        {
+            continue;
+        }
+        let footer_index = menu.selected_index - VIDEO_FOOTER_OPTION_START_INDEX;
+        highlighted_by_menu.insert(menu_entity, (1, footer_index, 0));
+    }
+
+    for (selectable, row, state, inherited_visibility) in video_option_query.iter() {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
+        if row.index < VIDEO_FOOTER_OPTION_START_INDEX {
+            continue;
+        }
+        let footer_index = row.index - VIDEO_FOOTER_OPTION_START_INDEX;
+        if footer_index >= VIDEO_FOOTER_OPTION_COUNT {
+            continue;
+        }
+        let priority = if state.pressed {
+            3
+        } else if state.hovered {
+            2
+        } else if state.selected {
+            1
+        } else {
+            0
+        };
+        if priority == 0 {
+            continue;
+        }
+        let rank = selectable.index as u64;
+        match highlighted_by_menu.get_mut(&selectable.menu_entity) {
+            Some((best_priority, best_index, best_rank)) => {
+                if priority > *best_priority || (priority == *best_priority && rank >= *best_rank)
+                {
+                    *best_priority = priority;
+                    *best_index = footer_index;
+                    *best_rank = rank;
+                }
+            }
+            None => {
+                highlighted_by_menu.insert(selectable.menu_entity, (priority, footer_index, rank));
+            }
+        }
+    }
+
+    highlighted_by_menu
+        .into_iter()
+        .map(|(menu_entity, (_, footer_index, _))| (menu_entity, footer_index))
+        .collect()
+}
+
 pub(super) fn sync_video_top_table_values(
     settings: Res<VideoSettingsState>,
+    tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
-    video_option_query: Query<(&Selectable, &VideoOptionRow, &InteractionVisualState)>,
+    menu_query: Query<(Entity, &SelectableMenu), With<MenuRoot>>,
+    video_option_query: Query<(
+        &Selectable,
+        &VideoOptionRow,
+        &InteractionVisualState,
+        Option<&InheritedVisibility>,
+    )>,
     table_query: Query<(&ChildOf, &Children), With<VideoTopOptionsTable>>,
+    scroll_content_query: Query<&ChildOf, With<VideoTopOptionsScrollContent>>,
+    scroll_root_query: Query<&scroll_adapter::ScrollableTableAdapter, With<VideoTopOptionsScrollRoot>>,
     column_children_query: Query<&Children, With<Column>>,
     cell_children_query: Query<&Children, With<Cell>>,
     mut text_query: Query<(&mut Text2d, &mut TextColor, &mut TextFont, &mut Transform)>,
@@ -28,21 +105,47 @@ pub(super) fn sync_video_top_table_values(
         return;
     }
 
-    let mut selected_by_menu_row: HashMap<(Entity, usize), bool> = HashMap::new();
-    for (selectable, row, state) in video_option_query.iter() {
+    let mut selected_top_row_by_menu: HashMap<Entity, usize> = HashMap::new();
+    for (menu_entity, menu) in menu_query.iter() {
+        if tabbed_focus.is_tabs_focused(menu_entity) {
+            continue;
+        }
+        if menu.selected_index < VIDEO_TOP_OPTION_COUNT {
+            selected_top_row_by_menu.insert(menu_entity, menu.selected_index);
+        }
+    }
+
+    let mut pressed_by_menu_row: HashMap<(Entity, usize), bool> = HashMap::new();
+    for (selectable, row, state, inherited_visibility) in video_option_query.iter() {
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            continue;
+        }
         if row.index >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        selected_by_menu_row.insert(
-            (selectable.menu_entity, row.index),
-            state.selected || state.pressed,
-        );
+        if state.pressed {
+            pressed_by_menu_row.insert((selectable.menu_entity, row.index), true);
+        }
     }
 
     let active_tabs = active_video_tabs_by_menu(&tab_query);
     for (table_parent, table_children) in table_query.iter() {
-        let menu_entity = table_parent.parent();
-        let active_tab = video_tab_kind(active_tabs.get(&menu_entity).copied().unwrap_or(0));
+        let parent_entity = table_parent.parent();
+        let menu_entity = if active_tabs.contains_key(&parent_entity) {
+            parent_entity
+        } else if let Ok(content_parent) = scroll_content_query.get(parent_entity) {
+            let root_entity = content_parent.parent();
+            if let Ok(adapter) = scroll_root_query.get(root_entity) {
+                adapter.menu_entity
+            } else {
+                continue;
+            }
+        } else {
+            continue;
+        };
+        let Some(active_tab) = active_tabs.get(&menu_entity).copied().map(video_tab_kind) else {
+            continue;
+        };
         let labels = video_top_option_labels(active_tab);
         let value_strings = video_top_value_strings(settings.pending, active_tab);
         if table_children.len() < 2 {
@@ -88,10 +191,13 @@ pub(super) fn sync_video_top_table_values(
                         }
                     }
 
-                    let selected = selected_by_menu_row
+                    let selected = pressed_by_menu_row
                         .get(&(menu_entity, row_index))
                         .copied()
-                        .unwrap_or(false);
+                        .unwrap_or(false)
+                        || selected_top_row_by_menu
+                            .get(&menu_entity)
+                            .is_some_and(|selected_row| *selected_row == row_index);
                     if selected {
                         font.font_size = VIDEO_TABLE_TEXT_SELECTED_SIZE;
                         font.weight = FontWeight::BOLD;
@@ -115,26 +221,19 @@ pub(super) fn sync_video_top_table_values(
 }
 
 pub(super) fn sync_video_footer_table_values(
-    video_option_query: Query<(&Selectable, &VideoOptionRow, &InteractionVisualState)>,
+    menu_query: Query<(Entity, &SelectableMenu), With<MenuRoot>>,
+    video_option_query: Query<(
+        &Selectable,
+        &VideoOptionRow,
+        &InteractionVisualState,
+        Option<&InheritedVisibility>,
+    )>,
     table_query: Query<(&ChildOf, &Children), With<VideoFooterOptionsTable>>,
     column_children_query: Query<&Children, With<Column>>,
     cell_children_query: Query<&Children, With<Cell>>,
     mut text_query: Query<(&mut TextColor, &mut TextFont, &mut Transform)>,
 ) {
-    let mut highlighted_by_menu_footer_index: HashMap<(Entity, usize), bool> = HashMap::new();
-    for (selectable, row, state) in video_option_query.iter() {
-        if row.index < VIDEO_FOOTER_OPTION_START_INDEX {
-            continue;
-        }
-        let footer_index = row.index - VIDEO_FOOTER_OPTION_START_INDEX;
-        if footer_index >= VIDEO_FOOTER_OPTION_COUNT {
-            continue;
-        }
-        highlighted_by_menu_footer_index.insert(
-            (selectable.menu_entity, footer_index),
-            state.selected || state.hovered || state.pressed,
-        );
-    }
+    let highlighted_by_menu = resolve_video_footer_highlight_by_menu(&menu_query, &video_option_query);
 
     for (table_parent, table_children) in table_query.iter() {
         let menu_entity = table_parent.parent();
@@ -153,10 +252,9 @@ pub(super) fn sync_video_footer_table_values(
                 let Ok((mut color, mut font, mut transform)) = text_query.get_mut(child) else {
                     continue;
                 };
-                let highlighted = highlighted_by_menu_footer_index
-                    .get(&(menu_entity, column_index))
-                    .copied()
-                    .unwrap_or(false);
+                let highlighted = highlighted_by_menu
+                    .get(&menu_entity)
+                    .is_some_and(|highlighted_index| *highlighted_index == column_index);
                 if highlighted {
                     font.font_size = VIDEO_TABLE_TEXT_SELECTED_SIZE;
                     font.weight = FontWeight::BOLD;
@@ -169,6 +267,43 @@ pub(super) fn sync_video_footer_table_values(
                 break;
             }
         }
+    }
+}
+
+pub(super) fn sync_video_footer_selection_indicators(
+    menu_query: Query<(Entity, &SelectableMenu), With<MenuRoot>>,
+    video_option_query: Query<(
+        &Selectable,
+        &VideoOptionRow,
+        &InteractionVisualState,
+        Option<&InheritedVisibility>,
+    )>,
+    option_query: Query<(&Selectable, &VideoOptionRow), With<system_menu::SystemMenuOption>>,
+    mut indicator_query: Query<
+        (&ChildOf, &mut Visibility),
+        With<system_menu::SystemMenuSelectionIndicator>,
+    >,
+) {
+    let highlighted_by_menu = resolve_video_footer_highlight_by_menu(&menu_query, &video_option_query);
+
+    for (parent, mut visibility) in indicator_query.iter_mut() {
+        let Ok((selectable, row)) = option_query.get(parent.parent()) else {
+            continue;
+        };
+        if row.index < VIDEO_FOOTER_OPTION_START_INDEX
+            || row.index >= VIDEO_FOOTER_OPTION_START_INDEX + VIDEO_FOOTER_OPTION_COUNT
+        {
+            continue;
+        }
+        let footer_index = row.index - VIDEO_FOOTER_OPTION_START_INDEX;
+        let highlighted = highlighted_by_menu
+            .get(&selectable.menu_entity)
+            .is_some_and(|highlighted_index| *highlighted_index == footer_index);
+        *visibility = if highlighted {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 
@@ -257,8 +392,18 @@ pub(super) fn sync_video_discrete_slider_widgets(
     {
         let mut slider_query = slider_queries.p0();
         for (slider_entity, slider_meta, mut slider, mut visibility) in slider_query.iter_mut() {
-            let active_tab =
-                video_tab_kind(active_tabs.get(&slider_meta.menu_entity).copied().unwrap_or(0));
+            let Some(active_tab) = active_tabs
+                .get(&slider_meta.menu_entity)
+                .copied()
+                .map(video_tab_kind)
+            else {
+                slider.fill_color = Color::NONE;
+                slider.empty_color = Color::NONE;
+                slider.border_color = Color::NONE;
+                slider.filled_slots = 0;
+                *visibility = Visibility::Hidden;
+                continue;
+            };
             let Some(key) = video_top_option_key(active_tab, slider_meta.row) else {
                 slider.fill_color = Color::NONE;
                 slider.empty_color = Color::NONE;
@@ -354,7 +499,12 @@ pub(super) fn sync_video_option_cycler_bounds(
             continue;
         }
 
-        let active_tab = video_tab_kind(active_tabs.get(&selectable.menu_entity).copied().unwrap_or(0));
+        let Some(active_tab) = active_tabs.get(&selectable.menu_entity).copied().map(video_tab_kind)
+        else {
+            cycler.at_min = true;
+            cycler.at_max = true;
+            continue;
+        };
         if video_top_option_uses_dropdown(active_tab, row.index) {
             cycler.at_min = true;
             cycler.at_max = true;
@@ -426,7 +576,10 @@ pub(super) fn sync_video_cycle_arrow_positions(
         if row.index >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        let active_tab = video_tab_kind(active_tabs.get(&selectable.menu_entity).copied().unwrap_or(0));
+        let Some(active_tab) = active_tabs.get(&selectable.menu_entity).copied().map(video_tab_kind)
+        else {
+            continue;
+        };
         let layout = video_value_cycle_arrow_positions(video_top_option_key(active_tab, row.index));
         cycle_layout_by_option.insert(option_entity, layout);
     }
@@ -489,7 +642,9 @@ pub(super) fn sync_video_tabs_visuals(
     let mut table_entries: Vec<(Entity, Entity, usize)> = Vec::new();
     for (table_entity, table_parent, mut table) in tab_table_query.iter_mut() {
         let menu_entity = table_parent.parent();
-        let active_tab = active_tab_by_menu.get(&menu_entity).copied().unwrap_or(0);
+        let Some(active_tab) = active_tab_by_menu.get(&menu_entity).copied() else {
+            continue;
+        };
         for (column_index, column) in table.columns.iter_mut().enumerate() {
             let sides = RectangleSides {
                 top: true,
@@ -591,7 +746,10 @@ pub(super) fn suppress_left_cycle_arrow_for_dropdown_options(
         if row.index >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        let active_tab = video_tab_kind(active_tabs.get(&selectable.menu_entity).copied().unwrap_or(0));
+        let Some(active_tab) = active_tabs.get(&selectable.menu_entity).copied().map(video_tab_kind)
+        else {
+            continue;
+        };
         if video_top_option_uses_dropdown(active_tab, row.index) {
             dropdown_style_options.insert(option_entity);
         }
@@ -607,4 +765,97 @@ pub(super) fn suppress_left_cycle_arrow_for_dropdown_options(
     }
 }
 
-pub(super) fn sync_video_top_option_hover_descriptions() {}
+#[inline]
+fn write_hover_box_content(content: &mut hover_box::HoverBoxContent, text: &str) {
+    if content.text == text {
+        return;
+    }
+    content.text.clear();
+    content.text.push_str(text);
+}
+
+pub(super) fn sync_video_top_option_hover_descriptions(
+    dropdown_state: Res<DropdownLayerState>,
+    dropdown_anchor_state: Res<DropdownAnchorState>,
+    tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
+    menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
+    mut option_query: Query<
+        (&Selectable, &VideoOptionRow, &mut hover_box::HoverBoxContent),
+        (
+            Without<VideoResolutionDropdownItem>,
+            Without<VideoResolutionDropdown>,
+        ),
+    >,
+    dropdown_query: Query<
+        (Entity, &ChildOf, &Visibility),
+        (With<VideoResolutionDropdown>, Without<VideoResolutionDropdownItem>),
+    >,
+    mut dropdown_item_query: Query<
+        (&ChildOf, &VideoResolutionDropdownItem, &mut hover_box::HoverBoxContent),
+        (With<VideoResolutionDropdownItem>, Without<VideoOptionRow>),
+    >,
+) {
+    let active_tabs = active_video_tabs_by_menu(&tab_query);
+
+    for (selectable, row, mut content) in option_query.iter_mut() {
+        if row.index >= VIDEO_TOP_OPTION_COUNT {
+            write_hover_box_content(&mut content, "");
+            continue;
+        }
+        let description = active_tabs
+            .get(&selectable.menu_entity)
+            .copied()
+            .map(video_tab_kind)
+            .and_then(|active_tab| video_top_option_key(active_tab, row.index))
+            .map(VideoTopOptionKey::description)
+            .unwrap_or_default();
+        write_hover_box_content(&mut content, description);
+    }
+
+    let mut open_dropdown_key_by_menu: HashMap<Entity, VideoTopOptionKey> = HashMap::new();
+    for (_, open_parent) in dropdown_state.open_parents_snapshot() {
+        let Ok((menu_entity, menu_stack, selectable_menu)) = menu_query.get(open_parent) else {
+            continue;
+        };
+        if menu_entity != open_parent || menu_stack.current_page() != Some(MenuPage::Video) {
+            continue;
+        }
+        let row = dropdown_anchor_state.row_for_parent(
+            open_parent,
+            open_parent,
+            selectable_menu.selected_index,
+        );
+        if row >= VIDEO_TOP_OPTION_COUNT {
+            continue;
+        }
+        let Some(active_tab) = active_tabs.get(&open_parent).copied().map(video_tab_kind) else {
+            continue;
+        };
+        let Some(key) = video_top_option_key(active_tab, row) else {
+            continue;
+        };
+        if key.uses_dropdown() {
+            open_dropdown_key_by_menu.insert(open_parent, key);
+        }
+    }
+
+    let dropdown_parent_by_entity: HashMap<Entity, Entity> = dropdown_query
+        .iter()
+        .filter_map(|(dropdown_entity, parent, visibility)| {
+            (*visibility == Visibility::Visible).then_some((dropdown_entity, parent.parent()))
+        })
+        .collect();
+
+    for (parent, item, mut content) in dropdown_item_query.iter_mut() {
+        let Some(menu_entity) = dropdown_parent_by_entity.get(&parent.parent()).copied() else {
+            write_hover_box_content(&mut content, "");
+            continue;
+        };
+        let description = open_dropdown_key_by_menu
+            .get(&menu_entity)
+            .copied()
+            .and_then(|key| key.value_description(item.index))
+            .unwrap_or_default();
+        write_hover_box_content(&mut content, description);
+    }
+}

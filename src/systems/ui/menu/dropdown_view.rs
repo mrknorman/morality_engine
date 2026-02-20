@@ -14,11 +14,18 @@ fn dropdown_anchor_in_menu_space(
     menu_entity: Entity,
     row: usize,
     dropdown_rows: usize,
+    scroll_offset_by_menu: &HashMap<Entity, f32>,
     table_query: &Query<
-        (&ChildOf, &Table, &Transform),
+        (&ChildOf, &Table, &GlobalTransform),
         (With<VideoTopOptionsTable>, Without<VideoResolutionDropdown>),
     >,
 ) -> Vec2 {
+    if let Some(offset_px) = scroll_offset_by_menu.get(&menu_entity).copied() {
+        let dropdown_height = dropdown_rows as f32 * VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT;
+        let row_top_y = video_top_row_top_y(row) + offset_px;
+        return Vec2::new(VIDEO_VALUE_COLUMN_CENTER_X, row_top_y - dropdown_height * 0.5);
+    }
+
     for (parent, table, table_transform) in table_query.iter() {
         if parent.parent() != menu_entity {
             continue;
@@ -27,9 +34,10 @@ fn dropdown_anchor_in_menu_space(
             break;
         }
 
+        let table_translation = table_transform.translation();
         let value_center_x =
-            table_transform.translation.x + table.columns[0].width + table.columns[1].width * 0.5;
-        let row_top_y = table_transform.translation.y
+            table_translation.x + table.columns[0].width + table.columns[1].width * 0.5;
+        let row_top_y = table_translation.y
             - table
                 .rows
                 .iter()
@@ -53,8 +61,12 @@ pub(super) fn sync_resolution_dropdown_items(
     dropdown_anchor_state: Res<DropdownAnchorState>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
+    scroll_root_query: Query<
+        (&scroll_adapter::ScrollableTableAdapter, &crate::systems::ui::scroll::ScrollState),
+        With<VideoTopOptionsScrollRoot>,
+    >,
     table_query: Query<
-        (&ChildOf, &Table, &Transform),
+        (&ChildOf, &Table, &GlobalTransform),
         (With<VideoTopOptionsTable>, Without<VideoResolutionDropdown>),
     >,
     mut dropdown_query: Query<
@@ -85,6 +97,10 @@ pub(super) fn sync_resolution_dropdown_items(
 
     let active_tabs = active_video_tabs_by_menu(&tab_query);
     let mut open_context_by_menu: HashMap<Entity, (usize, Vec<String>, usize)> = HashMap::new();
+    let scroll_offset_by_menu: HashMap<Entity, f32> = scroll_root_query
+        .iter()
+        .map(|(adapter, state)| (adapter.menu_entity, state.offset_px))
+        .collect();
     for (_, open_parent) in dropdown_state.open_parents_snapshot() {
         let Ok((menu_entity, menu_stack, selectable_menu)) = menu_query.get(open_parent) else {
             continue;
@@ -100,7 +116,9 @@ pub(super) fn sync_resolution_dropdown_items(
         if row >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        let active_tab = video_tab_kind(active_tabs.get(&open_parent).copied().unwrap_or(0));
+        let Some(active_tab) = active_tabs.get(&open_parent).copied().map(video_tab_kind) else {
+            continue;
+        };
         let values = video_top_option_values(active_tab, row);
         if values.is_empty() {
             continue;
@@ -119,8 +137,13 @@ pub(super) fn sync_resolution_dropdown_items(
         };
         let dropdown_rows = values.len().max(1);
         let dropdown_height = dropdown_rows as f32 * VIDEO_RESOLUTION_DROPDOWN_ROW_HEIGHT;
-        let anchor =
-            dropdown_anchor_in_menu_space(menu_entity, *row, dropdown_rows, &table_query);
+        let anchor = dropdown_anchor_in_menu_space(
+            menu_entity,
+            *row,
+            dropdown_rows,
+            &scroll_offset_by_menu,
+            &table_query,
+        );
         sprite.custom_size = Some(Vec2::new(
             VIDEO_RESOLUTION_DROPDOWN_WIDTH + VIDEO_RESOLUTION_DROPDOWN_BACKGROUND_PAD_X * 2.0,
             dropdown_height,
@@ -316,7 +339,9 @@ pub(super) fn update_resolution_dropdown_value_arrows(
         if row >= VIDEO_TOP_OPTION_COUNT {
             continue;
         }
-        let active_tab = video_tab_kind(active_tabs.get(&open_parent).copied().unwrap_or(0));
+        let Some(active_tab) = active_tabs.get(&open_parent).copied().map(video_tab_kind) else {
+            continue;
+        };
         let values = video_top_option_values(active_tab, row);
         if values.is_empty() {
             continue;

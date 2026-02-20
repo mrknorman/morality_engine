@@ -2765,4 +2765,29 @@ mod tests {
             assert!(key.value_description(index).is_none());
         }
     }
+
+    #[test]
+    fn non_resolution_dropdown_values_have_descriptions() {
+        let tabs = [
+            VideoTabKind::Display,
+            VideoTabKind::Bloom,
+            VideoTabKind::Advanced,
+            VideoTabKind::Crt,
+        ];
+        for tab in tabs {
+            for key in video_top_option_keys(tab) {
+                if !key.uses_dropdown() || key == VideoTopOptionKey::Resolution {
+                    continue;
+                }
+                for index in 0..key.choice_count() {
+                    assert!(
+                        key.value_description(index).is_some(),
+                        "missing value description for '{}' at index {}",
+                        key.label(),
+                        index
+                    );
+                }
+            }
+        }
+    }
 }

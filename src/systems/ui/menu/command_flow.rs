@@ -296,12 +296,13 @@ pub(super) fn handle_option_cycler_commands(
             continue;
         }
 
-        let active_tab = video_tab_kind(
-            active_tabs
-                .get(&selectable.menu_entity)
-                .copied()
-                .unwrap_or(0),
-        );
+        let Some(active_tab) = active_tabs
+            .get(&selectable.menu_entity)
+            .copied()
+            .map(video_tab_kind)
+        else {
+            continue;
+        };
         let Some(row) = video_top_row_for_command(&option_command.0) else {
             continue;
         };
@@ -396,12 +397,13 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
             continue;
         }
 
-        let active_tab = video_tab_kind(
-            active_tabs
-                .get(&slider_meta.menu_entity)
-                .copied()
-                .unwrap_or(0),
-        );
+        let Some(active_tab) = active_tabs
+            .get(&slider_meta.menu_entity)
+            .copied()
+            .map(video_tab_kind)
+        else {
+            continue;
+        };
         let Some(key) = video_top_option_key(active_tab, slider_meta.row) else {
             continue;
         };
