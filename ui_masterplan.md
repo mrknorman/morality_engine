@@ -80,20 +80,22 @@ Legend:
   - Options schema enforces strict layout container/group + shortcut parsing with explicit errors.
 - Stage 12 Discrete Slider Primitive and Integration: `status: done`
   - `DiscreteSlider` primitive exists and is integrated in video options.
-- Stage 13 Scrollable RTT Primitive: `status: partial`
-  - RTT scroll primitive + scrollbar + adapter are implemented and used.
-  - Remaining: broader context validation and residual interaction regressions.
-- Stage 14 HoverBox Primitive + Video Pilot: `status: partial`
+- Stage 13 Scrollable RTT Primitive: `status: done`
+  - RTT scroll primitive + scrollbar are implemented and used.
+  - Shared table/list adapter contracts now live in `ui::scroll` and menu adapters consume shared row/focus helpers.
+  - Render-target budget controls and fallback policy are covered by targeted tests.
+- Stage 14 HoverBox Primitive + Video Pilot: `status: done`
   - Option and dropdown hover descriptions are reintroduced and synced from video option metadata.
   - Timing/gating/mapping/exclusion regression tests are in place.
-  - Remaining: mixed keyboard/mouse overlay validation pass.
-- Stage 15 Debug UI Showcase Rebuild: `status: partial`
-  - Showcase exists and uses primitives, but interaction reliability/readability polish remains.
-  - Tabs demo now includes live `HoverBox` primitive wiring on tab labels (owner/layer scoped, delayed display).
-  - Added explicit debug-showcase system-initialization smoke coverage to catch query alias regressions early.
-  - Added root-construction regression coverage ensuring showcase root spawns four interactive windows and core primitives.
-- Stage 16 Known Bug Sprint: `status: partial`
-  - Several historical issues fixed; current active bugs still exist (see Active Bug Backlog).
+  - Mixed keyboard/mouse overlay toggling is now regression-covered.
+- Stage 15 Debug UI Showcase Rebuild: `status: done`
+  - Showcase windows are interactive and primitive-backed (selector, tabs, dropdown, scroll, hover box).
+  - Dropdown demo now uses shared dropdown-layer state helpers instead of one-off open/close visibility toggles.
+  - Tabs demo includes live `HoverBox` primitive wiring on tab labels (owner/layer scoped, delayed display).
+  - Debug-showcase smoke coverage includes system initialization and root-construction checks.
+- Stage 16 Known Bug Sprint: `status: done`
+  - Historical value-cell, tab/footer transfer, dropdown alignment/flicker, and modal/layer gating regressions are covered by targeted tests and currently green.
+  - Latest `./scripts/ui_regression.sh` + nextest pass confirms no active scripted regressions.
 - Stage 17 Query-Safety Hardening: `status: done`
   - Many `ParamSet`/`Without` contracts are present.
   - Added explicit query-disjointness contract comments in dropdown view sync systems (`sync_resolution_dropdown_items`, `update_resolution_dropdown_value_arrows`, `recenter_resolution_dropdown_item_text`).
@@ -127,32 +129,29 @@ Legend:
   - Added debug-showcase smoke coverage for command and visual system initialization.
   - Added multi-owner tab/dropdown isolation regression coverage in flow tests.
 - Stage 19 Runtime Stress Validation: `status: partial`
-  - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (including mixed input/layer stress tests).
+  - Repeatable pass now exists via `./scripts/ui_regression.sh` + full `cargo nextest run` (currently 139/139 passing, including mixed input/layer stress tests).
   - Manual in-game verification checklist is now documented in `docs/ui_manual_validation_checklist.md`.
   - Remaining: execute the checklist against live menu flows and capture any runtime regressions.
 - Stage 20 Documentation and Adoption: `status: done`
   - Primitive contracts, do/don't guidance, migration targets, and query-safety/test workflows are documented and aligned with current code.
-- Stage 21 Tooling and Test Framework Rollout: `status: partial`
+- Stage 21 Tooling and Test Framework Rollout: `status: done`
   - `mdBook` content now includes the `./scripts/ui_regression.sh` flow and `nextest` profile usage.
   - Added `./scripts/ui_query_safety.sh` for fast query-alias/B0001 preflight checks.
   - Expanded rustdoc coverage on core UI interaction/layer/dropdown/tab primitives.
-  - Remaining: decide if property-testing crates are required or keep deterministic sampled coverage only.
+  - Decision: keep deterministic sampled property coverage in-tree (no additional property-test crate required currently).
 - Stage 22 Cleanup and Redundancy Pass: `status: partial`
   - Redundant menu dead code cleanup started (`VIDEO_DISCRETE_SLIDER_SLOT_CLICK_REGION`, `cycle_video_top_option` removed).
+  - Consolidated duplicated scroll row/focus helpers into `ui::scroll` and removed menu-local duplicates.
+  - Debug showcase dropdown now reuses shared dropdown-layer helpers instead of direct visibility toggles.
   - Removed unused legacy helper `startup::system_menu::play_navigation_sound`.
   - Not yet complete.
 
 ## Active Bug Backlog (Priority)
 
-1. Video menu consistency regressions after recent hotfixes
-   - Ensure top-table owner resolution is stable with scroll-parented tables.
-     - Regression coverage added: `top_table_sync_resolves_menu_owner_from_scroll_content_parent`.
-   - Ensure dropdown placement and open/close behavior remain stable under scroll/tab changes.
-     - Regression coverage added: `open_dropdown_for_menu_scrolls_row_into_view_and_sets_anchor`.
-     - Regression coverage added: `outside_click_does_not_close_when_cursor_is_inside_dropdown_item`.
-2. Regression hardening
-   - Footer and hover-description regression tests are added.
-   - Remaining: broader tab/dropdown/scroll interplay coverage.
+1. No currently active scripted regressions in menu/dropdown/tab/scroll/modal flows.
+   - Guardrail: continue running `./scripts/ui_regression.sh` after each stage-level change.
+2. Runtime/manual QA still required for final closeout.
+   - Use `docs/ui_manual_validation_checklist.md` for in-game stress verification.
 
 ## Contract Drift Notes (to reconcile during Stage 2/4/9)
 
@@ -296,49 +295,49 @@ Deliverable:
 ## Stage 13: Scrollable RTT Primitive
 
 ### Stage 13.1: Architecture Contract
-- [ ] Define reusable primitives (`ScrollableRoot`, `ScrollableViewport`, `ScrollableContentCamera`, `ScrollableRenderTarget`, `ScrollableItem`, `ScrollState`).
-- [ ] Keep owner-scoped integration with `UiLayer.owner` and `InteractionGate`.
-- [ ] Keep backend enum extensible (`RenderToTexture` first-class).
+- [x] Define reusable primitives (`ScrollableRoot`, `ScrollableViewport`, `ScrollableContentCamera`, `ScrollableRenderTarget`, `ScrollableItem`, `ScrollState`).
+- [x] Keep owner-scoped integration with `UiLayer.owner` and `InteractionGate`.
+- [x] Keep backend enum extensible (`RenderToTexture` first-class).
 
 ### Stage 13.2: Render Target + Camera Lifecycle
-- [ ] Add per-root render-target allocation/pooling.
-- [ ] Spawn dedicated content camera per root targeting RTT.
-- [ ] Assign dedicated render layers for scroll content.
-- [ ] Handle viewport resize/rebuild safely.
+- [x] Add per-root render-target allocation/pooling.
+- [x] Spawn dedicated content camera per root targeting RTT.
+- [x] Assign dedicated render layers for scroll content.
+- [x] Handle viewport resize/rebuild safely.
 
 ### Stage 13.3: Viewport Surface Composition
-- [ ] Render scroll output as clipped world-space surface.
-- [ ] Guarantee no overdraw beyond viewport bounds.
-- [ ] Keep stable visual ordering with text/borders/glow and CRT pipeline.
+- [x] Render scroll output as clipped world-space surface.
+- [x] Guarantee no overdraw beyond viewport bounds.
+- [x] Keep stable visual ordering with text/borders/glow and CRT pipeline.
 
 ### Stage 13.4: Scroll Reducer and Motion Model
-- [ ] Implement pure scroll state reducer (`offset`, `content`, `viewport`, `max`, optional velocity/snap).
-- [ ] Support wheel, keyboard step/page/home/end, thumb drag, focus-follow intents.
-- [ ] Keep deterministic clamping and ordering under mixed inputs.
+- [x] Implement pure scroll state reducer (`offset`, `content`, `viewport`, `max`, optional velocity/snap).
+- [x] Support wheel, keyboard step/page/home/end, thumb drag, focus-follow intents.
+- [x] Keep deterministic clamping and ordering under mixed inputs.
 
 ### Stage 13.5: Input Mapping on RTT Content
-- [ ] Map cursor viewport-space to content-space deterministically.
-- [ ] Resolve hovered/pressed rows by stable index/key.
-- [ ] Keep keyboard semantics aligned with menu systems.
-- [ ] Keep row/name/value click parity with non-scroll contexts.
+- [x] Map cursor viewport-space to content-space deterministically.
+- [x] Resolve hovered/pressed rows by stable index/key.
+- [x] Keep keyboard semantics aligned with menu systems.
+- [x] Keep row/name/value click parity with non-scroll contexts.
 
 ### Stage 13.6: Reusable Adapters
-- [ ] Implement `ScrollableTableAdapter` for table menus.
-- [ ] Implement `ScrollableListAdapter<T>` for generic lists.
-- [ ] Add focus-follow hooks to keep selected option visible.
+- [x] Implement `ScrollableTableAdapter` for table menus.
+- [x] Implement `ScrollableListAdapter<T>` for generic lists.
+- [x] Add focus-follow hooks to keep selected option visible.
 
 ### Stage 13.7: Performance and Safety Hardening
-- [ ] Add texture budget controls and fallback policies.
-- [ ] Ensure camera/target cleanup on despawn.
-- [ ] Enforce query disjointness contracts in all scroll systems.
+- [x] Add texture budget controls and fallback policies.
+- [x] Ensure camera/target cleanup on despawn.
+- [x] Enforce query disjointness contracts in all scroll systems.
 
 ### Stage 13.8: Validation and Rollout
-- [ ] Add reducer/coordinate unit tests.
-- [ ] Add integration tests for mixed scroll + selection + dropdown/modal layering.
-- [ ] Roll out first to video options, then at least one secondary context.
+- [x] Add reducer/coordinate unit tests.
+- [x] Add integration tests for mixed scroll + selection + dropdown/modal layering.
+- [x] Roll out first to video options, then at least one secondary context.
 
 Deliverable:
-- [ ] Reusable scroll primitive with stable interaction in multi-layer UI.
+- [x] Reusable scroll primitive with stable interaction in multi-layer UI.
 
 ## Stage 14: HoverBox Primitive + Video Pilot
 - [x] Define reusable `HoverBox` primitive API in `src/systems/ui/hover_box.rs`.
@@ -349,29 +348,29 @@ Deliverable:
 - [x] Integrate option-name descriptions in video menu (short, descriptive, layperson-readable).
 - [x] Integrate dropdown value descriptions where relevant (exclude resolution values).
 - [x] Add regression tests for timing, gating, mapping, and exclusions.
-- [ ] Validate behavior under mixed keyboard/mouse with overlays.
+- [x] Validate behavior under mixed keyboard/mouse with overlays.
 
 Deliverable:
-- [ ] Reusable hover tooltip primitive used by menu composition.
+- [x] Reusable hover tooltip primitive used by menu composition.
 
 ## Stage 15: Debug UI Showcase Rebuild
 - [x] Move debug showcase to dedicated composition module.
 - [x] Build interactive windows from real primitives (selector, tabs, dropdown, scroll, hover box).
-- [ ] Remove visual-only or one-off showcase interaction logic.
-- [ ] Ensure debug demos mirror production primitive wiring.
+- [x] Remove visual-only or one-off showcase interaction logic.
+- [x] Ensure debug demos mirror production primitive wiring.
 
 Deliverable:
-- [ ] Debug showcase acts as live primitive reference implementation.
+- [x] Debug showcase acts as live primitive reference implementation.
 
 ## Stage 16: Known Bug Sprint (Pre-Refactor and Mid-Refactor)
-- [ ] Fix value-cell interaction dead zones and hover/click mismatches.
-- [ ] Fix keyboard transfer bugs between tabs/footer/options.
-- [ ] Fix dropdown flicker/jitter and alignment regressions.
-- [ ] Fix modal/input gating and layering regressions.
-- [ ] Add regression tests for each bug class before closure.
+- [x] Fix value-cell interaction dead zones and hover/click mismatches.
+- [x] Fix keyboard transfer bugs between tabs/footer/options.
+- [x] Fix dropdown flicker/jitter and alignment regressions.
+- [x] Fix modal/input gating and layering regressions.
+- [x] Add regression tests for each bug class before closure.
 
 Deliverable:
-- [ ] Current UI bugs stabilized before advancing later stages.
+- [x] Current UI bugs stabilized before advancing later stages.
 
 ## Stage 17: Query-Safety Hardening
 - [x] Audit all UI systems for overlapping mutable query risk.
@@ -393,9 +392,9 @@ Deliverable:
 
 ## Stage 19: Runtime Stress Validation
 - [ ] Run GPU-capable stress passes across main/options/video/dropdown/modal/pause paths.
-- [ ] Execute rapid mixed keyboard + mouse interaction scripts.
-- [ ] Capture logs with backtraces and enforce no-panic/no-B0001 acceptance.
-- [ ] Patch any discovered race and re-run until clean.
+- [x] Execute rapid mixed keyboard + mouse interaction scripts.
+- [x] Capture logs with backtraces and enforce no-panic/no-B0001 acceptance.
+- [x] Patch any discovered race and re-run until clean.
 
 Deliverable:
 - [ ] Stable runtime interaction under stress.
@@ -413,14 +412,14 @@ Deliverable:
 - [x] Add `mdBook` coverage for UI architecture and extension playbook.
 - [x] Expand rustdoc for UI primitives/contracts.
 - [x] Add/validate `cargo-nextest` setup.
-- [ ] Add `rstest` and/or `proptest` where property tests add value.
+- [x] Evaluate `rstest`/`proptest` adoption and retain deterministic sampled property coverage for now.
 
 Deliverable:
-- [ ] Faster, clearer, repeatable UI validation workflow.
+- [x] Faster, clearer, repeatable UI validation workflow.
 
 ## Stage 22: Cleanup and Redundancy Pass
-- [ ] Remove dead/redundant UI code paths.
-- [ ] Consolidate duplicated helpers across menu/tab/dropdown/scroll paths.
+- [x] Remove dead/redundant UI code paths.
+- [x] Consolidate duplicated helpers across menu/tab/dropdown/scroll paths.
 - [x] Re-run compile/test to confirm no behavior regressions.
 - [ ] Final readability pass on module boundaries and naming.
 
@@ -432,5 +431,5 @@ Deliverable:
 - [x] No new reusable bundle-first APIs were introduced.
 - [x] Layering and input arbitration are deterministic and owner-scoped.
 - [x] No known B0001 query conflicts in UI systems.
-- [ ] Debug showcase windows are fully interactive and primitive-backed.
+- [x] Debug showcase windows are fully interactive and primitive-backed.
 - [x] Menu, dropdown, tab, selector, slider, scroll, hover, and modal flows are regression-tested.

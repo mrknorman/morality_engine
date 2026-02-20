@@ -12,8 +12,9 @@ use bevy::{
 
 use super::{
     geometry::viewport_texture_size, ScrollBackend, ScrollLayerManaged, ScrollLayerPool,
-    ScrollRenderSettings, ScrollableContent, ScrollableContentCamera, ScrollableRenderTarget,
-    ScrollableRoot, ScrollableSurface, ScrollableViewport, SCROLL_CAMERA_Z, SCROLL_SURFACE_Z,
+    ScrollRenderExhaustionPolicy, ScrollRenderSettings, ScrollableContent,
+    ScrollableContentCamera, ScrollableRenderTarget, ScrollableRoot, ScrollableSurface,
+    ScrollableViewport, SCROLL_CAMERA_Z, SCROLL_LAYER_COUNT, SCROLL_SURFACE_Z,
 };
 
 fn create_scroll_target_image(size_px: UVec2, format: TextureFormat) -> Image {
@@ -53,6 +54,10 @@ pub(super) fn ensure_scrollable_render_targets(
         (With<ScrollableRoot>, Without<ScrollableRenderTarget>),
     >,
 ) {
+    let max_targets = render_settings
+        .max_render_targets
+        .max(1)
+        .min(SCROLL_LAYER_COUNT as usize);
     let mut roots: Vec<(Entity, UVec2)> = root_query
         .iter()
         .filter_map(|(entity, root, viewport)| {
@@ -63,11 +68,16 @@ pub(super) fn ensure_scrollable_render_targets(
     roots.sort_by_key(|(entity, _)| entity.to_bits());
 
     for (root_entity, size_px) in roots {
-        let Some(layer) = layer_pool.layer_for_root(root_entity) else {
-            warn!(
-                "No free scroll render layers available for root {:?}; skipping RTT setup",
-                root_entity
-            );
+        let Some(layer) = layer_pool.layer_for_root(root_entity, max_targets) else {
+            if matches!(
+                render_settings.exhaustion_policy,
+                ScrollRenderExhaustionPolicy::WarnAndSkipRoot
+            ) {
+                warn!(
+                    "Scroll RTT budget exhausted (max_targets={}): skipping root {:?}",
+                    max_targets, root_entity
+                );
+            }
             continue;
         };
         let format = render_settings.target_format;

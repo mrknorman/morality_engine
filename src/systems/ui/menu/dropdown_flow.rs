@@ -18,7 +18,7 @@ pub(super) fn open_dropdown_for_menu(
     >,
     scroll_root_query: &mut Query<
         (
-            &scroll_adapter::ScrollableTableAdapter,
+            &crate::systems::ui::scroll::ScrollableTableAdapter,
             &mut crate::systems::ui::scroll::ScrollState,
             &mut crate::systems::ui::scroll::ScrollFocusFollowLock,
         ),
@@ -427,7 +427,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     )>,
     mut scroll_root_query: Query<
         (
-            &scroll_adapter::ScrollableTableAdapter,
+            &crate::systems::ui::scroll::ScrollableTableAdapter,
             &mut crate::systems::ui::scroll::ScrollState,
             &mut crate::systems::ui::scroll::ScrollFocusFollowLock,
         ),
@@ -666,7 +666,7 @@ mod tests {
         let scroll_root = world
             .spawn((
                 VideoTopOptionsScrollRoot,
-                scroll_adapter::ScrollableTableAdapter::new(menu_entity, 10, 40.0, 60.0),
+                crate::systems::ui::scroll::ScrollableTableAdapter::new(menu_entity, 10, 40.0, 60.0),
                 crate::systems::ui::scroll::ScrollState {
                     offset_px: 0.0,
                     content_extent: 520.0,
@@ -684,7 +684,7 @@ mod tests {
             Query<&mut SelectableMenu, (With<VideoResolutionDropdown>, Without<MenuRoot>)>,
             Query<
                 (
-                    &scroll_adapter::ScrollableTableAdapter,
+                    &crate::systems::ui::scroll::ScrollableTableAdapter,
                     &mut crate::systems::ui::scroll::ScrollState,
                     &mut crate::systems::ui::scroll::ScrollFocusFollowLock,
                 ),

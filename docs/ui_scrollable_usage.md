@@ -40,7 +40,9 @@ Attach this to scroll items when you want automatic extent aggregation:
 ## Render-Target Configuration
 1. `ScrollPlugin` initializes `ScrollRenderSettings`.
 2. `ScrollRenderSettings.target_format` controls RTT texture format (default `Rgba16Float`).
-3. RTT images are recreated when viewport size or target format changes.
+3. `ScrollRenderSettings.max_render_targets` caps concurrent RTT roots (clamped to scroll-layer pool size).
+4. `ScrollRenderSettings.exhaustion_policy` controls behavior when budget is exhausted (currently warn + skip root).
+5. RTT images are recreated when viewport size or target format changes.
 
 ## Integration Recipe (Reusable)
 1. Spawn a root entity with `ScrollableRoot` + `ScrollableViewport`.
@@ -69,8 +71,14 @@ Attach this to scroll items when you want automatic extent aggregation:
 ## Menu Adapter Pattern
 Keep menu logic out of the primitive:
 1. Put menu-specific focus-follow in `systems/ui/menu/*`.
-2. Store adapter metadata (`menu_entity`, row extents/count).
-3. In menu `PostCommands`, adjust `ScrollState.offset_px` to keep selected row visible.
+2. Store adapter metadata using shared primitives:
+   - `ScrollableTableAdapter { owner, row_count, row_extent, leading_padding }`
+   - `ScrollableListAdapter<T> { owner, item_count, item_extent, leading_padding }`
+3. Use shared helpers from `ui::scroll` for row math/focus-follow:
+   - `row_top_and_bottom`
+   - `row_visible_in_viewport`
+   - `focus_scroll_offset_to_row`
+4. In menu `PostCommands`, adjust `ScrollState.offset_px` to keep selected row visible.
 
 Reference implementation:
 - `src/systems/ui/menu/scroll_adapter.rs`

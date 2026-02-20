@@ -16,7 +16,8 @@ use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
     ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
     ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent, ScrollableContentCamera,
-    ScrollableContentExtent, ScrollableRoot, ScrollableSurface, ScrollableViewport,
+    ScrollableContentExtent, ScrollableListAdapter, ScrollableRenderTarget, ScrollableRoot,
+    ScrollableSurface, ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -37,6 +38,19 @@ fn make_scroll_test_app() -> App {
 fn default_scroll_render_target_format_is_rgba16float() {
     let settings = ScrollRenderSettings::default();
     assert_eq!(settings.target_format, TextureFormat::Rgba16Float);
+}
+
+#[derive(Clone, Copy, Debug)]
+struct TestListItem;
+
+#[test]
+fn scrollable_list_adapter_new_sets_expected_fields() {
+    let owner = Entity::from_bits(42);
+    let adapter = ScrollableListAdapter::<TestListItem>::new(owner, 12, 28.0, 6.0);
+    assert_eq!(adapter.owner, owner);
+    assert_eq!(adapter.item_count, 12);
+    assert_eq!(adapter.item_extent, 28.0);
+    assert_eq!(adapter.leading_padding, 6.0);
 }
 
 #[test]
@@ -153,6 +167,44 @@ fn scroll_root_runtime_ensure_seeds_content_camera_and_surface_children() {
     assert!(has_camera);
     assert!(has_surface);
     assert!(has_content);
+}
+
+#[test]
+fn render_target_budget_skips_new_roots_after_limit() {
+    let mut app = make_scroll_test_app();
+    app.world_mut()
+        .resource_mut::<ScrollRenderSettings>()
+        .max_render_targets = 1;
+
+    let owner_a = app.world_mut().spawn_empty().id();
+    let root_a = app
+        .world_mut()
+        .spawn((
+            ScrollableRoot::new(owner_a, ScrollAxis::Vertical),
+            ScrollableViewport::new(Vec2::new(120.0, 90.0)),
+        ))
+        .id();
+
+    let owner_b = app.world_mut().spawn_empty().id();
+    let root_b = app
+        .world_mut()
+        .spawn((
+            ScrollableRoot::new(owner_b, ScrollAxis::Vertical),
+            ScrollableViewport::new(Vec2::new(120.0, 90.0)),
+        ))
+        .id();
+
+    app.update();
+
+    let has_target_a = app.world().entity(root_a).contains::<ScrollableRenderTarget>();
+    let has_target_b = app.world().entity(root_b).contains::<ScrollableRenderTarget>();
+    let target_count = [has_target_a, has_target_b]
+        .into_iter()
+        .filter(|has_target| *has_target)
+        .count();
+
+    assert_eq!(target_count, 1);
+    assert!(has_target_a || has_target_b);
 }
 
 fn spawn_owner_and_scroll_root(

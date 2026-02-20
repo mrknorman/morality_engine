@@ -96,7 +96,10 @@ pub(super) fn sync_video_top_table_values(
     )>,
     table_query: Query<(&ChildOf, &Children), With<VideoTopOptionsTable>>,
     scroll_content_query: Query<&ChildOf, With<VideoTopOptionsScrollContent>>,
-    scroll_root_query: Query<&scroll_adapter::ScrollableTableAdapter, With<VideoTopOptionsScrollRoot>>,
+    scroll_root_query: Query<
+        &crate::systems::ui::scroll::ScrollableTableAdapter,
+        With<VideoTopOptionsScrollRoot>,
+    >,
     column_children_query: Query<&Children, With<Column>>,
     cell_children_query: Query<&Children, With<Cell>>,
     mut text_query: Query<(&mut Text2d, &mut TextColor, &mut TextFont, &mut Transform)>,
@@ -136,7 +139,7 @@ pub(super) fn sync_video_top_table_values(
         } else if let Ok(content_parent) = scroll_content_query.get(parent_entity) {
             let root_entity = content_parent.parent();
             if let Ok(adapter) = scroll_root_query.get(root_entity) {
-                adapter.menu_entity
+                adapter.owner
             } else {
                 continue;
             }
@@ -1127,7 +1130,7 @@ mod tests {
             .world_mut()
             .spawn((
                 VideoTopOptionsScrollRoot,
-                scroll_adapter::ScrollableTableAdapter::new(
+                crate::systems::ui::scroll::ScrollableTableAdapter::new(
                     menu_entity,
                     VIDEO_TOP_OPTION_COUNT,
                     40.0,

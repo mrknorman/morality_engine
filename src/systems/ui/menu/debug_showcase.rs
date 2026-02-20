@@ -23,8 +23,9 @@ use crate::{
             SelectableClickActivation, SelectableMenu, SystemMenuActions,
         },
         ui::{
-            dropdown::DropdownSurface,
+            dropdown::{self, DropdownLayerState, DropdownSurface},
             hover_box,
+            layer::UiLayer,
             menu_surface::MenuSurface,
             selector::SelectorSurface,
             scroll::{
@@ -155,7 +156,7 @@ pub(super) struct DebugTabsDemoContent {
 pub(super) struct DebugDropdownDemoState {
     selected_index: usize,
     trigger_entity: Entity,
-    panel_entity: Entity,
+    dropdown_parent: Entity,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -539,7 +540,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
             window_parent.commands().entity(owner_entity).insert(DebugDropdownDemoState {
                 selected_index: 0,
                 trigger_entity,
-                panel_entity,
+                dropdown_parent: window_entity,
             });
         });
 }
@@ -808,11 +809,20 @@ pub(super) fn handle_dropdown_trigger_commands(
         &mut Clickable<SystemMenuActions>,
     )>,
     owner_query: Query<&DebugDropdownDemoState>,
-    mut panel_query: Query<(&mut Visibility, &mut SelectableMenu), With<DebugDropdownDemoPanel>>,
+    mut dropdown_state: ResMut<DropdownLayerState>,
+    mut dropdown_query: Query<
+        (Entity, &ChildOf, &UiLayer, &mut Visibility),
+        With<DebugDropdownDemoPanel>,
+    >,
+    mut dropdown_menu_query: Query<
+        &mut SelectableMenu,
+        (With<DebugDropdownDemoPanel>, Without<DebugDropdownDemoTrigger>),
+    >,
 ) {
     // Query contract:
     // - Trigger click consumption is isolated in `trigger_query`.
-    // - Panel visibility/selectable mutations are isolated in `panel_query`.
+    // - Dropdown open/close visibility mutations are isolated in `dropdown_query`.
+    // - Dropdown selectable state mutation is isolated in `dropdown_menu_query`.
     for (trigger, mut clickable) in trigger_query.iter_mut() {
         if !clickable.triggered {
             continue;
@@ -822,16 +832,27 @@ pub(super) fn handle_dropdown_trigger_commands(
         let Ok(state) = owner_query.get(trigger.owner) else {
             continue;
         };
-        let Ok((mut visibility, mut menu)) = panel_query.get_mut(state.panel_entity) else {
-            continue;
-        };
 
-        if *visibility == Visibility::Visible {
+        if dropdown_state.take_suppress_toggle_once(trigger.owner) {
             continue;
         }
-
-        *visibility = Visibility::Visible;
-        menu.selected_index = state.selected_index;
+        if dropdown_state.is_parent_open_for_owner(trigger.owner, state.dropdown_parent) {
+            dropdown::close_for_parent::<DebugDropdownDemoPanel>(
+                trigger.owner,
+                state.dropdown_parent,
+                &mut dropdown_state,
+                &mut dropdown_query,
+            );
+            continue;
+        }
+        dropdown::open_for_parent::<DebugDropdownDemoPanel>(
+            trigger.owner,
+            state.dropdown_parent,
+            state.selected_index,
+            &mut dropdown_state,
+            &mut dropdown_query,
+            &mut dropdown_menu_query,
+        );
     }
 }
 
@@ -842,12 +863,16 @@ pub(super) fn handle_dropdown_item_commands(
         &mut Clickable<SystemMenuActions>,
     )>,
     mut owner_query: Query<&mut DebugDropdownDemoState>,
-    mut panel_query: Query<&mut Visibility, With<DebugDropdownDemoPanel>>,
+    mut dropdown_state: ResMut<DropdownLayerState>,
+    mut dropdown_query: Query<
+        (Entity, &ChildOf, &UiLayer, &mut Visibility),
+        With<DebugDropdownDemoPanel>,
+    >,
 ) {
     // Query contract:
     // - Item click latches are consumed in `item_query`.
-    // - Committed dropdown state and panel visibility are updated via
-    //   separate owner/panel queries to avoid aliasing concerns.
+    // - Committed dropdown state updates are isolated in `owner_query`.
+    // - Dropdown close mutations are isolated in `dropdown_query`.
     let mut chosen_by_owner: HashMap<Entity, (usize, u64)> = HashMap::new();
     for (entity, item, mut clickable) in item_query.iter_mut() {
         if !clickable.triggered {
@@ -873,15 +898,19 @@ pub(super) fn handle_dropdown_item_commands(
             continue;
         };
         state.selected_index = selected.min(DROPDOWN_VALUES.len().saturating_sub(1));
-        if let Ok(mut visibility) = panel_query.get_mut(state.panel_entity) {
-            *visibility = Visibility::Hidden;
-        }
+        dropdown::close_for_parent::<DebugDropdownDemoPanel>(
+            owner,
+            state.dropdown_parent,
+            &mut dropdown_state,
+            &mut dropdown_query,
+        );
     }
 }
 
 pub(super) fn close_dropdown_on_outside_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<crate::startup::cursor::CustomCursor>,
+    mut dropdown_state: ResMut<DropdownLayerState>,
     owner_query: Query<&DebugDropdownDemoState>,
     trigger_query: Query<
         (&Transform, &GlobalTransform),
@@ -935,14 +964,15 @@ pub(super) fn close_dropdown_on_outside_click(
 
         if !inside_panel && !inside_trigger {
             *visibility = Visibility::Hidden;
+            dropdown_state.clear_owner(panel.owner);
         }
     }
 }
 
 pub(super) fn sync_dropdown_demo_visuals(
+    dropdown_state: Res<DropdownLayerState>,
     owner_query: Query<(&SelectableMenu, &DebugDropdownDemoState)>,
     panel_menu_query: Query<&SelectableMenu, With<DebugDropdownDemoPanel>>,
-    panel_visibility_query: Query<&Visibility, With<DebugDropdownDemoPanel>>,
     mut trigger_query: Query<(
         &DebugDropdownDemoTrigger,
         &Hoverable,
@@ -966,9 +996,8 @@ pub(super) fn sync_dropdown_demo_visuals(
         let Ok((menu, state)) = owner_query.get(trigger.owner) else {
             continue;
         };
-        let panel_visible = panel_visibility_query
-            .get(state.panel_entity)
-            .is_ok_and(|visibility| *visibility == Visibility::Visible);
+        let panel_visible =
+            dropdown_state.is_parent_open_for_owner(trigger.owner, state.dropdown_parent);
         let selected = menu.selected_index == 0;
         let value = DROPDOWN_VALUES[state.selected_index.min(DROPDOWN_VALUES.len() - 1)];
         text.0 = format!(
@@ -1041,6 +1070,7 @@ mod tests {
     #[test]
     fn visual_sync_systems_run_without_query_alias_panics() {
         let mut world = World::new();
+        world.init_resource::<DropdownLayerState>();
         let mut schedule = Schedule::default();
         schedule.add_systems((sync_tabs_demo_visuals, sync_dropdown_demo_visuals));
         schedule.run(&mut world);

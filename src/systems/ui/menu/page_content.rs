@@ -12,7 +12,7 @@ use crate::{
             selector::SelectorSurface,
             scroll::{
                 ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
-                ScrollableRoot, ScrollableViewport,
+                ScrollableRoot, ScrollableTableAdapter, ScrollableViewport,
             },
         },
     },
@@ -130,7 +130,7 @@ fn spawn_video_page_scaffold(
                     VIDEO_TOP_SCROLL_VIEWPORT_HEIGHT,
                 )),
                 ScrollableContentExtent(VIDEO_TOP_SCROLL_CONTENT_HEIGHT),
-                scroll_adapter::ScrollableTableAdapter::new(
+                ScrollableTableAdapter::new(
                     menu_entity,
                     VIDEO_TOP_OPTION_COUNT,
                     VIDEO_TABLE_ROW_HEIGHT,

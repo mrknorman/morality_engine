@@ -22,7 +22,7 @@ Legend:
 | `dropdown.rs` | Compliant | Reusable dropdown root/state with owner-scoped behavior. | Keep all generic open/close logic here. |
 | `hover_box.rs` | Compliant | Primitive root + explicit post-spawn marker attachment at callsites. | None. |
 | `discrete_slider.rs` | Compliant | Primitive root + insert hook builds internal slot hierarchy. | None. |
-| `scroll/mod.rs` + `scroll/*` | Partial | Reusable RTT scroll primitive and scrollbar with strong tests. | Complete remaining live-flow validation and nested-context polish. |
+| `scroll/mod.rs` + `scroll/*` | Compliant | Reusable RTT scroll primitive and scrollbar with shared adapter contracts, budget controls, and focused tests. | None. |
 
 ## Menu Composition Modules (`src/systems/ui/menu/*`)
 
@@ -35,7 +35,7 @@ Legend:
 | `schema.rs` | Partial | Typed schema parsing exists with command registries; now used by both main menu and options menu, with explicit validation for blank optional fields and invalid shortcut/layout bindings. | Expand schema usage across remaining menu/settings pages. |
 | `footer_nav.rs` | Compliant | Footer navigation utility systems. | None. |
 | `main_menu.rs` | Compliant | Shared main-menu option-list composition + command-id mapping + overlay follow/navigation systems. | Keep main-menu behavior routed through shared menu command flow. |
-| `scroll_adapter.rs` | Partial | Video/options-specific adapter logic mixed with menu selection concerns; focus-follow now reads tabbed option-lock state instead of visual-state outputs. | Push reusable pieces into scroll primitive layer. |
+| `scroll_adapter.rs` | Compliant | Video/options policy adapter now consumes shared `ui::scroll` table adapter + row/focus helpers and keeps behavior scoped to menu composition only. | None. |
 | `root_spawn.rs` | Partial | Root spawn now explicit (no generic bundle arg), but composition callers still attach markers manually after spawn. | Continue reducing ad-hoc caller wiring via root hook contracts where practical. |
 | `page_content.rs` | Partial | Composes primitives; still monolithic and feature-dense. | Split by reusable composition units (tabs/footer/top-options/modal triggers). |
 | `modal_flow.rs` | Partial | Uses shared primitives with explicit marker insertion (no bundle helper arg). | Continue splitting modal-specific layout constants from generic flow. |
@@ -46,7 +46,7 @@ Legend:
 | `menu_input.rs` | Partial | Central input routing, but still broad and dense. | Continue splitting into focused handlers per intent class. |
 | `video_visuals.rs` | Partial | Visual sync is robust and tested; still large and video-specific. | Keep as feature composition, but avoid behavior decisions from visual-state inputs. |
 | `defs.rs` | Partial | Single source for many constants/option maps; large and mixed concerns. | Split domain option data from generic UI geometry/helpers. |
-| `debug_showcase.rs` | Partial | Showcase uses primitives; still needs ongoing fit-and-finish polish. | Keep as canonical integration reference for developers. |
+| `debug_showcase.rs` | Compliant | Showcase windows are interactive and primitive-backed; dropdown demo now routes through shared dropdown-layer helpers. | Keep as canonical integration reference for developers. |
 | `mod.rs` | Partial | Plugin wiring is stable but dense. | Continue extracting focused submodule wiring as systems grow. |
 | `flow_tests.rs` | Compliant | Covers key owner/layer/dropdown/tab interactions; catches regressions. | Keep extending around real bug classes. |
 
@@ -63,6 +63,7 @@ Status:
 
 1. Continue moving behavior arbitration to primitive truth components (`Hoverable`, `Clickable`, `SelectableMenu`, `Selectable`, `OptionCycler`) and keep `InteractionVisualState` visual-only.
    - Recent progress: tabbed focus arbitration and video scroll focus-follow no longer depend on option-level `InteractionVisualState` for behavior truth.
+   - Recent progress: menu scroll adapter now reuses shared `ui::scroll` table adapter + row/focus helper APIs instead of duplicating local math/metadata types.
 2. Reduce composition monolith size in `page_content.rs` and `menu_input.rs` via focused sub-composers/handlers.
    - Recent progress: decomposed `menu_input::handle_menu_shortcuts` into focused helper units.
    - Recent progress: extracted video scaffold composition into `spawn_video_page_scaffold` within `page_content`.

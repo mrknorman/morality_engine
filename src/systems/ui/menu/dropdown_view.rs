@@ -62,7 +62,10 @@ pub(super) fn sync_resolution_dropdown_items(
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
     scroll_root_query: Query<
-        (&scroll_adapter::ScrollableTableAdapter, &crate::systems::ui::scroll::ScrollState),
+        (
+            &crate::systems::ui::scroll::ScrollableTableAdapter,
+            &crate::systems::ui::scroll::ScrollState,
+        ),
         With<VideoTopOptionsScrollRoot>,
     >,
     table_query: Query<
@@ -104,7 +107,7 @@ pub(super) fn sync_resolution_dropdown_items(
     let mut open_context_by_menu: HashMap<Entity, (usize, Vec<String>, usize)> = HashMap::new();
     let scroll_offset_by_menu: HashMap<Entity, f32> = scroll_root_query
         .iter()
-        .map(|(adapter, state)| (adapter.menu_entity, state.offset_px))
+        .map(|(adapter, state)| (adapter.owner, state.offset_px))
         .collect();
     for (_, open_parent) in dropdown_state.open_parents_snapshot() {
         let Ok((menu_entity, menu_stack, selectable_menu)) = menu_query.get(open_parent) else {

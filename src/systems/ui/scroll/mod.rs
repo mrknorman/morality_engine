@@ -3,7 +3,10 @@
 //! `ScrollableRoot` defines owner, axis, input-layer contract, and backend.
 //! Runtime systems manage render targets/cameras/surfaces and keep pointer,
 //! keyboard, and scrollbar input deterministic.
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+};
 
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
@@ -61,14 +64,28 @@ const SCROLLBAR_HITBOX_MAIN_AXIS_PAD_PX: f32 = 6.0;
 pub struct ScrollRenderSettings {
     /// Render target format for scroll surfaces.
     pub target_format: TextureFormat,
+    /// Maximum number of active RTT roots that can hold allocated targets.
+    ///
+    /// This is clamped to the internal scroll-layer pool size.
+    pub max_render_targets: usize,
+    /// Policy used when render-target budget is exhausted.
+    pub exhaustion_policy: ScrollRenderExhaustionPolicy,
 }
 
 impl Default for ScrollRenderSettings {
     fn default() -> Self {
         Self {
             target_format: TextureFormat::Rgba16Float,
+            max_render_targets: SCROLL_LAYER_COUNT as usize,
+            exhaustion_policy: ScrollRenderExhaustionPolicy::WarnAndSkipRoot,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScrollRenderExhaustionPolicy {
+    /// Log a warning and skip RTT setup for additional roots.
+    WarnAndSkipRoot,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -162,6 +179,103 @@ impl ScrollableItem {
     pub const fn new(key: u64, index: usize, extent: f32) -> Self {
         Self { key, index, extent }
     }
+}
+
+/// Reusable row-based table adapter metadata for scroll focus-follow and
+/// viewport clipping helpers.
+#[derive(Component, Clone, Copy, Debug)]
+pub struct ScrollableTableAdapter {
+    pub owner: Entity,
+    pub row_count: usize,
+    pub row_extent: f32,
+    pub leading_padding: f32,
+}
+
+impl ScrollableTableAdapter {
+    pub const fn new(
+        owner: Entity,
+        row_count: usize,
+        row_extent: f32,
+        leading_padding: f32,
+    ) -> Self {
+        Self {
+            owner,
+            row_count,
+            row_extent,
+            leading_padding,
+        }
+    }
+}
+
+/// Reusable typed list adapter metadata for scroll integrations outside table
+/// menus.
+#[derive(Component, Clone, Copy, Debug)]
+pub struct ScrollableListAdapter<T: Send + Sync + 'static> {
+    pub owner: Entity,
+    pub item_count: usize,
+    pub item_extent: f32,
+    pub leading_padding: f32,
+    marker: PhantomData<T>,
+}
+
+impl<T: Send + Sync + 'static> ScrollableListAdapter<T> {
+    pub const fn new(
+        owner: Entity,
+        item_count: usize,
+        item_extent: f32,
+        leading_padding: f32,
+    ) -> Self {
+        Self {
+            owner,
+            item_count,
+            item_extent,
+            leading_padding,
+            marker: PhantomData,
+        }
+    }
+}
+
+/// Returns `(row_top, row_bottom)` in content-space for `row_index`.
+pub fn row_top_and_bottom(row_index: usize, row_extent: f32, leading_padding: f32) -> (f32, f32) {
+    let row_extent = row_extent.max(1.0);
+    let leading_padding = leading_padding.max(0.0);
+    let row_top = leading_padding + row_index as f32 * row_extent;
+    let row_bottom = row_top + row_extent;
+    (row_top, row_bottom)
+}
+
+/// Returns whether a row overlaps the current viewport window.
+pub fn row_visible_in_viewport(
+    state: &ScrollState,
+    row_index: usize,
+    row_extent: f32,
+    leading_padding: f32,
+) -> bool {
+    let (row_top, row_bottom) = row_top_and_bottom(row_index, row_extent, leading_padding);
+    let viewport_top = state.offset_px;
+    let viewport_bottom = state.offset_px + state.viewport_extent;
+    row_bottom > viewport_top + 0.001 && row_top < viewport_bottom - 0.001
+}
+
+/// Mutates `state.offset_px` so `row_index` is visible in the viewport.
+pub fn focus_scroll_offset_to_row(
+    state: &mut ScrollState,
+    row_index: usize,
+    row_extent: f32,
+    leading_padding: f32,
+) {
+    let (row_top, row_bottom) = row_top_and_bottom(row_index, row_extent, leading_padding);
+    let viewport_top = state.offset_px;
+    let viewport_bottom = state.offset_px + state.viewport_extent;
+
+    if row_top < viewport_top {
+        state.offset_px = row_top;
+    } else if row_bottom > viewport_bottom {
+        state.offset_px = (row_bottom - state.viewport_extent).max(0.0);
+    }
+
+    state.max_offset = (state.content_extent - state.viewport_extent).max(0.0);
+    state.offset_px = state.offset_px.clamp(0.0, state.max_offset);
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -294,9 +408,12 @@ impl ScrollLayerPool {
         self.free_layers.dedup();
     }
 
-    fn layer_for_root(&mut self, root: Entity) -> Option<u8> {
+    fn layer_for_root(&mut self, root: Entity, max_targets: usize) -> Option<u8> {
         if let Some(layer) = self.by_root.get(&root).copied() {
             return Some(layer);
+        }
+        if self.by_root.len() >= max_targets {
+            return None;
         }
 
         self.free_layers.sort_unstable();

@@ -239,7 +239,7 @@ struct MenuCommandContext<'w, 's> {
         'w,
         's,
         (
-            &'static scroll_adapter::ScrollableTableAdapter,
+            &'static crate::systems::ui::scroll::ScrollableTableAdapter,
             &'static mut ScrollState,
             &'static mut ScrollFocusFollowLock,
         ),

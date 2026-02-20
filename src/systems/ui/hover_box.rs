@@ -669,6 +669,100 @@ mod tests {
     }
 
     #[test]
+    fn overlay_layer_toggle_hides_and_restores_hover_box_without_pointer_reentry() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, sync_hover_boxes);
+
+        let mut cursor = CustomCursor::default();
+        cursor.position = Some(Vec2::ZERO);
+        app.insert_resource(cursor);
+        app.init_resource::<Time<Real>>();
+
+        let owner = app
+            .world_mut()
+            .spawn((Transform::default(), GlobalTransform::default()))
+            .id();
+        app.world_mut().spawn((
+            UiLayer::new(owner, UiLayerKind::Base),
+            Visibility::Visible,
+        ));
+        let dropdown_layer = app
+            .world_mut()
+            .spawn((
+                UiLayer::new(owner, UiLayerKind::Dropdown),
+                Visibility::Hidden,
+            ))
+            .id();
+
+        let root = app
+            .world_mut()
+            .spawn((
+                HoverBoxRoot::new(owner, UiLayerKind::Base, Vec2::new(300.0, 300.0)),
+                HoverBoxDelay(0.0),
+                HoverBoxStyle::default(),
+                HoverBoxState::default(),
+                Transform::default(),
+                GlobalTransform::default(),
+                Sprite::from_color(Color::BLACK, Vec2::new(100.0, 40.0)),
+                Visibility::Hidden,
+            ))
+            .id();
+        app.world_mut().spawn((
+            HoverBoxTarget::new(root, Vec2::new(100.0, 24.0)),
+            HoverBoxContent {
+                text: "tooltip".to_string(),
+            },
+            Hoverable { hovered: true },
+            Transform::default(),
+            GlobalTransform::default(),
+        ));
+
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(16));
+        app.update();
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(16));
+        app.update();
+        assert_eq!(
+            app.world().get::<Visibility>(root),
+            Some(&Visibility::Visible)
+        );
+
+        // Simulate keyboard-opened overlay layer while pointer remains stationary.
+        *app.world_mut()
+            .get_mut::<Visibility>(dropdown_layer)
+            .expect("dropdown layer visibility") = Visibility::Visible;
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(16));
+        app.update();
+        assert_eq!(
+            app.world().get::<Visibility>(root),
+            Some(&Visibility::Hidden)
+        );
+
+        // Simulate overlay close; hover box should return without pointer reentry.
+        *app.world_mut()
+            .get_mut::<Visibility>(dropdown_layer)
+            .expect("dropdown layer visibility") = Visibility::Hidden;
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(16));
+        app.update();
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(16));
+        app.update();
+        assert_eq!(
+            app.world().get::<Visibility>(root),
+            Some(&Visibility::Visible)
+        );
+    }
+
+    #[test]
     fn hover_box_root_insertion_adds_required_components_and_children() {
         let mut world = World::new();
         let owner = world.spawn_empty().id();
