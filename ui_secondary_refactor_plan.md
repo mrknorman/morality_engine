@@ -62,7 +62,7 @@ Progress notes:
 - `HoverBoxRoot` now self-initializes primitive defaults via insert hook (owner-scoped `UiLayer`, hidden root visuals, and required child label/border structure) in `src/systems/ui/hover_box.rs`.
 - `ScrollBar` now enforces required root contracts (`Transform`, `Visibility`, drag state) in `src/systems/ui/scroll/mod.rs`.
 - `SelectorSurface` now provides a root primitive contract for selector/cycler rows (`Selectable` + optional `OptionCycler` via insert hook) in `src/systems/ui/selector.rs`.
-- Menu composition has started adopting `SelectorSurface` for tabs, dropdown rows, and cyclable video options in `src/systems/ui/menu/page_content.rs` and the debug showcase.
+- Menu composition now adopts `SelectorSurface` for video tabs/dropdown rows/cyclers and debug showcase tabs/dropdowns in `src/systems/ui/menu/page_content.rs` and `src/systems/ui/menu/debug_showcase.rs`.
 
 ## Stage 3: Menu Composition Migration
 
