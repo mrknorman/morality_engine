@@ -23,6 +23,8 @@ use crate::{
             SelectableClickActivation, SelectableMenu, SystemMenuActions,
         },
         ui::{
+            layer::UiLayerKind,
+            menu_surface::MenuSurface,
             selector::SelectorSurface,
             scroll::{
                 ScrollAxis, ScrollBar, ScrollableContent, ScrollableContentExtent, ScrollableItem,
@@ -250,17 +252,13 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
                 .spawn((
                     Name::new("debug_menu_demo_root"),
                     DebugMenuDemoState::default(),
-                    SelectableMenu::new(
-                        0,
-                        vec![KeyCode::ArrowUp],
-                        vec![KeyCode::ArrowDown],
-                        vec![KeyCode::Enter],
-                        true,
-                    )
-                    .with_click_activation(SelectableClickActivation::HoveredOnly),
                     Transform::from_xyz(-170.0, 44.0, 0.2),
                 ))
                 .id();
+            window_parent.commands().entity(menu_root).insert(
+                MenuSurface::new(menu_root)
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            );
 
             window_parent.commands().entity(menu_root).with_children(|menu_parent| {
                 let option_specs = [
@@ -343,7 +341,11 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
             window_parent
                 .commands()
                 .entity(tab_root)
-                .insert(TabBar::new(tab_root));
+                .insert((
+                    TabBar::new(tab_root),
+                    MenuSurface::new(tab_root)
+                        .with_click_activation(SelectableClickActivation::HoveredOnly),
+                ));
 
             window_parent.commands().entity(tab_root).with_children(|tabs_parent| {
                 for (index, label) in TABS_LABELS.into_iter().enumerate() {
@@ -426,6 +428,10 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                     Transform::from_xyz(-166.0, 58.0, 0.2),
                 ))
                 .id();
+            window_parent.commands().entity(owner_entity).insert(
+                MenuSurface::new(owner_entity)
+                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+            );
 
             let mut trigger_entity = Entity::PLACEHOLDER;
             window_parent
@@ -462,14 +468,9 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                         owner: owner_entity,
                         size: panel_size,
                     },
-                    SelectableMenu::new(
-                        0,
-                        vec![KeyCode::ArrowUp],
-                        vec![KeyCode::ArrowDown],
-                        vec![KeyCode::Enter],
-                        true,
-                    )
-                    .with_click_activation(SelectableClickActivation::HoveredOnly),
+                    MenuSurface::new(owner_entity)
+                        .with_layer(UiLayerKind::Dropdown)
+                        .with_click_activation(SelectableClickActivation::HoveredOnly),
                     Sprite::from_color(Color::BLACK, panel_size),
                     Transform::from_xyz(-12.0, -14.0, 0.24),
                     Visibility::Hidden,
