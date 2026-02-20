@@ -4,7 +4,7 @@ use crate::{
     systems::{
         interaction::{InteractionCapture, InteractionCaptureOwner, InteractionGate, SelectableMenu},
         ui::{
-            dropdown::DropdownLayerState,
+            dropdown::{self, DropdownLayerState},
             layer::{self, UiLayer, UiLayerKind},
         },
     },
@@ -149,4 +149,113 @@ fn tabs_and_layer_gating_flow_remain_owner_scoped() {
     assert_eq!(layer::active_layer_kind_for_owner(&active, owner), UiLayerKind::Modal);
     assert!(layer::is_active_layer_entity_for_owner(&active, owner, modal));
     assert!(!layer::is_active_layer_entity_for_owner(&active, owner, base));
+}
+
+#[derive(Component)]
+struct TestDropdownLayer;
+
+#[test]
+fn dropdown_open_select_close_flow_is_owner_scoped() {
+    let mut world = World::new();
+    let owner = world.spawn_empty().id();
+    let parent_a = world.spawn_empty().id();
+    let parent_b = world.spawn_empty().id();
+
+    let dropdown_a = world
+        .spawn((
+            TestDropdownLayer,
+            UiLayer::new(owner, UiLayerKind::Dropdown),
+            Visibility::Hidden,
+            selectable_menu_for_tests(),
+        ))
+        .id();
+    world.entity_mut(parent_a).add_child(dropdown_a);
+
+    let dropdown_b = world
+        .spawn((
+            TestDropdownLayer,
+            UiLayer::new(owner, UiLayerKind::Dropdown),
+            Visibility::Hidden,
+            selectable_menu_for_tests(),
+        ))
+        .id();
+    world.entity_mut(parent_b).add_child(dropdown_b);
+
+    let mut dropdown_state = DropdownLayerState::default();
+    let mut query_state: SystemState<(
+        Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<TestDropdownLayer>>,
+        Query<&mut SelectableMenu, With<TestDropdownLayer>>,
+    )> = SystemState::new(&mut world);
+
+    {
+        let (mut dropdown_query, mut menu_query) = query_state.get_mut(&mut world);
+        dropdown::open_for_parent::<TestDropdownLayer>(
+            owner,
+            parent_a,
+            2,
+            &mut dropdown_state,
+            &mut dropdown_query,
+            &mut menu_query,
+        );
+    }
+
+    assert_eq!(dropdown_state.open_parent_for_owner(owner), Some(parent_a));
+    assert_eq!(
+        world.entity(dropdown_a).get::<Visibility>(),
+        Some(&Visibility::Visible)
+    );
+    assert_eq!(
+        world.entity(dropdown_b).get::<Visibility>(),
+        Some(&Visibility::Hidden)
+    );
+    assert_eq!(
+        world.entity(dropdown_a).get::<SelectableMenu>().map(|menu| menu.selected_index),
+        Some(2)
+    );
+
+    {
+        let (mut dropdown_query, mut menu_query) = query_state.get_mut(&mut world);
+        dropdown::open_for_parent::<TestDropdownLayer>(
+            owner,
+            parent_b,
+            1,
+            &mut dropdown_state,
+            &mut dropdown_query,
+            &mut menu_query,
+        );
+    }
+
+    assert_eq!(dropdown_state.open_parent_for_owner(owner), Some(parent_b));
+    assert_eq!(
+        world.entity(dropdown_a).get::<Visibility>(),
+        Some(&Visibility::Hidden)
+    );
+    assert_eq!(
+        world.entity(dropdown_b).get::<Visibility>(),
+        Some(&Visibility::Visible)
+    );
+    assert_eq!(
+        world.entity(dropdown_b).get::<SelectableMenu>().map(|menu| menu.selected_index),
+        Some(1)
+    );
+
+    {
+        let (mut dropdown_query, _) = query_state.get_mut(&mut world);
+        dropdown::close_for_parent::<TestDropdownLayer>(
+            owner,
+            parent_b,
+            &mut dropdown_state,
+            &mut dropdown_query,
+        );
+    }
+
+    assert_eq!(dropdown_state.open_parent_for_owner(owner), None);
+    assert_eq!(
+        world.entity(dropdown_a).get::<Visibility>(),
+        Some(&Visibility::Hidden)
+    );
+    assert_eq!(
+        world.entity(dropdown_b).get::<Visibility>(),
+        Some(&Visibility::Hidden)
+    );
 }
