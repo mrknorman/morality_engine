@@ -18,11 +18,14 @@ use crate::systems::{
 #[require(SelectableMenu, Visibility)]
 #[component(on_insert = DropdownSurface::on_insert)]
 pub struct DropdownSurface {
+    /// Logical owner used for layer/gate arbitration.
     pub owner: Entity,
+    /// Click activation mode for the dropdown's `SelectableMenu`.
     pub click_activation: SelectableClickActivation,
 }
 
 impl DropdownSurface {
+    /// Creates a dropdown root bound to `owner`.
     pub const fn new(owner: Entity) -> Self {
         Self {
             owner,
@@ -30,6 +33,7 @@ impl DropdownSurface {
         }
     }
 
+    /// Overrides click activation policy for this dropdown root.
     pub const fn with_click_activation(
         mut self,
         click_activation: SelectableClickActivation,
@@ -87,14 +91,17 @@ impl DropdownLayerState {
         self.open_parent_by_owner.get(&owner).copied()
     }
 
+    /// Returns whether `parent` is currently the open dropdown parent for `owner`.
     pub fn is_parent_open_for_owner(&self, owner: Entity, parent: Entity) -> bool {
         self.open_parent_for_owner(owner) == Some(parent)
     }
 
+    /// Returns whether at least one owner currently has an open dropdown parent.
     pub fn is_any_open(&self) -> bool {
         !self.open_parent_by_owner.is_empty()
     }
 
+    /// Snapshot of currently open parent mappings `(owner, parent)`.
     pub fn open_parents_snapshot(&self) -> Vec<(Entity, Entity)> {
         self.open_parent_by_owner
             .iter()
@@ -102,6 +109,7 @@ impl DropdownLayerState {
             .collect()
     }
 
+    /// Marks currently open owners so one immediate toggle is ignored.
     pub fn mark_suppress_toggle_for_open_owners(&mut self) {
         let open_owners: Vec<Entity> = self.open_parent_by_owner.keys().copied().collect();
         for owner in open_owners {
@@ -109,21 +117,25 @@ impl DropdownLayerState {
         }
     }
 
+    /// Marks `owner` so one immediate toggle is ignored.
     pub fn mark_suppress_toggle_for_owner(&mut self, owner: Entity) {
         if self.open_parent_by_owner.contains_key(&owner) {
             self.suppress_toggle_once_by_owner.insert(owner);
         }
     }
 
+    /// Consumes and returns whether `owner` had a one-shot toggle suppression.
     pub fn take_suppress_toggle_once(&mut self, owner: Entity) -> bool {
         self.suppress_toggle_once_by_owner.remove(&owner)
     }
 
+    /// Clears open/suppression state for `owner`.
     pub fn clear_owner(&mut self, owner: Entity) {
         self.open_parent_by_owner.remove(&owner);
         self.suppress_toggle_once_by_owner.remove(&owner);
     }
 
+    /// Clears all owner dropdown open/suppression state.
     pub fn clear_all(&mut self) {
         self.open_parent_by_owner.clear();
         self.suppress_toggle_once_by_owner.clear();
@@ -141,6 +153,7 @@ impl DropdownAnchorState {
         self.row_by_owner_parent.insert((owner, parent_entity), row);
     }
 
+    /// Returns stored anchor row for `(owner, parent_entity)` or `fallback`.
     pub fn row_for_parent(&self, owner: Entity, parent_entity: Entity, fallback: usize) -> usize {
         self.row_by_owner_parent
             .get(&(owner, parent_entity))
@@ -148,11 +161,13 @@ impl DropdownAnchorState {
             .unwrap_or(fallback)
     }
 
+    /// Removes all anchor rows for an owner.
     pub fn remove_owner(&mut self, owner: Entity) {
         self.row_by_owner_parent
             .retain(|(key_owner, _), _| *key_owner != owner);
     }
 
+    /// Retains anchor rows whose parent is still open and still exists.
     pub fn retain_open_parents<R: Component>(
         &mut self,
         dropdown_state: &DropdownLayerState,
@@ -218,6 +233,9 @@ mod tests {
     }
 }
 
+/// Opens dropdown roots of type `D` under `parent_entity` for `owner`.
+///
+/// Any sibling dropdown roots for the same owner are hidden.
 pub fn open_for_parent<D: Component>(
     owner: Entity,
     parent_entity: Entity,
@@ -251,6 +269,7 @@ pub fn open_for_parent<D: Component>(
     }
 }
 
+/// Closes all dropdown roots of type `D` and clears open state.
 pub fn close_all<D: Component>(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<D>>,
@@ -261,6 +280,7 @@ pub fn close_all<D: Component>(
     dropdown_state.clear_all();
 }
 
+/// Closes dropdown roots for a specific owner/parent pair.
 pub fn close_for_parent<D: Component>(
     owner: Entity,
     parent_entity: Entity,
@@ -277,6 +297,10 @@ pub fn close_for_parent<D: Component>(
     }
 }
 
+/// Enforces at most one visible dropdown root per owner.
+///
+/// Parent roots are constrained by marker `R`, allowing this helper to be reused
+/// for menu and non-menu dropdown surfaces.
 pub fn enforce_single_visible_layer<D: Component, R: Component>(
     dropdown_state: &mut DropdownLayerState,
     parent_root_query: &Query<Entity, With<R>>,

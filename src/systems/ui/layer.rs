@@ -1,3 +1,9 @@
+//! Owner-scoped UI layer arbitration utilities.
+//!
+//! This module defines the shared layered interaction model used by menu and
+//! non-menu surfaces. Each UI owner can expose multiple layer roots
+//! (`Base`, `Dropdown`, `Modal`), and systems resolve a single active layer
+//! per owner for deterministic input routing.
 use std::collections::HashMap;
 
 use bevy::prelude::*;
@@ -12,8 +18,11 @@ use crate::{
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum UiLayerKind {
+    /// Base/root layer for a UI owner.
     Base,
+    /// Transient dropdown layer for a UI owner.
     Dropdown,
+    /// Blocking modal layer for a UI owner.
     Modal,
 }
 
@@ -29,7 +38,9 @@ impl UiLayerKind {
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct UiLayer {
+    /// Logical owner of this layer root.
     pub owner: Entity,
+    /// Layer kind used for active-layer arbitration.
     pub kind: UiLayerKind,
 }
 
@@ -41,10 +52,13 @@ impl UiLayer {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ActiveUiLayer {
+    /// Active root entity for the owner.
     pub entity: Entity,
+    /// Active layer kind.
     pub kind: UiLayerKind,
 }
 
+/// Returns the resolved active layer for `owner` when present.
 pub fn active_layer_for_owner(
     active_layers: &HashMap<Entity, ActiveUiLayer>,
     owner: Entity,
@@ -52,6 +66,9 @@ pub fn active_layer_for_owner(
     active_layers.get(&owner).copied()
 }
 
+/// Returns the resolved active-layer kind for `owner`.
+///
+/// Falls back to `UiLayerKind::Base` when no active layer exists.
 pub fn active_layer_kind_for_owner(
     active_layers: &HashMap<Entity, ActiveUiLayer>,
     owner: Entity,
@@ -61,6 +78,7 @@ pub fn active_layer_kind_for_owner(
         .unwrap_or(UiLayerKind::Base)
 }
 
+/// Returns whether `layer_entity` is currently the active layer for `owner`.
 pub fn is_active_layer_entity_for_owner(
     active_layers: &HashMap<Entity, ActiveUiLayer>,
     owner: Entity,
@@ -70,6 +88,7 @@ pub fn is_active_layer_entity_for_owner(
         .is_some_and(|active| active.entity == layer_entity)
 }
 
+/// Returns active layers sorted by owner/entity rank for deterministic routing.
 pub fn ordered_active_layers_by_owner(
     active_layers: &HashMap<Entity, ActiveUiLayer>,
 ) -> Vec<(Entity, ActiveUiLayer)> {
@@ -81,6 +100,7 @@ pub fn ordered_active_layers_by_owner(
     ordered
 }
 
+/// Returns owners whose active layer matches `kind`, in deterministic order.
 pub fn ordered_active_owners_by_kind(
     active_layers: &HashMap<Entity, ActiveUiLayer>,
     kind: UiLayerKind,
@@ -95,6 +115,10 @@ fn is_visible(visibility: Option<&Visibility>) -> bool {
     visibility.copied().unwrap_or(Visibility::Visible) != Visibility::Hidden
 }
 
+/// Resolves one active UI layer per owner with visibility + gate filtering.
+///
+/// Priority is `Modal > Dropdown > Base`. Ties within a kind are broken by
+/// deterministic entity rank.
 pub fn active_layers_by_owner_scoped(
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,

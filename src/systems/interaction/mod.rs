@@ -1,3 +1,9 @@
+//! Shared interaction primitives and typed action routing.
+//!
+//! Behavioral truth for reusable UI interactions lives here (`Hoverable`,
+//! `Clickable`, `Pressable`, `SelectableMenu`, `Selectable`, `OptionCycler`).
+//! Visual-state components are downstream presentation outputs and should not be
+//! used as authoritative behavior state in higher-level reducers.
 use crate::{
     data::{
         states::{DilemmaPhase, GameState, MainState, PauseState, StateVector},
@@ -314,6 +320,7 @@ pub fn interaction_gate_allows_for_owner(
 
 #[derive(Copy, Clone, Component)]
 pub struct ClickableCursorIcons {
+    /// Cursor mode applied while the entity is hovered.
     pub on_hover: CursorMode,
 }
 
@@ -331,9 +338,11 @@ pub struct Clickable<T>
 where
     T: Copy + Send + Sync,
 {
-    /// Keys used to look up actions in the ActionPallet.
+    /// Typed actions emitted when this element is activated.
     pub actions: Vec<T>,
+    /// Optional local-region override for hover/click hit testing.
     pub region: Option<Vec2>,
+    /// One-frame activation flag written by interaction systems.
     pub triggered: bool,
 }
 
@@ -373,8 +382,11 @@ pub struct KeyMapping<T>
 where
     T: Copy + Send + Sync,
 {
+    /// Keyboard keys that trigger this mapping.
     pub keys: Vec<KeyCode>,
+    /// Actions emitted when the mapping triggers.
     pub actions: Vec<T>,
+    /// Whether holding keys may retrigger while still pressed.
     pub allow_repeated_activation: bool,
 }
 
@@ -384,7 +396,7 @@ pub struct Pressable<T>
 where
     T: Copy + Send + Sync,
 {
-    /// Each tuple maps a group of keys to its associated actions.
+    /// Key groups mapped to action sets.
     pub mappings: Vec<KeyMapping<T>>,
     /// Optionally store which mapping (if any) was triggered this frame.
     pub triggered_mapping: Option<usize>,
@@ -405,18 +417,26 @@ where
 #[derive(Component, Clone)]
 #[require(InteractionGate)]
 pub struct SelectableMenu {
+    /// Current selected option index.
     pub selected_index: usize,
+    /// Keys that move selection upward.
     pub up_keys: Vec<KeyCode>,
+    /// Keys that move selection downward.
     pub down_keys: Vec<KeyCode>,
+    /// Keys that activate the selected option.
     pub activate_keys: Vec<KeyCode>,
+    /// Whether selection wraps at list boundaries.
     pub wrap: bool,
+    /// Click policy for how pointer activation is resolved.
     pub click_activation: SelectableClickActivation,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SelectableClickActivation {
+    /// Any click can activate the currently selected item.
     #[default]
     SelectedOnAnyClick,
+    /// Only clicks on hovered items can activate.
     HoveredOnly,
 }
 
@@ -460,7 +480,9 @@ impl SelectableMenu {
 #[derive(Component, Clone, Copy)]
 #[require(InteractionVisualState, InteractionVisualPalette, InteractionGate)]
 pub struct Selectable {
+    /// Parent menu entity this selectable belongs to.
     pub menu_entity: Entity,
+    /// Logical index within the parent menu.
     pub index: usize,
 }
 
@@ -472,17 +494,25 @@ impl Selectable {
 
 #[derive(Component, Clone, Copy, Default)]
 pub struct OptionCycler {
+    /// One-frame "move left" request.
     pub left_triggered: bool,
+    /// One-frame "move right" request.
     pub right_triggered: bool,
+    /// True when current value is at minimum bound.
     pub at_min: bool,
+    /// True when current value is at maximum bound.
     pub at_max: bool,
 }
 
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct InteractionVisualState {
+    /// Visual hover presentation state.
     pub hovered: bool,
+    /// Visual pressed presentation state.
     pub pressed: bool,
+    /// Visual selected presentation state.
     pub selected: bool,
+    /// Visual keyboard-lock presentation state.
     pub keyboard_locked: bool,
 }
 
@@ -497,14 +527,19 @@ impl InteractionVisualState {
 
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct Hoverable {
+    /// Canonical hover truth for behavior systems.
     pub hovered: bool,
 }
 
 #[derive(Component, Clone, Copy, Debug)]
 pub struct InteractionVisualPalette {
+    /// Color when entity is idle.
     pub idle_color: Color,
+    /// Color when entity is hovered.
     pub hovered_color: Color,
+    /// Color when entity is pressed.
     pub pressed_color: Color,
+    /// Color when entity is selected.
     pub selected_color: Color,
 }
 

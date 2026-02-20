@@ -35,6 +35,7 @@ pub struct TabItem {
 
 #[derive(Component, Clone, Debug)]
 pub struct TabActivationPolicy {
+    /// Keys that confirm activation of the currently selected tab.
     pub activate_keys: Vec<KeyCode>,
 }
 
@@ -48,22 +49,31 @@ impl Default for TabActivationPolicy {
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct TabBarState {
+    /// Currently active tab index.
     pub active_index: usize,
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum TabBarStateSync {
+    /// Mirror `SelectableMenu.selected_index` into `TabBarState` each frame.
     #[default]
     Immediate,
+    /// Keep `TabBarState` explicit; composition systems drive updates manually.
     Explicit,
 }
 
 #[derive(Message, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TabChanged {
+    /// Tab bar entity that changed.
     pub tab_bar: Entity,
+    /// Newly active tab index.
     pub index: usize,
 }
 
+/// Resolves a keyboard activation target for the selected tab index.
+///
+/// Returns `Some(index)` only when an activation key was pressed and the
+/// selected tab differs from the currently active tab.
 pub fn keyboard_activation_target(
     keyboard_input: &ButtonInput<KeyCode>,
     activation_policy: Option<&TabActivationPolicy>,
@@ -102,6 +112,10 @@ fn tab_indices_by_bar(tab_item_query: &Query<&Selectable, With<TabItem>>) -> Has
     indices_by_bar
 }
 
+/// Collects clicked tab indices keyed by tab-root entity.
+///
+/// When multiple clicked tab entities exist for one root in a frame, the
+/// highest entity-rank winner is chosen deterministically.
 pub fn collect_clicked_tab_indices<A, F>(
     tab_item_query: &Query<(Entity, &TabItem, &Selectable, &Clickable<A>), F>,
 ) -> HashMap<Entity, usize>
@@ -133,6 +147,7 @@ where
         .collect()
 }
 
+/// Applies tab activation transition and emits optional click audio.
 pub fn apply_tab_activation_with_audio<S>(
     tab_bar_entity: Entity,
     next_active_index: usize,
@@ -168,6 +183,7 @@ pub fn apply_tab_activation_with_audio<S>(
     });
 }
 
+/// Clamps tab-bar selected indices to the set of known tab items.
 pub fn sanitize_tab_selection_indices(
     mut tab_query: Query<(Entity, &mut SelectableMenu), With<TabBar>>,
     tab_item_query: Query<&Selectable, With<TabItem>>,
@@ -188,6 +204,7 @@ pub fn sanitize_tab_selection_indices(
     }
 }
 
+/// Synchronizes tab active state from `SelectableMenu` for `Immediate` bars.
 pub fn sync_tab_bar_state(
     tab_query: Query<(Entity, &SelectableMenu, Option<&TabBarStateSync>), With<TabBar>>,
     mut tab_state_query: Query<&mut TabBarState, With<TabBar>>,
