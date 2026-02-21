@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::{
+    input::gestures::PinchGesture,
     input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
 };
@@ -20,10 +21,10 @@ use crate::{
 
 use super::{
     geometry::{axis_extent, clamp_scroll_state, edge_auto_scroll_delta},
-    ScrollAxis, ScrollFocusFollowLock, ScrollState, ScrollableContent,
-    ScrollableContentBaseTranslation, ScrollableContentExtent, ScrollableItem, ScrollableRoot,
-    ScrollableViewport, SCROLL_EPSILON, SCROLL_KEYBOARD_STEP_PX, SCROLL_PAGE_FACTOR,
-    SCROLL_WHEEL_LINE_PX,
+    ScrollAxis, ScrollBar, ScrollFocusFollowLock, ScrollState, ScrollZoomConfig, ScrollZoomState,
+    ScrollableContent, ScrollableContentBaseScale, ScrollableContentBaseTranslation,
+    ScrollableContentExtent, ScrollableItem, ScrollableRoot, ScrollableViewport, SCROLL_EPSILON,
+    SCROLL_KEYBOARD_STEP_PX, SCROLL_PAGE_FACTOR, SCROLL_WHEEL_LINE_PX, SCROLL_ZOOM_EPSILON,
 };
 
 pub(super) fn sync_scroll_extents(
@@ -33,6 +34,7 @@ pub(super) fn sync_scroll_extents(
             &ScrollableRoot,
             &ScrollableViewport,
             &mut ScrollState,
+            &ScrollZoomState,
             Option<&ScrollableContentExtent>,
         ),
         With<ScrollableRoot>,
@@ -55,7 +57,7 @@ pub(super) fn sync_scroll_extents(
         *entry += item.extent.max(0.0);
     }
 
-    for (root_entity, root, viewport, mut state, explicit_extent) in root_query.iter_mut() {
+    for (root_entity, root, viewport, mut state, zoom, explicit_extent) in root_query.iter_mut() {
         let viewport_extent = axis_extent(viewport.size, root.axis).max(0.0);
         let content_extent = if let Some(explicit) = explicit_extent {
             explicit.0.max(0.0)
@@ -69,7 +71,8 @@ pub(super) fn sync_scroll_extents(
         };
 
         state.viewport_extent = viewport_extent;
-        state.content_extent = content_extent.max(viewport_extent);
+        state.content_extent =
+            (content_extent * zoom.scale.max(SCROLL_ZOOM_EPSILON)).max(viewport_extent);
         clamp_scroll_state(&mut state);
     }
 }
@@ -88,6 +91,9 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
     cursor: Res<CustomCursor>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut wheel_events: MessageReader<MouseWheel>,
+    mut pinch_events: MessageReader<PinchGesture>,
+    root_parent_query: Query<&ChildOf, With<ScrollableRoot>>,
+    scrollbar_query: Query<&ScrollBar>,
     mut root_query: Query<
         (
             Entity,
@@ -97,6 +103,8 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             &GlobalTransform,
             &mut ScrollState,
             &mut ScrollFocusFollowLock,
+            &mut ScrollZoomState,
+            &ScrollZoomConfig,
             Option<&InteractionGate>,
             Option<&InheritedVisibility>,
         ),
@@ -122,6 +130,10 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         wheel_vertical += event.y * unit_scale;
         wheel_horizontal += event.x * unit_scale;
     }
+    let mut pinch_delta = 0.0;
+    for event in pinch_events.read() {
+        pinch_delta += event.0;
+    }
 
     let keyboard_navigation_requested = keyboard_input.just_pressed(KeyCode::ArrowUp)
         || keyboard_input.just_pressed(KeyCode::ArrowDown)
@@ -131,13 +143,123 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         || keyboard_input.just_pressed(KeyCode::PageDown)
         || keyboard_input.just_pressed(KeyCode::Home)
         || keyboard_input.just_pressed(KeyCode::End);
+    let vertical_navigation_requested = keyboard_input.just_pressed(KeyCode::ArrowUp)
+        || keyboard_input.just_pressed(KeyCode::ArrowDown)
+        || keyboard_input.just_pressed(KeyCode::PageUp)
+        || keyboard_input.just_pressed(KeyCode::PageDown)
+        || keyboard_input.just_pressed(KeyCode::Home)
+        || keyboard_input.just_pressed(KeyCode::End);
+    let horizontal_navigation_requested = keyboard_input.just_pressed(KeyCode::ArrowLeft)
+        || keyboard_input.just_pressed(KeyCode::ArrowRight);
+    let control_held = keyboard_input.pressed(KeyCode::ControlLeft)
+        || keyboard_input.pressed(KeyCode::ControlRight);
+    let zoom_in_requested = control_held
+        && (keyboard_input.just_pressed(KeyCode::Equal)
+            || keyboard_input.just_pressed(KeyCode::NumpadAdd)
+            || keyboard_input.just_pressed(KeyCode::NumpadEqual));
+    let zoom_out_requested = control_held
+        && (keyboard_input.just_pressed(KeyCode::Minus)
+            || keyboard_input.just_pressed(KeyCode::NumpadSubtract));
+    let keyboard_zoom_requested = zoom_in_requested || zoom_out_requested;
+    let pinch_zoom_requested = pinch_delta.abs() > SCROLL_EPSILON;
     let cursor_position = cursor.position;
 
+    fn scroll_root_depth(entity: Entity, root_parent_query: &Query<&ChildOf, With<ScrollableRoot>>) -> u32 {
+        let mut depth = 0u32;
+        let mut cursor = entity;
+        while let Ok(parent) = root_parent_query.get(cursor) {
+            depth += 1;
+            cursor = parent.parent();
+        }
+        depth
+    }
+
+    #[derive(Clone, Copy)]
+    struct Candidate {
+        entity: Entity,
+        owner: Entity,
+        z: f32,
+        rank: u64,
+        depth: u32,
+        viewport_extent: f32,
+    }
+
+    #[derive(Clone, Copy)]
+    struct EdgeCandidate {
+        candidate: Candidate,
+        edge_delta: f32,
+    }
+
+    fn replace_candidate(current: Option<Candidate>, next: Candidate) -> Option<Candidate> {
+        match current {
+            None => Some(next),
+            Some(current)
+                if next.z > current.z || (next.z == current.z && next.rank > current.rank) =>
+            {
+                Some(next)
+            }
+            Some(current) => Some(current),
+        }
+    }
+
+    fn replace_keyboard_candidate(current: Option<Candidate>, next: Candidate) -> Option<Candidate> {
+        match current {
+            None => Some(next),
+            Some(current) => {
+                let replace = (next.depth < current.depth)
+                    || (next.depth == current.depth && next.viewport_extent > current.viewport_extent)
+                    || (next.depth == current.depth
+                        && (next.viewport_extent - current.viewport_extent).abs() <= f32::EPSILON
+                        && (next.z > current.z
+                            || (next.z == current.z && next.rank > current.rank)));
+                if replace {
+                    Some(next)
+                } else {
+                    Some(current)
+                }
+            }
+        }
+    }
+
+    fn replace_edge_candidate(
+        current: Option<EdgeCandidate>,
+        next: EdgeCandidate,
+    ) -> Option<EdgeCandidate> {
+        match current {
+            None => Some(next),
+            Some(current)
+                if next.candidate.z > current.candidate.z
+                    || (next.candidate.z == current.candidate.z
+                        && next.candidate.rank > current.candidate.rank) =>
+            {
+                Some(next)
+            }
+            Some(current) => Some(current),
+        }
+    }
+
     let mut scoped_owner_candidates: Vec<(Entity, f32)> = Vec::new();
-    let mut hovered_target: Option<(Entity, Entity, f32, u64)> = None;
-    let mut edge_target: Option<(Entity, Entity, f32, u64, f32)> = None;
-    let mut keyboard_target: Option<(Entity, Entity, f32, u64)> = None;
-    for (entity, root, viewport, transform, global_transform, _, _, gate, inherited_visibility) in
+    let mut hovered_vertical: Option<Candidate> = None;
+    let mut edge_vertical: Option<EdgeCandidate> = None;
+    let mut keyboard_vertical: Option<Candidate> = None;
+    let mut hovered_horizontal: Option<Candidate> = None;
+    let mut edge_horizontal: Option<EdgeCandidate> = None;
+    let mut keyboard_horizontal: Option<Candidate> = None;
+    let roots_with_scrollbars: std::collections::HashSet<Entity> =
+        scrollbar_query.iter().map(|scrollbar| scrollbar.scrollable_root).collect();
+    for (
+        entity,
+        root,
+        viewport,
+        transform,
+        global_transform,
+        _,
+        _,
+        _,
+        _,
+        gate,
+        inherited_visibility,
+    ) in
         root_query.iter_mut()
     {
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
@@ -157,18 +279,23 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         let z = global_transform.translation().z;
         scoped_owner_candidates.push((root.owner, z));
 
-        let keyboard_candidate = (entity, root.owner, z, entity.to_bits());
-        match keyboard_target {
-            None => keyboard_target = Some(keyboard_candidate),
-            Some((_, _, current_z, current_rank))
-                if keyboard_candidate.2 > current_z
-                    || (keyboard_candidate.2 == current_z
-                        && keyboard_candidate.3 > current_rank) =>
-            {
-                keyboard_target = Some(keyboard_candidate);
+        let keyboard_candidate = Candidate {
+            entity,
+            owner: root.owner,
+            z,
+            rank: entity.to_bits(),
+            depth: scroll_root_depth(entity, &root_parent_query),
+            viewport_extent: axis_extent(viewport.size, root.axis),
+        };
+        match root.axis {
+            ScrollAxis::Vertical => {
+                keyboard_vertical = replace_keyboard_candidate(keyboard_vertical, keyboard_candidate)
             }
-            _ => {}
-        }
+            ScrollAxis::Horizontal => {
+                keyboard_horizontal =
+                    replace_keyboard_candidate(keyboard_horizontal, keyboard_candidate)
+            }
+        };
 
         let Some(cursor_position) = cursor_position else {
             continue;
@@ -181,6 +308,9 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             Vec2::ZERO,
         );
         if !hovered {
+            if roots_with_scrollbars.contains(&entity) {
+                continue;
+            }
             if let Some(edge_delta) = edge_auto_scroll_delta(
                 cursor_position,
                 global_transform,
@@ -189,134 +319,227 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
                 root.edge_zone_inside_px,
                 root.edge_zone_outside_px,
             ) {
-                let candidate = (
-                    entity,
-                    root.owner,
-                    z,
-                    entity.to_bits(),
+                let candidate = EdgeCandidate {
+                    candidate: Candidate {
+                        entity,
+                        owner: root.owner,
+                        z,
+                        rank: entity.to_bits(),
+                        depth: scroll_root_depth(entity, &root_parent_query),
+                        viewport_extent: axis_extent(viewport.size, root.axis),
+                    },
                     edge_delta,
-                );
-                match edge_target {
-                    None => edge_target = Some(candidate),
-                    Some((_, _, current_z, current_rank, _))
-                        if candidate.2 > current_z
-                            || (candidate.2 == current_z && candidate.3 > current_rank) =>
-                    {
-                        edge_target = Some(candidate);
+                };
+                match root.axis {
+                    ScrollAxis::Vertical => edge_vertical = replace_edge_candidate(edge_vertical, candidate),
+                    ScrollAxis::Horizontal => {
+                        edge_horizontal = replace_edge_candidate(edge_horizontal, candidate)
                     }
-                    _ => {}
-                }
+                };
             }
             continue;
         }
 
-        let candidate = (entity, root.owner, z, entity.to_bits());
-        match hovered_target {
-            None => hovered_target = Some(candidate),
-            Some((_, _, current_z, current_rank))
-                if candidate.2 > current_z
-                    || (candidate.2 == current_z && candidate.3 > current_rank) =>
-            {
-                hovered_target = Some(candidate);
+        let candidate = Candidate {
+            entity,
+            owner: root.owner,
+            z,
+            rank: entity.to_bits(),
+            depth: scroll_root_depth(entity, &root_parent_query),
+            viewport_extent: axis_extent(viewport.size, root.axis),
+        };
+        match root.axis {
+            ScrollAxis::Vertical => hovered_vertical = replace_candidate(hovered_vertical, candidate),
+            ScrollAxis::Horizontal => {
+                hovered_horizontal = replace_candidate(hovered_horizontal, candidate)
             }
-            _ => {}
-        }
+        };
     }
 
     let focused_scoped_owner =
         focused_scope_owner_from_registry(pause_state, &capture_query, &scope_owner_query, &owner_transform_query)
             .or_else(|| resolve_focused_scope_owner(scoped_owner_candidates));
 
-    let mut target_entity = None;
-    let mut edge_delta = 0.0;
-    let mut pointer_target_active = false;
-    if let Some((entity, owner, _, _, resolved_edge_delta)) = hovered_target
-        .map(|(entity, owner, z, rank)| (entity, owner, z, rank, 0.0))
-        .or(edge_target)
-    {
-        if scoped_owner_has_focus(Some(owner), focused_scoped_owner) {
-            target_entity = Some(entity);
-            edge_delta = resolved_edge_delta;
-            pointer_target_active = true;
+    let mut vertical_target: Option<(Entity, f32, bool)> = None;
+    if let Some(candidate) = hovered_vertical {
+        if scoped_owner_has_focus(Some(candidate.owner), focused_scoped_owner) {
+            vertical_target = Some((candidate.entity, 0.0, true));
         }
-    } else if keyboard_navigation_requested {
-        if let Some((entity, owner, _, _)) = keyboard_target {
-            if scoped_owner_has_focus(Some(owner), focused_scoped_owner) {
-                target_entity = Some(entity);
+    } else if let Some(edge_candidate) = edge_vertical {
+        if scoped_owner_has_focus(Some(edge_candidate.candidate.owner), focused_scoped_owner) {
+            vertical_target = Some((edge_candidate.candidate.entity, edge_candidate.edge_delta, true));
+        }
+    } else if keyboard_navigation_requested && vertical_navigation_requested {
+        if let Some(candidate) = keyboard_vertical {
+            if scoped_owner_has_focus(Some(candidate.owner), focused_scoped_owner) {
+                vertical_target = Some((candidate.entity, 0.0, false));
             }
         }
     }
 
-    let Some(target_entity) = target_entity else {
-        return;
-    };
-
-    let Ok((_, root, _, _, _, mut state, mut focus_lock, _, _)) = root_query.get_mut(target_entity)
-    else {
-        return;
-    };
-    if state.max_offset <= SCROLL_EPSILON {
-        return;
+    let mut horizontal_target: Option<(Entity, f32, bool)> = None;
+    if let Some(candidate) = hovered_horizontal {
+        if scoped_owner_has_focus(Some(candidate.owner), focused_scoped_owner) {
+            horizontal_target = Some((candidate.entity, 0.0, true));
+        }
+    } else if let Some(edge_candidate) = edge_horizontal {
+        if scoped_owner_has_focus(Some(edge_candidate.candidate.owner), focused_scoped_owner) {
+            horizontal_target = Some((edge_candidate.candidate.entity, edge_candidate.edge_delta, true));
+        }
+    } else if keyboard_navigation_requested && horizontal_navigation_requested {
+        if let Some(candidate) = keyboard_horizontal {
+            if scoped_owner_has_focus(Some(candidate.owner), focused_scoped_owner) {
+                horizontal_target = Some((candidate.entity, 0.0, false));
+            }
+        }
     }
 
-    let wheel_delta = match root.axis {
-        ScrollAxis::Vertical => wheel_vertical,
-        ScrollAxis::Horizontal => wheel_horizontal,
-    };
-    if pointer_target_active && wheel_delta.abs() > SCROLL_EPSILON {
-        state.offset_px -= wheel_delta;
-        focus_lock.manual_override = true;
-    }
-    if pointer_target_active && edge_delta.abs() > SCROLL_EPSILON {
-        state.offset_px += edge_delta;
-        focus_lock.manual_override = true;
+    if let Some((target_entity, edge_delta, pointer_target_active)) = vertical_target {
+        if let Ok((_, root, _, _, _, mut state, mut focus_lock, _, _, _, _)) =
+            root_query.get_mut(target_entity)
+        {
+            if root.axis == ScrollAxis::Vertical && state.max_offset > SCROLL_EPSILON {
+                if pointer_target_active && wheel_vertical.abs() > SCROLL_EPSILON {
+                    state.offset_px -= wheel_vertical;
+                    focus_lock.manual_override = true;
+                }
+                if pointer_target_active && edge_delta.abs() > SCROLL_EPSILON {
+                    state.offset_px += edge_delta;
+                    focus_lock.manual_override = true;
+                }
+
+                let key_step = if keyboard_input.just_pressed(KeyCode::ArrowUp) {
+                    -SCROLL_KEYBOARD_STEP_PX
+                } else if keyboard_input.just_pressed(KeyCode::ArrowDown) {
+                    SCROLL_KEYBOARD_STEP_PX
+                } else if keyboard_input.just_pressed(KeyCode::PageUp) {
+                    -(state.viewport_extent * SCROLL_PAGE_FACTOR)
+                } else if keyboard_input.just_pressed(KeyCode::PageDown) {
+                    state.viewport_extent * SCROLL_PAGE_FACTOR
+                } else {
+                    0.0
+                };
+
+                if keyboard_input.just_pressed(KeyCode::Home) {
+                    state.offset_px = 0.0;
+                } else if keyboard_input.just_pressed(KeyCode::End) {
+                    state.offset_px = state.max_offset;
+                } else if key_step.abs() > SCROLL_EPSILON {
+                    state.offset_px += key_step;
+                }
+
+                clamp_scroll_state(&mut state);
+            }
+        }
     }
 
-    let key_step = match root.axis {
-        ScrollAxis::Vertical => {
-            if keyboard_input.just_pressed(KeyCode::ArrowUp) {
-                -SCROLL_KEYBOARD_STEP_PX
-            } else if keyboard_input.just_pressed(KeyCode::ArrowDown) {
-                SCROLL_KEYBOARD_STEP_PX
-            } else if keyboard_input.just_pressed(KeyCode::PageUp) {
-                -(state.viewport_extent * SCROLL_PAGE_FACTOR)
-            } else if keyboard_input.just_pressed(KeyCode::PageDown) {
-                state.viewport_extent * SCROLL_PAGE_FACTOR
+    if let Some((target_entity, edge_delta, pointer_target_active)) = horizontal_target {
+        if let Ok((_, root, _, _, _, mut state, mut focus_lock, _, _, _, _)) =
+            root_query.get_mut(target_entity)
+        {
+            if root.axis == ScrollAxis::Horizontal && state.max_offset > SCROLL_EPSILON {
+                if pointer_target_active && wheel_horizontal.abs() > SCROLL_EPSILON {
+                    state.offset_px -= wheel_horizontal;
+                    focus_lock.manual_override = true;
+                }
+                if pointer_target_active && edge_delta.abs() > SCROLL_EPSILON {
+                    state.offset_px += edge_delta;
+                    focus_lock.manual_override = true;
+                }
+
+                let key_step = if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
+                    -SCROLL_KEYBOARD_STEP_PX
+                } else if keyboard_input.just_pressed(KeyCode::ArrowRight) {
+                    SCROLL_KEYBOARD_STEP_PX
+                } else {
+                    0.0
+                };
+                if key_step.abs() > SCROLL_EPSILON {
+                    state.offset_px += key_step;
+                }
+
+                clamp_scroll_state(&mut state);
+            }
+        }
+    }
+
+    if keyboard_zoom_requested || pinch_zoom_requested {
+        let zoom_target = if let Some(candidate) = hovered_vertical {
+            if scoped_owner_has_focus(Some(candidate.owner), focused_scoped_owner) {
+                Some(candidate.entity)
             } else {
-                0.0
+                None
             }
-        }
-        ScrollAxis::Horizontal => {
-            if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
-                -SCROLL_KEYBOARD_STEP_PX
-            } else if keyboard_input.just_pressed(KeyCode::ArrowRight) {
-                SCROLL_KEYBOARD_STEP_PX
+        } else if let Some(candidate) = keyboard_vertical {
+            if scoped_owner_has_focus(Some(candidate.owner), focused_scoped_owner) {
+                Some(candidate.entity)
             } else {
-                0.0
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut owner_zoom_update: Option<(Entity, f32)> = None;
+        if let Some(target_entity) = zoom_target {
+            if let Ok((_, root, _, _, _, _, mut focus_lock, mut zoom_state, zoom_config, _, _)) =
+                root_query.get_mut(target_entity)
+            {
+                if root.axis == ScrollAxis::Vertical && zoom_config.enabled {
+                    let mut next_scale = zoom_state.scale;
+                    if zoom_in_requested {
+                        next_scale += zoom_config.keyboard_step;
+                    }
+                    if zoom_out_requested {
+                        next_scale -= zoom_config.keyboard_step;
+                    }
+                    if pinch_zoom_requested {
+                        next_scale *=
+                            (1.0 + pinch_delta * zoom_config.pinch_sensitivity).max(0.1);
+                    }
+
+                    let min_scale = zoom_config.min_scale.min(zoom_config.max_scale);
+                    let max_scale = zoom_config.max_scale.max(min_scale + SCROLL_ZOOM_EPSILON);
+                    let clamped_scale = next_scale.clamp(min_scale, max_scale);
+                    if (clamped_scale - zoom_state.scale).abs() > SCROLL_ZOOM_EPSILON {
+                        zoom_state.scale = clamped_scale;
+                        focus_lock.manual_override = true;
+                        owner_zoom_update = Some((root.owner, clamped_scale));
+                    }
+                }
             }
         }
-    };
 
-    if keyboard_input.just_pressed(KeyCode::Home) {
-        state.offset_px = 0.0;
-    } else if keyboard_input.just_pressed(KeyCode::End) {
-        state.offset_px = state.max_offset;
-    } else if key_step.abs() > SCROLL_EPSILON {
-        state.offset_px += key_step;
+        if let Some((owner, clamped_scale)) = owner_zoom_update {
+            for (_, root, _, _, _, _, mut focus_lock, mut zoom_state, zoom_config, _, _) in
+                root_query.iter_mut()
+            {
+                if !zoom_config.enabled {
+                    continue;
+                }
+                if root.owner != owner {
+                    continue;
+                }
+                if (zoom_state.scale - clamped_scale).abs() <= SCROLL_ZOOM_EPSILON {
+                    continue;
+                }
+                zoom_state.scale = clamped_scale;
+                focus_lock.manual_override = true;
+            }
+        }
     }
-
-    clamp_scroll_state(&mut state);
 }
 
 pub(super) fn sync_scroll_content_offsets(
     mut commands: Commands,
-    root_query: Query<(Entity, &ScrollableRoot, &ScrollState), With<ScrollableRoot>>,
+    root_query: Query<(Entity, &ScrollableRoot, &ScrollState, &ScrollZoomState), With<ScrollableRoot>>,
     mut content_query: Query<
         (
             Entity,
             &ChildOf,
             &mut Transform,
             Option<&ScrollableContentBaseTranslation>,
+            Option<&ScrollableContentBaseScale>,
         ),
         With<ScrollableContent>,
     >,
@@ -325,13 +548,15 @@ pub(super) fn sync_scroll_content_offsets(
     // - root scroll state is read-only (`root_query`).
     // - content transform mutations are isolated to entities marked
     //   `ScrollableContent`.
-    let root_state: HashMap<Entity, (ScrollAxis, f32)> = root_query
+    let root_state: HashMap<Entity, (ScrollAxis, f32, f32)> = root_query
         .iter()
-        .map(|(entity, root, state)| (entity, (root.axis, state.offset_px)))
+        .map(|(entity, root, state, zoom)| (entity, (root.axis, state.offset_px, zoom.scale)))
         .collect();
 
-    for (content_entity, parent, mut transform, base_translation) in content_query.iter_mut() {
-        let Some((axis, offset)) = root_state.get(&parent.parent()).copied() else {
+    for (content_entity, parent, mut transform, base_translation, base_scale) in
+        content_query.iter_mut()
+    {
+        let Some((axis, offset, zoom_scale)) = root_state.get(&parent.parent()).copied() else {
             continue;
         };
         let base = if let Some(base) = base_translation {
@@ -342,6 +567,15 @@ pub(super) fn sync_scroll_content_offsets(
                 .entity(content_entity)
                 .insert(ScrollableContentBaseTranslation(base));
             base
+        };
+        let base_scale = if let Some(base_scale) = base_scale {
+            base_scale.0
+        } else {
+            let base_scale = transform.scale;
+            commands
+                .entity(content_entity)
+                .insert(ScrollableContentBaseScale(base_scale));
+            base_scale
         };
 
         match axis {
@@ -357,5 +591,10 @@ pub(super) fn sync_scroll_content_offsets(
             }
         }
         transform.translation.z = base.z;
+        transform.scale = Vec3::new(
+            base_scale.x * zoom_scale,
+            base_scale.y * zoom_scale,
+            base_scale.z,
+        );
     }
 }

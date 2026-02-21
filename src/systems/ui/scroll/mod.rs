@@ -46,6 +46,11 @@ const SCROLL_WHEEL_LINE_PX: f32 = 36.0;
 const SCROLL_KEYBOARD_STEP_PX: f32 = 40.0;
 const SCROLL_PAGE_FACTOR: f32 = 0.92;
 const SCROLL_EPSILON: f32 = 0.001;
+const SCROLL_ZOOM_EPSILON: f32 = 0.0001;
+const SCROLL_ZOOM_DEFAULT_MIN: f32 = 0.6;
+const SCROLL_ZOOM_DEFAULT_MAX: f32 = 2.6;
+const SCROLL_ZOOM_KEYBOARD_STEP: f32 = 0.1;
+const SCROLL_ZOOM_PINCH_SENSITIVITY: f32 = 0.5;
 const SCROLL_EDGE_ZONE_INSIDE_PX: f32 = 12.0;
 const SCROLL_EDGE_ZONE_OUTSIDE_PX: f32 = 12.0;
 const SCROLL_EDGE_AUTO_STEP_PX: f32 = 1.8;
@@ -90,6 +95,8 @@ pub enum ScrollRenderExhaustionPolicy {
 pub enum ScrollBackend {
     /// Off-screen render-to-texture backend.
     RenderToTexture,
+    /// Input/state-only backend (no off-screen render target allocation).
+    StateOnly,
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,7 +106,12 @@ pub enum ScrollAxis {
 }
 
 #[derive(Component, Clone, Copy, Debug)]
-#[require(ScrollState, ScrollFocusFollowLock)]
+#[require(
+    ScrollState,
+    ScrollFocusFollowLock,
+    ScrollZoomState,
+    ScrollZoomConfig
+)]
 pub struct ScrollableRoot {
     /// Owner entity for layer arbitration.
     pub owner: Entity,
@@ -132,10 +144,48 @@ impl ScrollableRoot {
         self
     }
 
+    pub const fn with_backend(mut self, backend: ScrollBackend) -> Self {
+        self.backend = backend;
+        self
+    }
+
     pub const fn with_edge_zones(mut self, inside_px: f32, outside_px: f32) -> Self {
         self.edge_zone_inside_px = inside_px;
         self.edge_zone_outside_px = outside_px;
         self
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+#[require(ScrollZoomState)]
+pub struct ScrollZoomConfig {
+    pub enabled: bool,
+    pub min_scale: f32,
+    pub max_scale: f32,
+    pub keyboard_step: f32,
+    pub pinch_sensitivity: f32,
+}
+
+impl Default for ScrollZoomConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            min_scale: SCROLL_ZOOM_DEFAULT_MIN,
+            max_scale: SCROLL_ZOOM_DEFAULT_MAX,
+            keyboard_step: SCROLL_ZOOM_KEYBOARD_STEP,
+            pinch_sensitivity: SCROLL_ZOOM_PINCH_SENSITIVITY,
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+pub struct ScrollZoomState {
+    pub scale: f32,
+}
+
+impl Default for ScrollZoomState {
+    fn default() -> Self {
+        Self { scale: 1.0 }
     }
 }
 
@@ -282,6 +332,9 @@ pub struct ScrollableContent;
 #[derive(Component, Clone, Copy, Debug)]
 struct ScrollableContentBaseTranslation(Vec3);
 
+#[derive(Component, Clone, Copy, Debug)]
+struct ScrollableContentBaseScale(Vec3);
+
 #[derive(Component, Clone, Debug)]
 struct ScrollableRenderTarget {
     image: Handle<Image>,
@@ -308,6 +361,7 @@ struct ScrollLayerManaged;
 #[component(on_insert = ScrollBar::on_insert)]
 pub struct ScrollBar {
     pub scrollable_root: Entity,
+    pub parent_override: Option<Entity>,
     pub width: f32,
     pub margin: f32,
     pub min_thumb_extent: f32,
@@ -319,6 +373,7 @@ impl ScrollBar {
     pub const fn new(scrollable_root: Entity) -> Self {
         Self {
             scrollable_root,
+            parent_override: None,
             width: 12.0,
             margin: 6.0,
             min_thumb_extent: 22.0,
@@ -331,15 +386,16 @@ impl ScrollBar {
         let Some(scrollbar) = world.entity(entity).get::<ScrollBar>().copied() else {
             return;
         };
+        let parent_target = scrollbar.parent_override.unwrap_or(scrollbar.scrollable_root);
 
         let parent_mismatch = world
             .entity(entity)
             .get::<ChildOf>()
-            .is_none_or(|parent| parent.parent() != scrollbar.scrollable_root);
+            .is_none_or(|parent| parent.parent() != parent_target);
         if parent_mismatch {
             world
                 .commands()
-                .entity(scrollbar.scrollable_root)
+                .entity(parent_target)
                 .add_child(entity);
         }
 

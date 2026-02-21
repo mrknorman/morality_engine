@@ -107,9 +107,10 @@ pub(super) fn ensure_scrollbar_parts(
     // - track/thumb presence checks are read-only marker queries used to validate
     //   `ScrollBarParts` handles before reseeding.
     for (scrollbar_entity, scrollbar, parent, parts) in scrollbar_query.iter() {
-        if parent.is_none_or(|parent| parent.parent() != scrollbar.scrollable_root) {
+        let parent_target = scrollbar.parent_override.unwrap_or(scrollbar.scrollable_root);
+        if parent.is_none_or(|parent| parent.parent() != parent_target) {
             commands
-                .entity(scrollbar.scrollable_root)
+                .entity(parent_target)
                 .add_child(scrollbar_entity);
         }
 

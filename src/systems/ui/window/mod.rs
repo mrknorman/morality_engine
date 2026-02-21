@@ -17,8 +17,12 @@ use crate::{
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
         interaction::{
             ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
-            InputAction, InteractionSystem, InteractionVisualPalette, InteractionVisualState,
-            SelectableScopeOwner,
+            InputAction, InteractionGate, InteractionSystem, InteractionVisualPalette,
+            InteractionVisualState, SelectableScopeOwner,
+        },
+        ui::scroll::{
+            ScrollAxis, ScrollBackend, ScrollBar, ScrollZoomConfig, ScrollableContent,
+            ScrollableContentExtent, ScrollableRoot, ScrollState, ScrollableViewport,
         },
     },
 };
@@ -54,6 +58,9 @@ impl Plugin for WindowPlugin {
                 Update,
                 (
                     Window::resolve_constraints,
+                    Window::route_children_into_scroll_content,
+                    Window::sync_scroll_runtime_geometry,
+                    Window::sync_horizontal_proxy_offset,
                     Window::sync_root_drag_bounds,
                     Window::clamp_to_viewport,
                 )
@@ -199,6 +206,22 @@ impl WindowOverflowPolicy {
 pub struct WindowContentRect {
     pub inner_size: Vec2,
 }
+
+#[derive(Component, Clone, Copy, Debug)]
+struct WindowScrollRuntime {
+    vertical_root: Entity,
+    horizontal_root: Entity,
+    horizontal_proxy: Entity,
+    content_root: Entity,
+    vertical_bar: Entity,
+    horizontal_bar: Entity,
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+struct WindowScrollManaged;
+
+#[derive(Component, Clone, Copy, Debug)]
+struct WindowScrollHorizontalProxy;
 
 #[derive(Component, Default)]
 struct WindowParts {
@@ -795,6 +818,90 @@ impl Window {
         }
     }
 
+    fn route_children_into_scroll_content(
+        mut commands: Commands,
+        windows: Query<(Entity, &WindowScrollRuntime, Option<&Children>)>,
+        internal_children: Query<
+            (),
+            Or<(
+                With<WindowBody>,
+                With<WindowHeader>,
+                With<WindowCloseButton>,
+                With<WindowScrollManaged>,
+            )>,
+        >,
+    ) {
+        for (_window_entity, runtime, children) in windows.iter() {
+            let Some(children) = children else {
+                continue;
+            };
+            for child in children.iter() {
+                if internal_children.get(child).is_ok() {
+                    continue;
+                }
+                // Keep window chrome fixed and route user content through the
+                // nested scroll content root by default.
+                commands.entity(runtime.content_root).add_child(child);
+            }
+        }
+    }
+
+    fn sync_scroll_runtime_geometry(
+        windows: Query<(
+            &Window,
+            &WindowScrollRuntime,
+            Option<&WindowContentRect>,
+            Option<&WindowContentMetrics>,
+        )>,
+        mut root_query: Query<(&mut ScrollableViewport, &mut ScrollableContentExtent), With<ScrollableRoot>>,
+        mut bar_query: Query<&mut ScrollBar>,
+    ) {
+        for (window, runtime, content_rect, metrics) in windows.iter() {
+            let inner_size = content_rect
+                .map(|content_rect| content_rect.inner_size)
+                .unwrap_or(window.boundary.dimensions)
+                .max(Vec2::splat(1.0));
+            let preferred_inner = metrics
+                .map(|metrics| metrics.preferred_inner.max(Vec2::ZERO))
+                .unwrap_or(inner_size)
+                .max(inner_size);
+
+            if let Ok((mut viewport, mut extent)) = root_query.get_mut(runtime.vertical_root) {
+                viewport.size = inner_size;
+                extent.0 = preferred_inner.y;
+            }
+            if let Ok((mut viewport, mut extent)) = root_query.get_mut(runtime.horizontal_root) {
+                viewport.size = inner_size;
+                extent.0 = preferred_inner.x;
+            }
+
+            if let Ok(mut bar) = bar_query.get_mut(runtime.vertical_bar) {
+                bar.track_color = window.boundary.color;
+                bar.thumb_color = window.boundary.color;
+            }
+            if let Ok(mut bar) = bar_query.get_mut(runtime.horizontal_bar) {
+                bar.track_color = window.boundary.color;
+                bar.thumb_color = window.boundary.color;
+            }
+        }
+    }
+
+    fn sync_horizontal_proxy_offset(
+        windows: Query<&WindowScrollRuntime>,
+        horizontal_state_query: Query<&ScrollState, With<ScrollableRoot>>,
+        mut proxy_query: Query<&mut Transform, With<WindowScrollHorizontalProxy>>,
+    ) {
+        for runtime in windows.iter() {
+            let Ok(horizontal_state) = horizontal_state_query.get(runtime.horizontal_root) else {
+                continue;
+            };
+            let Ok(mut proxy_transform) = proxy_query.get_mut(runtime.horizontal_proxy) else {
+                continue;
+            };
+            proxy_transform.translation.x = -horizontal_state.offset_px;
+        }
+    }
+
     fn resolve_constraints(
         mut commands: Commands,
         mut windows: ParamSet<(
@@ -1199,6 +1306,146 @@ impl Window {
         close_entity
     }
 
+    fn spawn_scroll_runtime(
+        commands: &mut Commands,
+        window_entity: Entity,
+        owner_entity: Entity,
+        inner_size: Vec2,
+        color: Color,
+        gate: Option<InteractionGate>,
+    ) -> WindowScrollRuntime {
+        let mut vertical_root = None;
+        let mut vertical_content = None;
+        let mut horizontal_root = None;
+        let mut horizontal_proxy = None;
+        let mut content_root = None;
+        let mut vertical_bar = None;
+        let mut horizontal_bar = None;
+
+        commands.entity(window_entity).with_children(|parent| {
+            let inner_size = inner_size.max(Vec2::splat(1.0));
+            let v_root = parent
+                .spawn((
+                    Name::new("window_scroll_vertical_root"),
+                    WindowScrollManaged,
+                    ScrollableRoot::new(owner_entity, ScrollAxis::Vertical),
+                    ScrollZoomConfig {
+                        enabled: true,
+                        ..default()
+                    },
+                    ScrollableViewport::new(inner_size),
+                    ScrollableContentExtent(inner_size.y),
+                    Transform::from_xyz(0.0, 0.0, 0.05),
+                ))
+                .id();
+            vertical_root = Some(v_root);
+            if let Some(gate) = gate {
+                parent.commands().entity(v_root).insert(gate);
+            }
+
+            let v_content = parent
+                .spawn((
+                    Name::new("window_scroll_vertical_content"),
+                    WindowScrollManaged,
+                    ScrollableContent,
+                    Transform::default(),
+                ))
+                .id();
+            vertical_content = Some(v_content);
+
+            let h_root = parent
+                .spawn((
+                    Name::new("window_scroll_horizontal_root"),
+                    WindowScrollManaged,
+                    ScrollableRoot::new(owner_entity, ScrollAxis::Horizontal)
+                        .with_backend(ScrollBackend::StateOnly),
+                    ScrollZoomConfig {
+                        enabled: true,
+                        ..default()
+                    },
+                    ScrollableViewport::new(inner_size),
+                    ScrollableContentExtent(inner_size.x),
+                    Transform::default(),
+                ))
+                .id();
+            horizontal_root = Some(h_root);
+            if let Some(gate) = gate {
+                parent.commands().entity(h_root).insert(gate);
+            }
+
+            let h_proxy = parent
+                .spawn((
+                    Name::new("window_scroll_horizontal_proxy"),
+                    WindowScrollManaged,
+                    WindowScrollHorizontalProxy,
+                    Transform::default(),
+                ))
+                .id();
+            horizontal_proxy = Some(h_proxy);
+
+            let content = parent
+                .spawn((
+                    Name::new("window_scroll_content_root"),
+                    WindowScrollManaged,
+                    Transform::default(),
+                ))
+                .id();
+            content_root = Some(content);
+
+            let mut v_bar = ScrollBar::new(v_root);
+            v_bar.width = 10.0;
+            v_bar.margin = 4.0;
+            v_bar.track_color = color;
+            v_bar.thumb_color = color;
+            let v_bar_entity = parent
+                .spawn((
+                    Name::new("window_scroll_vertical_bar"),
+                    WindowScrollManaged,
+                    v_bar,
+                    Transform::from_xyz(0.0, 0.0, 0.2),
+                ))
+                .id();
+            vertical_bar = Some(v_bar_entity);
+
+            let mut h_bar = ScrollBar::new(h_root);
+            h_bar.parent_override = Some(v_root);
+            h_bar.width = 10.0;
+            h_bar.margin = 4.0;
+            h_bar.track_color = color;
+            h_bar.thumb_color = color;
+            let h_bar_entity = parent
+                .spawn((
+                    Name::new("window_scroll_horizontal_bar"),
+                    WindowScrollManaged,
+                    h_bar,
+                    Transform::from_xyz(0.0, 0.0, 0.2),
+                ))
+                .id();
+            horizontal_bar = Some(h_bar_entity);
+        });
+
+        let vertical_root = vertical_root.expect("window vertical scroll root");
+        let vertical_content = vertical_content.expect("window vertical scroll content");
+        let horizontal_root = horizontal_root.expect("window horizontal scroll root");
+        let horizontal_proxy = horizontal_proxy.expect("window horizontal scroll proxy");
+        let content_root = content_root.expect("window scroll content root");
+        let vertical_bar = vertical_bar.expect("window vertical scroll bar");
+        let horizontal_bar = horizontal_bar.expect("window horizontal scroll bar");
+
+        commands.entity(vertical_root).add_child(vertical_content);
+        commands.entity(vertical_content).add_child(horizontal_proxy);
+        commands.entity(horizontal_proxy).add_child(content_root);
+
+        WindowScrollRuntime {
+            vertical_root,
+            horizontal_root,
+            horizontal_proxy,
+            content_root,
+            vertical_bar,
+            horizontal_bar,
+        }
+    }
+
     /// Propagate any change on the Window to **all** its descendants.
     fn update(
         mut commands: Commands,
@@ -1334,7 +1581,7 @@ impl Window {
     }
 
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let (boundary, header_h, close_btn, root_entity) = {
+        let (boundary, header_h, close_btn, root_entity, gate) = {
             let mut entity_mut = world.entity_mut(entity);
             let mut w = entity_mut.get_mut::<Window>().unwrap();
             // ensure root is self if not set
@@ -1346,8 +1593,22 @@ impl Window {
                 w.header_height,
                 w.has_close_button,
                 w.root_entity,
+                entity_mut.get::<InteractionGate>().copied(),
             )
         };
+
+        if !world.entity(entity).contains::<WindowOverflowPolicy>() {
+            world
+                .commands()
+                .entity(entity)
+                .insert(WindowOverflowPolicy::AllowOverflow);
+        }
+        if !world.entity(entity).contains::<WindowContentMetrics>() {
+            world
+                .commands()
+                .entity(entity)
+                .insert(WindowContentMetrics::from_min_inner(boundary.dimensions));
+        }
 
         if let Some(root_entity) = root_entity {
             world
@@ -1398,6 +1659,19 @@ impl Window {
             close_button: close_button_entity,
             ..default()
         });
+
+        if !world.entity(entity).contains::<WindowScrollRuntime>() {
+            let owner_entity = root_entity.unwrap_or(entity);
+            let runtime = Self::spawn_scroll_runtime(
+                &mut world.commands(),
+                entity,
+                owner_entity,
+                boundary.dimensions,
+                boundary.color,
+                gate,
+            );
+            world.commands().entity(entity).insert(runtime);
+        }
 
         if let Some(root_entity) = root_entity {
             if let Some(mut draggable) = world.entity_mut(root_entity).get_mut::<Draggable>() {
@@ -1596,6 +1870,66 @@ mod tests {
                 .any(|clickable| clickable.actions.contains(&UiWindowActions::CloseWindow))
         };
         assert!(has_close_clickable);
+    }
+
+    #[test]
+    fn ui_window_on_insert_seeds_default_scroll_runtime() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<bevy::audio::AudioSource>();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<ColorMaterial>>();
+
+        let window_entity = app
+            .world_mut()
+            .spawn(UiWindow::new(
+                None,
+                HollowRectangle {
+                    dimensions: Vec2::new(180.0, 120.0),
+                    ..default()
+                },
+                20.0,
+                true,
+                None,
+            ))
+            .id();
+
+        app.update();
+
+        let overflow_policy = app
+            .world()
+            .get::<UiWindowOverflowPolicy>(window_entity)
+            .copied()
+            .expect("window overflow policy");
+        assert_eq!(overflow_policy, UiWindowOverflowPolicy::AllowOverflow);
+        assert!(app
+            .world()
+            .get::<UiWindowContentMetrics>(window_entity)
+            .is_some());
+
+        let runtime = app
+            .world()
+            .get::<WindowScrollRuntime>(window_entity)
+            .copied()
+            .expect("window scroll runtime");
+        assert!(app.world().entity(runtime.vertical_root).contains::<ScrollableRoot>());
+        assert!(app
+            .world()
+            .entity(runtime.horizontal_root)
+            .contains::<ScrollableRoot>());
+        assert!(app
+            .world()
+            .entity(runtime.horizontal_proxy)
+            .contains::<WindowScrollHorizontalProxy>());
+        assert!(app
+            .world()
+            .entity(runtime.content_root)
+            .contains::<WindowScrollManaged>());
+        assert!(app.world().entity(runtime.vertical_bar).contains::<ScrollBar>());
+        assert!(app
+            .world()
+            .entity(runtime.horizontal_bar)
+            .contains::<ScrollBar>());
     }
 
 }

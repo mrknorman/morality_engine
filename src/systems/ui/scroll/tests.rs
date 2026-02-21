@@ -2,6 +2,7 @@ use bevy::{
     asset::Assets,
     audio::AudioPlugin as BevyAudioPlugin,
     camera::visibility::RenderLayers,
+    input::gestures::PinchGesture,
     input::mouse::{MouseScrollUnit, MouseWheel},
     prelude::*,
     render::render_resource::TextureFormat,
@@ -17,8 +18,9 @@ use crate::{
 use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
     ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
-    ScrollFocusFollowLock, ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollableContent,
-    ScrollableContentCamera, ScrollableContentExtent, ScrollableListAdapter,
+    ScrollFocusFollowLock, ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollZoomConfig,
+    ScrollZoomState,
+    ScrollableContent, ScrollableContentCamera, ScrollableContentExtent, ScrollableListAdapter,
     ScrollableRenderTarget, ScrollableRoot, ScrollableSurface, ScrollableViewport,
 };
 
@@ -26,6 +28,7 @@ fn make_scroll_test_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_message::<MouseWheel>();
+    app.add_message::<PinchGesture>();
     app.init_resource::<ButtonInput<KeyCode>>();
     app.init_resource::<ButtonInput<MouseButton>>();
     app.init_resource::<CustomCursor>();
@@ -316,6 +319,10 @@ fn write_wheel(app: &mut App, y: f32) {
     });
 }
 
+fn write_pinch(app: &mut App, delta: f32) {
+    app.world_mut().write_message(PinchGesture(delta));
+}
+
 fn set_root_global_translation(app: &mut App, root: Entity, translation: Vec3) {
     app.world_mut()
         .entity_mut(root)
@@ -601,6 +608,124 @@ fn keyboard_scroll_works_without_cursor_position() {
 
     let state = app.world().get::<ScrollState>(root).expect("scroll state");
     assert!(state.offset_px > 0.0);
+}
+
+#[test]
+fn ctrl_plus_zooms_focused_vertical_root() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut()
+        .entity_mut(root)
+        .insert(ScrollZoomConfig {
+            enabled: true,
+            ..default()
+        });
+    app.world_mut().resource_mut::<CustomCursor>().position = None;
+
+    let before = app
+        .world()
+        .get::<ScrollZoomState>(root)
+        .expect("zoom state")
+        .scale;
+    {
+        let mut keyboard = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keyboard.press(KeyCode::ControlLeft);
+        keyboard.press(KeyCode::Equal);
+    }
+    app.update();
+    let after = app
+        .world()
+        .get::<ScrollZoomState>(root)
+        .expect("zoom state")
+        .scale;
+    assert!(after > before);
+}
+
+#[test]
+fn zoom_is_disabled_by_default_for_generic_scroll_roots() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut().resource_mut::<CustomCursor>().position = None;
+
+    let before = app
+        .world()
+        .get::<ScrollZoomState>(root)
+        .expect("zoom state")
+        .scale;
+    {
+        let mut keyboard = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keyboard.press(KeyCode::ControlLeft);
+        keyboard.press(KeyCode::Equal);
+    }
+    app.update();
+    let after = app
+        .world()
+        .get::<ScrollZoomState>(root)
+        .expect("zoom state")
+        .scale;
+    assert!((after - before).abs() < 0.0001);
+}
+
+#[test]
+fn pinch_zoom_uses_hovered_root() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut()
+        .entity_mut(root)
+        .insert(ScrollZoomConfig {
+            enabled: true,
+            ..default()
+        });
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+
+    let before = app
+        .world()
+        .get::<ScrollZoomState>(root)
+        .expect("zoom state")
+        .scale;
+    write_pinch(&mut app, 0.5);
+    app.update();
+    let after = app
+        .world()
+        .get::<ScrollZoomState>(root)
+        .expect("zoom state")
+        .scale;
+    assert!(after > before);
+}
+
+#[test]
+fn zoom_scale_is_applied_to_scrollable_content_transform() {
+    let mut app = make_scroll_test_app();
+    let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut()
+        .entity_mut(root)
+        .insert(ScrollZoomState { scale: 1.5 });
+
+    let content = app
+        .world_mut()
+        .spawn((
+            ScrollableContent,
+            Transform::from_scale(Vec3::new(2.0, 2.0, 1.0)),
+        ))
+        .id();
+    app.world_mut().entity_mut(root).add_child(content);
+
+    app.update();
+
+    let transform = app
+        .world()
+        .get::<Transform>(content)
+        .expect("content transform");
+    assert!((transform.scale.x - 3.0).abs() < 0.001);
+    assert!((transform.scale.y - 3.0).abs() < 0.001);
 }
 
 #[test]
