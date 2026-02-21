@@ -394,6 +394,73 @@ where
         }
     }
 }
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SelectableScopeOwner {
+    pub owner: Entity,
+}
+
+impl SelectableScopeOwner {
+    pub const fn new(owner: Entity) -> Self {
+        Self { owner }
+    }
+}
+
+/// Resolves the currently focused scope owner from a stream of
+/// `(owner_entity, owner_z)` candidates.
+///
+/// Input systems that are scope-aware should share this resolver so focus
+/// arbitration behavior stays consistent across primitives.
+pub fn resolve_focused_scope_owner<I>(candidates: I) -> Option<Entity>
+where
+    I: IntoIterator<Item = (Entity, f32)>,
+{
+    let mut focused: Option<(Entity, f32)> = None;
+    for (owner, z) in candidates {
+        let replace = match focused {
+            None => true,
+            Some((current_owner, current_z)) => {
+                z > current_z || (z == current_z && owner.index() > current_owner.index())
+            }
+        };
+        if replace {
+            focused = Some((owner, z));
+        }
+    }
+    focused.map(|(owner, _)| owner)
+}
+
+/// Returns whether `scope_owner` is allowed to receive scoped input based on
+/// `focused_owner`. Unscoped inputs (`None`) are always allowed.
+pub fn scoped_owner_has_focus(scope_owner: Option<Entity>, focused_owner: Option<Entity>) -> bool {
+    scope_owner.is_none_or(|scope_owner| {
+        focused_owner.is_none_or(|focused_owner| focused_owner == scope_owner)
+    })
+}
+
+/// Resolves the globally focused scope owner from registered scope-owner
+/// components. This is owner-aware (capture/gate checks are evaluated against
+/// each candidate owner).
+pub fn focused_scope_owner_from_registry(
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    scope_owner_query: &Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
+    owner_transform_query: &Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
+) -> Option<Entity> {
+    resolve_focused_scope_owner(scope_owner_query.iter().filter_map(|(gate, scope_owner)| {
+        if !interaction_gate_allows_for_owner(gate, pause_state, capture_query, scope_owner.owner) {
+            return None;
+        }
+        let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
+        else {
+            return None;
+        };
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            return None;
+        }
+        Some((scope_owner.owner, owner_global.translation().z))
+    }))
+}
 pub struct KeyMapping<T>
 where
     T: Copy + Send + Sync,
@@ -1230,13 +1297,31 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<(), With<InteractionCapture>>,
+    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
     scroll_edge_query: Query<(
         &ScrollableRoot,
         &ScrollableViewport,
         &GlobalTransform,
         Option<&InheritedVisibility>,
     )>,
-    mut menus: Query<(Entity, &mut SelectableMenu, Option<&InteractionGate>)>,
+    mut menus: ParamSet<(
+        Query<
+            (
+                Entity,
+                &SelectableMenu,
+                Option<&InteractionGate>,
+                Option<&SelectableScopeOwner>,
+            ),
+        >,
+        Query<
+            (
+                Entity,
+                &mut SelectableMenu,
+                Option<&InteractionGate>,
+                Option<&SelectableScopeOwner>,
+            ),
+        >,
+    )>,
     mut menu_pointer_state: Local<HashMap<Entity, (bool, Option<Vec2>)>>,
     mut selectable_queries: ParamSet<(
         Query<
@@ -1370,14 +1455,32 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             });
     }
 
+    let focused_scoped_owner = resolve_focused_scope_owner(menus.p0().iter().filter_map(
+        |(_, _, gate, scope_owner)| {
+            let scope_owner = scope_owner?;
+            if !interaction_gate_allows(gate, interaction_captured) {
+                return None;
+            }
+            let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
+            else {
+                return None;
+            };
+            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                return None;
+            }
+            Some((scope_owner.owner, owner_global.translation().z))
+        },
+    ));
+
     let mut selection_state_by_menu: HashMap<Entity, SelectionState> = HashMap::new();
     let mut ordered_menus: Vec<Entity> = candidates_by_menu.keys().copied().collect();
     ordered_menus.sort_by_key(|entity| entity.index());
+    let mut writable_menus = menus.p1();
     for menu_entity in ordered_menus {
         let Some(candidates) = candidates_by_menu.get(&menu_entity) else {
             continue;
         };
-        let Ok((_, mut menu, gate)) = menus.get_mut(menu_entity) else {
+        let Ok((_, mut menu, gate, scope_owner)) = writable_menus.get_mut(menu_entity) else {
             continue;
         };
 
@@ -1396,6 +1499,9 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         if indices.is_empty() {
             continue;
         }
+
+        let keyboard_allowed =
+            scoped_owner_has_focus(scope_owner.map(|scope_owner| scope_owner.owner), focused_scoped_owner);
 
         if !indices.contains(&menu.selected_index) {
             menu.selected_index = indices[0];
@@ -1416,20 +1522,25 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         if (mouse_moved || mouse_reengaged) && pointer_over_menu {
             pointer_state.0 = false;
         }
+        if !keyboard_allowed {
+            pointer_state.0 = false;
+        }
         pointer_state.1 = cursor.position;
 
-        let up_pressed = menu
+        let up_pressed = keyboard_allowed
+            && menu
             .up_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
-        let down_pressed = menu
+        let down_pressed = keyboard_allowed
+            && menu
             .down_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
-        let raw_up_pressed = keyboard_input.just_pressed(KeyCode::ArrowUp);
-        let raw_down_pressed = keyboard_input.just_pressed(KeyCode::ArrowDown);
-        let left_pressed = keyboard_input.just_pressed(KeyCode::ArrowLeft);
-        let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
+        let raw_up_pressed = keyboard_allowed && keyboard_input.just_pressed(KeyCode::ArrowUp);
+        let raw_down_pressed = keyboard_allowed && keyboard_input.just_pressed(KeyCode::ArrowDown);
+        let left_pressed = keyboard_allowed && keyboard_input.just_pressed(KeyCode::ArrowLeft);
+        let right_pressed = keyboard_allowed && keyboard_input.just_pressed(KeyCode::ArrowRight);
 
         if up_pressed && !down_pressed {
             menu.selected_index = move_selection(&indices, menu.selected_index, false, menu.wrap);
@@ -1458,7 +1569,8 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             }
         }
 
-        let activate_pressed = menu
+        let activate_pressed = keyboard_allowed
+            && menu
             .activate_keys
             .iter()
             .any(|&key| keyboard_input.just_pressed(key));
@@ -2206,9 +2318,24 @@ fn is_point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
 
 pub fn option_cycler_input_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    menu_query: Query<&SelectableMenu>,
+    menu_query: Query<(&SelectableMenu, Option<&SelectableScopeOwner>)>,
+    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
     mut query: Query<(&Selectable, &mut OptionCycler)>,
 ) {
+    let focused_scoped_owner = resolve_focused_scope_owner(menu_query.iter().filter_map(
+        |(_, scope_owner)| {
+            let scope_owner = scope_owner?;
+            let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
+            else {
+                return None;
+            };
+            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                return None;
+            }
+            Some((scope_owner.owner, owner_global.translation().z))
+        },
+    ));
+
     let left_pressed = keyboard_input.just_pressed(KeyCode::ArrowLeft);
     let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
 
@@ -2216,9 +2343,15 @@ pub fn option_cycler_input_system(
         cycler.left_triggered = false;
         cycler.right_triggered = false;
 
-        let Ok(menu) = menu_query.get(selectable.menu_entity) else {
+        let Ok((menu, scope_owner)) = menu_query.get(selectable.menu_entity) else {
             continue;
         };
+        if !scoped_owner_has_focus(
+            scope_owner.map(|scope_owner| scope_owner.owner),
+            focused_scoped_owner,
+        ) {
+            continue;
+        }
         if menu.selected_index != selectable.index {
             continue;
         }

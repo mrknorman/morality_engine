@@ -10,8 +10,9 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_gate_allows_for_owner, is_cursor_within_region, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate,
+            focused_scope_owner_from_registry, interaction_gate_allows_for_owner,
+            is_cursor_within_region, resolve_focused_scope_owner, scoped_owner_has_focus,
+            InteractionCapture, InteractionCaptureOwner, InteractionGate, SelectableScopeOwner,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -82,6 +83,8 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         Option<&Visibility>,
         Option<&InteractionGate>,
     )>,
+    scope_owner_query: Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
+    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
     cursor: Res<CustomCursor>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut wheel_events: MessageReader<MouseWheel>,
@@ -130,9 +133,10 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         || keyboard_input.just_pressed(KeyCode::End);
     let cursor_position = cursor.position;
 
-    let mut hovered_target: Option<(Entity, f32, u64)> = None;
-    let mut edge_target: Option<(Entity, f32, u64, f32)> = None;
-    let mut keyboard_target: Option<(Entity, f32, u64)> = None;
+    let mut scoped_owner_candidates: Vec<(Entity, f32)> = Vec::new();
+    let mut hovered_target: Option<(Entity, Entity, f32, u64)> = None;
+    let mut edge_target: Option<(Entity, Entity, f32, u64, f32)> = None;
+    let mut keyboard_target: Option<(Entity, Entity, f32, u64)> = None;
     for (entity, root, viewport, transform, global_transform, _, _, gate, inherited_visibility) in
         root_query.iter_mut()
     {
@@ -150,13 +154,16 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             continue;
         }
 
-        let keyboard_candidate = (entity, global_transform.translation().z, entity.to_bits());
+        let z = global_transform.translation().z;
+        scoped_owner_candidates.push((root.owner, z));
+
+        let keyboard_candidate = (entity, root.owner, z, entity.to_bits());
         match keyboard_target {
             None => keyboard_target = Some(keyboard_candidate),
-            Some((_, current_z, current_rank))
-                if keyboard_candidate.1 > current_z
-                    || (keyboard_candidate.1 == current_z
-                        && keyboard_candidate.2 > current_rank) =>
+            Some((_, _, current_z, current_rank))
+                if keyboard_candidate.2 > current_z
+                    || (keyboard_candidate.2 == current_z
+                        && keyboard_candidate.3 > current_rank) =>
             {
                 keyboard_target = Some(keyboard_candidate);
             }
@@ -184,15 +191,16 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             ) {
                 let candidate = (
                     entity,
-                    global_transform.translation().z,
+                    root.owner,
+                    z,
                     entity.to_bits(),
                     edge_delta,
                 );
                 match edge_target {
                     None => edge_target = Some(candidate),
-                    Some((_, current_z, current_rank, _))
-                        if candidate.1 > current_z
-                            || (candidate.1 == current_z && candidate.2 > current_rank) =>
+                    Some((_, _, current_z, current_rank, _))
+                        if candidate.2 > current_z
+                            || (candidate.2 == current_z && candidate.3 > current_rank) =>
                     {
                         edge_target = Some(candidate);
                     }
@@ -202,12 +210,12 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             continue;
         }
 
-        let candidate = (entity, global_transform.translation().z, entity.to_bits());
+        let candidate = (entity, root.owner, z, entity.to_bits());
         match hovered_target {
             None => hovered_target = Some(candidate),
-            Some((_, current_z, current_rank))
-                if candidate.1 > current_z
-                    || (candidate.1 == current_z && candidate.2 > current_rank) =>
+            Some((_, _, current_z, current_rank))
+                if candidate.2 > current_z
+                    || (candidate.2 == current_z && candidate.3 > current_rank) =>
             {
                 hovered_target = Some(candidate);
             }
@@ -215,18 +223,28 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
     }
 
+    let focused_scoped_owner =
+        focused_scope_owner_from_registry(pause_state, &capture_query, &scope_owner_query, &owner_transform_query)
+            .or_else(|| resolve_focused_scope_owner(scoped_owner_candidates));
+
     let mut target_entity = None;
     let mut edge_delta = 0.0;
     let mut pointer_target_active = false;
-    if let Some((entity, _, _, resolved_edge_delta)) = hovered_target
-        .map(|(entity, z, rank)| (entity, z, rank, 0.0))
+    if let Some((entity, owner, _, _, resolved_edge_delta)) = hovered_target
+        .map(|(entity, owner, z, rank)| (entity, owner, z, rank, 0.0))
         .or(edge_target)
     {
-        target_entity = Some(entity);
-        edge_delta = resolved_edge_delta;
-        pointer_target_active = true;
+        if scoped_owner_has_focus(Some(owner), focused_scoped_owner) {
+            target_entity = Some(entity);
+            edge_delta = resolved_edge_delta;
+            pointer_target_active = true;
+        }
     } else if keyboard_navigation_requested {
-        target_entity = keyboard_target.map(|(entity, _, _)| entity);
+        if let Some((entity, owner, _, _)) = keyboard_target {
+            if scoped_owner_has_focus(Some(owner), focused_scoped_owner) {
+                target_entity = Some(entity);
+            }
+        }
     }
 
     let Some(target_entity) = target_entity else {

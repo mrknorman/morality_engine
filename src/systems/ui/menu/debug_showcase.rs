@@ -18,7 +18,7 @@ use crate::{
     systems::{
         interaction::{
             is_cursor_within_region, Clickable, Draggable, Hoverable, OptionCycler, Selectable,
-            SelectableClickActivation, SelectableMenu, SystemMenuActions,
+            SelectableClickActivation, SelectableMenu, SelectableScopeOwner, SystemMenuActions,
         },
         ui::{
             dropdown::{self, DropdownLayerState, DropdownSurface},
@@ -275,6 +275,7 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
                 .spawn((
                     Name::new("debug_menu_demo_root"),
                     DebugMenuDemoState::default(),
+                    SelectableScopeOwner::new(window_entity),
                     Transform::from_xyz(-170.0, 44.0, 0.2),
                 ))
                 .id();
@@ -366,6 +367,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                     Name::new("debug_tabs_demo_root"),
                     DebugTabsDemoRoot,
                     TabBarState::default(),
+                    SelectableScopeOwner::new(window_entity),
                     SelectableMenu::new(
                         0,
                         vec![KeyCode::ArrowLeft],
@@ -461,6 +463,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
             let owner_entity = window_parent
                 .spawn((
                     Name::new("debug_dropdown_demo_owner"),
+                    SelectableScopeOwner::new(window_entity),
                     SelectableMenu::new(
                         0,
                         vec![],
@@ -514,6 +517,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                         owner: owner_entity,
                         size: panel_size,
                     },
+                    SelectableScopeOwner::new(window_entity),
                     DropdownSurface::new(owner_entity)
                         .with_click_activation(SelectableClickActivation::HoveredOnly),
                     Sprite::from_color(Color::BLACK, panel_size),

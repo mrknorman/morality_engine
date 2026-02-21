@@ -6,8 +6,9 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_gate_allows_for_owner, Clickable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate, ScrollUiActions,
+            focused_scope_owner_from_registry, interaction_gate_allows_for_owner,
+            resolve_focused_scope_owner, scoped_owner_has_focus, Clickable, InteractionCapture,
+            InteractionCaptureOwner, InteractionGate, ScrollUiActions, SelectableScopeOwner,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -330,6 +331,8 @@ pub(super) fn handle_scrollbar_input(
         Option<&Visibility>,
         Option<&InteractionGate>,
     )>,
+    scope_owner_query: Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
+    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
     cursor: Res<CustomCursor>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     root_meta_query: Query<
@@ -338,6 +341,7 @@ pub(super) fn handle_scrollbar_input(
             &ScrollableViewport,
             Option<&InteractionGate>,
             Option<&InheritedVisibility>,
+            &GlobalTransform,
         ),
         With<ScrollableRoot>,
     >,
@@ -382,6 +386,28 @@ pub(super) fn handle_scrollbar_input(
     let pause_state = pause_state.as_ref();
     let active_layers =
         layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
+    let focused_scoped_owner =
+        focused_scope_owner_from_registry(pause_state, &capture_query, &scope_owner_query, &owner_transform_query)
+            .or_else(|| {
+                resolve_focused_scope_owner(root_meta_query.iter().filter_map(
+                    |(root, _viewport, gate, root_visibility, global_transform)| {
+                        if root_visibility.is_some_and(|visibility| !visibility.get()) {
+                            return None;
+                        }
+                        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
+                            return None;
+                        }
+                        let active_layer_kind = active_layers
+                            .get(&root.owner)
+                            .map(|active_layer| active_layer.kind)
+                            .unwrap_or(UiLayerKind::Base);
+                        if active_layer_kind != root.input_layer {
+                            return None;
+                        }
+                        Some((root.owner, global_transform.translation().z))
+                    },
+                ))
+            });
     let cursor_position = cursor.position;
     let mouse_down = mouse_input.pressed(MouseButton::Left);
 
@@ -394,7 +420,7 @@ pub(super) fn handle_scrollbar_input(
     for (_scrollbar_entity, scrollbar, parts, mut drag_state, scrollbar_visibility) in
         scrollbar_query.iter_mut()
     {
-        let Ok((root, _viewport, gate, root_visibility)) =
+        let Ok((root, _viewport, gate, root_visibility, _)) =
             root_meta_query.get(scrollbar.scrollable_root)
         else {
             continue;
@@ -414,6 +440,10 @@ pub(super) fn handle_scrollbar_input(
             .map(|active_layer| active_layer.kind)
             .unwrap_or(UiLayerKind::Base);
         if active_layer_kind != root.input_layer {
+            drag_state.dragging = false;
+            continue;
+        }
+        if !scoped_owner_has_focus(Some(root.owner), focused_scoped_owner) {
             drag_state.dragging = false;
             continue;
         }

@@ -178,6 +178,7 @@ pub(super) fn reduce_menu_command(
         ),
         MenuCommand::OpenDebugUiShowcase => MenuReducerResult {
             open_debug_ui_showcase: true,
+            close_menu: true,
             ..MenuReducerResult::default()
         },
         MenuCommand::ApplyVideoSettings => MenuReducerResult {

@@ -18,6 +18,7 @@ use crate::{
         interaction::{
             ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
             InputAction, InteractionSystem, InteractionVisualPalette, InteractionVisualState,
+            SelectableScopeOwner,
         },
     },
 };
@@ -1347,6 +1348,13 @@ impl Window {
                 w.root_entity,
             )
         };
+
+        if let Some(root_entity) = root_entity {
+            world
+                .commands()
+                .entity(root_entity)
+                .insert(SelectableScopeOwner::new(root_entity));
+        }
 
         let mut body_entity: Option<Entity> = None;
         let mut header_entity: Option<Entity> = None;

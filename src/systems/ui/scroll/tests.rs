@@ -10,7 +10,7 @@ use std::any::Any;
 
 use crate::{
     startup::cursor::CustomCursor,
-    systems::interaction::InteractionGate,
+    systems::interaction::{Clickable, InteractionGate, ScrollUiActions, SelectableScopeOwner},
     systems::ui::layer::{UiLayer, UiLayerKind},
 };
 
@@ -316,6 +316,12 @@ fn write_wheel(app: &mut App, y: f32) {
     });
 }
 
+fn set_root_global_translation(app: &mut App, root: Entity, translation: Vec3) {
+    app.world_mut()
+        .entity_mut(root)
+        .insert(GlobalTransform::from_translation(translation));
+}
+
 #[test]
 fn thumb_extent_respects_minimum_and_track_bounds() {
     let cases = [
@@ -595,6 +601,108 @@ fn keyboard_scroll_works_without_cursor_position() {
 
     let state = app.world().get::<ScrollState>(root).expect("scroll state");
     assert!(state.offset_px > 0.0);
+}
+
+#[test]
+fn focused_owner_blocks_wheel_input_for_unfocused_scroll_root() {
+    let mut app = make_scroll_test_app();
+    let (owner_a, root_a) = spawn_owner_and_scroll_root(&mut app, 360.0, 100.0);
+    let (owner_b, root_b) = spawn_owner_and_scroll_root(&mut app, 360.0, 100.0);
+
+    app.world_mut()
+        .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut()
+        .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible));
+
+    // Keep owner B focused by z while cursor hovers owner A's viewport.
+    set_root_global_translation(&mut app, root_a, Vec3::new(0.0, 0.0, 10.0));
+    set_root_global_translation(&mut app, root_b, Vec3::new(500.0, 0.0, 20.0));
+
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+    write_wheel(&mut app, -1.0);
+    app.update();
+
+    let state_a = app.world().get::<ScrollState>(root_a).expect("scroll state a");
+    let state_b = app.world().get::<ScrollState>(root_b).expect("scroll state b");
+    assert_eq!(state_a.offset_px, 0.0);
+    assert_eq!(state_b.offset_px, 0.0);
+}
+
+#[test]
+fn focused_owner_blocks_scrollbar_track_click_for_unfocused_root() {
+    let mut app = make_scroll_test_app();
+    let (owner_a, root_a) = spawn_owner_and_scroll_root(&mut app, 520.0, 140.0);
+    let (owner_b, root_b) = spawn_owner_and_scroll_root(&mut app, 520.0, 140.0);
+
+    app.world_mut()
+        .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut()
+        .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible));
+
+    set_root_global_translation(&mut app, root_a, Vec3::new(0.0, 0.0, 10.0));
+    set_root_global_translation(&mut app, root_b, Vec3::new(500.0, 0.0, 20.0));
+
+    let scrollbar_a = app.world_mut().spawn(ScrollBar::new(root_a)).id();
+    app.world_mut().spawn(ScrollBar::new(root_b));
+
+    app.update();
+
+    let parts_a = *app
+        .world()
+        .get::<ScrollBarParts>(scrollbar_a)
+        .expect("scrollbar parts a");
+    app.world_mut()
+        .get_mut::<Clickable<ScrollUiActions>>(parts_a.track)
+        .expect("track clickable")
+        .triggered = true;
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::new(0.0, -500.0));
+
+    let before = app
+        .world()
+        .get::<ScrollState>(root_a)
+        .expect("scroll state")
+        .offset_px;
+    app.update();
+    let after = app
+        .world()
+        .get::<ScrollState>(root_a)
+        .expect("scroll state")
+        .offset_px;
+
+    assert_eq!(before, 0.0);
+    assert_eq!(after, 0.0);
+}
+
+#[test]
+fn focused_scope_registry_blocks_scroll_input_without_scroll_peer() {
+    let mut app = make_scroll_test_app();
+    let (owner_a, root_a) = spawn_owner_and_scroll_root(&mut app, 360.0, 100.0);
+    app.world_mut()
+        .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible));
+
+    // Register a higher-z focused scope owner that has no scroll root.
+    let owner_b = app
+        .world_mut()
+        .spawn((
+            Transform::default(),
+            GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 40.0)),
+            Visibility::Visible,
+            InheritedVisibility::VISIBLE,
+        ))
+        .id();
+    app.world_mut()
+        .entity_mut(owner_b)
+        .insert(SelectableScopeOwner::new(owner_b));
+    app.world_mut()
+        .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible));
+
+    set_root_global_translation(&mut app, root_a, Vec3::new(0.0, 0.0, 10.0));
+    app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
+    write_wheel(&mut app, -1.0);
+    app.update();
+
+    let state_a = app.world().get::<ScrollState>(root_a).expect("scroll state a");
+    assert_eq!(state_a.offset_px, 0.0);
 }
 
 #[test]
