@@ -9,7 +9,6 @@ use crate::{
         stats::DilemmaStats,
     },
     entities::{
-        sprites::window::WindowTitle,
         text::{scaled_font_size, TextTitle, TextWindow},
         track::Track,
     },
@@ -30,6 +29,7 @@ use crate::{
             OPTION_1_COLOR, OPTION_2_COLOR, PRIMARY_COLOR,
         },
         interaction::{ActionPallet, ClickablePong, Draggable, InputAction, KeyMapping, Pressable},
+        ui::window::UiWindowTitle,
     },
 };
 
@@ -209,7 +209,7 @@ impl DecisionScene {
                 ) {
                     parent.spawn((
                         TextWindow {
-                            title: Some(WindowTitle {
+                            title: Some(UiWindowTitle {
                                 text: format!(
                                     "Option {}: {} [Press {} to select]\n",
                                     option.index + 1,

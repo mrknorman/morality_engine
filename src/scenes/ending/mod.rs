@@ -6,7 +6,6 @@ use crate::{
     data::{states::GameState, stats::GameStats},
     entities::{
         large_fonts::{AsciiString, TextEmotion},
-        sprites::window::WindowTitle,
         text::{scaled_font_size, TextButton, TextWindow, WindowedTable},
         track::Track,
         train::{content::TrainTypes, Train, TrainState},
@@ -22,6 +21,7 @@ use crate::{
         colors::{DIM_BACKGROUND_COLOR, MENU_COLOR, PRIMARY_COLOR},
         interaction::{ActionPallet, Draggable, InputAction},
         scheduling::{TimerConfig, TimerPallet, TimerStartCondition},
+        ui::window::UiWindowTitle,
     },
 };
 
@@ -172,7 +172,7 @@ impl EndingScene {
 
                 parent.spawn((
                     TextWindow {
-                        title: Some(WindowTitle {
+                        title: Some(UiWindowTitle {
                             text: format!("Description: {}", ending.name.clone()),
                             ..default()
                         }),
@@ -203,7 +203,7 @@ impl EndingScene {
                 parent.spawn((
                     Draggable::default(),
                     WindowedTable {
-                        title: Some(WindowTitle {
+                        title: Some(UiWindowTitle {
                             text: String::from("Overall Results"),
                             ..default()
                         }),

@@ -6,7 +6,7 @@ use crate::{
     entities::{
         large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
         person::PersonPlugin,
-        sprites::{window::WindowTitle, SpritePlugin},
+        sprites::SpritePlugin,
         text::{scaled_font_size, TextPlugin, TextWindow},
         track::Track,
         train::{content::TrainTypes, Train, TrainPlugin},
@@ -27,6 +27,7 @@ use crate::{
         interaction::{Draggable, InteractionPlugin},
         motion::PointToPointTranslation,
         scheduling::TimingPlugin,
+        ui::window::UiWindowTitle,
     },
 };
 use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds};
@@ -154,7 +155,7 @@ impl DilemmaScene {
                 ),
                 (
                     TextWindow {
-                        title: Some(WindowTitle {
+                        title: Some(UiWindowTitle {
                             text: format!("Description: {}", dilemma.name.clone()),
                             ..default()
                         }),

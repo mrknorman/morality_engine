@@ -10,6 +10,7 @@ use crate::systems::ui::discrete_slider::DiscreteSliderPlugin;
 use crate::systems::ui::hover_box::HoverBoxPlugin;
 use crate::systems::ui::menu::MenusPlugin;
 use crate::systems::ui::scroll::ScrollPlugin;
+use crate::systems::ui::window::UiWindowPlugin;
 use crate::{
     data::{rng::RngPlugin, states::GameStatesPlugin, stats::StatsPlugin},
     scenes::dilemma::lever::Lever,
@@ -57,6 +58,10 @@ impl Plugin for StartupPlugin {
             .add_plugins(HoverBoxPlugin)
             .add_plugins(ScrollPlugin)
             .add_systems(Startup, crt_start_up);
+
+        if !app.is_plugin_added::<UiWindowPlugin>() {
+            app.add_plugins(UiWindowPlugin);
+        }
 
         //#[cfg(debug_assertions)]
         app.add_plugins(FrameTimeDiagnosticsPlugin::default())

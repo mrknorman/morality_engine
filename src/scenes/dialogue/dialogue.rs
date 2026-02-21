@@ -11,7 +11,7 @@ use crate::{
     },
     entities::{
         graph::GraphPlugin,
-        sprites::{window::WindowTitle, SpritePlugin},
+        sprites::SpritePlugin,
         text::{scaled_font_size, TextButton, TextPlugin, TextWindow},
     },
     style::common_ui::NextButton,
@@ -23,6 +23,7 @@ use crate::{
         colors::PRIMARY_COLOR,
         interaction::{ActionPallet, AdvanceDialogue, Draggable, InputAction},
         time::Dilation,
+        ui::window::UiWindowTitle,
     },
 };
 
@@ -104,7 +105,7 @@ fn dialogue_anchor() -> Anchor {
 
 fn dialogue_window() -> TextWindow {
     TextWindow {
-        title: Some(WindowTitle {
+        title: Some(UiWindowTitle {
             text: String::from("User Prompt"),
             padding: 50.0,
         }),

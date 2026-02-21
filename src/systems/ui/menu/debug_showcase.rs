@@ -11,13 +11,11 @@ use crate::{
     entities::{
         sprites::{
             compound::{HollowRectangle, RectangleSides},
-            window::{Window, WindowContentMetrics, WindowOverflowPolicy, WindowTitle},
         },
         text::{scaled_font_size, TextRaw},
     },
     startup::system_menu,
     systems::{
-        colors::SYSTEM_MENU_COLOR,
         interaction::{
             is_cursor_within_region, Clickable, Draggable, Hoverable, OptionCycler, Selectable,
             SelectableClickActivation, SelectableMenu, SystemMenuActions,
@@ -33,6 +31,9 @@ use crate::{
             },
             selector::SelectorSurface,
             tabs::{TabBar, TabBarState, TabItem},
+            window::{
+                UiWindow, UiWindowContentMetrics, UiWindowOverflowPolicy, UiWindowTitle,
+            },
         },
     },
 };
@@ -41,6 +42,8 @@ const SHOWCASE_Z: f32 = system_menu::MENU_Z + 4.0;
 const BASE_FONT_SIZE: f32 = 14.0;
 const SELECTED_FONT_SIZE: f32 = 20.0;
 const HOVER_FONT_SIZE: f32 = 16.0;
+const WINDOW_COL_X: f32 = 360.0;
+const WINDOW_ROW_Y: f32 = 186.0;
 
 const MENU_OPTION_REGION: Vec2 = Vec2::new(320.0, 34.0);
 const TAB_REGION: Vec2 = Vec2::new(120.0, 36.0);
@@ -60,6 +63,24 @@ const DROPDOWN_VALUES: [&str; 5] = [
     "TONYMCMAPFACE",
     "BLENDER FILMIC",
 ];
+
+fn debug_window_color() -> Color {
+    Color::srgb(0.92, 0.92, 0.92)
+}
+
+fn debug_text_color() -> Color {
+    Color::srgb(0.85, 0.85, 0.85)
+}
+
+fn debug_active_text_color() -> Color {
+    Color::srgb(1.0, 1.0, 1.0)
+}
+
+fn showcase_window_translation(column: usize, row: usize) -> Vec3 {
+    let x = if column == 0 { -WINDOW_COL_X } else { WINDOW_COL_X };
+    let y = if row == 0 { WINDOW_ROW_Y } else { -WINDOW_ROW_Y };
+    Vec3::new(x, y, SHOWCASE_Z)
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DebugMenuOptionKey {
@@ -94,7 +115,7 @@ fn menu_option_values(key: DebugMenuOptionKey) -> &'static [&'static str] {
 pub(super) struct DebugUiShowcaseRoot;
 
 #[derive(Component)]
-struct DebugUiShowcaseWindow;
+pub(super) struct DebugUiShowcaseWindow;
 
 #[derive(Component)]
 pub(super) struct DebugMenuDemoState {
@@ -199,23 +220,23 @@ fn spawn_window_base(
             Name::new(name.to_string()),
             DebugUiShowcaseWindow,
             Draggable::default(),
-            Window::new(
-                Some(WindowTitle {
+            UiWindow::new(
+                Some(UiWindowTitle {
                     text: title.to_string(),
                     ..default()
                 }),
                 HollowRectangle {
                     dimensions: size,
                     thickness: 2.0,
-                    color: SYSTEM_MENU_COLOR,
+                    color: debug_window_color(),
                     sides: RectangleSides::default(),
                 },
                 22.0,
                 true,
                 None,
             ),
-            WindowContentMetrics::from_min_inner(size),
-            WindowOverflowPolicy::AllowOverflow,
+            UiWindowContentMetrics::from_min_inner(size),
+            UiWindowOverflowPolicy::AllowOverflow,
             Transform::from_translation(translation),
         ))
         .id();
@@ -230,7 +251,7 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
         "debug_ui_showcase_menu_selector_window",
         "Menu + Selector Demo",
         Vec2::new(430.0, 270.0),
-        Vec3::new(-500.0, 176.0, SHOWCASE_Z),
+        showcase_window_translation(0, 0),
     );
 
     world
@@ -245,7 +266,7 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
                     font_size: scaled_font_size(12.0),
                     ..default()
                 },
-                TextColor(SYSTEM_MENU_COLOR),
+                TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
                 Transform::from_xyz(-194.0, 92.0, 0.2),
             ));
@@ -281,7 +302,7 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
                                 font_size: scaled_font_size(BASE_FONT_SIZE),
                                 ..default()
                             },
-                            TextColor(SYSTEM_MENU_COLOR),
+                            TextColor(debug_text_color()),
                             Anchor::CENTER_LEFT,
                             SelectorSurface::new(menu_root, index).with_cycler(),
                             Clickable::with_region(
@@ -307,7 +328,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
         "debug_ui_showcase_tabs_window",
         "Tabs Demo",
         Vec2::new(430.0, 270.0),
-        Vec3::new(-30.0, 176.0, SHOWCASE_Z),
+        showcase_window_translation(1, 0),
     );
 
     world
@@ -335,7 +356,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                     font_size: scaled_font_size(12.0),
                     ..default()
                 },
-                TextColor(SYSTEM_MENU_COLOR),
+                TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
                 Transform::from_xyz(-194.0, 92.0, 0.2),
             ));
@@ -376,7 +397,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                                 font_size: scaled_font_size(BASE_FONT_SIZE),
                                 ..default()
                             },
-                            TextColor(SYSTEM_MENU_COLOR),
+                            TextColor(debug_text_color()),
                             Anchor::CENTER,
                             TabItem { index },
                             SelectorSurface::new(tab_root, index),
@@ -402,7 +423,7 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                     font_size: scaled_font_size(13.0),
                     ..default()
                 },
-                TextColor(SYSTEM_MENU_COLOR),
+                TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
                 DebugTabsDemoContent { root: tab_root },
                 Transform::from_xyz(-180.0, -18.0, 0.2),
@@ -417,7 +438,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
         "debug_ui_showcase_dropdown_window",
         "Dropdown Demo",
         Vec2::new(430.0, 300.0),
-        Vec3::new(-500.0, -176.0, SHOWCASE_Z),
+        showcase_window_translation(0, 1),
     );
 
     world
@@ -432,7 +453,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                     font_size: scaled_font_size(12.0),
                     ..default()
                 },
-                TextColor(SYSTEM_MENU_COLOR),
+                TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
                 Transform::from_xyz(-194.0, 104.0, 0.2),
             ));
@@ -470,7 +491,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                                 font_size: scaled_font_size(BASE_FONT_SIZE),
                                 ..default()
                             },
-                            TextColor(SYSTEM_MENU_COLOR),
+                            TextColor(debug_text_color()),
                             Anchor::CENTER_LEFT,
                             SelectorSurface::new(owner_entity, 0),
                             Clickable::with_region(
@@ -509,7 +530,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                         HollowRectangle {
                             dimensions: panel_size - Vec2::splat(6.0),
                             thickness: 2.0,
-                            color: SYSTEM_MENU_COLOR,
+                            color: debug_window_color(),
                             sides: RectangleSides::default(),
                         },
                         Transform::from_xyz(0.0, 0.0, 0.01),
@@ -526,7 +547,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                                 font_size: scaled_font_size(BASE_FONT_SIZE),
                                 ..default()
                             },
-                            TextColor(SYSTEM_MENU_COLOR),
+                            TextColor(debug_text_color()),
                             Anchor::CENTER_LEFT,
                             SelectorSurface::new(panel_entity, index),
                             Clickable::with_region(
@@ -560,7 +581,7 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
         "debug_ui_showcase_scroll_window",
         "Scrollable Demo",
         Vec2::new(430.0, 300.0),
-        Vec3::new(-30.0, -176.0, SHOWCASE_Z),
+        showcase_window_translation(1, 1),
     );
 
     world
@@ -575,7 +596,7 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
                     font_size: scaled_font_size(12.0),
                     ..default()
                 },
-                TextColor(SYSTEM_MENU_COLOR),
+                TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
                 Transform::from_xyz(-194.0, 104.0, 0.2),
             ));
@@ -613,8 +634,8 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
                     let mut scroll_bar = ScrollBar::new(scroll_root);
                     scroll_bar.width = 10.0;
                     scroll_bar.margin = 4.0;
-                    scroll_bar.track_color = SYSTEM_MENU_COLOR;
-                    scroll_bar.thumb_color = SYSTEM_MENU_COLOR;
+                    scroll_bar.track_color = debug_window_color();
+                    scroll_bar.thumb_color = debug_window_color();
                     scroll_parent.spawn((
                         Name::new("debug_scroll_demo_scrollbar"),
                         scroll_bar,
@@ -635,7 +656,7 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
                             HollowRectangle {
                                 dimensions: Vec2::new(viewport_size.x - 32.0, row_height - 8.0),
                                 thickness: 1.0,
-                                color: SYSTEM_MENU_COLOR,
+                                color: debug_window_color(),
                                 sides: RectangleSides::default(),
                             },
                             Transform::from_xyz(0.0, row_y, 0.01),
@@ -648,7 +669,7 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
                                 font_size: scaled_font_size(12.0),
                                 ..default()
                             },
-                            TextColor(SYSTEM_MENU_COLOR),
+                            TextColor(debug_text_color()),
                             Anchor::CENTER_LEFT,
                             Transform::from_xyz(-viewport_size.x * 0.5 + 18.0, row_y, 0.03),
                         ));
@@ -664,14 +685,13 @@ fn cycle_index(current: usize, len: usize, delta: i32) -> usize {
     ((current as i32 + delta).rem_euclid(len as i32)) as usize
 }
 
-pub(super) fn toggle_debug_ui_showcase(
+pub(super) fn rebuild_debug_ui_showcase(
     commands: &mut Commands,
     showcase_root_query: &Query<Entity, With<DebugUiShowcaseRoot>>,
 ) {
     if let Some(existing_root) = showcase_root_query.iter().next() {
         commands.entity(existing_root).despawn_related::<Children>();
         commands.entity(existing_root).despawn();
-        return;
     }
 
     commands.spawn((
@@ -757,9 +777,9 @@ pub(super) fn sync_menu_demo_visuals(
             BASE_FONT_SIZE
         });
         color.0 = if selected {
-            Color::srgb(0.2, 1.0, 0.2)
+            debug_active_text_color()
         } else {
-            SYSTEM_MENU_COLOR
+            debug_text_color()
         };
     }
 }
@@ -800,9 +820,9 @@ pub(super) fn sync_tabs_demo_visuals(
             BASE_FONT_SIZE
         });
         color.0 = if active {
-            Color::srgb(0.2, 1.0, 0.2)
+            debug_active_text_color()
         } else {
-            SYSTEM_MENU_COLOR
+            debug_text_color()
         };
     }
 
@@ -1039,9 +1059,9 @@ pub(super) fn sync_dropdown_demo_visuals(
             BASE_FONT_SIZE
         });
         color.0 = if selected {
-            Color::srgb(0.2, 1.0, 0.2)
+            debug_active_text_color()
         } else {
-            SYSTEM_MENU_COLOR
+            debug_text_color()
         };
     }
 
@@ -1066,9 +1086,9 @@ pub(super) fn sync_dropdown_demo_visuals(
             BASE_FONT_SIZE
         });
         color.0 = if dropdown_selected {
-            Color::srgb(0.2, 1.0, 0.2)
+            debug_active_text_color()
         } else {
-            SYSTEM_MENU_COLOR
+            debug_text_color()
         };
     }
 }
@@ -1140,7 +1160,7 @@ mod tests {
 
         let world = app.world_mut();
         let window_count = world
-            .query::<(&DebugUiShowcaseWindow, &Window, &Draggable)>()
+            .query::<(&DebugUiShowcaseWindow, &UiWindow, &Draggable)>()
             .iter(world)
             .count();
         assert_eq!(window_count, 4);

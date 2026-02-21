@@ -13,7 +13,6 @@ use crate::{
         large_fonts::{AsciiActions, AsciiSounds},
         sprites::{
             compound::Plus,
-            window::{Window, WindowActions, WindowSounds},
         },
         train::{TrainActions, TrainSounds},
     },
@@ -41,7 +40,10 @@ use crate::{
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON},
         motion::Bounce,
         time::Dilation,
-        ui::scroll::{cursor_in_edge_auto_scroll_zone, ScrollableRoot, ScrollableViewport},
+        ui::{
+            scroll::{cursor_in_edge_auto_scroll_zone, ScrollableRoot, ScrollableViewport},
+            window::{UiWindow, UiWindowActions, UiWindowSounds, UiWindowSystem},
+        },
     },
 };
 use bevy::{
@@ -92,7 +94,6 @@ macro_rules! register_interaction_systems {
         $app.add_systems(
             Update,
             (
-                Draggable::enact,
                 system_entry!(hoverable_system::<$enum_type>, InteractionSystem::Hoverable),
                 system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable, after: InteractionSystem::Hoverable),
                 system_entry!(pressable_system::<$enum_type>, InteractionSystem::Pressable, after: InteractionSystem::Clickable),
@@ -146,7 +147,17 @@ impl Plugin for InteractionPlugin {
                 apply_interaction_visuals.after(InteractionSystem::Selectable),
             );
 
-        register_interaction_systems!(app, WindowActions, WindowSounds);
+        // Drag handling is a global primitive and must run exactly once each
+        // frame; registering it per typed action pallet causes repeated
+        // execution and unstable window interactions.
+        app.add_systems(
+            Update,
+            Draggable::enact
+                .after(UiWindowSystem::Input)
+                .before(InteractionSystem::Hoverable),
+        );
+
+        register_interaction_systems!(app, UiWindowActions, UiWindowSounds);
         register_interaction_systems!(app, LoadingActions, LoadingSounds);
         register_interaction_systems!(app, DilemmaIntroActions, DilemmaSounds);
         register_interaction_systems!(app, DilemmaConsequenceActions, DilemmaSounds);
@@ -819,7 +830,7 @@ pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
     )>,
     window_query: Query<
         (
-            &Window,
+            &UiWindow,
             &Transform,
             &GlobalTransform,
             Option<&InheritedVisibility>,
@@ -1007,7 +1018,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     )>,
     window_query: Query<
         (
-            &Window,
+            &UiWindow,
             &Transform,
             &GlobalTransform,
             Option<&InheritedVisibility>,

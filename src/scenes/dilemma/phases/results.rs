@@ -7,7 +7,6 @@ use crate::{
     data::{states::DilemmaPhase, stats::GameStats},
     entities::{
         large_fonts::{AsciiString, TextEmotion},
-        sprites::window::WindowTitle,
         text::{TextButton, WindowedTable},
         train::Train,
     },
@@ -21,6 +20,7 @@ use crate::{
         interaction::{ActionPallet, Draggable, InputAction},
         particles::FireworkLauncher,
         physics::Velocity,
+        ui::window::UiWindowTitle,
     },
 };
 
@@ -70,7 +70,7 @@ impl DilemmaResultsScene {
                 (
                     Draggable::default(),
                     WindowedTable {
-                        title: Some(WindowTitle {
+                        title: Some(UiWindowTitle {
                             text: String::from("Results"),
                             ..default()
                         }),
@@ -133,7 +133,7 @@ impl DilemmaResultsScene {
                 (
                     Draggable::default(),
                     WindowedTable {
-                        title: Some(WindowTitle {
+                        title: Some(UiWindowTitle {
                             text: String::from("Latest Results"),
                             ..default()
                         }),

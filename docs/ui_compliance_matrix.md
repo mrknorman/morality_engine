@@ -1,6 +1,6 @@
 # UI Compliance Matrix
 
-Last updated: 2026-02-20
+Last updated: 2026-02-21
 
 Scope:
 - `src/systems/ui/*`
@@ -23,6 +23,7 @@ Legend:
 | `hover_box.rs` | Compliant | Primitive root + explicit post-spawn marker attachment at callsites. | None. |
 | `discrete_slider.rs` | Compliant | Primitive root + insert hook builds internal slot hierarchy. | None. |
 | `scroll/mod.rs` + `scroll/*` | Compliant | Reusable RTT scroll primitive and scrollbar with shared adapter contracts, budget controls, and focused tests. | None. |
+| `window/mod.rs` | Compliant | Canonical window primitive (drag/resize/z-order/content constraints + close interaction wiring), now owner-scoped in shared UI layer. | Keep sprite skinning as adapter only; avoid moving behavior logic back into `entities/sprites`. |
 
 ## Menu Composition Modules (`src/systems/ui/menu/*`)
 

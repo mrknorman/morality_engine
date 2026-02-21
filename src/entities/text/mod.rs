@@ -10,10 +10,6 @@ use serde::Deserialize;
 use crate::{
     entities::sprites::{
         compound::{BorderedRectangle, HollowRectangle, RectangleSides},
-        window::{
-            Window, WindowContentHost, WindowContentMetrics, WindowOverflowPolicy,
-            WindowResizeInProgress, WindowSystem, WindowTitle,
-        },
         SpritePlugin,
     },
     systems::{
@@ -23,6 +19,10 @@ use crate::{
             InteractionVisualState, KeyMapping, Pressable,
         },
         time::Dilation,
+        ui::window::{
+            UiWindow, UiWindowContentHost, UiWindowContentMetrics, UiWindowOverflowPolicy,
+            UiWindowPlugin, UiWindowResizeInProgress, UiWindowSystem, UiWindowTitle,
+        },
     },
 };
 
@@ -53,7 +53,7 @@ impl Plugin for TextPlugin {
             )
                 .chain()
                 .in_set(TextSystem::Contracts)
-                .after(WindowSystem::Layout),
+                .after(UiWindowSystem::Layout),
         )
         .add_systems(
             Update,
@@ -62,7 +62,7 @@ impl Plugin for TextPlugin {
                 WindowedTable::apply_window_to_table,
             )
                 .in_set(TextSystem::ContentLayout)
-                .after(WindowSystem::Layout),
+                .after(UiWindowSystem::Layout),
         )
         .add_systems(
             Update,
@@ -78,6 +78,9 @@ impl Plugin for TextPlugin {
 
         if !app.is_plugin_added::<SpritePlugin>() {
             app.add_plugins(SpritePlugin);
+        }
+        if !app.is_plugin_added::<UiWindowPlugin>() {
+            app.add_plugins(UiWindowPlugin);
         }
     }
 }
@@ -469,7 +472,7 @@ fn justify_for_anchor(anchor: &Anchor) -> Justify {
 #[require(Transform, Visibility)]
 #[component(on_insert = TextWindow::on_insert)]
 pub struct TextWindow {
-    pub title: Option<WindowTitle>,
+    pub title: Option<UiWindowTitle>,
     pub border_color: Color,
     pub header_height: f32,
     pub padding: Vec2,
@@ -565,14 +568,14 @@ impl TextWindow {
 
     fn sync_window_contract(
         text_windows: Query<
-            (&TextWindow, &TextWindowLayoutState, &WindowContentHost),
+            (&TextWindow, &TextWindowLayoutState, &UiWindowContentHost),
             Or<(
                 Added<TextWindowLayoutState>,
                 Changed<TextWindowLayoutState>,
                 Changed<TextWindow>,
             )>,
         >,
-        mut window_contracts: Query<&mut WindowContentMetrics>,
+        mut window_contracts: Query<&mut UiWindowContentMetrics>,
     ) {
         for (text_window, layout_state, window_host) in text_windows.iter() {
             let min_inner =
@@ -594,12 +597,12 @@ impl TextWindow {
             &TextWindowBoundsPolicy,
             Option<&Anchor>,
             Option<&mut Draggable>,
-            &WindowContentHost,
+            &UiWindowContentHost,
             &mut TextBounds,
         )>,
-        windows: Query<(&Window, Option<&WindowResizeInProgress>)>,
-        changed_windows: Query<(), Changed<Window>>,
-        mut window_transforms: Query<&mut Transform, With<Window>>,
+        windows: Query<(&UiWindow, Option<&UiWindowResizeInProgress>)>,
+        changed_windows: Query<(), Changed<UiWindow>>,
+        mut window_transforms: Query<&mut Transform, With<UiWindow>>,
     ) {
         for (text_window, bounds_policy, anchor, draggable, window_host, mut text_bounds) in
             text_windows.iter_mut()
@@ -728,7 +731,7 @@ impl TextWindow {
             window_entity = Some(
                 parent
                     .spawn((
-                        Window::new(
+                        UiWindow::new(
                             title,
                             HollowRectangle {
                                 color,
@@ -739,8 +742,8 @@ impl TextWindow {
                             has_close_button,
                             Some(entity),
                         ),
-                        WindowContentMetrics::from_min_inner(min_inner),
-                        WindowOverflowPolicy::ConstrainToContent,
+                        UiWindowContentMetrics::from_min_inner(min_inner),
+                        UiWindowOverflowPolicy::ConstrainToContent,
                         Transform::from_translation(-anchor_offset),
                     ))
                     .id(),
@@ -749,7 +752,7 @@ impl TextWindow {
 
         if let Some(window_entity) = window_entity {
             world.commands().entity(entity).insert((
-                WindowContentHost { window_entity },
+                UiWindowContentHost { window_entity },
                 bounds_policy,
                 TextWindowLayoutState {
                     base_content_size: content_size,
@@ -1191,7 +1194,7 @@ impl Table {
 #[require(Transform, Visibility)]
 #[component(on_insert = WindowedTable::on_insert)]
 pub struct WindowedTable {
-    pub title: Option<WindowTitle>,
+    pub title: Option<UiWindowTitle>,
     pub border_color: Color,
     pub header_height: f32,
     pub has_close_button: bool,
@@ -1261,13 +1264,13 @@ impl WindowedTable {
         mut tables: Query<(
             &WindowedTable,
             &WindowedTableLayoutState,
-            &WindowContentHost,
+            &UiWindowContentHost,
             Option<&mut Draggable>,
             &mut Table,
         )>,
-        windows: Query<&Window>,
-        changed_windows: Query<(), Changed<Window>>,
-        mut window_transforms: Query<&mut Transform, With<Window>>,
+        windows: Query<&UiWindow>,
+        changed_windows: Query<(), Changed<UiWindow>>,
+        mut window_transforms: Query<&mut Transform, With<UiWindow>>,
     ) {
         for (windowed_table, layout_state, window_host, draggable, mut table) in tables.iter_mut() {
             if changed_windows.get(window_host.window_entity).is_err() {
@@ -1355,7 +1358,7 @@ impl WindowedTable {
             window_entity = Some(
                 parent
                     .spawn((
-                        Window::new(
+                        UiWindow::new(
                             title,
                             HollowRectangle {
                                 color,
@@ -1366,8 +1369,8 @@ impl WindowedTable {
                             has_close_button,
                             Some(entity),
                         ),
-                        WindowContentMetrics::from_min_inner(min_inner),
-                        WindowOverflowPolicy::ConstrainToContent,
+                        UiWindowContentMetrics::from_min_inner(min_inner),
+                        UiWindowOverflowPolicy::ConstrainToContent,
                         Transform::from_xyz(min_inner.x * 0.5, -min_inner.y * 0.5, -0.1),
                     ))
                     .id(),
@@ -1378,7 +1381,7 @@ impl WindowedTable {
             world
                 .commands()
                 .entity(entity)
-                .insert((WindowContentHost { window_entity }, layout_state));
+                .insert((UiWindowContentHost { window_entity }, layout_state));
         }
     }
 }

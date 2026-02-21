@@ -17,7 +17,8 @@ Covered systems and modules:
 - `src/startup/system_menu.rs`
 - `src/systems/ui/menu/mod.rs`
 - `src/systems/ui/menu/stack.rs`
-- `src/entities/sprites/window.rs`
+- `src/systems/ui/window/mod.rs`
+- `src/entities/sprites/window.rs` (compatibility shim)
 
 ## Design Goals
 
@@ -575,7 +576,8 @@ Conflict safety:
 
 Window UI already shares interaction primitives with menus via `Clickable`, `Selectable`, and `InteractionGate`.
 
-- Window z/layer behavior and click blocking are handled in `src/entities/sprites/window.rs` and respected by the interaction systems.
+- Window z/layer behavior and click blocking are handled in `src/systems/ui/window/mod.rs` and respected by the interaction systems.
+- `src/entities/sprites/window.rs` is a compatibility re-export shim during migration to `UiWindow*` naming.
 - Dropdown/selector utilities now live under `systems/ui`, so non-menu window UIs can reuse:
   - `DropdownLayerState` + dropdown helpers for layered popup lists.
   - `ShortcutKey` + shortcut collection for window-local key actions.

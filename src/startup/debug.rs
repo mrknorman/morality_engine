@@ -3,7 +3,6 @@ use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds, time::Re
 use crate::{
     data::states::MainState,
     entities::{
-        sprites::window::WindowTitle,
         text::{scaled_font_size, TextPlugin, TextRaw, TextWindow},
     },
     startup::{
@@ -15,7 +14,10 @@ use crate::{
         audio::{continuous_audio, MusicAudio},
         interaction::{Draggable, InteractionGate},
         particles::FireworkLauncher,
-        ui::menu::{self, MenuHost, MenuPage},
+        ui::{
+            menu::{self, MenuHost, MenuPage},
+            window::UiWindowTitle,
+        },
     },
 };
 
@@ -126,6 +128,8 @@ fn setup_debug_scene(
             ..continuous_audio()
         },
     ));
+
+    spawn_debug_menu_overlay(&mut commands, &asset_server, translation);
 }
 
 fn get_debug_camera_center(
@@ -220,7 +224,7 @@ fn spawn_debug_text_window(commands: &mut Commands, cursor_position: Vec2) {
         DespawnOnExit(MainState::Debug),
         Draggable::default(),
         TextWindow {
-            title: Some(WindowTitle {
+            title: Some(UiWindowTitle {
                 text: DEBUG_WINDOW_TITLE.to_string(),
                 ..default()
             }),

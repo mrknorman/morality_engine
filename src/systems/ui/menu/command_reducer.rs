@@ -34,7 +34,7 @@ pub(super) struct MenuReducerResult {
     pub(super) open_main_menu_options_overlay: bool,
     pub(super) advance_to_next_scene: bool,
     pub(super) spawn_exit_unsaved_modal: bool,
-    pub(super) toggle_debug_ui_showcase: bool,
+    pub(super) open_debug_ui_showcase: bool,
     pub(super) apply_video_settings: bool,
     pub(super) state_transition: Option<MenuStateTransition>,
     pub(super) exit_application: bool,
@@ -176,8 +176,8 @@ pub(super) fn reduce_menu_command(
             settings,
             dropdown_state,
         ),
-        MenuCommand::ToggleDebugUiShowcase => MenuReducerResult {
-            toggle_debug_ui_showcase: true,
+        MenuCommand::OpenDebugUiShowcase => MenuReducerResult {
+            open_debug_ui_showcase: true,
             ..MenuReducerResult::default()
         },
         MenuCommand::ApplyVideoSettings => MenuReducerResult {

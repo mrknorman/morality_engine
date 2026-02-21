@@ -196,8 +196,8 @@ pub(super) fn apply_menu_reducer_result(
     if result.spawn_exit_unsaved_modal {
         spawn_exit_unsaved_modal(commands, menu_entity, asset_server, menu_root.gate);
     }
-    if result.toggle_debug_ui_showcase {
-        debug_showcase::toggle_debug_ui_showcase(commands, showcase_root_query);
+    if result.open_debug_ui_showcase {
+        debug_showcase::rebuild_debug_ui_showcase(commands, showcase_root_query);
     }
     if result.open_main_menu_options_overlay {
         handle_open_main_menu_options_overlay_command(
