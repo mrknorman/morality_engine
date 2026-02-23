@@ -4,6 +4,10 @@
 //! non-menu surfaces. Each UI owner can expose multiple layer roots
 //! (`Base`, `Dropdown`, `Modal`), and systems resolve a single active layer
 //! per owner for deterministic input routing.
+//!
+//! Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+//! - fold layer arbitration into unified interaction state resolver
+//! - stop deriving capture/gating state independently per module
 use std::collections::HashMap;
 
 use bevy::prelude::*;

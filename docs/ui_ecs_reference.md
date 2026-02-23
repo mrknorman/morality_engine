@@ -29,6 +29,30 @@ Covered systems and modules:
 - Interaction behavior must use interaction primitives as source of truth; visual state is derived output only.
 - Primitive authoring should prefer required-components plus insert hooks over new Bundle-first APIs.
 
+## Unified Input Refactor Status (No Compatibility Layer)
+
+This repo is executing a full replacement of legacy interaction gate/capture APIs.
+
+- Source plan: `docs/ui_unified_focus_gating_refactor_plan.md`
+- Migration style: full replacement, no dual-path compatibility bridge
+- Phase policy: every phase must update docs and end with a checkpoint commit
+
+During migration, prefer referencing the unified-refactor plan for canonical state transitions and scope ownership contracts.
+
+## UI Interaction Test Matrix (Phase 0 Baseline)
+
+Manual verification targets to run at phase boundaries:
+
+1. Main menu keyboard/mouse navigation and activation.
+2. Pause menu capture behavior over gameplay.
+3. Options/video tabs focus switching and footer navigation.
+4. Dropdown open/close/select with mouse + keyboard.
+5. Modal blocking behavior (input and visual stack).
+6. Window drag/close/resize with focused-owner behavior.
+7. Scrollbars/wheel/keyboard behavior in windows and menu scroll roots.
+8. Hover box behavior for options and dropdown items.
+9. Debug UI showcase interactions across multiple windows.
+
 ## Latest Style and Coding Preferences (2026-02-20)
 
 - Build reusable UI as self-contained primitives first (`src/systems/ui/*`), then compose in feature modules.
@@ -108,11 +132,16 @@ Major reusable UI features now have root-level insertion/runtime coverage:
 
 ## Core Interaction Primitives
 
-### `InteractionGate` and `InteractionCapture`
+### Legacy: `InteractionGate` and `InteractionCapture` (Being Replaced)
 
-- `InteractionGate` controls whether an entity can be interacted with in the current context.
-- `InteractionCapture` marks contexts where gameplay interaction should be suppressed by menu interaction.
-- Use `interaction_context_active(...)` + `interaction_gate_allows(...)` to gate every interaction system.
+These legacy APIs are in active replacement by the unified input model described in:
+`docs/ui_unified_focus_gating_refactor_plan.md`.
+
+Until migration is complete:
+
+- treat them as transitional implementation detail
+- do not add new systems that depend on these legacy APIs
+- use plan phase guidance to migrate to unified `UiInput*`/focus state primitives
 
 Pattern:
 

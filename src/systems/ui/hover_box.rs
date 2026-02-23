@@ -2,6 +2,10 @@
 //!
 //! Hover boxes are owner-scoped, layer-scoped overlays that appear after a
 //! configurable hover delay and clamp to an owner-local region.
+//!
+//! Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+//! - switch hover-box input gating to unified interaction state
+//! - remove direct dependency on legacy gate/capture helpers
 use std::collections::HashMap;
 
 use bevy::{

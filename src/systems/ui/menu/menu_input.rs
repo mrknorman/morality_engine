@@ -1,3 +1,7 @@
+// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// - replace capture/gate checks with unified interaction state
+// - keep base/dropdown/modal owner routing deterministic
+// - preserve current shortcut semantics while changing data source
 use super::modal_flow::spawn_exit_unsaved_modal;
 use super::*;
 

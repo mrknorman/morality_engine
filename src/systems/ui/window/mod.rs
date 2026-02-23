@@ -1,5 +1,10 @@
 use std::{collections::HashMap, f32::consts::FRAC_PI_4};
 
+// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// - migrate window interaction gating to unified input policy/state
+// - keep drag/close/resize focus ownership deterministic per root window
+// - remove legacy gate propagation once unified resolver is live
+
 use bevy::{
     camera::primitives::Aabb,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
