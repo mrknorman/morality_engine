@@ -82,7 +82,7 @@ struct LoadingScene;
 impl LoadingScene {
     fn setup(mut commands: Commands, queue: Res<SceneQueue>, asset_server: Res<AssetServer>) {
         commands.spawn((
-            queue.current,
+            queue.current_scene(),
             LoadingScene,
             DespawnOnExit(GameState::Loading),
             TimerPallet::new(vec![
@@ -224,7 +224,7 @@ impl LoadingScene {
 
     fn update_button_text(
         next_state_button: Res<NextButtonConfig>,
-        loading_query: Query<(&TimerPallet<LoadingEvents>, &LoadingScene)>,
+        loading_query: Query<&TimerPallet<LoadingEvents>, With<LoadingScene>>,
         mut text_query: Query<(&mut Text2d, &TextFrames)>,
     ) {
         let Some(button_entity) = next_state_button.0 else {
@@ -236,10 +236,9 @@ impl LoadingScene {
             Err(_) => return,
         };
 
-        let (timers, _) = loading_query
-            .iter()
-            .next()
-            .expect("Expected at least one entity with TimerPallet and LoadingRoot");
+        let Ok(timers) = loading_query.single() else {
+            return;
+        };
 
         if timers.0[LoadingEvents::UpdateButton].just_finished() {
             let index = timers.0[LoadingEvents::UpdateButton].times_finished() as usize;

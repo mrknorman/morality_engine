@@ -61,9 +61,10 @@ ECS-friendly, and fault-tolerant under iteration.
 
 ## 4. Queue and Ownership Rules
 
-1. Queue reads/writes are centralized via `SceneQueue` APIs (`try_pop`, `replace`, etc.).
+1. Queue reads/writes are centralized via `SceneQueue` APIs (`try_pop`, `replace`, `current_scene`, `next_scene`, `reset_campaign`).
 2. Scene progression must not rely on implicit cardinality assumptions.
-3. Shared runtime state (for example lever/selection state) must have explicit ownership contracts:
+3. Scene modules and systems must not read queue internals directly when a queue API exists.
+4. Shared runtime state (for example lever/selection state) must have explicit ownership contracts:
    - either resource-owned, or entity-owned + root marker, but not mixed ad hoc.
 
 ## 5. Dependency Direction
@@ -84,7 +85,8 @@ Disallowed direction:
 
 1. Systems reading and mutating related scene runtime sets must use disjoint query contracts.
 2. Prefer explicit root markers over `.iter().next().expect(...)` singleton assumptions.
-3. Cross-scene cleanup systems must target tagged entities/components, not broad archetype sweeps.
+3. Root-cardinality-sensitive systems should use guarded single-entity access (`single()` / `Single`) with explicit fallback behavior.
+4. Cross-scene cleanup systems must target tagged entities/components, not broad archetype sweeps.
 
 ## 7. Documentation Rules
 

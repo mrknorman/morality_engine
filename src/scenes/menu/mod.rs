@@ -85,11 +85,11 @@ impl MenuScene {
             commands.entity(existing_scene).despawn();
         }
 
-        *queue = SceneQueue::default();
+        queue.reset_campaign();
 
         let scene_entity = commands
             .spawn((
-                queue.current,
+                queue.current_scene(),
                 MenuScene,
                 DespawnOnExit(MainState::Menu),
                 children![

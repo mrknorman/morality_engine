@@ -97,9 +97,9 @@ mod tests {
             state_vector,
             StateVector::new(Some(MainState::InGame), Some(GameState::Loading), None)
         );
-        assert!(matches!(queue.current, Scene::Loading));
+        assert!(matches!(queue.current_scene(), Scene::Loading));
         assert!(matches!(
-            queue.next,
+            queue.next_scene(),
             Some(Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro)))
         ));
     }

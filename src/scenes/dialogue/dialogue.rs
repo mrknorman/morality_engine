@@ -264,10 +264,8 @@ impl Dialogue {
 
                     ev_advance_dialogue.clear();
 
-                    commands
-                        .get_entity(entity)
-                        .unwrap()
-                        .with_children(|parent| {
+                    if let Ok(mut dialogue_entity) = commands.get_entity(entity) {
+                        dialogue_entity.with_children(|parent| {
                             let shell_prompts = Self::generate_shell_prompt(
                                 &line.character.name,
                                 &line.hostname,
@@ -288,6 +286,7 @@ impl Dialogue {
                                 }]),
                             ));
                         });
+                    }
                     dialogue.num_spans += 2;
 
                     dialogue.playing = true;

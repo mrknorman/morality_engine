@@ -300,9 +300,12 @@ impl DilemmaResultsScene {
             let latest = run_entries
                 .last()
                 .cloned()
-                .or_else(|| stats.dilemma_stats.last().cloned())
-                .expect("No last dilemma");
-            Self::spawn_latest_results_window(&mut commands, scene_entity, latest);
+                .or_else(|| stats.dilemma_stats.last().cloned());
+            if let Some(latest) = latest {
+                Self::spawn_latest_results_window(&mut commands, scene_entity, latest);
+            } else {
+                warn!("no dilemma stats available to populate latest results window");
+            }
         }
 
         for (mut transform, mut velocity) in train_query.iter_mut() {

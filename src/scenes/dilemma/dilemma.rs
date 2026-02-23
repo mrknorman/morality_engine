@@ -416,7 +416,8 @@ impl Dilemma {
             }
         };
 
-        let Some(next_scenes) = next_scenes_for_current_dilemma(queue.current, latest, stats.as_ref())
+        let Some(next_scenes) =
+            next_scenes_for_current_dilemma(queue.current_scene(), latest, stats.as_ref())
         else {
             return;
         };

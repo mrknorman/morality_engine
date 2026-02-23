@@ -42,6 +42,18 @@ pub struct SceneQueue {
 }
 
 impl SceneQueue {
+    pub fn current_scene(&self) -> Scene {
+        self.current
+    }
+
+    pub fn next_scene(&self) -> Option<Scene> {
+        self.next
+    }
+
+    pub fn reset_campaign(&mut self) {
+        *self = Self::default();
+    }
+
     pub fn try_pop(&mut self) -> Option<Scene> {
         let scene = self.queue.pop_front()?;
         self.next = self.queue.front().copied();

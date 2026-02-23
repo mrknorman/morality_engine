@@ -26,8 +26,8 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - Stage 2 complete: `eebf918`
 - Stage 3 complete: `13d49d5`
 - Stage 4 complete: `aa749d6`
-- Stage 5 complete: plugin/dependency normalization
-- Stage 6 pending
+- Stage 5 complete: `14bf517`
+- Stage 6 complete: ecs ownership/query safety
 - Stage 7 pending
 
 ## Current High-Level Issues

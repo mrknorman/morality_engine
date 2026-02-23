@@ -38,6 +38,10 @@ Shared cross-scene dependency wiring is centralized in:
 2. `SceneNavigator::advance(...)` returns an error when the queue is empty.
 3. `SceneNavigator::next_state_vector_or_fallback(...)` guarantees a route by
    falling back to menu when the queue cannot advance.
+4. Scene consumers read queue state through `SceneQueue::current_scene()` and
+   `SceneQueue::next_scene()`.
+5. Campaign reset uses `SceneQueue::reset_campaign()` to keep queue ownership
+   explicit.
 
 ## Integration Points
 

@@ -129,7 +129,10 @@ impl Junction {
                 .map(|translation: &ColorTranslation| translation.clone())
         };
 
-        let asset_server = world.get_resource::<AssetServer>().unwrap();
+        let Some(asset_server) = world.get_resource::<AssetServer>() else {
+            warn!("junction setup skipped: missing AssetServer resource");
+            return;
+        };
         let audio_vector = vec![
             TransientAudio::new(
                 asset_server.load("./audio/effects/male_scream_1.ogg"),

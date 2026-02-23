@@ -111,7 +111,7 @@ impl DilemmaScene {
         mut next_game_state: ResMut<NextState<GameState>>,
         mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
-        let scene = queue.current;
+        let scene = queue.current_scene();
 
         let dilemma = match scene {
             Scene::Dilemma(content) => Dilemma::new(&content),

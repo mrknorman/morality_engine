@@ -109,7 +109,7 @@ impl EndingScene {
         mut next_game_state: ResMut<NextState<GameState>>,
         mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
-        let scene = queue.current;
+        let scene = queue.current_scene();
         let ending_content = match scene {
             Scene::Ending(content) => content,
             _ => {
@@ -140,7 +140,7 @@ impl EndingScene {
 
         commands
             .spawn((
-                queue.current,
+                scene,
                 DespawnOnExit(GameState::Ending),
                 TimerPallet::new(vec![
                     (

@@ -64,7 +64,7 @@ impl DialogueScene {
             ),
         ]);
 
-        let scene = queue.current;
+        let scene = queue.current_scene();
         let dialogue: DialogueScene = match scene {
             Scene::Dialogue(content) => content,
             _ => {
@@ -80,7 +80,7 @@ impl DialogueScene {
 
         let mut dialogue_vector = vec![dialogue];
 
-        let next_scene = match queue.next {
+        let next_scene = match queue.next_scene() {
             Some(Scene::Dialogue(_)) => queue.pop(),
             Some(_) | None => None,
         };

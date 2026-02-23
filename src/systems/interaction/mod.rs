@@ -2001,7 +2001,7 @@ pub fn trigger_reset_game<K, S>(
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
                 ResetGame => {
-                    *queue = SceneQueue::default();
+                    queue.reset_campaign();
                     *stats = GameStats::default();
                     StateVector::new(
                         Some(MainState::Menu),
