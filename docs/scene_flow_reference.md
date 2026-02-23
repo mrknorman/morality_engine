@@ -12,6 +12,11 @@ Last updated: 2026-02-23
 
 No other module should define or duplicate this mapping.
 
+Campaign branching policy is isolated in:
+
+- `src/scenes/flow/mod.rs`
+  - `next_scenes_for_current_dilemma(...)`
+
 ## Routing Table
 
 | Scene | MainState | GameState | DilemmaPhase |
