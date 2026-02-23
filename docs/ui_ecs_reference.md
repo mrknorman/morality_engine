@@ -47,6 +47,7 @@ During migration, prefer referencing the unified-refactor plan for canonical sta
 - `Phase 3`: primitive interaction systems migrated to resolver state.
 - `Phase 4`: menu stack/layered UI routing migrated to `UiInteractionState`.
 - `Phase 5`: window close/drag/resize routing now consumes unified focus/mode state.
+- `Phase 6`: scroll and hover-box subsystems now consume unified focus/layer state.
 
 ## UI Interaction Test Matrix (Phase 0 Baseline)
 
@@ -203,6 +204,11 @@ Window systems migrated to this model:
 - `src/systems/ui/window/mod.rs`
   - resize begin/update now gates through `UiInteractionState` (`UiInputPolicy`, focused owner, active base layer)
   - close button contract now inherits policy/scope via insert hooks, not per-frame gate sync
+
+Scroll/hover systems migrated to this model:
+
+- `src/systems/ui/scroll/behavior.rs`
+- `src/systems/ui/hover_box.rs`
 
 ### `Hoverable`
 
@@ -545,16 +551,15 @@ These helpers are reusable for any dropdown component type `D` and any root-owne
 
 - `UiLayerKind`: `Base`, `Dropdown`, `Modal` (with explicit priority).
 - `UiLayer { owner, kind }`: attached to each layer root entity.
-- `active_layers_by_owner_scoped(...)`: resolves the active layer per owner using:
-  - `Visibility`
-  - owner-scoped interaction capture + `InteractionGate`
-  - kind priority (`Modal > Dropdown > Base`)
 - `ordered_active_layers_by_owner(...)`: deterministic owner-first traversal helper.
 - `ordered_active_owners_by_kind(...)`: deterministic owner traversal filtered by active layer kind.
 
+`UiInteractionState.active_layers_by_owner` is the runtime source of truth for active owner layers.
+`layer.rs` traversal helpers operate on that resolved map.
+
 Usage rule:
 
-- Attach `UiLayer` to every menu-layer root you spawn, then use `active_layers_by_owner_scoped(...)` in shortcut/command systems instead of custom modal/dropdown-open checks.
+- Attach `UiLayer` to every menu-layer root you spawn, then consume `UiInteractionState.active_layers_by_owner` in shortcut/command systems instead of custom modal/dropdown-open checks.
 - For owner-level shortcut/command routing, iterate owners via `ordered_active_owners_by_kind(...)` instead of local hash/query sorting.
 
 ### Selector/Shortcut Utilities (Shared UI)

@@ -44,8 +44,9 @@ Attach this to scroll items when you want automatic extent aggregation:
 2. Scroll input is accepted only when the owner’s active layer matches `ScrollableRoot.input_layer`.
 3. For base panel scrolling, use `ScrollableRoot::new(...).with_input_layer(UiLayerKind::Base)`.
 4. For modal-scoped scrolling, set `with_input_layer(UiLayerKind::Modal)`.
-5. Input gating currently uses `UiInputPolicy` and owner-scoped capture tokens.
-6. See `docs/ui_unified_focus_gating_refactor_plan.md` for the canonical replacement model and phase status.
+5. Input gating uses `UiInputPolicy` evaluated against `UiInteractionState.input_mode_for_owner(...)`.
+6. Focus/owner arbitration uses `UiInteractionState.focused_owner` and active-layer routing uses `UiInteractionState.active_layers_by_owner`.
+7. See `docs/ui_unified_focus_gating_refactor_plan.md` for canonical phase status.
 
 ## Render-Target Configuration
 1. `ScrollPlugin` initializes `ScrollRenderSettings`.
@@ -100,7 +101,7 @@ When adding systems around `Scrollable`:
 2. Use `ParamSet` when a system needs both read and write access paths to the same component.
 3. Keep state reducers and visual sync in separate stages where possible.
 4. Add a minimal plugin update test for panic detection.
-5. Prefer owner-scoped layer resolution (`active_layers_by_owner_scoped`) for all input paths.
+5. Prefer `UiInteractionState.active_layers_by_owner` for all input paths.
 
 Current guard:
 - `systems::ui::scroll::tests::scroll_plugin_update_is_query_safe`

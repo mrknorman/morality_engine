@@ -12,15 +12,13 @@ use bevy::{
 };
 
 use crate::{
-    data::states::PauseState,
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            focused_scope_owner_from_registry, is_cursor_within_region,
-            resolve_focused_scope_owner, scoped_owner_has_focus, ui_input_policy_allows_for_owner,
-            SelectableScopeOwner, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy,
+            is_cursor_within_region, scoped_owner_has_focus, ui_input_policy_allows_mode,
+            UiInputPolicy, UiInteractionState,
         },
-        ui::layer::{self, UiLayer, UiLayerKind},
+        ui::layer::UiLayerKind,
     },
 };
 
@@ -83,19 +81,7 @@ pub(super) fn sync_scroll_extents(
 }
 
 pub(super) fn handle_scrollable_pointer_and_keyboard_input(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&UiInputPolicy>,
-    )>,
-    scope_owner_query: Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
-    owner_transform_query: Query<
-        (&GlobalTransform, Option<&InheritedVisibility>),
-        Without<TextSpan>,
-    >,
+    interaction_state: Res<UiInteractionState>,
     cursor: Res<CustomCursor>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut wheel_events: MessageReader<MouseWheel>,
@@ -120,13 +106,10 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
     >,
 ) {
     // Query contract:
-    // - active-layer arbitration queries are read-only
-    //   (`capture_query`, `ui_layer_query`).
     // - scroll state/focus lock mutations are isolated to `root_query`.
-    // This keeps pointer+keyboard reduction deterministic and query-safe.
-    let pause_state = pause_state.as_ref();
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
+    // - input mode, active-layer routing, and focused owner are consumed from
+    //   `UiInteractionState` without local recomputation.
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     let mut wheel_vertical = 0.0;
     let mut wheel_horizontal = 0.0;
@@ -253,7 +236,6 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
     }
 
-    let mut scoped_owner_candidates: Vec<(Entity, f32)> = Vec::new();
     let mut hovered_vertical: Option<Candidate> = None;
     let mut edge_vertical: Option<EdgeCandidate> = None;
     let mut keyboard_vertical: Option<Candidate> = None;
@@ -281,7 +263,7 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if !ui_input_policy_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
+        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(root.owner)) {
             continue;
         }
         let active_layer_kind = active_layers
@@ -293,7 +275,6 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
 
         let z = global_transform.translation().z;
-        scoped_owner_candidates.push((root.owner, z));
 
         let keyboard_candidate = Candidate {
             entity,
@@ -377,13 +358,7 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         };
     }
 
-    let focused_scoped_owner = focused_scope_owner_from_registry(
-        pause_state,
-        &capture_query,
-        &scope_owner_query,
-        &owner_transform_query,
-    )
-    .or_else(|| resolve_focused_scope_owner(scoped_owner_candidates));
+    let focused_scoped_owner = interaction_state.focused_owner;
 
     let mut vertical_target: Option<(Entity, f32, bool)> = None;
     if let Some(candidate) = hovered_vertical {
