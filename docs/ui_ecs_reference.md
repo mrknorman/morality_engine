@@ -210,6 +210,7 @@ Scroll/hover systems migrated to this model:
 - `src/systems/ui/scroll/behavior.rs`
 - `src/systems/ui/scroll/scrollbar.rs`
 - `src/systems/ui/hover_box.rs`
+- Scrollbar visuals are now gated by focused owner in the shared interaction state (not just input paths).
 
 Remaining non-UI consumers migrated:
 

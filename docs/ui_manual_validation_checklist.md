@@ -71,6 +71,7 @@ Use this checklist after menu/UI refactors and before release branches.
 
 - Mouse wheel/trackpad scroll updates viewport in correct direction.
 - Scrollbar drag/track interactions remain responsive.
+- In multi-window UI, only the focused owner shows scrollbar visuals; unfocused owners hide track/thumb.
 - Auto-scroll edge zones trigger gradual scrolling (no jump-to-end behavior).
 - Keyboard navigation reclaims focus-follow and keeps selected row visible.
 - Dropdowns and hover boxes remain correctly layered over scroll content.
@@ -101,4 +102,3 @@ Use this checklist after menu/UI refactors and before release branches.
 - If panic occurs:
   - Capture stack trace (`RUST_BACKTRACE=1`).
   - Note exact input sequence and active owner/layer when it occurs.
-

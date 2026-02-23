@@ -226,6 +226,8 @@ pub(super) fn sync_scrollbar_visuals(
             .map(|active_layer| active_layer.kind)
             .unwrap_or(UiLayerKind::Base)
             == root.input_layer;
+        let owner_has_focus =
+            scoped_owner_has_focus(Some(root.owner), interaction_state.focused_owner);
         let has_scroll_range =
             state.max_offset > SCROLL_EPSILON && state.content_extent > state.viewport_extent;
         let part_visibility = if visible && has_scroll_range {
@@ -233,7 +235,7 @@ pub(super) fn sync_scrollbar_visuals(
         } else {
             Visibility::Hidden
         };
-        let effective_part_visibility = if active_layer_matches_input {
+        let effective_part_visibility = if active_layer_matches_input && owner_has_focus {
             part_visibility
         } else {
             Visibility::Hidden
