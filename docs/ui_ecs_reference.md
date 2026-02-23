@@ -46,6 +46,7 @@ During migration, prefer referencing the unified-refactor plan for canonical sta
 - `Phase 2`: frame-level `UiInteractionState` resolver added.
 - `Phase 3`: primitive interaction systems migrated to resolver state.
 - `Phase 4`: menu stack/layered UI routing migrated to `UiInteractionState`.
+- `Phase 5`: window close/drag/resize routing now consumes unified focus/mode state.
 
 ## UI Interaction Test Matrix (Phase 0 Baseline)
 
@@ -196,6 +197,12 @@ Menu/layered systems migrated to this model:
 - `src/systems/ui/menu/command_flow.rs`
 - `src/systems/ui/menu/main_menu.rs`
 - `src/startup/system_menu.rs` owner-scoped navigation sound helper
+
+Window systems migrated to this model:
+
+- `src/systems/ui/window/mod.rs`
+  - resize begin/update now gates through `UiInteractionState` (`UiInputPolicy`, focused owner, active base layer)
+  - close button contract now inherits policy/scope via insert hooks, not per-frame gate sync
 
 ### `Hoverable`
 
