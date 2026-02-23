@@ -44,6 +44,7 @@ use crate::{
         motion::Bounce,
         time::Dilation,
         ui::{
+            layer::{UiLayer, UiLayerKind},
             scroll::{cursor_in_edge_auto_scroll_zone, ScrollableRoot, ScrollableViewport},
             window::{UiWindow, UiWindowActions, UiWindowSounds, UiWindowSystem},
         },
@@ -135,7 +136,12 @@ impl Plugin for InteractionPlugin {
         }
         app.add_message::<AdvanceDialogue>()
             .init_resource::<InteractionAggregate>()
+            .init_resource::<UiInteractionState>()
             .add_systems(Startup, activate_prerequisite_states)
+            .add_systems(
+                Update,
+                refresh_ui_interaction_state.before(InteractionSystem::Hoverable),
+            )
             .add_systems(
                 Update,
                 (
@@ -373,6 +379,127 @@ pub fn ui_input_policy_allows_for_owner(
 ) -> bool {
     let mode = ui_input_mode_for_owner(pause_state, capture_query, owner);
     ui_input_policy_allows_mode(policy, mode)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UiInteractionActiveLayer {
+    pub entity: Entity,
+    pub kind: UiLayerKind,
+}
+
+#[derive(Resource, Clone, Debug, Default)]
+pub struct UiInteractionState {
+    pub input_mode: UiInputMode,
+    pub global_capture: bool,
+    pub captured_owners: HashSet<Entity>,
+    pub active_layers_by_owner: HashMap<Entity, UiInteractionActiveLayer>,
+    pub focused_owner: Option<Entity>,
+}
+
+impl UiInteractionState {
+    pub fn input_mode_for_owner(&self, owner: Entity) -> UiInputMode {
+        if self.input_mode == UiInputMode::Captured
+            && (self.global_capture || self.captured_owners.contains(&owner))
+        {
+            UiInputMode::Captured
+        } else {
+            UiInputMode::World
+        }
+    }
+}
+
+pub fn refresh_ui_interaction_state(
+    pause_state: Option<Res<State<PauseState>>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&UiInputPolicy>)>,
+    focus_scope_query: Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
+    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
+    mut ui_state: ResMut<UiInteractionState>,
+) {
+    let paused = pause_state
+        .as_ref()
+        .is_some_and(|state| *state.get() == PauseState::Paused);
+    let mut global_capture = false;
+    let mut captured_owners = HashSet::new();
+    for capture_owner in capture_query.iter() {
+        if let Some(capture_owner) = capture_owner {
+            captured_owners.insert(capture_owner.owner);
+        } else {
+            global_capture = true;
+        }
+    }
+    let input_mode = if paused || global_capture || !captured_owners.is_empty() {
+        UiInputMode::Captured
+    } else {
+        UiInputMode::World
+    };
+
+    fn owner_mode(
+        owner: Entity,
+        input_mode: UiInputMode,
+        global_capture: bool,
+        captured_owners: &HashSet<Entity>,
+    ) -> UiInputMode {
+        if input_mode == UiInputMode::Captured
+            && (global_capture || captured_owners.contains(&owner))
+        {
+            UiInputMode::Captured
+        } else {
+            UiInputMode::World
+        }
+    }
+
+    let mut active_layers_by_owner: HashMap<Entity, UiInteractionActiveLayer> = HashMap::new();
+    for (entity, layer, visibility, policy) in layer_query.iter() {
+        if visibility
+            .copied()
+            .unwrap_or(Visibility::Visible)
+            == Visibility::Hidden
+        {
+            continue;
+        }
+        let mode = owner_mode(layer.owner, input_mode, global_capture, &captured_owners);
+        if !ui_input_policy_allows_mode(policy, mode) {
+            continue;
+        }
+        match active_layers_by_owner.get(&layer.owner) {
+            Some(current) if current.kind.priority() > layer.kind.priority() => {}
+            Some(current)
+                if current.kind.priority() == layer.kind.priority()
+                    && current.entity.index() > entity.index() => {}
+            _ => {
+                active_layers_by_owner.insert(
+                    layer.owner,
+                    UiInteractionActiveLayer {
+                        entity,
+                        kind: layer.kind,
+                    },
+                );
+            }
+        }
+    }
+
+    let focused_owner =
+        resolve_focused_scope_owner(focus_scope_query.iter().filter_map(|(policy, scope_owner)| {
+            let mode = owner_mode(scope_owner.owner, input_mode, global_capture, &captured_owners);
+            if !ui_input_policy_allows_mode(policy, mode) {
+                return None;
+            }
+            let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
+            else {
+                return None;
+            };
+            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                return None;
+            }
+            Some((scope_owner.owner, owner_global.translation().z))
+        }));
+
+    ui_state.input_mode = input_mode;
+    ui_state.global_capture = global_capture;
+    ui_state.captured_owners = captured_owners;
+    ui_state.active_layers_by_owner = active_layers_by_owner;
+    ui_state.focused_owner = focused_owner;
 }
 
 #[derive(Copy, Clone, Component)]
@@ -930,8 +1057,7 @@ pub fn reset_hoverable_state(mut query: Query<&mut Hoverable>) {
 }
 
 pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     cursor: Res<CustomCursor>,
     scroll_edge_query: Query<(
         &ScrollableRoot,
@@ -963,7 +1089,7 @@ pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
         Without<TextSpan>,
     >,
 ) {
-    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+    let interaction_captured = interaction_state.input_mode == UiInputMode::Captured;
     let Some(cursor_position) = cursor.position else {
         return;
     };
@@ -1117,8 +1243,7 @@ pub fn apply_interaction_visuals(
 
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     mouse_input: Res<ButtonInput<MouseButton>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     mut aggregate: ResMut<InteractionAggregate>,
     cursor: Res<CustomCursor>,
     scroll_edge_query: Query<(
@@ -1152,7 +1277,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         Without<TextSpan>,
     >,
 ) {
-    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+    let interaction_captured = interaction_state.input_mode == UiInputMode::Captured;
 
     // Reset click latches every frame so stale clicks cannot retrigger actions.
     for (_, _, _, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
@@ -1294,8 +1419,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
 pub fn pressable_system<T: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     mut query: Query<(
         &mut Pressable<T>,
         &mut InteractionState,
@@ -1303,7 +1427,7 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
         Option<&mut InteractionVisualState>,
     )>,
 ) {
-    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+    let interaction_captured = interaction_state.input_mode == UiInputMode::Captured;
 
     for (mut pressable, mut state, gate, visual_state) in query.iter_mut() {
         let mut visual_state = visual_state;
@@ -1339,12 +1463,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<UiInputCaptureToken>>,
-    owner_transform_query: Query<
-        (&GlobalTransform, Option<&InheritedVisibility>),
-        Without<TextSpan>,
-    >,
+    interaction_state: Res<UiInteractionState>,
     scroll_edge_query: Query<(
         &ScrollableRoot,
         &ScrollableViewport,
@@ -1389,7 +1508,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         )>,
     )>,
 ) {
-    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+    let interaction_captured = interaction_state.input_mode == UiInputMode::Captured;
     #[derive(Clone, Copy)]
     struct SelectableCandidate {
         entity: Entity,
@@ -1498,22 +1617,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             });
     }
 
-    let focused_scoped_owner =
-        resolve_focused_scope_owner(menus.p0().iter().filter_map(|(_, _, gate, scope_owner)| {
-            let scope_owner = scope_owner?;
-            if !ui_input_policy_allows(gate, interaction_captured) {
-                return None;
-            }
-            let Ok((owner_global, inherited_visibility)) =
-                owner_transform_query.get(scope_owner.owner)
-            else {
-                return None;
-            };
-            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
-                return None;
-            }
-            Some((scope_owner.owner, owner_global.translation().z))
-        }));
+    let focused_scoped_owner = interaction_state.focused_owner;
 
     let mut selection_state_by_menu: HashMap<Entity, SelectionState> = HashMap::new();
     let mut ordered_menus: Vec<Entity> = candidates_by_menu.keys().copied().collect();
@@ -2105,8 +2209,7 @@ impl Draggable {
     pub fn enact(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<UiInputCaptureToken>>,
+        interaction_state: Res<UiInteractionState>,
         mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<
             (
@@ -2121,7 +2224,7 @@ impl Draggable {
             Without<TextSpan>,
         >,
     ) {
-        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+        let interaction_captured = interaction_state.input_mode == UiInputMode::Captured;
 
         // Reset the option_to_drag flag at the beginning of the frame
         aggregate.option_to_drag = false;

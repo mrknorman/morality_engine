@@ -151,6 +151,25 @@ Core gating primitives now use unified names:
 Current behavior still mirrors legacy world-vs-captured semantics while later refactor phases
 consolidate full owner/layer/focus routing into unified interaction state.
 
+### `UiInteractionState` Resolver
+
+`InteractionPlugin` now computes `UiInteractionState` once per frame before primitive interaction systems.
+
+State currently includes:
+
+- `input_mode` (`World` or `Captured`)
+- owner-scoped capture metadata (`global_capture`, `captured_owners`)
+- resolved active layer per owner (`active_layers_by_owner`)
+- resolved focused owner (`focused_owner`)
+
+Resolver system:
+
+- `refresh_ui_interaction_state` in `src/systems/interaction/mod.rs`
+
+Design rule:
+
+- systems should consume `UiInteractionState` instead of recomputing capture/focus context ad hoc.
+
 Pattern:
 
 - Gameplay entities: `InteractionGate::GameplayOnly`
