@@ -1,0 +1,47 @@
+# Scene Flow Reference
+
+Last updated: 2026-02-23
+
+## Canonical Transition Source
+
+`Scene -> state` routing is defined in one place:
+
+- `src/scenes/runtime/mod.rs`
+  - `SceneNavigator::state_vector_for(...)`
+  - `SceneNavigator::next_state_vector_or_fallback(...)`
+
+No other module should define or duplicate this mapping.
+
+## Routing Table
+
+| Scene | MainState | GameState | DilemmaPhase |
+|---|---|---|---|
+| `Scene::Menu` | `Menu` | unchanged | unchanged |
+| `Scene::Loading` | `InGame` | `Loading` | unchanged |
+| `Scene::Dialogue(_)` | `InGame` | `Dialogue` | unchanged |
+| `Scene::Dilemma(_)` | `InGame` | `Dilemma` | `Intro` |
+| `Scene::Ending(_)` | `InGame` | `Ending` | unchanged |
+
+## Queue Advancement Contract
+
+1. `SceneQueue::try_pop()` is the canonical non-panicking dequeue operation.
+2. `SceneNavigator::advance(...)` returns an error when the queue is empty.
+3. `SceneNavigator::next_state_vector_or_fallback(...)` guarantees a route by
+   falling back to menu when the queue cannot advance.
+
+## Integration Points
+
+Current consumers of canonical scene routing:
+
+- `src/systems/interaction/mod.rs`
+  - `trigger_next_scene`
+- `src/systems/ui/menu/command_effects.rs`
+  - `handle_next_scene_command`
+
+## Fault-Tolerance Behavior
+
+When a next-scene action occurs and the queue is empty:
+
+- runtime returns the menu fallback state vector
+- state transition resolves safely to `MainState::Menu`
+- no panic is used for this recoverable flow path

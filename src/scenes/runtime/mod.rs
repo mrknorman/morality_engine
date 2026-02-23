@@ -38,6 +38,13 @@ impl SceneNavigator {
         let scene = queue.try_pop().ok_or(SceneNavigationError::EmptyQueue)?;
         Ok((scene, Self::state_vector_for(scene)))
     }
+
+    pub fn next_state_vector_or_fallback(queue: &mut SceneQueue) -> StateVector {
+        match Self::advance(queue) {
+            Ok((_, state_vector)) => state_vector,
+            Err(_) => Self::fallback_state_vector(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -115,6 +122,17 @@ mod tests {
         assert_eq!(
             SceneNavigator::state_vector_for(scene),
             StateVector::new(Some(MainState::InGame), Some(GameState::Ending), None)
+        );
+    }
+
+    #[test]
+    fn next_state_vector_or_fallback_routes_to_menu_when_queue_is_empty() {
+        let mut queue = SceneQueue::default();
+        queue.replace(vec![]);
+
+        assert_eq!(
+            SceneNavigator::next_state_vector_or_fallback(&mut queue),
+            StateVector::new(Some(MainState::Menu), None, None)
         );
     }
 }

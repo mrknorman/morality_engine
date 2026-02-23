@@ -23,7 +23,8 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 
 - Stage 0 complete: `d2772a1`
 - Stage 1 complete: `5152bf5`
-- Stage 2 in progress: working tree (fault-tolerant flow migration)
+- Stage 2 complete: `eebf918`
+- Stage 3 in progress: working tree (unified transition dispatch)
 
 ## Current High-Level Issues
 

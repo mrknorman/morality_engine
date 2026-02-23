@@ -137,19 +137,8 @@ fn handle_next_scene_command(
     next_game_state: &mut ResMut<NextState<GameState>>,
     next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
 ) {
-    match SceneNavigator::advance(scene_queue) {
-        Ok((_, state_vector)) => {
-            state_vector.set_state(next_main_state, next_game_state, next_sub_state)
-        }
-        Err(error) => {
-            warn!("failed to advance scene queue: {error:?}");
-            SceneNavigator::fallback_state_vector().set_state(
-                next_main_state,
-                next_game_state,
-                next_sub_state,
-            );
-        }
-    }
+    SceneNavigator::next_state_vector_or_fallback(scene_queue)
+        .set_state(next_main_state, next_game_state, next_sub_state);
 }
 
 fn handle_start_single_level_command(
