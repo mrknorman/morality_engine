@@ -48,6 +48,7 @@ During migration, prefer referencing the unified-refactor plan for canonical sta
 - `Phase 4`: menu stack/layered UI routing migrated to `UiInteractionState`.
 - `Phase 5`: window close/drag/resize routing now consumes unified focus/mode state.
 - `Phase 6`: scroll and hover-box subsystems now consume unified focus/layer state.
+- `Phase 7`: remaining legacy gate consumers migrated to unified policy/state checks.
 
 ## UI Interaction Test Matrix (Phase 0 Baseline)
 
@@ -208,7 +209,13 @@ Window systems migrated to this model:
 Scroll/hover systems migrated to this model:
 
 - `src/systems/ui/scroll/behavior.rs`
+- `src/systems/ui/scroll/scrollbar.rs`
 - `src/systems/ui/hover_box.rs`
+
+Remaining non-UI consumers migrated:
+
+- `src/systems/colors/mod.rs`
+- `src/systems/cascade/mod.rs`
 
 ### `Hoverable`
 

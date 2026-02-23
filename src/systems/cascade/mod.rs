@@ -12,11 +12,11 @@ use rand::Rng;
 use smallvec::SmallVec;
 
 use crate::{
-    data::{rng::GlobalRng, states::PauseState},
+    data::rng::GlobalRng,
     entities::text::scaled_font_size,
     startup::cursor::CustomCursor,
     systems::interaction::{
-        ui_input_mode_is_captured, ui_input_policy_allows, UiInputCaptureToken, UiInputPolicy,
+        ui_input_policy_allows_mode, UiInputPolicy, UiInteractionState,
     },
 };
 
@@ -72,10 +72,9 @@ impl Ripple {
         cascade_numbers: Query<(Entity, Option<&UiInputPolicy>), With<Cascade>>,
         input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<UiInputCaptureToken>>,
+        interaction_state: Res<UiInteractionState>,
     ) {
-        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+        let interaction_mode = interaction_state.input_mode;
 
         let Some(cursor_position) = cursor.position else {
             return;
@@ -91,7 +90,7 @@ impl Ripple {
         };
 
         for (entity, gate) in cascade_numbers.iter() {
-            if !ui_input_policy_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows_mode(gate, interaction_mode) {
                 continue;
             }
             commands.entity(entity).with_children(|parent| {
@@ -357,16 +356,15 @@ impl Cascade {
         mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform, &CascadeNumber)>,
         cascades: Query<(Entity, Option<&UiInputPolicy>), With<Cascade>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<UiInputCaptureToken>>,
+        interaction_state: Res<UiInteractionState>,
         mut gate_by_parent: Local<HashMap<Entity, bool>>,
     ) {
-        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+        let interaction_mode = interaction_state.input_mode;
 
         gate_by_parent.clear();
         gate_by_parent.reserve(cascades.iter().len());
         for (entity, gate) in cascades.iter() {
-            gate_by_parent.insert(entity, ui_input_policy_allows(gate, interaction_captured));
+            gate_by_parent.insert(entity, ui_input_policy_allows_mode(gate, interaction_mode));
         }
 
         let Some(cursor_position) = cursor.position else {

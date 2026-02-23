@@ -12,13 +12,13 @@ use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 
 use crate::{
-    data::{rng::GlobalRng, states::PauseState},
+    data::rng::GlobalRng,
     entities::sprites::compound::{AssembleShape, Plus},
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            is_cursor_within_bounds, is_cursor_within_region, ui_input_mode_is_captured,
-            ui_input_policy_allows, UiInputCaptureToken, UiInputPolicy,
+            is_cursor_within_bounds, is_cursor_within_region, ui_input_policy_allows_mode,
+            UiInputPolicy, UiInteractionState,
         },
         motion::{Bounce, Pulse},
         time::Dilation,
@@ -559,8 +559,7 @@ impl ColorChangeOn {
     fn handle_cursor_events_shapes<T: AssembleShape + Component<Mutability = Mutable>>(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<UiInputCaptureToken>>,
+        interaction_state: Res<UiInteractionState>,
         mut query: Query<(
             &mut ColorChangeOn,
             &mut T,
@@ -569,10 +568,10 @@ impl ColorChangeOn {
             Option<&UiInputPolicy>,
         )>,
     ) {
-        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+        let interaction_mode = interaction_state.input_mode;
 
         for (mut color_change, mut shape, transform, global_transform, gate) in query.iter_mut() {
-            if !ui_input_policy_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows_mode(gate, interaction_mode) {
                 continue;
             }
 
@@ -624,8 +623,7 @@ impl ColorChangeOn {
     fn handle_cursor_events(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<UiInputCaptureToken>>,
+        interaction_state: Res<UiInteractionState>,
         mut query: Query<(
             &mut ColorChangeOn,
             &mut TextColor,
@@ -634,10 +632,10 @@ impl ColorChangeOn {
             Option<&UiInputPolicy>,
         )>,
     ) {
-        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
+        let interaction_mode = interaction_state.input_mode;
 
         for (mut color_change, mut text_color, aabb, transform, gate) in query.iter_mut() {
-            if !ui_input_policy_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows_mode(gate, interaction_mode) {
                 continue;
             }
 

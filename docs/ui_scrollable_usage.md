@@ -76,6 +76,7 @@ Attach this to scroll items when you want automatic extent aggregation:
    - Scrollbar part composition
    - Thumb/track visuals and click regions
    - Drag/track-click input behavior
+   - owner/layer/focus gating from `UiInteractionState`
 4. `scroll/geometry.rs` + `scroll/scrollbar_math.rs`:
    - Pure helper math shared by systems/tests
 
