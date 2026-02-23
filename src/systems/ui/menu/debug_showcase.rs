@@ -9,13 +9,11 @@ use bevy::{
 use crate::{
     data::states::MainState,
     entities::{
-        sprites::{
-            compound::{HollowRectangle, RectangleSides},
-        },
+        sprites::compound::{HollowRectangle, RectangleSides},
         text::{scaled_font_size, TextRaw},
     },
     startup::system_menu,
-        systems::{
+    systems::{
         interaction::{
             is_cursor_within_region, Clickable, Draggable, Hoverable, OptionCycler, Selectable,
             SelectableClickActivation, SelectableMenu, SelectableScopeOwner, SystemMenuActions,
@@ -76,8 +74,16 @@ fn debug_active_text_color() -> Color {
 }
 
 fn showcase_window_translation(column: usize, row: usize) -> Vec3 {
-    let x = if column == 0 { -WINDOW_COL_X } else { WINDOW_COL_X };
-    let y = if row == 0 { WINDOW_ROW_Y } else { -WINDOW_ROW_Y };
+    let x = if column == 0 {
+        -WINDOW_COL_X
+    } else {
+        WINDOW_COL_X
+    };
+    let y = if row == 0 {
+        WINDOW_ROW_Y
+    } else {
+        -WINDOW_ROW_Y
+    };
     Vec3::new(x, y, SHOWCASE_Z)
 }
 
@@ -238,7 +244,10 @@ fn spawn_window_base(
             Transform::default(),
         ))
         .id();
-    world.commands().entity(window_entity).add_child(content_root);
+    world
+        .commands()
+        .entity(window_entity)
+        .add_child(content_root);
     world.commands().entity(root).add_child(window_entity);
     (window_entity, content_root)
 }

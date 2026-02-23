@@ -3,9 +3,9 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use crate::systems::{
     interaction::{
         clickable_system, hoverable_system, option_cycler_input_system, reset_hoverable_state,
-        selectable_system, Clickable, Hoverable, InteractionAggregate, InteractionCapture,
-        InteractionCaptureOwner, InteractionGate, OptionCycler, Selectable,
-        SelectableClickActivation, SelectableMenu, SystemMenuActions,
+        selectable_system, Clickable, Hoverable, InteractionAggregate, OptionCycler, Selectable,
+        SelectableClickActivation, SelectableMenu, SystemMenuActions, UiInputCaptureOwner,
+        UiInputCaptureToken, UiInputPolicy,
     },
     ui::{
         dropdown::{self, DropdownAnchorState, DropdownLayerState},
@@ -130,27 +130,27 @@ fn tabs_and_layer_gating_flow_remain_owner_scoped() {
         .spawn((
             UiLayer::new(owner, UiLayerKind::Base),
             Visibility::Visible,
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
     let modal = world
         .spawn((
             UiLayer::new(owner, UiLayerKind::Modal),
             Visibility::Visible,
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
-    world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner)));
+    world.spawn((UiInputCaptureToken, UiInputCaptureOwner::new(owner)));
 
     let mut capture_state: SystemState<
-        Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     > = SystemState::new(&mut world);
     let mut layer_state: SystemState<
         Query<(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     > = SystemState::new(&mut world);
     let capture_query = capture_state.get(&world);
@@ -182,14 +182,14 @@ fn nested_tab_interaction_surface_without_layer_keeps_menu_root_active() {
         .is_none());
 
     let mut capture_state: SystemState<
-        Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     > = SystemState::new(&mut world);
     let mut layer_state: SystemState<
         Query<(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     > = SystemState::new(&mut world);
     let capture_query = capture_state.get(&world);
@@ -324,35 +324,35 @@ fn owner_layer_priority_prefers_modal_then_dropdown_then_base() {
         .spawn((
             UiLayer::new(owner, UiLayerKind::Base),
             Visibility::Visible,
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
     let dropdown = world
         .spawn((
             UiLayer::new(owner, UiLayerKind::Dropdown),
             Visibility::Visible,
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
     let modal = world
         .spawn((
             UiLayer::new(owner, UiLayerKind::Modal),
             Visibility::Hidden,
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
 
-    world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner)));
+    world.spawn((UiInputCaptureToken, UiInputCaptureOwner::new(owner)));
 
     let mut capture_state: SystemState<
-        Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+        Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     > = SystemState::new(&mut world);
     let mut layer_state: SystemState<
         Query<(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     > = SystemState::new(&mut world);
 
@@ -476,7 +476,7 @@ fn tabbed_focus_down_from_tabs_activates_selected_tab_and_returns_to_options() {
         .spawn((
             MenuRoot {
                 host: MenuHost::Main,
-                gate: InteractionGate::PauseMenuOnly,
+                gate: UiInputPolicy::CapturedOnly,
             },
             SelectableMenu::new(
                 3,
@@ -793,7 +793,7 @@ fn tab_change_closes_open_video_dropdown_for_owner() {
         .spawn((
             MenuRoot {
                 host: MenuHost::Pause,
-                gate: InteractionGate::PauseMenuOnly,
+                gate: UiInputPolicy::CapturedOnly,
             },
             SelectableMenu::new(
                 VIDEO_RESOLUTION_OPTION_INDEX,
@@ -897,7 +897,7 @@ fn tab_change_for_one_owner_does_not_close_other_owner_dropdown() {
         .spawn((
             MenuRoot {
                 host: MenuHost::Pause,
-                gate: InteractionGate::PauseMenuOnly,
+                gate: UiInputPolicy::CapturedOnly,
             },
             MenuStack::new(MenuPage::Video),
             SelectableMenu::new(
@@ -914,7 +914,7 @@ fn tab_change_for_one_owner_does_not_close_other_owner_dropdown() {
         .spawn((
             MenuRoot {
                 host: MenuHost::Pause,
-                gate: InteractionGate::PauseMenuOnly,
+                gate: UiInputPolicy::CapturedOnly,
             },
             MenuStack::new(MenuPage::Video),
             SelectableMenu::new(

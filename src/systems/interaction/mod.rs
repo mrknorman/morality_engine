@@ -256,85 +256,123 @@ impl std::fmt::Display for ScrollUiActions {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InteractionGate {
-    GameplayOnly,
-    PauseMenuOnly,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum UiInputMode {
+    #[default]
+    World,
+    Captured,
 }
 
-impl Default for InteractionGate {
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UiInputPolicy {
+    WorldOnly,
+    CapturedOnly,
+    Any,
+}
+
+impl Default for UiInputPolicy {
     fn default() -> Self {
-        Self::GameplayOnly
+        Self::WorldOnly
     }
 }
 
-impl InteractionGate {
-    fn allows(self, interaction_captured: bool) -> bool {
+impl UiInputPolicy {
+    fn allows(self, mode: UiInputMode) -> bool {
         match self {
-            Self::GameplayOnly => !interaction_captured,
-            Self::PauseMenuOnly => interaction_captured,
+            Self::WorldOnly => mode == UiInputMode::World,
+            Self::CapturedOnly => mode == UiInputMode::Captured,
+            Self::Any => true,
         }
     }
 }
 
 #[derive(Component, Clone, Copy, Debug, Default)]
-pub struct InteractionCapture;
+pub struct UiInputCaptureToken;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InteractionCaptureOwner {
+pub struct UiInputCaptureOwner {
     pub owner: Entity,
 }
 
-impl InteractionCaptureOwner {
+impl UiInputCaptureOwner {
     pub const fn new(owner: Entity) -> Self {
         Self { owner }
     }
 }
 
-pub fn interaction_context_active(
+pub fn ui_input_mode(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<(), With<InteractionCapture>>,
-) -> bool {
+    capture_query: &Query<(), With<UiInputCaptureToken>>,
+) -> UiInputMode {
     let paused = pause_state
         .as_ref()
         .is_some_and(|state| *state.get() == PauseState::Paused);
-    paused || !capture_query.is_empty()
+    if paused || !capture_query.is_empty() {
+        UiInputMode::Captured
+    } else {
+        UiInputMode::World
+    }
 }
 
-pub fn interaction_context_active_for_owner(
+pub fn ui_input_mode_is_captured(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    owner: Entity,
+    capture_query: &Query<(), With<UiInputCaptureToken>>,
 ) -> bool {
+    ui_input_mode(pause_state, capture_query) == UiInputMode::Captured
+}
+
+pub fn ui_input_mode_for_owner(
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    owner: Entity,
+) -> UiInputMode {
     let paused = pause_state
         .as_ref()
         .is_some_and(|state| *state.get() == PauseState::Paused);
     if paused {
-        return true;
+        return UiInputMode::Captured;
     }
 
-    capture_query.iter().any(|capture_owner| {
+    if capture_query.iter().any(|capture_owner| {
         capture_owner
             .as_ref()
             .is_none_or(|capture_owner| capture_owner.owner == owner)
-    })
+    }) {
+        UiInputMode::Captured
+    } else {
+        UiInputMode::World
+    }
 }
 
-pub fn interaction_gate_allows(gate: Option<&InteractionGate>, interaction_captured: bool) -> bool {
-    gate.copied()
-        .unwrap_or_default()
-        .allows(interaction_captured)
-}
-
-pub fn interaction_gate_allows_for_owner(
-    gate: Option<&InteractionGate>,
+pub fn ui_input_mode_is_captured_for_owner(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     owner: Entity,
 ) -> bool {
-    let interaction_captured =
-        interaction_context_active_for_owner(pause_state, capture_query, owner);
-    interaction_gate_allows(gate, interaction_captured)
+    ui_input_mode_for_owner(pause_state, capture_query, owner) == UiInputMode::Captured
+}
+
+pub fn ui_input_policy_allows_mode(policy: Option<&UiInputPolicy>, mode: UiInputMode) -> bool {
+    policy.copied().unwrap_or_default().allows(mode)
+}
+
+pub fn ui_input_policy_allows(policy: Option<&UiInputPolicy>, interaction_captured: bool) -> bool {
+    let mode = if interaction_captured {
+        UiInputMode::Captured
+    } else {
+        UiInputMode::World
+    };
+    ui_input_policy_allows_mode(policy, mode)
+}
+
+pub fn ui_input_policy_allows_for_owner(
+    policy: Option<&UiInputPolicy>,
+    pause_state: Option<&Res<State<PauseState>>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    owner: Entity,
+) -> bool {
+    let mode = ui_input_mode_for_owner(pause_state, capture_query, owner);
+    ui_input_policy_allows_mode(policy, mode)
 }
 
 #[derive(Copy, Clone, Component)]
@@ -352,7 +390,7 @@ impl Default for ClickableCursorIcons {
 }
 
 #[derive(Component)]
-#[require(Hoverable, ClickableCursorIcons, InteractionGate)]
+#[require(Hoverable, ClickableCursorIcons, UiInputPolicy)]
 pub struct Clickable<T>
 where
     T: Copy + Send + Sync,
@@ -446,15 +484,15 @@ pub fn scoped_owner_has_focus(scope_owner: Option<Entity>, focused_owner: Option
 /// each candidate owner).
 pub fn focused_scope_owner_from_registry(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    scope_owner_query: &Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    scope_owner_query: &Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
     owner_transform_query: &Query<
         (&GlobalTransform, Option<&InheritedVisibility>),
         Without<TextSpan>,
     >,
 ) -> Option<Entity> {
     resolve_focused_scope_owner(scope_owner_query.iter().filter_map(|(gate, scope_owner)| {
-        if !interaction_gate_allows_for_owner(gate, pause_state, capture_query, scope_owner.owner) {
+        if !ui_input_policy_allows_for_owner(gate, pause_state, capture_query, scope_owner.owner) {
             return None;
         }
         let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
@@ -480,7 +518,7 @@ where
 }
 
 #[derive(Component)]
-#[require(InteractionState, InteractionGate)]
+#[require(InteractionState, UiInputPolicy)]
 pub struct Pressable<T>
 where
     T: Copy + Send + Sync,
@@ -504,7 +542,7 @@ where
 }
 
 #[derive(Component, Clone)]
-#[require(InteractionGate)]
+#[require(UiInputPolicy)]
 pub struct SelectableMenu {
     /// Current selected option index.
     pub selected_index: usize,
@@ -567,7 +605,7 @@ impl SelectableMenu {
 }
 
 #[derive(Component, Clone, Copy)]
-#[require(InteractionVisualState, InteractionVisualPalette, InteractionGate)]
+#[require(InteractionVisualState, InteractionVisualPalette, UiInputPolicy)]
 pub struct Selectable {
     /// Parent menu entity this selectable belongs to.
     pub menu_entity: Entity,
@@ -893,7 +931,7 @@ pub fn reset_hoverable_state(mut query: Query<&mut Hoverable>) {
 
 pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<InteractionCapture>>,
+    capture_query: Query<(), With<UiInputCaptureToken>>,
     cursor: Res<CustomCursor>,
     scroll_edge_query: Query<(
         &ScrollableRoot,
@@ -918,14 +956,14 @@ pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
             &GlobalTransform,
             Option<&Clickable<T>>,
             Option<&InheritedVisibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&Selectable>,
             &mut Hoverable,
         ),
         Without<TextSpan>,
     >,
 ) {
-    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
     let Some(cursor_position) = cursor.position else {
         return;
     };
@@ -987,7 +1025,7 @@ pub fn hoverable_system<T: Send + Sync + Copy + 'static>(
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if !interaction_gate_allows(gate, interaction_captured) {
+        if !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
         if selectable
@@ -1080,7 +1118,7 @@ pub fn apply_interaction_visuals(
 pub fn clickable_system<T: Send + Sync + Copy + 'static>(
     mouse_input: Res<ButtonInput<MouseButton>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<InteractionCapture>>,
+    capture_query: Query<(), With<UiInputCaptureToken>>,
     mut aggregate: ResMut<InteractionAggregate>,
     cursor: Res<CustomCursor>,
     scroll_edge_query: Query<(
@@ -1106,7 +1144,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
             &GlobalTransform,
             &ClickableCursorIcons,
             Option<&InheritedVisibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&mut InteractionVisualState>,
             Option<&Selectable>,
             &mut Clickable<T>,
@@ -1114,7 +1152,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         Without<TextSpan>,
     >,
 ) {
-    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
     // Reset click latches every frame so stale clicks cannot retrigger actions.
     for (_, _, _, _, _, _, _, _, _, mut clickable) in clickable_query.iter_mut() {
@@ -1186,7 +1224,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if !interaction_gate_allows(gate, interaction_captured) {
+        if !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
         if selectable
@@ -1257,22 +1295,22 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 pub fn pressable_system<T: Copy + Send + Sync + 'static>(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<InteractionCapture>>,
+    capture_query: Query<(), With<UiInputCaptureToken>>,
     mut query: Query<(
         &mut Pressable<T>,
         &mut InteractionState,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
         Option<&mut InteractionVisualState>,
     )>,
 ) {
-    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
     for (mut pressable, mut state, gate, visual_state) in query.iter_mut() {
         let mut visual_state = visual_state;
         // Reset the triggered mapping each frame.
         pressable.triggered_mapping = None;
 
-        if !interaction_gate_allows(gate, interaction_captured) {
+        if !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -1302,7 +1340,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<(), With<InteractionCapture>>,
+    capture_query: Query<(), With<UiInputCaptureToken>>,
     owner_transform_query: Query<
         (&GlobalTransform, Option<&InheritedVisibility>),
         Without<TextSpan>,
@@ -1317,13 +1355,13 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         Query<(
             Entity,
             &SelectableMenu,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&SelectableScopeOwner>,
         )>,
         Query<(
             Entity,
             &mut SelectableMenu,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&SelectableScopeOwner>,
         )>,
     )>,
@@ -1337,7 +1375,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
                 &Transform,
                 &GlobalTransform,
                 Option<&InheritedVisibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
                 &Clickable<K>,
             ),
             Without<TextSpan>,
@@ -1346,12 +1384,12 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             &Selectable,
             &mut InteractionVisualState,
             &mut InteractionVisualPalette,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             &mut Clickable<K>,
         )>,
     )>,
 ) {
-    let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+    let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
     #[derive(Clone, Copy)]
     struct SelectableCandidate {
         entity: Entity,
@@ -1425,7 +1463,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if !interaction_gate_allows(gate, interaction_captured) {
+        if !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -1463,7 +1501,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     let focused_scoped_owner =
         resolve_focused_scope_owner(menus.p0().iter().filter_map(|(_, _, gate, scope_owner)| {
             let scope_owner = scope_owner?;
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows(gate, interaction_captured) {
                 return None;
             }
             let Ok((owner_global, inherited_visibility)) =
@@ -1489,7 +1527,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
             continue;
         };
 
-        if !interaction_gate_allows(gate, interaction_captured) {
+        if !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -1599,7 +1637,7 @@ pub fn selectable_system<K: Copy + Send + Sync + 'static>(
     for (selectable, mut visual_state, _visual_palette, gate, mut clickable) in
         selectable_queries.p1().iter_mut()
     {
-        if !interaction_gate_allows(gate, interaction_captured) {
+        if !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -2046,7 +2084,7 @@ impl DraggableViewportBounds {
 }
 
 #[derive(Component)]
-#[require(Transform, InteractionGate)]
+#[require(Transform, UiInputPolicy)]
 pub struct Draggable {
     pub region: Option<DraggableRegion>,
     pub offset: Vec2,
@@ -2068,7 +2106,7 @@ impl Draggable {
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        capture_query: Query<(), With<UiInputCaptureToken>>,
         mut aggregate: ResMut<InteractionAggregate>,
         mut draggable_q: Query<
             (
@@ -2078,19 +2116,19 @@ impl Draggable {
                 &mut Transform,
                 Option<&Aabb>,
                 Option<&DraggableViewportBounds>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             ),
             Without<TextSpan>,
         >,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
         // Reset the option_to_drag flag at the beginning of the frame
         aggregate.option_to_drag = false;
 
         if interaction_captured {
             for (_, _, mut draggable, _, _, _, gate) in draggable_q.iter_mut() {
-                if !interaction_gate_allows(gate, interaction_captured) {
+                if !ui_input_policy_allows(gate, interaction_captured) {
                     draggable.dragging = false;
                 }
             }
@@ -2112,7 +2150,7 @@ impl Draggable {
         for (entity, global_transform, mut draggable, transform, aabb, _, gate) in
             draggable_q.iter_mut()
         {
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows(gate, interaction_captured) {
                 draggable.dragging = false;
                 continue;
             }

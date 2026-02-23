@@ -23,9 +23,9 @@ use crate::{
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
         interaction::{
             ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
-            Hoverable, InputAction, InteractionGate, InteractionSystem, InteractionVisualPalette,
+            Hoverable, InputAction, InteractionSystem, InteractionVisualPalette,
             InteractionVisualState, SelectableClickActivation, SelectableMenu,
-            SelectableScopeOwner,
+            SelectableScopeOwner, UiInputPolicy,
         },
         ui::scroll::{
             ScrollAxis, ScrollBackend, ScrollBar, ScrollState, ScrollZoomConfig, ScrollableContent,
@@ -835,8 +835,8 @@ impl Window {
 
     fn sync_close_button_interaction_gate(
         mut commands: Commands,
-        windows: Query<(Entity, &Window, &WindowParts, Option<&InteractionGate>)>,
-        root_gates: Query<&InteractionGate>,
+        windows: Query<(Entity, &Window, &WindowParts, Option<&UiInputPolicy>)>,
+        root_gates: Query<&UiInputPolicy>,
     ) {
         for (window_entity, window, parts, gate) in &windows {
             let resolved_gate = gate.copied().or_else(|| {
@@ -1894,7 +1894,7 @@ impl Window {
         owner_entity: Entity,
         inner_size: Vec2,
         color: Color,
-        gate: Option<InteractionGate>,
+        gate: Option<UiInputPolicy>,
     ) -> WindowScrollRuntime {
         let mut vertical_root = None;
         let mut vertical_content = None;
@@ -2176,7 +2176,7 @@ impl Window {
                 w.header_height,
                 w.has_close_button,
                 w.root_entity,
-                entity_mut.get::<InteractionGate>().copied(),
+                entity_mut.get::<UiInputPolicy>().copied(),
             )
         };
 
@@ -2312,13 +2312,13 @@ impl WindowCloseButton {
         let root = button.root_entity;
         let gate = world
             .entity(entity)
-            .get::<InteractionGate>()
+            .get::<UiInputPolicy>()
             .copied()
             .or_else(|| {
                 world.entity(entity).get::<ChildOf>().and_then(|parent| {
                     world
                         .entity(parent.parent())
-                        .get::<InteractionGate>()
+                        .get::<UiInputPolicy>()
                         .copied()
                 })
             });
@@ -2489,7 +2489,7 @@ mod tests {
         app.init_resource::<Assets<ColorMaterial>>();
 
         app.world_mut().spawn((
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
             UiWindow::new(
                 None,
                 HollowRectangle {
@@ -2505,10 +2505,10 @@ mod tests {
 
         let has_gated_close_clickable = {
             let world = app.world_mut();
-            let mut query = world.query::<(&Clickable<UiWindowActions>, &InteractionGate)>();
+            let mut query = world.query::<(&Clickable<UiWindowActions>, &UiInputPolicy)>();
             query.iter(world).any(|(clickable, gate)| {
                 clickable.actions.contains(&UiWindowActions::CloseWindow)
-                    && *gate == InteractionGate::PauseMenuOnly
+                    && *gate == UiInputPolicy::CapturedOnly
             })
         };
         assert!(has_gated_close_clickable);

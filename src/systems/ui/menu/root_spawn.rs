@@ -7,7 +7,7 @@ pub fn spawn_menu_root(
     name: &str,
     translation: Vec3,
     initial_page: MenuPage,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) -> Entity {
     let menu_entity = system_menu::spawn_root(
         commands,

@@ -13,9 +13,9 @@ use crate::{
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
-            interaction_gate_allows_for_owner, Clickable, Hoverable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate, InteractionVisualState, Selectable,
-            SelectableClickActivation, SelectableMenu, SystemMenuActions, SystemMenuSounds,
+            ui_input_policy_allows_for_owner, Clickable, Hoverable, InteractionVisualState,
+            Selectable, SelectableClickActivation, SelectableMenu, SystemMenuActions,
+            SystemMenuSounds, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy,
         },
         time::Dilation,
         ui::{
@@ -154,12 +154,12 @@ pub fn sync_tabbed_menu_focus(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     tab_item_query: Query<
         (
@@ -192,7 +192,7 @@ pub fn sync_tabbed_menu_focus(
                 &TabBarState,
                 &SelectableMenu,
                 &TabbedMenuConfig,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             ),
             With<TabbedMenuConfig>,
         >,
@@ -230,8 +230,7 @@ pub fn sync_tabbed_menu_focus(
     {
         let tab_root_query = tab_queries.p0();
         for (tab_root_entity, tab_bar, tab_state, tab_menu, config, gate) in tab_root_query.iter() {
-            if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner)
-            {
+            if !ui_input_policy_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner) {
                 continue;
             }
             owner_by_tab_root.insert(tab_root_entity, tab_bar.owner);
@@ -510,12 +509,12 @@ pub fn commit_tab_activation(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     focus_state: Res<TabbedMenuFocusState>,
     tab_item_query: Query<
@@ -530,7 +529,7 @@ pub fn commit_tab_activation(
             &SelectableMenu,
             Option<&tabs::TabActivationPolicy>,
             Option<&TransientAudioPallet<SystemMenuSounds>>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         ),
         With<TabbedMenuConfig>,
     >,
@@ -557,7 +556,7 @@ pub fn commit_tab_activation(
         gate,
     ) in tab_query.iter_mut()
     {
-        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner) {
+        if !ui_input_policy_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner) {
             continue;
         }
         if layer::active_layer_kind_for_owner(&active_layers, tab_bar.owner) != UiLayerKind::Base {
@@ -690,7 +689,7 @@ mod tests {
             .id();
         world.entity_mut(stale_menu).insert(MenuRoot {
             host: crate::systems::ui::menu::MenuHost::Pause,
-            gate: InteractionGate::PauseMenuOnly,
+            gate: UiInputPolicy::CapturedOnly,
         });
         world
             .resource_mut::<TabbedMenuFocusState>()

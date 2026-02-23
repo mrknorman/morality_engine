@@ -190,7 +190,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Main,
-                    gate: InteractionGate::PauseMenuOnly,
+                    gate: UiInputPolicy::CapturedOnly,
                 },
                 SelectableMenu::new(
                     0,
@@ -243,7 +243,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Main,
-                    gate: InteractionGate::PauseMenuOnly,
+                    gate: UiInputPolicy::CapturedOnly,
                 },
                 SelectableMenu::new(
                     5,

@@ -15,8 +15,8 @@ use bevy::prelude::*;
 use crate::{
     data::states::PauseState,
     systems::interaction::{
-        interaction_context_active_for_owner, interaction_gate_allows, InteractionCapture,
-        InteractionCaptureOwner, InteractionGate,
+        ui_input_mode_is_captured_for_owner, ui_input_policy_allows, UiInputCaptureOwner,
+        UiInputCaptureToken, UiInputPolicy,
     },
 };
 
@@ -124,19 +124,19 @@ fn is_visible(visibility: Option<&Visibility>) -> bool {
 /// deterministic entity rank.
 pub fn active_layers_by_owner_scoped(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     layer_query: &Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
 ) -> HashMap<Entity, ActiveUiLayer> {
     let mut active: HashMap<Entity, ActiveUiLayer> = HashMap::new();
     for (entity, layer, visibility, gate) in layer_query.iter() {
         let interaction_captured =
-            interaction_context_active_for_owner(pause_state, capture_query, layer.owner);
-        if !is_visible(visibility) || !interaction_gate_allows(gate, interaction_captured) {
+            ui_input_mode_is_captured_for_owner(pause_state, capture_query, layer.owner);
+        if !is_visible(visibility) || !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -176,14 +176,14 @@ mod tests {
             .id();
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 
@@ -207,14 +207,14 @@ mod tests {
             .id();
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 
@@ -334,14 +334,14 @@ mod tests {
             .id();
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 
@@ -415,35 +415,35 @@ mod tests {
             .spawn((
                 UiLayer::new(owner_a, UiLayerKind::Base),
                 Visibility::Visible,
-                InteractionGate::PauseMenuOnly,
+                UiInputPolicy::CapturedOnly,
             ))
             .id();
         let owner_b_pause_menu = world
             .spawn((
                 UiLayer::new(owner_b, UiLayerKind::Base),
                 Visibility::Visible,
-                InteractionGate::PauseMenuOnly,
+                UiInputPolicy::CapturedOnly,
             ))
             .id();
         let owner_b_gameplay = world
             .spawn((
                 UiLayer::new(owner_b, UiLayerKind::Base),
                 Visibility::Visible,
-                InteractionGate::GameplayOnly,
+                UiInputPolicy::WorldOnly,
             ))
             .id();
 
-        world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner_a)));
+        world.spawn((UiInputCaptureToken, UiInputCaptureOwner::new(owner_a)));
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 

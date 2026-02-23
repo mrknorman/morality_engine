@@ -16,9 +16,9 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            focused_scope_owner_from_registry, interaction_gate_allows_for_owner,
-            is_cursor_within_region, resolve_focused_scope_owner, scoped_owner_has_focus,
-            InteractionCapture, InteractionCaptureOwner, InteractionGate, SelectableScopeOwner,
+            focused_scope_owner_from_registry, is_cursor_within_region,
+            resolve_focused_scope_owner, scoped_owner_has_focus, ui_input_policy_allows_for_owner,
+            SelectableScopeOwner, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -84,14 +84,14 @@ pub(super) fn sync_scroll_extents(
 
 pub(super) fn handle_scrollable_pointer_and_keyboard_input(
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
-    scope_owner_query: Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
+    scope_owner_query: Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
     owner_transform_query: Query<
         (&GlobalTransform, Option<&InheritedVisibility>),
         Without<TextSpan>,
@@ -113,7 +113,7 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             &mut ScrollFocusFollowLock,
             &mut ScrollZoomState,
             &ScrollZoomConfig,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&InheritedVisibility>,
         ),
         With<ScrollableRoot>,
@@ -281,7 +281,7 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
+        if !ui_input_policy_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
             continue;
         }
         let active_layer_kind = active_layers

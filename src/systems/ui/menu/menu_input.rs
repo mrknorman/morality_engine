@@ -16,10 +16,10 @@ fn menu_is_active_base_layer(
     menu_entity: Entity,
     menu_root: &MenuRoot,
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
 ) -> bool {
-    interaction_gate_allows_for_owner(
+    ui_input_policy_allows_for_owner(
         Some(&menu_root.gate),
         pause_state,
         capture_query,
@@ -31,7 +31,7 @@ fn handle_escape_shortcut_for_active_menus(
     escape_pressed: bool,
     settings: &VideoSettingsState,
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
     menu_query: &Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     navigation_state: &mut MenuNavigationState,
@@ -42,7 +42,7 @@ fn handle_escape_shortcut_for_active_menus(
         return;
     }
 
-    let mut selected_menu: Option<(Entity, MenuPage, InteractionGate)> = None;
+    let mut selected_menu: Option<(Entity, MenuPage, UiInputPolicy)> = None;
     for menu_entity in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Base) {
         let Ok((_, menu_stack, menu_root, _)) = menu_query.get(menu_entity) else {
             continue;
@@ -80,7 +80,7 @@ fn handle_escape_shortcut_for_active_menus(
 
 fn collect_active_menu_shortcut_context(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
     menu_query: &Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
@@ -279,13 +279,13 @@ pub(super) fn play_menu_navigation_sound(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     layer_menu_query: Query<(
         Entity,
@@ -336,12 +336,12 @@ pub(super) fn play_menu_navigation_sound(
 
 pub(super) fn enforce_active_layer_focus(
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     layer_meta_query: Query<&UiLayer>,
     mut layer_menu_query: Query<(Entity, &UiLayer, &mut SelectableMenu)>,
@@ -413,7 +413,7 @@ pub(super) fn handle_menu_shortcuts(
     asset_server: Res<AssetServer>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     settings: Res<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     mut navigation_state: ResMut<MenuNavigationState>,
@@ -421,7 +421,7 @@ pub(super) fn handle_menu_shortcuts(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     menu_query: Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     option_shortcut_query: Query<(&Selectable, &ShortcutKey, &MenuOptionCommand)>,
@@ -487,12 +487,12 @@ pub(super) fn handle_menu_shortcuts(
 
 pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     mut option_query: Query<
@@ -768,7 +768,7 @@ mod tests {
                 MenuStack::new(MenuPage::Video),
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 SelectableMenu::new(
                     VIDEO_FOOTER_OPTION_START_INDEX,
@@ -784,7 +784,7 @@ mod tests {
                 MenuStack::new(MenuPage::PauseRoot),
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 SelectableMenu::new(0, vec![], vec![], vec![], true),
             ))
@@ -807,7 +807,7 @@ mod tests {
         );
 
         let mut query_state: SystemState<(
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
             Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
         )> = SystemState::new(&mut world);
         let (capture_query, menu_query) = query_state.get(&world);

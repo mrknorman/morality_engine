@@ -103,7 +103,7 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<crate::startup::cursor::CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     mut settings: ResMut<VideoSettingsState>,
     dropdown_anchor_state: Res<DropdownAnchorState>,
     menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
@@ -113,7 +113,7 @@ pub(super) fn handle_resolution_dropdown_item_commands(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
@@ -287,14 +287,14 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<crate::startup::cursor::CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     settings: Res<VideoSettingsState>,
     mut layer_queries: ParamSet<(
         Query<(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
@@ -411,13 +411,13 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
 pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     mut layer_queries: ParamSet<(
         Query<(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
         Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
     )>,
@@ -495,7 +495,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
             else {
                 continue;
             };
-            if !interaction_gate_allows_for_owner(
+            if !ui_input_policy_allows_for_owner(
                 Some(&menu_root.gate),
                 pause_state,
                 &capture_query,
@@ -624,7 +624,7 @@ mod tests {
     use crate::{
         startup::cursor::CustomCursor,
         systems::{
-            interaction::{Clickable, InteractionGate, SelectableMenu, SystemMenuActions},
+            interaction::{Clickable, SelectableMenu, SystemMenuActions, UiInputPolicy},
             ui::layer::{UiLayer, UiLayerKind},
         },
     };
@@ -650,7 +650,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: InteractionGate::PauseMenuOnly,
+                    gate: UiInputPolicy::CapturedOnly,
                 },
                 test_selectable_menu(),
             ))
@@ -870,7 +870,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Debug,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 MenuStack::new(MenuPage::Video),
                 SelectableMenu::new(
@@ -893,7 +893,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Debug,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 MenuStack::new(MenuPage::Video),
                 SelectableMenu::new(

@@ -132,16 +132,24 @@ Major reusable UI features now have root-level insertion/runtime coverage:
 
 ## Core Interaction Primitives
 
-### Legacy: `InteractionGate` and `InteractionCapture` (Being Replaced)
+### `UiInputPolicy` and `UiInputCaptureToken`
 
-These legacy APIs are in active replacement by the unified input model described in:
-`docs/ui_unified_focus_gating_refactor_plan.md`.
+Core gating primitives now use unified names:
 
-Until migration is complete:
+- `UiInputPolicy`
+  - `WorldOnly`
+  - `CapturedOnly`
+  - `Any`
+- `UiInputCaptureToken`
+- `UiInputCaptureOwner`
+- helper APIs:
+  - `ui_input_mode_is_captured(...)`
+  - `ui_input_mode_is_captured_for_owner(...)`
+  - `ui_input_policy_allows(...)`
+  - `ui_input_policy_allows_for_owner(...)`
 
-- treat them as transitional implementation detail
-- do not add new systems that depend on these legacy APIs
-- use plan phase guidance to migrate to unified `UiInput*`/focus state primitives
+Current behavior still mirrors legacy world-vs-captured semantics while later refactor phases
+consolidate full owner/layer/focus routing into unified interaction state.
 
 Pattern:
 

@@ -17,8 +17,8 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_context_active, interaction_gate_allows, is_cursor_within_bounds,
-            is_cursor_within_region, InteractionCapture, InteractionGate,
+            is_cursor_within_bounds, is_cursor_within_region, ui_input_mode_is_captured,
+            ui_input_policy_allows, UiInputCaptureToken, UiInputPolicy,
         },
         motion::{Bounce, Pulse},
         time::Dilation,
@@ -560,19 +560,19 @@ impl ColorChangeOn {
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        capture_query: Query<(), With<UiInputCaptureToken>>,
         mut query: Query<(
             &mut ColorChangeOn,
             &mut T,
             &Transform,
             &GlobalTransform,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
         for (mut color_change, mut shape, transform, global_transform, gate) in query.iter_mut() {
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows(gate, interaction_captured) {
                 continue;
             }
 
@@ -625,19 +625,19 @@ impl ColorChangeOn {
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        capture_query: Query<(), With<UiInputCaptureToken>>,
         mut query: Query<(
             &mut ColorChangeOn,
             &mut TextColor,
             &Aabb,
             &GlobalTransform,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
         for (mut color_change, mut text_color, aabb, transform, gate) in query.iter_mut() {
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows(gate, interaction_captured) {
                 continue;
             }
 

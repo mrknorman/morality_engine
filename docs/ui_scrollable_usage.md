@@ -44,7 +44,7 @@ Attach this to scroll items when you want automatic extent aggregation:
 2. Scroll input is accepted only when the owner’s active layer matches `ScrollableRoot.input_layer`.
 3. For base panel scrolling, use `ScrollableRoot::new(...).with_input_layer(UiLayerKind::Base)`.
 4. For modal-scoped scrolling, set `with_input_layer(UiLayerKind::Modal)`.
-5. Input gating is currently in migration from legacy gate/capture APIs to unified input/focus state.
+5. Input gating currently uses `UiInputPolicy` and owner-scoped capture tokens.
 6. See `docs/ui_unified_focus_gating_refactor_plan.md` for the canonical replacement model and phase status.
 
 ## Render-Target Configuration

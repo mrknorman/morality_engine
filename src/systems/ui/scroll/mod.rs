@@ -15,7 +15,7 @@ use bevy::{
 };
 
 use crate::systems::{
-    interaction::{InteractionGate, InteractionSystem},
+    interaction::{InteractionSystem, UiInputPolicy},
     ui::layer::UiLayerKind,
 };
 
@@ -106,12 +106,7 @@ pub enum ScrollAxis {
 }
 
 #[derive(Component, Clone, Copy, Debug)]
-#[require(
-    ScrollState,
-    ScrollFocusFollowLock,
-    ScrollZoomState,
-    ScrollZoomConfig
-)]
+#[require(ScrollState, ScrollFocusFollowLock, ScrollZoomState, ScrollZoomConfig)]
 pub struct ScrollableRoot {
     /// Owner entity for layer arbitration.
     pub owner: Entity,
@@ -386,17 +381,16 @@ impl ScrollBar {
         let Some(scrollbar) = world.entity(entity).get::<ScrollBar>().copied() else {
             return;
         };
-        let parent_target = scrollbar.parent_override.unwrap_or(scrollbar.scrollable_root);
+        let parent_target = scrollbar
+            .parent_override
+            .unwrap_or(scrollbar.scrollable_root);
 
         let parent_mismatch = world
             .entity(entity)
             .get::<ChildOf>()
             .is_none_or(|parent| parent.parent() != parent_target);
         if parent_mismatch {
-            world
-                .commands()
-                .entity(parent_target)
-                .add_child(entity);
+            world.commands().entity(parent_target).add_child(entity);
         }
 
         if world.entity(entity).contains::<ScrollBarParts>() {
@@ -406,7 +400,7 @@ impl ScrollBar {
         let gate = world
             .get_entity(scrollbar.scrollable_root)
             .ok()
-            .and_then(|root| root.get::<InteractionGate>().copied())
+            .and_then(|root| root.get::<UiInputPolicy>().copied())
             .unwrap_or_default();
         scrollbar::seed_scrollbar_parts(&mut world.commands(), entity, &scrollbar, gate);
     }

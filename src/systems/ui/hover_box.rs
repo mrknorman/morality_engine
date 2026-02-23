@@ -21,8 +21,8 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_gate_allows_for_owner, Hoverable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate,
+            ui_input_policy_allows_for_owner, Hoverable, UiInputCaptureOwner, UiInputCaptureToken,
+            UiInputPolicy,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -341,14 +341,14 @@ fn sync_hover_boxes(
     time: Res<Time<Real>>,
     cursor: Res<CustomCursor>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     owner_global_query: Query<&GlobalTransform>,
     mut root_queries: ParamSet<(
         Query<(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
         Query<(Entity, &HoverBoxRoot, &HoverBoxStyle, &HoverBoxDelay)>,
         Query<
@@ -372,7 +372,7 @@ fn sync_hover_boxes(
         &Hoverable,
         &GlobalTransform,
         Option<&InheritedVisibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     mut label_query: Query<
         (
@@ -426,7 +426,7 @@ fn sync_hover_boxes(
             let Some((root, _, _)) = root_meta.get(&target.root).copied() else {
                 continue;
             };
-            if !interaction_gate_allows_for_owner(
+            if !ui_input_policy_allows_for_owner(
                 gate,
                 pause_state.as_ref(),
                 &capture_query,

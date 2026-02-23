@@ -271,7 +271,7 @@ Deliverable:
 ## Completion Checklist
 
 - [x] Phase 0 complete
-- [ ] Phase 1 complete
+- [x] Phase 1 complete
 - [ ] Phase 2 complete
 - [ ] Phase 3 complete
 - [ ] Phase 4 complete

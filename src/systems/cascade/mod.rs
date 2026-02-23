@@ -16,7 +16,7 @@ use crate::{
     entities::text::scaled_font_size,
     startup::cursor::CustomCursor,
     systems::interaction::{
-        interaction_context_active, interaction_gate_allows, InteractionCapture, InteractionGate,
+        ui_input_mode_is_captured, ui_input_policy_allows, UiInputCaptureToken, UiInputPolicy,
     },
 };
 
@@ -69,13 +69,13 @@ impl Ripple {
 
     fn spawn(
         mut commands: Commands,
-        cascade_numbers: Query<(Entity, Option<&InteractionGate>), With<Cascade>>,
+        cascade_numbers: Query<(Entity, Option<&UiInputPolicy>), With<Cascade>>,
         input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        capture_query: Query<(), With<UiInputCaptureToken>>,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
         let Some(cursor_position) = cursor.position else {
             return;
@@ -91,7 +91,7 @@ impl Ripple {
         };
 
         for (entity, gate) in cascade_numbers.iter() {
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows(gate, interaction_captured) {
                 continue;
             }
             commands.entity(entity).with_children(|parent| {
@@ -355,18 +355,18 @@ impl Cascade {
 
     pub fn enlarge(
         mut numbers: Query<(&ChildOf, &GlobalTransform, &mut Transform, &CascadeNumber)>,
-        cascades: Query<(Entity, Option<&InteractionGate>), With<Cascade>>,
+        cascades: Query<(Entity, Option<&UiInputPolicy>), With<Cascade>>,
         cursor: Res<CustomCursor>,
         pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        capture_query: Query<(), With<UiInputCaptureToken>>,
         mut gate_by_parent: Local<HashMap<Entity, bool>>,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_captured = ui_input_mode_is_captured(pause_state.as_ref(), &capture_query);
 
         gate_by_parent.clear();
         gate_by_parent.reserve(cascades.iter().len());
         for (entity, gate) in cascades.iter() {
-            gate_by_parent.insert(entity, interaction_gate_allows(gate, interaction_captured));
+            gate_by_parent.insert(entity, ui_input_policy_allows(gate, interaction_captured));
         }
 
         let Some(cursor_position) = cursor.position else {

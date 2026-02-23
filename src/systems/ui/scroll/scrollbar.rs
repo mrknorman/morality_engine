@@ -6,9 +6,9 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            focused_scope_owner_from_registry, interaction_gate_allows_for_owner,
-            resolve_focused_scope_owner, scoped_owner_has_focus, Clickable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate, ScrollUiActions, SelectableScopeOwner,
+            focused_scope_owner_from_registry, resolve_focused_scope_owner, scoped_owner_has_focus,
+            ui_input_policy_allows_for_owner, Clickable, ScrollUiActions, SelectableScopeOwner,
+            UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -30,7 +30,7 @@ pub(super) fn seed_scrollbar_parts(
     commands: &mut Commands,
     scrollbar_entity: Entity,
     scrollbar: &ScrollBar,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) {
     let mut track_entity = None;
     let mut thumb_entity = None;
@@ -90,7 +90,7 @@ pub(super) fn seed_scrollbar_parts(
 
 pub(super) fn ensure_scrollbar_parts(
     mut commands: Commands,
-    root_gate_query: Query<Option<&InteractionGate>, With<ScrollableRoot>>,
+    root_gate_query: Query<Option<&UiInputPolicy>, With<ScrollableRoot>>,
     scrollbar_query: Query<(
         Entity,
         &ScrollBar,
@@ -107,11 +107,11 @@ pub(super) fn ensure_scrollbar_parts(
     // - track/thumb presence checks are read-only marker queries used to validate
     //   `ScrollBarParts` handles before reseeding.
     for (scrollbar_entity, scrollbar, parent, parts) in scrollbar_query.iter() {
-        let parent_target = scrollbar.parent_override.unwrap_or(scrollbar.scrollable_root);
+        let parent_target = scrollbar
+            .parent_override
+            .unwrap_or(scrollbar.scrollable_root);
         if parent.is_none_or(|parent| parent.parent() != parent_target) {
-            commands
-                .entity(parent_target)
-                .add_child(scrollbar_entity);
+            commands.entity(parent_target).add_child(scrollbar_entity);
         }
 
         let parts_live = parts.is_some_and(|parts| {
@@ -145,7 +145,7 @@ pub(super) fn ensure_scrollbar_parts(
 
 pub(super) fn sync_scrollbar_visuals(
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     root_query: Query<
         (
             &ScrollableRoot,
@@ -169,7 +169,7 @@ pub(super) fn sync_scrollbar_visuals(
             Entity,
             &UiLayer,
             Option<&Visibility>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
         Query<
             (
@@ -325,22 +325,25 @@ pub(super) fn sync_scrollbar_visuals(
 
 pub(super) fn handle_scrollbar_input(
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
-    scope_owner_query: Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
-    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
+    scope_owner_query: Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
+    owner_transform_query: Query<
+        (&GlobalTransform, Option<&InheritedVisibility>),
+        Without<TextSpan>,
+    >,
     cursor: Res<CustomCursor>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     root_meta_query: Query<
         (
             &ScrollableRoot,
             &ScrollableViewport,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&InheritedVisibility>,
             &GlobalTransform,
         ),
@@ -387,28 +390,33 @@ pub(super) fn handle_scrollbar_input(
     let pause_state = pause_state.as_ref();
     let active_layers =
         layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
-    let focused_scoped_owner =
-        focused_scope_owner_from_registry(pause_state, &capture_query, &scope_owner_query, &owner_transform_query)
-            .or_else(|| {
-                resolve_focused_scope_owner(root_meta_query.iter().filter_map(
-                    |(root, _viewport, gate, root_visibility, global_transform)| {
-                        if root_visibility.is_some_and(|visibility| !visibility.get()) {
-                            return None;
-                        }
-                        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
-                            return None;
-                        }
-                        let active_layer_kind = active_layers
-                            .get(&root.owner)
-                            .map(|active_layer| active_layer.kind)
-                            .unwrap_or(UiLayerKind::Base);
-                        if active_layer_kind != root.input_layer {
-                            return None;
-                        }
-                        Some((root.owner, global_transform.translation().z))
-                    },
-                ))
-            });
+    let focused_scoped_owner = focused_scope_owner_from_registry(
+        pause_state,
+        &capture_query,
+        &scope_owner_query,
+        &owner_transform_query,
+    )
+    .or_else(|| {
+        resolve_focused_scope_owner(root_meta_query.iter().filter_map(
+            |(root, _viewport, gate, root_visibility, global_transform)| {
+                if root_visibility.is_some_and(|visibility| !visibility.get()) {
+                    return None;
+                }
+                if !ui_input_policy_allows_for_owner(gate, pause_state, &capture_query, root.owner)
+                {
+                    return None;
+                }
+                let active_layer_kind = active_layers
+                    .get(&root.owner)
+                    .map(|active_layer| active_layer.kind)
+                    .unwrap_or(UiLayerKind::Base);
+                if active_layer_kind != root.input_layer {
+                    return None;
+                }
+                Some((root.owner, global_transform.translation().z))
+            },
+        ))
+    });
     let cursor_position = cursor.position;
     let mouse_down = mouse_input.pressed(MouseButton::Left);
 
@@ -432,7 +440,7 @@ pub(super) fn handle_scrollbar_input(
             drag_state.dragging = false;
             continue;
         }
-        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
+        if !ui_input_policy_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
             drag_state.dragging = false;
             continue;
         }

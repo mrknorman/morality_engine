@@ -30,7 +30,7 @@ impl OptionCommandSuppressions {
 pub(super) fn handle_menu_option_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     showcase_root_query: Query<Entity, With<debug_showcase::DebugUiShowcaseRoot>>,
     mut dropdown_anchor_state: ResMut<DropdownAnchorState>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
@@ -252,7 +252,7 @@ pub(super) fn handle_menu_option_commands(
 pub(super) fn handle_option_cycler_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     mut option_query: Query<(
         Entity,
         &Selectable,
@@ -268,7 +268,7 @@ pub(super) fn handle_option_cycler_commands(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
 ) {
@@ -345,7 +345,7 @@ pub(super) fn handle_option_cycler_commands(
 pub(super) fn handle_video_discrete_slider_slot_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     cursor: Res<CustomCursor>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
     mut settings: ResMut<VideoSettingsState>,
@@ -354,7 +354,7 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     mut slot_query: Query<(

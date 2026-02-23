@@ -5,7 +5,7 @@ use crate::{
     startup::render::{MainCamera, OffscreenCamera},
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
-        interaction::{InteractionCapture, InteractionCaptureOwner, InteractionGate},
+        interaction::{UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
         time::Dilation,
     },
 };
@@ -69,7 +69,7 @@ pub fn spawn_main_menu_option_list(
         MainMenuOptionList,
         MenuRoot {
             host: MenuHost::Main,
-            gate: InteractionGate::GameplayOnly,
+            gate: UiInputPolicy::WorldOnly,
         },
         MenuStack::new(MenuPage::PauseRoot),
     ));
@@ -123,13 +123,13 @@ pub(super) fn play_main_menu_navigation_sound(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     menu_query: Query<
         (
             Entity,
             &SelectableMenu,
             &TransientAudioPallet<SystemMenuSounds>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         ),
         With<MainMenuOptionList>,
     >,

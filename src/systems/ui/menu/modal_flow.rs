@@ -18,7 +18,7 @@ fn spawn_video_modal_base(
     menu_entity: Entity,
     name: &str,
     asset_server: &Res<AssetServer>,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) -> Entity {
     let mut modal_entity = None;
     commands.entity(menu_entity).with_children(|parent| {
@@ -74,7 +74,7 @@ fn spawn_video_modal_base(
 fn spawn_video_modal_option(
     commands: &mut Commands,
     modal_entity: Entity,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
     asset_server: &Res<AssetServer>,
     button: VideoModalButton,
     index: usize,
@@ -107,7 +107,7 @@ pub(super) fn spawn_apply_confirm_modal(
     commands: &mut Commands,
     menu_entity: Entity,
     asset_server: &Res<AssetServer>,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) {
     let modal_entity = spawn_video_modal_base(
         commands,
@@ -173,7 +173,7 @@ pub(super) fn spawn_exit_unsaved_modal(
     commands: &mut Commands,
     menu_entity: Entity,
     asset_server: &Res<AssetServer>,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) {
     let modal_entity = spawn_video_modal_base(
         commands,
@@ -244,12 +244,12 @@ fn close_video_modals(commands: &mut Commands, modal_query: &Query<Entity, With<
 pub(super) fn handle_video_modal_shortcuts(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     modal_query: Query<
         (
@@ -326,12 +326,12 @@ pub(super) fn handle_video_modal_shortcuts(
 pub(super) fn handle_video_modal_button_commands(
     mut commands: Commands,
     pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     ui_layer_query: Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     modal_layer_query: Query<&UiLayer, With<VideoModalRoot>>,
     mut settings: ResMut<VideoSettingsState>,

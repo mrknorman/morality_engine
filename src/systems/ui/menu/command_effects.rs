@@ -104,7 +104,7 @@ fn handle_open_main_menu_options_overlay_command(
             system_menu::MENU_Z,
         ),
         MenuPage::Options,
-        InteractionGate::PauseMenuOnly,
+        UiInputPolicy::CapturedOnly,
     );
     commands
         .entity(overlay_entity)
@@ -113,8 +113,8 @@ fn handle_open_main_menu_options_overlay_command(
     commands.entity(overlay_entity).with_children(|parent| {
         parent.spawn((
             Name::new("main_menu_options_dimmer"),
-            InteractionCapture,
-            InteractionCaptureOwner::new(overlay_entity),
+            UiInputCaptureToken,
+            UiInputCaptureOwner::new(overlay_entity),
             Sprite::from_color(
                 Color::srgba(0.0, 0.0, 0.0, MAIN_MENU_OVERLAY_DIM_ALPHA),
                 Vec2::splat(MAIN_MENU_OVERLAY_DIM_SIZE),
@@ -164,7 +164,12 @@ fn handle_start_single_level_command(
 ) {
     **stats = GameStats::default();
     scene_queue.configure_single_level(scene);
-    handle_next_scene_command(scene_queue, next_main_state, next_game_state, next_sub_state);
+    handle_next_scene_command(
+        scene_queue,
+        next_main_state,
+        next_game_state,
+        next_sub_state,
+    );
 }
 
 pub(super) fn apply_menu_reducer_result(
