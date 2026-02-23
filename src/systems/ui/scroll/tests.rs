@@ -11,7 +11,9 @@ use std::any::Any;
 
 use crate::{
     startup::cursor::CustomCursor,
-    systems::interaction::{Clickable, ScrollUiActions, SelectableScopeOwner, UiInputPolicy},
+    systems::interaction::{
+        Clickable, ScrollUiActions, SelectableScopeOwner, UiInputPolicy, UiInteractionState,
+    },
     systems::ui::layer::{UiLayer, UiLayerKind},
 };
 
@@ -35,6 +37,7 @@ fn make_scroll_test_app() -> App {
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<ColorMaterial>>();
+    app.init_resource::<UiInteractionState>();
     app.add_plugins(ScrollPlugin);
     app
 }
@@ -49,6 +52,7 @@ fn make_gpu_scroll_smoke_app() -> App {
             .disable::<bevy::window::WindowPlugin>(),
     );
     app.init_resource::<CustomCursor>();
+    app.init_resource::<UiInteractionState>();
     app.add_plugins(ScrollPlugin);
     app
 }

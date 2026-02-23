@@ -577,7 +577,8 @@ pub struct HoverBoxPlugin;
 
 impl Plugin for HoverBoxPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, sync_hover_boxes);
+        app.init_resource::<UiInteractionState>()
+            .add_systems(PostUpdate, sync_hover_boxes);
     }
 }
 

@@ -306,27 +306,7 @@ impl UiInputCaptureOwner {
     }
 }
 
-pub fn ui_input_mode(
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<(), With<UiInputCaptureToken>>,
-) -> UiInputMode {
-    let paused = pause_state
-        .as_ref()
-        .is_some_and(|state| *state.get() == PauseState::Paused);
-    if paused || !capture_query.is_empty() {
-        UiInputMode::Captured
-    } else {
-        UiInputMode::World
-    }
-}
-
-pub fn ui_input_mode_is_captured(
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<(), With<UiInputCaptureToken>>,
-) -> bool {
-    ui_input_mode(pause_state, capture_query) == UiInputMode::Captured
-}
-
+#[cfg(test)]
 pub fn ui_input_mode_for_owner(
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
@@ -350,6 +330,7 @@ pub fn ui_input_mode_for_owner(
     }
 }
 
+#[cfg(test)]
 pub fn ui_input_mode_is_captured_for_owner(
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
@@ -368,16 +349,6 @@ pub fn ui_input_policy_allows(policy: Option<&UiInputPolicy>, interaction_captur
     } else {
         UiInputMode::World
     };
-    ui_input_policy_allows_mode(policy, mode)
-}
-
-pub fn ui_input_policy_allows_for_owner(
-    policy: Option<&UiInputPolicy>,
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
-    owner: Entity,
-) -> bool {
-    let mode = ui_input_mode_for_owner(pause_state, capture_query, owner);
     ui_input_policy_allows_mode(policy, mode)
 }
 
@@ -606,32 +577,6 @@ pub fn scoped_owner_has_focus(scope_owner: Option<Entity>, focused_owner: Option
     })
 }
 
-/// Resolves the globally focused scope owner from registered scope-owner
-/// components. This is owner-aware (capture/gate checks are evaluated against
-/// each candidate owner).
-pub fn focused_scope_owner_from_registry(
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
-    scope_owner_query: &Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
-    owner_transform_query: &Query<
-        (&GlobalTransform, Option<&InheritedVisibility>),
-        Without<TextSpan>,
-    >,
-) -> Option<Entity> {
-    resolve_focused_scope_owner(scope_owner_query.iter().filter_map(|(gate, scope_owner)| {
-        if !ui_input_policy_allows_for_owner(gate, pause_state, capture_query, scope_owner.owner) {
-            return None;
-        }
-        let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
-        else {
-            return None;
-        };
-        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
-            return None;
-        }
-        Some((scope_owner.owner, owner_global.translation().z))
-    }))
-}
 pub struct KeyMapping<T>
 where
     T: Copy + Send + Sync,
@@ -2532,4 +2477,124 @@ pub fn world_aabb(local: &Aabb, tf: &GlobalTransform) -> (Vec3, Vec3) {
         }
     }
     (min, max)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::systems::ui::layer::{UiLayer, UiLayerKind};
+
+    fn owner_with_z(world: &mut World, z: f32) -> Entity {
+        world
+            .spawn((
+                Transform::from_xyz(0.0, 0.0, z),
+                GlobalTransform::from_translation(Vec3::new(0.0, 0.0, z)),
+            ))
+            .id()
+    }
+
+    #[test]
+    fn resolver_prefers_modal_over_dropdown_over_base() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<UiInteractionState>();
+        app.add_systems(Update, refresh_ui_interaction_state);
+
+        let owner = owner_with_z(app.world_mut(), 1.0);
+        app.world_mut()
+            .spawn((SelectableScopeOwner::new(owner), UiInputPolicy::Any));
+        app.world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
+        app.world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Dropdown), Visibility::Visible));
+        let modal_entity = app
+            .world_mut()
+            .spawn((UiLayer::new(owner, UiLayerKind::Modal), Visibility::Hidden))
+            .id();
+
+        app.update();
+        let state = app.world().resource::<UiInteractionState>();
+        assert_eq!(
+            state.active_layers_by_owner.get(&owner).map(|layer| layer.kind),
+            Some(UiLayerKind::Dropdown)
+        );
+
+        app.world_mut()
+            .entity_mut(modal_entity)
+            .insert(Visibility::Visible);
+        app.update();
+        let state = app.world().resource::<UiInteractionState>();
+        assert_eq!(
+            state.active_layers_by_owner.get(&owner).map(|layer| layer.kind),
+            Some(UiLayerKind::Modal)
+        );
+    }
+
+    #[test]
+    fn resolver_focuses_owner_with_highest_z() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<UiInteractionState>();
+        app.add_systems(Update, refresh_ui_interaction_state);
+
+        let owner_low = owner_with_z(app.world_mut(), 2.0);
+        let owner_high = owner_with_z(app.world_mut(), 8.0);
+
+        app.world_mut().spawn(SelectableScopeOwner::new(owner_low));
+        app.world_mut().spawn(SelectableScopeOwner::new(owner_high));
+
+        app.update();
+        let state = app.world().resource::<UiInteractionState>();
+        assert_eq!(state.focused_owner, Some(owner_high));
+    }
+
+    #[test]
+    fn owner_scoped_capture_keeps_world_only_other_owner_active() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<UiInteractionState>();
+        app.add_systems(Update, refresh_ui_interaction_state);
+
+        let owner_captured = owner_with_z(app.world_mut(), 4.0);
+        let owner_world = owner_with_z(app.world_mut(), 3.0);
+        app.world_mut().spawn(SelectableScopeOwner::new(owner_captured));
+        app.world_mut().spawn(SelectableScopeOwner::new(owner_world));
+
+        let captured_layer = app
+            .world_mut()
+            .spawn((
+                UiLayer::new(owner_captured, UiLayerKind::Base),
+                UiInputPolicy::CapturedOnly,
+                Visibility::Visible,
+            ))
+            .id();
+        let world_layer = app
+            .world_mut()
+            .spawn((
+                UiLayer::new(owner_world, UiLayerKind::Base),
+                UiInputPolicy::WorldOnly,
+                Visibility::Visible,
+            ))
+            .id();
+
+        app.world_mut()
+            .spawn((UiInputCaptureToken, UiInputCaptureOwner::new(owner_captured)));
+        app.update();
+
+        let state = app.world().resource::<UiInteractionState>();
+        assert_eq!(state.input_mode, UiInputMode::Captured);
+        assert_eq!(
+            state.active_layers_by_owner.get(&owner_captured).map(|layer| layer.entity),
+            Some(captured_layer)
+        );
+        assert_eq!(
+            state.active_layers_by_owner.get(&owner_world).map(|layer| layer.entity),
+            Some(world_layer)
+        );
+        assert_eq!(
+            state.input_mode_for_owner(owner_captured),
+            UiInputMode::Captured
+        );
+        assert_eq!(state.input_mode_for_owner(owner_world), UiInputMode::World);
+    }
 }

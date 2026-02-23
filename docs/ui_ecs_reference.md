@@ -49,6 +49,7 @@ During migration, prefer referencing the unified-refactor plan for canonical sta
 - `Phase 5`: window close/drag/resize routing now consumes unified focus/mode state.
 - `Phase 6`: scroll and hover-box subsystems now consume unified focus/layer state.
 - `Phase 7`: remaining legacy gate consumers migrated to unified policy/state checks.
+- `Phase 8`: cleanup/tests/docs pass completed for unified routing baseline.
 
 ## UI Interaction Test Matrix (Phase 0 Baseline)
 
@@ -154,14 +155,12 @@ Core gating primitives now use unified names:
 - `UiInputCaptureToken`
 - `UiInputCaptureOwner`
 - helper APIs:
-  - `ui_input_mode_is_captured(...)`
-  - `ui_input_mode_is_captured_for_owner(...)`
   - `ui_input_policy_allows_mode(...)`
-  - `ui_input_policy_allows(...)`
-  - `ui_input_policy_allows_for_owner(...)`
+  - `UiInteractionState::input_mode_for_owner(...)`
+  - `scoped_owner_has_focus(...)`
 
-Current behavior still mirrors legacy world-vs-captured semantics while later refactor phases
-consolidate full owner/layer/focus routing into unified interaction state.
+Runtime systems should consume `UiInteractionState` directly and avoid local pause/capture
+recomputation.
 
 ### `UiInteractionState` Resolver
 
@@ -347,7 +346,7 @@ Use this instead of manual per-frame color writes when possible.
 
 Use this order when writing UI behavior:
 
-1. Gating and scope: `InteractionGate`, `InteractionCapture`, `UiLayer`/active-layer resolution.
+1. Gating and scope: `UiInteractionState` + `UiInputPolicy` + `UiLayer` active-layer resolution.
 2. Hover: `Hoverable.hovered`.
 3. Activation:
    - Pointer/selection activation: `Clickable<T>.triggered`.
@@ -671,7 +670,8 @@ Conflict safety:
 
 ## Window Integration
 
-Window UI already shares interaction primitives with menus via `Clickable`, `Selectable`, and `InteractionGate`.
+Window UI already shares interaction primitives with menus via `Clickable`, `Selectable`,
+`UiInputPolicy`, and `UiInteractionState`.
 
 - Window z/layer behavior and click blocking are handled in `src/systems/ui/window/mod.rs` and respected by the interaction systems.
 - Window content composition is explicit: attach `UiWindowContent { window_entity }` to a content-root entity and parent feature UI under it.

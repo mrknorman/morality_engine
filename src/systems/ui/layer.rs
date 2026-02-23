@@ -12,11 +12,13 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::systems::interaction::UiInteractionActiveLayer;
+#[cfg(test)]
 use crate::{
     data::states::PauseState,
     systems::interaction::{
         ui_input_mode_is_captured_for_owner, ui_input_policy_allows, UiInputCaptureOwner,
-        UiInputCaptureToken, UiInputPolicy, UiInteractionActiveLayer,
+        UiInputCaptureToken, UiInputPolicy,
     },
 };
 
@@ -108,6 +110,7 @@ pub fn ordered_active_owners_by_kind(
         .collect()
 }
 
+#[cfg(test)]
 fn is_visible(visibility: Option<&Visibility>) -> bool {
     visibility.copied().unwrap_or(Visibility::Visible) != Visibility::Hidden
 }
@@ -116,6 +119,7 @@ fn is_visible(visibility: Option<&Visibility>) -> bool {
 ///
 /// Priority is `Modal > Dropdown > Base`. Ties within a kind are broken by
 /// deterministic entity rank.
+#[cfg(test)]
 pub fn active_layers_by_owner_scoped(
     pause_state: Option<&Res<State<PauseState>>>,
     capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,

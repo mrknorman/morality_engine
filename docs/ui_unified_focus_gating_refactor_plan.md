@@ -278,4 +278,4 @@ Deliverable:
 - [x] Phase 5 complete
 - [x] Phase 6 complete
 - [x] Phase 7 complete
-- [ ] Phase 8 complete
+- [x] Phase 8 complete

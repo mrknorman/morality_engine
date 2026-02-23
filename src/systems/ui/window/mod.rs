@@ -47,6 +47,7 @@ impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WindowZStack>()
             .init_resource::<ActiveWindowInteraction>()
+            .init_resource::<UiInteractionState>()
             .configure_sets(
                 Update,
                 (

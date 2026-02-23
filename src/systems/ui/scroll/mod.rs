@@ -15,7 +15,7 @@ use bevy::{
 };
 
 use crate::systems::{
-    interaction::{InteractionSystem, UiInputPolicy},
+    interaction::{InteractionSystem, UiInputPolicy, UiInteractionState},
     ui::layer::UiLayerKind,
 };
 
@@ -478,6 +478,7 @@ impl Plugin for ScrollPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ScrollLayerPool>()
             .init_resource::<ScrollRenderSettings>()
+            .init_resource::<UiInteractionState>()
             .add_systems(
                 Update,
                 (

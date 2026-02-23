@@ -833,6 +833,7 @@ impl Plugin for MenusPlugin {
         app.init_resource::<VideoSettingsState>()
             .init_resource::<DropdownLayerState>()
             .init_resource::<DropdownAnchorState>()
+            .init_resource::<UiInteractionState>()
             .init_resource::<MenuNavigationState>()
             .init_resource::<OptionCommandSuppressions>()
             .init_resource::<tabbed_menu::TabbedMenuFocusState>()
