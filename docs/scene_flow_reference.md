@@ -64,3 +64,9 @@ When a next-scene action occurs and the queue is empty:
 - runtime returns the menu fallback state vector
 - state transition resolves safely to `MainState::Menu`
 - no panic is used for this recoverable flow path
+
+## Related Docs
+
+- `docs/scene_architecture_contract.md`
+- `docs/scene_compliance_matrix.md`
+- `docs/scene_manual_validation_checklist.md`

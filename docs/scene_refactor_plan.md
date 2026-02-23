@@ -27,16 +27,27 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - Stage 3 complete: `13d49d5`
 - Stage 4 complete: `aa749d6`
 - Stage 5 complete: `14bf517`
-- Stage 6 complete: ecs ownership/query safety
-- Stage 7 pending
+- Stage 6 complete: `751b002`
+- Stage 7 complete: docs finalization and validation
 
-## Current High-Level Issues
+## Scene Documentation Set
 
-1. Scene flow is panic-driven in core progression paths.
-2. Scene-to-state mapping is duplicated across systems.
-3. Branching policy is tightly coupled to scene runtime code.
-4. Shared plugin/dependency wiring is fragmented.
-5. Several singleton assumptions and ownership contracts are implicit.
+- `docs/scene_architecture_contract.md`
+- `docs/scene_flow_reference.md`
+- `docs/scene_compliance_matrix.md`
+- `docs/scene_manual_validation_checklist.md`
+
+## High-Level Issue Status
+
+Resolved in Stages 1-6:
+1. Scene flow panic paths in core progression were replaced with fallbacks and guarded routing.
+2. Scene-to-state mapping duplication was removed through `SceneNavigator`.
+3. Campaign/branching policy was moved into `src/scenes/flow/mod.rs`.
+4. Shared plugin/dependency wiring was centralized in `src/scenes/composition.rs`.
+5. Singleton/ownership assumptions were tightened with queue APIs and query guards.
+
+Remaining targeted follow-up (tracked in compliance matrix):
+1. Convert remaining scene content parser `expect(...)` usage to typed, recoverable errors.
 
 ## Stage Plan
 

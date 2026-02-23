@@ -92,7 +92,8 @@ Disallowed direction:
 
 1. Scene runtime API changes must be recorded in `docs/scene_refactor_plan.md`.
 2. Routing/flow semantics must be documented in a scene flow reference doc.
-3. Compliance status is tracked in a scene compliance matrix.
+3. Compliance status is tracked in `docs/scene_compliance_matrix.md`.
+4. Manual validation procedure is tracked in `docs/scene_manual_validation_checklist.md`.
 
 ## 8. Acceptance Criteria
 
