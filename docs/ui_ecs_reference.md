@@ -170,6 +170,14 @@ Design rule:
 
 - systems should consume `UiInteractionState` instead of recomputing capture/focus context ad hoc.
 
+Primitive systems migrated to this model:
+
+- `hoverable_system`
+- `clickable_system`
+- `pressable_system`
+- `selectable_system`
+- `Draggable::enact`
+
 Pattern:
 
 - Gameplay entities: `InteractionGate::GameplayOnly`
