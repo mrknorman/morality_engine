@@ -19,7 +19,7 @@ use crate::{
     systems::{inheritance::BequeathTextColor, motion::Pulse, time::Dilation},
 };
 
-use super::{content::*, lever::LeverState};
+use super::content::*;
 
 fn has_dilemma_timers(q: Query<&DilemmaTimer>) -> bool {
     !q.is_empty()
@@ -30,7 +30,9 @@ impl Plugin for DilemmaPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (DilemmaTimer::update, DilemmaTimer::start_pulse).run_if(has_dilemma_timers),
+            (DilemmaTimer::update, DilemmaTimer::start_pulse)
+                .run_if(has_dilemma_timers)
+                .run_if(in_state(DilemmaPhase::Decision)),
         )
         .add_systems(OnExit(DilemmaPhase::Consequence), Dilemma::update_queue);
     }
@@ -133,7 +135,7 @@ impl<'de> Deserialize<'de> for RandomizableUsize {
                 }
 
                 Err(D::Error::custom(format!(
-                    "Invalid num_humans format: {}",
+                    "Invalid randomizable usize format: {}",
                     s
                 )))
             }
@@ -156,6 +158,7 @@ pub struct DilemmaStageLoader {
     repeat: usize,
     countdown_duration_seconds: f32,
     options: Vec<DilemmaOptionLoader>,
+    option_count: Option<RandomizableUsize>,
     default_option: Option<usize>,
     #[serde(default = "default_speed")]
     speed: f32,
@@ -356,18 +359,35 @@ impl Dilemma {
 
         for stage_loader in loaded_dilemma.stages {
             for _ in 0..stage_loader.repeat {
+                let total_option_templates = stage_loader.options.len();
+                assert!(
+                    total_option_templates > 0,
+                    "Dilemma stage must define at least one option"
+                );
+                let resolved_option_count = stage_loader
+                    .option_count
+                    .as_ref()
+                    .map(RandomizableUsize::resolve)
+                    .unwrap_or(total_option_templates)
+                    .clamp(1, total_option_templates.max(1));
+
                 let options: Vec<DilemmaOption> = stage_loader
                     .options
                     .iter()
+                    .take(resolved_option_count)
                     .map(|o| DilemmaOption::from_loader(o.clone())) // rerun random resolution here
                     .collect();
+
+                let default_option = stage_loader
+                    .default_option
+                    .map(|idx| idx.min(options.len().saturating_sub(1)));
 
                 stages.push(DilemmaStage {
                     countdown_duration: Duration::from_secs_f32(
                         stage_loader.countdown_duration_seconds,
                     ),
                     options,
-                    default_option: stage_loader.default_option,
+                    default_option,
                     speed: stage_loader.speed,
                 });
             }
@@ -591,32 +611,34 @@ fn deontological_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec
 }
 
 fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<Scene> {
-    let lever_state = latest.result.expect("LeverState should not be none");
+    let selected_option = latest
+        .result
+        .and_then(|state| state.to_int())
+        .expect("Lever selection should not be none");
 
-    match (lever_state, stage) {
-        (LeverState::Left, 4) => vec![
+    match (selected_option, stage) {
+        (0, 4) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
-        (LeverState::Right, 4) => vec![
+        (_, 4) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
 
-        (LeverState::Right, stage) => vec![
+        (selected, stage) if selected > 0 => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Pass)),
             Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[stage]),
         ],
 
-        (LeverState::Left, _) => vec![
+        (0, _) => vec![
             Scene::Dialogue(DialogueScene::path_utilitarian(stage, PathOutcome::Fail)),
             Scene::Dialogue(DialogueScene::Lab4(Lab4Dialogue::Outro)),
             Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
         ],
-
-        (LeverState::Random, _) => panic!("Lever State should not be random"),
+        _ => unreachable!("utilitarian path should resolve from selected option index"),
     }
 }

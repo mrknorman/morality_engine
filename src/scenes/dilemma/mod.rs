@@ -1,11 +1,11 @@
 use crate::{
     data::{
-        states::{DilemmaPhase, GameState},
+        states::{DilemmaPhase, GameState, MainState},
         stats::{DilemmaRunStatsScope, DilemmaStats, GameStats},
     },
     entities::{
         large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
-        person::PersonPlugin,
+        person::{BloodSprite, PersonPlugin},
         sprites::SpritePlugin,
         text::{scaled_font_size, TextPlugin, TextWindow},
         track::Track,
@@ -20,12 +20,13 @@ use crate::{
         audio::{continuous_audio, MusicAudio},
         backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
         colors::{
-            AlphaTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR,
-            OPTION_2_COLOR, PRIMARY_COLOR,
+            option_color, AlphaTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR,
+            PRIMARY_COLOR,
         },
         inheritance::BequeathTextAlpha,
         interaction::{Draggable, InteractionPlugin},
         motion::PointToPointTranslation,
+        physics::ExplodedGlyph,
         scheduling::TimingPlugin,
         ui::window::UiWindowTitle,
     },
@@ -36,7 +37,7 @@ use phases::{
     consequence::DilemmaConsequencePlugin, decision::DilemmaDecisionPlugin,
     intro::DilemmaIntroPlugin, results::DilemmaResultsPlugin, skip::DilemmaSkipPlugin,
 };
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 pub mod phases;
 
@@ -55,6 +56,14 @@ pub struct DilemmaScenePlugin;
 impl Plugin for DilemmaScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Dilemma), DilemmaScene::setup)
+            .add_systems(
+                OnExit(GameState::Dilemma),
+                DilemmaScene::cleanup_detached_viscera,
+            )
+            .add_systems(
+                OnEnter(MainState::Menu),
+                DilemmaScene::cleanup_detached_viscera,
+            )
             .add_plugins(DilemmaIntroPlugin)
             .add_plugins(DilemmaDecisionPlugin)
             .add_plugins(DilemmaTransitionPlugin)
@@ -108,7 +117,9 @@ impl DilemmaScene {
         Self::TRAIN_INITIAL_POSITION.y + Train::track_alignment_offset_y(),
         0.0,
     );
-    const TRACK_COLORS: [Color; 2] = [OPTION_1_COLOR, OPTION_2_COLOR];
+    pub fn track_color_for_option(option_index: usize) -> Color {
+        option_color(option_index)
+    }
 
     fn setup(
         mut commands: Commands,
@@ -224,6 +235,22 @@ impl DilemmaScene {
         commands.insert_resource(dilemma);
     }
 
+    fn cleanup_detached_viscera(
+        mut commands: Commands,
+        exploded_query: Query<Entity, With<ExplodedGlyph>>,
+        blood_query: Query<Entity, With<BloodSprite>>,
+    ) {
+        let mut to_despawn = HashSet::new();
+        to_despawn.extend(exploded_query.iter());
+        to_despawn.extend(blood_query.iter());
+
+        for entity in to_despawn {
+            if let Ok(mut entity_commands) = commands.get_entity(entity) {
+                entity_commands.despawn();
+            }
+        }
+    }
+
     fn generate_common_parameters(stage: &DilemmaStage) -> (Duration, Vec3, Vec3, Color) {
         let decision_position = -stage.speed * stage.countdown_duration.as_secs_f32();
         let transition_duration =
@@ -233,7 +260,7 @@ impl DilemmaScene {
         let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
         let initial_color: Color = match stage.default_option {
             None => Color::WHITE,
-            Some(ref option) => Self::TRACK_COLORS[*option],
+            Some(ref option) => Self::track_color_for_option(*option),
         };
 
         (

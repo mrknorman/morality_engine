@@ -90,18 +90,10 @@ unique_element!(
 );
 
 unique_element!(
-    /// Lever at 150 px, rotated 90 °.
+    /// Lever at 150 px.
     struct CenterLever,
     config: CenterLeverConfig,
     distance: 150.0,
-    rot: std::f32::consts::PI / 2.0,
-);
-
-unique_element!(
-    /// Dilemma-timer at 250 px.
-    struct DilemmaTimerPosition,
-    config: DilemmaTimerConfig,
-    distance: 250.0,
 );
 
 // ---------------------------------------------------------------------------
@@ -111,7 +103,6 @@ pub struct CommonUIPlugin;
 impl Plugin for CommonUIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(NextButtonConfig::default())
-            .insert_resource(CenterLeverConfig::default())
-            .insert_resource(DilemmaTimerConfig::default());
+            .insert_resource(CenterLeverConfig::default());
     }
 }

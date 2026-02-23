@@ -39,13 +39,13 @@ fn update_lever(
     index: Res<CurrentDilemmaStageIndex>,
     mut lever: ResMut<Lever>,
 ) {
-    if index.0 == 0 {
-        lever.0 = match stage.default_option {
-            None => LeverState::Random,
-            Some(ref option) if *option == 0 => LeverState::Left,
-            Some(_) => LeverState::Right,
-        };
-    }
+    let selected_option = if index.0 == 0 {
+        stage.default_option
+    } else {
+        lever.selected_index().or(stage.default_option)
+    };
+    let next_state = LeverState::from_option_index(selected_option);
+    lever.set_state_and_options(next_state, stage.options.len());
 }
 
 fn setup(
@@ -64,10 +64,10 @@ fn setup(
     let option_value = if index.0 == 0 {
         stage.default_option.clone()
     } else {
-        lever.0.to_int()
+        lever.selected_index().or(stage.default_option)
     };
 
-    let initial_color = option_value.map_or(Color::WHITE, |i| DilemmaScene::TRACK_COLORS[i]);
+    let initial_color = option_value.map_or(Color::WHITE, DilemmaScene::track_color_for_option);
 
     commands.spawn((
         DespawnOnExit(GameState::Dilemma),
@@ -124,18 +124,24 @@ fn trigger_exit(
     mut commands: Commands,
     mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     mut train_query: Query<&mut PointToPointTranslation, (With<Train>, Without<Junction>)>,
-    mut junction_query: Query<&mut PointToPointTranslation, (With<Junction>, Without<Train>)>,
+    junction_query: Query<&PointToPointTranslation, (With<Junction>, Without<Train>)>,
     mut background_query: Query<&mut Background>,
 ) {
-    let mut all_translations_finished = true;
+    // Train translation is the canonical phase clock. Junction translation
+    // liveness can vary as old junction entities are spawned/despawned and
+    // must not block progression.
+    let mut has_train_translation = false;
+    let mut all_train_translations_finished = true;
     for translation in train_query.iter_mut() {
-        all_translations_finished &= translation.timer.is_finished();
-    }
-    for translation in junction_query.iter_mut() {
-        all_translations_finished &= translation.timer.is_finished();
+        has_train_translation = true;
+        all_train_translations_finished &= translation.timer.is_finished();
     }
 
-    if all_translations_finished {
+    // Keep this read to make sure transition setup actually attached junction
+    // motion; this is observability-only and intentionally non-blocking.
+    let _junction_translation_count = junction_query.iter().count();
+
+    if has_train_translation && all_train_translations_finished {
         for mut background in background_query.iter_mut() {
             background.speed = 0.0;
             commands.run_system(systems.0["update_background_speeds"]);

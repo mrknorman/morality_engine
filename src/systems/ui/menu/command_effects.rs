@@ -38,6 +38,7 @@ fn handle_apply_video_settings_command(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut VideoDropdownVisibilityQuery,
     crt_settings: &mut CrtSettings,
+    screen_shake: &mut ScreenShakeState,
     main_camera_query: &mut Query<
         (
             &mut Bloom,
@@ -61,7 +62,12 @@ fn handle_apply_video_settings_command(
     if let Ok(mut window) = window_exit.primary_window_queries.p1().single_mut() {
         apply_snapshot_to_window(&mut window, settings.pending);
     }
-    apply_snapshot_to_post_processing(settings.pending, crt_settings, main_camera_query);
+    apply_snapshot_to_post_processing(
+        settings.pending,
+        crt_settings,
+        screen_shake,
+        main_camera_query,
+    );
     settings.apply_timer = Some(Timer::from_seconds(30.0, TimerMode::Once));
     spawn_apply_confirm_modal(commands, menu_entity, asset_server, menu_root.gate);
 }
@@ -182,6 +188,7 @@ pub(super) fn apply_menu_reducer_result(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut VideoDropdownVisibilityQuery,
     crt_settings: &mut CrtSettings,
+    screen_shake: &mut ScreenShakeState,
     main_camera_query: &mut Query<
         (
             &mut Bloom,
@@ -270,6 +277,7 @@ pub(super) fn apply_menu_reducer_result(
             dropdown_state,
             dropdown_query,
             crt_settings,
+            screen_shake,
             main_camera_query,
             window_exit,
         );

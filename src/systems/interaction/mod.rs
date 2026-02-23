@@ -22,7 +22,7 @@ use crate::{
     scenes::{
         dialogue::dialogue::{DialogueActions, DialogueSounds},
         dilemma::{
-            lever::{Lever, LeverState},
+            lever::Lever,
             phases::{
                 consequence::DilemmaConsequenceActions,
                 decision::{DecisionActions, LeverActions},
@@ -102,7 +102,8 @@ macro_rules! register_interaction_systems {
                 system_entry!(clickable_system::<$enum_type>, InteractionSystem::Clickable, after: InteractionSystem::Hoverable),
                 system_entry!(pressable_system::<$enum_type>, InteractionSystem::Pressable, after: InteractionSystem::Clickable),
                 system_entry!(selectable_system::<$enum_type>, InteractionSystem::Selectable, after: InteractionSystem::Pressable),
-                system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Selectable),
+                system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Selectable),
+                system_entry!(trigger_audio::<$enum_type, $audio_type>, InteractionSystem::Audio, after: InteractionSystem::Pong),
                 system_entry!(trigger_advance_dialogue::<$enum_type, $audio_type>, InteractionSystem::AdvanceDialogue, after: InteractionSystem::Audio),
                 system_entry!(trigger_lever_state_change::<$enum_type, $audio_type>, InteractionSystem::LeverChange, after: InteractionSystem::AdvanceDialogue),
                 #[cfg(any(debug_assertions, feature = "debug_tools"))]
@@ -111,7 +112,6 @@ macro_rules! register_interaction_systems {
                 system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::Debug),
                 #[cfg(not(any(debug_assertions, feature = "debug_tools")))]
                 system_entry!(trigger_bounce::<$enum_type, $audio_type>, InteractionSystem::Bounce, after: InteractionSystem::LeverChange),
-                system_entry!(update_pong::<$enum_type>, InteractionSystem::Pong, after: InteractionSystem::Bounce),
                 system_entry!(trigger_reset_game::<$enum_type, $audio_type>, InteractionSystem::ResetGame, after: InteractionSystem::Bounce),
                 system_entry!(trigger_exit_application::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
                 system_entry!(trigger_state_change::<$enum_type, $audio_type>, InteractionSystem::StateChange, after: InteractionSystem::ResetGame),
@@ -790,6 +790,8 @@ where
     direction: PongDirection,
     /// A vector of key sets (each a Vec<T>) to cycle through.
     pub action_vector: Vec<Vec<T>>,
+    /// Optional explicit clickable region used to initialize `Clickable.region`.
+    pub clickable_region: Option<Vec2>,
 }
 
 impl<T> Default for ClickablePong<T>
@@ -801,6 +803,7 @@ where
             initial_state: 0,
             direction: PongDirection::Forward,
             action_vector: vec![],
+            clickable_region: None,
         }
     }
 }
@@ -810,18 +813,58 @@ where
     T: Copy + Send + Sync + 'static,
 {
     pub fn new(action_vector: Vec<Vec<T>>, initial_state: usize) -> Self {
+        let max_index = action_vector.len().saturating_sub(1);
+        let clamped_initial_state = initial_state.min(max_index);
+        let direction = if clamped_initial_state >= max_index {
+            PongDirection::Backward
+        } else {
+            PongDirection::Forward
+        };
         Self {
-            initial_state,
+            initial_state: clamped_initial_state,
+            direction,
             action_vector,
             ..default()
         }
     }
 
+    pub fn with_region(mut self, region: Vec2) -> Self {
+        self.clickable_region = Some(region);
+        self
+    }
+
+    pub fn synchronize_index(
+        &mut self,
+        clickable: &mut Clickable<T>,
+        state: &mut InteractionState,
+        desired_index: usize,
+    ) {
+        if self.action_vector.is_empty() {
+            return;
+        }
+
+        let max_index = self.action_vector.len() - 1;
+        let clamped_index = desired_index.min(max_index);
+        state.0 = clamped_index;
+        clickable.actions = self.action_vector[clamped_index].clone();
+        // Preserve traversal momentum for interior positions. Only force
+        // direction at hard boundaries to avoid 2<->3 oscillation after sync.
+        if clamped_index == 0 {
+            self.direction = PongDirection::Forward;
+        } else if clamped_index >= max_index {
+            self.direction = PongDirection::Backward;
+        }
+    }
+
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         if let Some(pong) = world.entity(entity).get::<ClickablePong<T>>().cloned() {
+            if pong.action_vector.is_empty() {
+                return;
+            }
             world.commands().entity(entity).insert((
                 Clickable {
                     actions: pong.action_vector[pong.initial_state].clone(),
+                    region: pong.clickable_region,
                     ..default()
                 },
                 InteractionState(pong.initial_state),
@@ -850,7 +893,7 @@ where
     ChangePauseState(PauseState),
     NextScene,
     AdvanceDialogue(String),
-    ChangeLeverState(LeverState),
+    SetLeverSelection(Option<usize>),
     ResetGame,
     ExitApplication,
     Bounce,
@@ -1385,20 +1428,24 @@ pub fn pressable_system<T: Copy + Send + Sync + 'static>(
 
         // Iterate over all mappings.
         for (i, mapping) in pressable.mappings.iter().enumerate() {
-            // If any key in the mapping is just pressed, trigger this mapping.
-            if mapping.allow_repeated_activation || state.0 == i {
-                if mapping
+            // One-shot mappings fire on just-pressed keys; repeated mappings
+            // may retrigger while held.
+            let triggered = if mapping.allow_repeated_activation {
+                mapping.keys.iter().any(|&key| keyboard_input.pressed(key))
+            } else {
+                mapping
                     .keys
                     .iter()
                     .any(|&key| keyboard_input.just_pressed(key))
-                {
-                    pressable.triggered_mapping = Some(i);
-                    state.0 = i;
-                    if let Some(ref mut visual_state) = visual_state {
-                        visual_state.pressed = true;
-                    }
-                    break;
+            };
+
+            if triggered {
+                pressable.triggered_mapping = Some(i);
+                state.0 = i;
+                if let Some(ref mut visual_state) = visual_state {
+                    visual_state.pressed = true;
                 }
+                break;
             }
         }
     }
@@ -2029,8 +2076,8 @@ pub fn trigger_lever_state_change<K, S>(
         for (_, clickable, pressable, pallet) in query.iter_mut() {
             handle_triggers!(clickable, pressable, pallet, handle => {
                 handle_all_actions!(handle, pallet => {
-                    ChangeLeverState(new_lever_state) => {
-                        lever.0 = new_lever_state;
+                    SetLeverSelection(selected_index) => {
+                        lever.set_selected_index(selected_index);
                     }
                 });
             });
@@ -2067,13 +2114,18 @@ pub fn update_pong<T: Send + Sync + Copy + 'static>(
         &mut Clickable<T>,
         &mut ClickablePong<T>,
         &mut InteractionState,
-        Option<&mut Pressable<T>>,
     )>,
 ) {
-    for (mut clickable, mut pong, mut state, pressable_opt) in query.iter_mut() {
-        if pressable_opt.as_ref().map_or(clickable.triggered, |p| {
-            p.triggered_mapping.is_some() || clickable.triggered
-        }) {
+    for (mut clickable, mut pong, mut state) in query.iter_mut() {
+        if pong.action_vector.len() <= 1 {
+            if let Some(single_actions) = pong.action_vector.first() {
+                clickable.actions = single_actions.clone();
+                state.0 = 0;
+            }
+            continue;
+        }
+
+        if clickable.triggered {
             match pong.direction {
                 PongDirection::Forward => {
                     if state.0 >= pong.action_vector.len().saturating_sub(1) {
@@ -2596,5 +2648,146 @@ mod tests {
             UiInputMode::Captured
         );
         assert_eq!(state.input_mode_for_owner(owner_world), UiInputMode::World);
+    }
+
+    fn click_once(app: &mut App, entity: Entity) {
+        {
+            let mut clickable = app
+                .world_mut()
+                .get_mut::<Clickable<u8>>(entity)
+                .expect("clickable missing");
+            clickable.triggered = true;
+        }
+        app.update();
+        {
+            let mut clickable = app
+                .world_mut()
+                .get_mut::<Clickable<u8>>(entity)
+                .expect("clickable missing");
+            clickable.triggered = false;
+        }
+    }
+
+    #[test]
+    fn pressable_system_triggers_nonzero_mapping() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<UiInteractionState>();
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.add_systems(Update, pressable_system::<u8>);
+
+        let entity = app
+            .world_mut()
+            .spawn(Pressable::new(vec![
+                KeyMapping {
+                    keys: vec![KeyCode::Digit1],
+                    actions: vec![1u8],
+                    allow_repeated_activation: false,
+                },
+                KeyMapping {
+                    keys: vec![KeyCode::Digit2],
+                    actions: vec![2u8],
+                    allow_repeated_activation: false,
+                },
+            ]))
+            .id();
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit2);
+        app.update();
+
+        let pressable = app
+            .world()
+            .get::<Pressable<u8>>(entity)
+            .expect("pressable missing");
+        assert_eq!(pressable.triggered_mapping, Some(1));
+    }
+
+    #[test]
+    fn clickable_pong_follows_ping_pong_sequence() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, update_pong::<u8>);
+
+        let entity = app
+            .world_mut()
+            .spawn(ClickablePong::<u8>::new(
+                vec![vec![0u8], vec![1u8], vec![2u8]],
+                0,
+            ))
+            .id();
+
+        let clickable = app
+            .world()
+            .get::<Clickable<u8>>(entity)
+            .expect("clickable missing after pong insert");
+        assert_eq!(clickable.actions, vec![0u8]);
+        let state = app
+            .world()
+            .get::<InteractionState>(entity)
+            .expect("interaction state missing after pong insert");
+        assert_eq!(state.0, 0);
+
+        click_once(&mut app, entity);
+        let state = app.world().get::<InteractionState>(entity).unwrap();
+        let clickable = app.world().get::<Clickable<u8>>(entity).unwrap();
+        assert_eq!(state.0, 1);
+        assert_eq!(clickable.actions, vec![1u8]);
+
+        click_once(&mut app, entity);
+        let state = app.world().get::<InteractionState>(entity).unwrap();
+        let clickable = app.world().get::<Clickable<u8>>(entity).unwrap();
+        assert_eq!(state.0, 2);
+        assert_eq!(clickable.actions, vec![2u8]);
+
+        click_once(&mut app, entity);
+        let state = app.world().get::<InteractionState>(entity).unwrap();
+        let clickable = app.world().get::<Clickable<u8>>(entity).unwrap();
+        assert_eq!(state.0, 1);
+        assert_eq!(clickable.actions, vec![1u8]);
+
+        click_once(&mut app, entity);
+        let state = app.world().get::<InteractionState>(entity).unwrap();
+        let clickable = app.world().get::<Clickable<u8>>(entity).unwrap();
+        assert_eq!(state.0, 0);
+        assert_eq!(clickable.actions, vec![0u8]);
+    }
+
+    #[test]
+    fn synchronize_index_preserves_backward_direction_in_middle() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_systems(Update, update_pong::<u8>);
+
+        let entity = app
+            .world_mut()
+            .spawn(ClickablePong::<u8>::new(
+                vec![vec![0u8], vec![1u8], vec![2u8]],
+                2,
+            ))
+            .id();
+
+        click_once(&mut app, entity);
+        {
+            let state = app.world().get::<InteractionState>(entity).unwrap();
+            assert_eq!(state.0, 1);
+        }
+
+        {
+            let mut query =
+                app.world_mut()
+                    .query::<(&mut ClickablePong<u8>, &mut Clickable<u8>, &mut InteractionState)>();
+            let (mut pong, mut clickable, mut state) = query
+                .get_mut(app.world_mut(), entity)
+                .expect("pong/clickable/state missing");
+            pong.synchronize_index(&mut clickable, &mut state, 1);
+        }
+
+        click_once(&mut app, entity);
+        let state = app.world().get::<InteractionState>(entity).unwrap();
+        let clickable = app.world().get::<Clickable<u8>>(entity).unwrap();
+        assert_eq!(state.0, 0);
+        assert_eq!(clickable.actions, vec![0u8]);
     }
 }

@@ -8,11 +8,10 @@ use crate::{
         states::{DilemmaPhase, GameState, MainState, StateVector},
         stats::GameStats,
     },
-    entities::{text::TextButton, train::Train},
+    entities::{person::PersonSprite, text::TextButton, train::Train},
     scenes::dilemma::{
-        dilemma::{CurrentDilemmaStageIndex, Dilemma, DilemmaStage},
+        dilemma::{CurrentDilemmaStageIndex, Dilemma, DilemmaStage, DilemmaTimer},
         junction::Junction,
-        lever::Lever,
         DilemmaSounds,
     },
     style::common_ui::NextButton,
@@ -29,7 +28,6 @@ use crate::{
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DilemmaConsequenceEvents {
     SpeedUp,
-    Scream,
     Button,
 }
 
@@ -47,7 +45,12 @@ impl std::fmt::Display for DilemmaConsequenceActions {
 pub struct DilemmaConsequencePlugin;
 impl Plugin for DilemmaConsequencePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<PreConsequenceScreamState>()
+        .add_systems(
+            OnEnter(DilemmaPhase::Decision),
+            DilemmaConsequenceScene::reset_pre_consequence_scream,
+        )
+        .add_systems(
             OnEnter(DilemmaPhase::Consequence),
             (DilemmaConsequenceScene::setup, GameStats::update_stats)
                 .run_if(in_state(GameState::Dilemma)),
@@ -55,13 +58,39 @@ impl Plugin for DilemmaConsequencePlugin {
         .add_systems(OnEnter(DilemmaPhase::Results), Junction::cleanup)
         .add_systems(
             Update,
+            DilemmaConsequenceScene::trigger_pre_consequence_scream_from_decision
+                .after(DilemmaTimer::update)
+                .run_if(in_state(GameState::Dilemma))
+                .run_if(in_state(DilemmaPhase::Decision)),
+        )
+        .add_systems(
+            Update,
+            DilemmaConsequenceScene::trigger_pre_consequence_scream_from_skip
+                .run_if(in_state(GameState::Dilemma))
+                .run_if(in_state(DilemmaPhase::Skip)),
+        )
+        .add_systems(
+            Update,
             DilemmaConsequenceScene::spawn_delayed_children
                 .run_if(in_state(GameState::Dilemma))
                 .run_if(in_state(DilemmaPhase::Consequence)),
         )
         .add_systems(
+            Update,
+            DilemmaConsequenceScene::stop_scream_when_no_people_in_danger
+                .run_if(in_state(GameState::Dilemma))
+                .run_if(
+                    in_state(DilemmaPhase::Decision)
+                        .or(in_state(DilemmaPhase::Skip))
+                        .or(in_state(DilemmaPhase::Consequence)),
+                ),
+        )
+        .add_systems(
             OnExit(DilemmaPhase::Consequence),
-            DilemmaConsequenceScene::update_stage,
+            (
+                DilemmaConsequenceScene::update_stage,
+                DilemmaConsequenceScene::cleanup_pre_consequence_scream,
+            ),
         );
     }
 }
@@ -70,7 +99,93 @@ impl Plugin for DilemmaConsequencePlugin {
 #[require(Transform, Visibility)]
 pub struct DilemmaConsequenceScene;
 
+#[derive(Component, Default)]
+struct ConsequenceEventLatch {
+    speedup_handled: bool,
+    button_handled: bool,
+}
+
+#[derive(Component)]
+pub struct ConsequenceScreamAudio;
+
+#[derive(Resource, Default)]
+struct PreConsequenceScreamState {
+    played: bool,
+}
+
 impl DilemmaConsequenceScene {
+    const PRE_CONSEQUENCE_SCREAM_SOUND: &str = "./audio/effects/male_scream_long.ogg";
+    const PRE_CONSEQUENCE_SCREAM_LEAD_SECONDS: f32 = 1.0;
+
+    fn reset_pre_consequence_scream(mut scream_state: ResMut<PreConsequenceScreamState>) {
+        scream_state.played = false;
+    }
+
+    fn spawn_pre_consequence_scream(commands: &mut Commands, asset_server: &AssetServer) {
+        commands.spawn((
+            ConsequenceScreamAudio,
+            OneShotAudioPallet::new(vec![OneShotAudio {
+                source: asset_server.load(Self::PRE_CONSEQUENCE_SCREAM_SOUND),
+                dilatable: true,
+                ..default()
+            }]),
+        ));
+    }
+
+    fn trigger_pre_consequence_scream_from_decision(
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+        timer_query: Query<&DilemmaTimer>,
+        person_query: Query<&PersonSprite>,
+        scream_query: Query<Entity, With<ConsequenceScreamAudio>>,
+        mut scream_state: ResMut<PreConsequenceScreamState>,
+    ) {
+        if scream_state.played || !scream_query.is_empty() {
+            scream_state.played = true;
+            return;
+        }
+
+        if !person_query.iter().any(|person| person.in_danger) {
+            return;
+        }
+
+        let Some(timer) = timer_query.iter().next() else {
+            return;
+        };
+
+        if timer.timer.remaining_secs() <= Self::PRE_CONSEQUENCE_SCREAM_LEAD_SECONDS {
+            Self::spawn_pre_consequence_scream(&mut commands, &asset_server);
+            scream_state.played = true;
+        }
+    }
+
+    fn trigger_pre_consequence_scream_from_skip(
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+        translation_query: Query<&PointToPointTranslation, With<Train>>,
+        person_query: Query<&PersonSprite>,
+        scream_query: Query<Entity, With<ConsequenceScreamAudio>>,
+        mut scream_state: ResMut<PreConsequenceScreamState>,
+    ) {
+        if scream_state.played || !scream_query.is_empty() {
+            scream_state.played = true;
+            return;
+        }
+
+        if !person_query.iter().any(|person| person.in_danger) {
+            return;
+        }
+
+        let Some(translation) = translation_query.iter().next() else {
+            return;
+        };
+
+        if translation.timer.remaining_secs() <= Self::PRE_CONSEQUENCE_SCREAM_LEAD_SECONDS {
+            Self::spawn_pre_consequence_scream(&mut commands, &asset_server);
+            scream_state.played = true;
+        }
+    }
+
     fn setup(
         stage: Res<DilemmaStage>,
         mut commands: Commands,
@@ -84,15 +199,12 @@ impl DilemmaConsequenceScene {
 
         commands.spawn((
             Self,
+            ConsequenceEventLatch::default(),
             DespawnOnExit(DilemmaPhase::Consequence),
             TimerPallet::new(vec![
                 (
                     DilemmaConsequenceEvents::SpeedUp,
                     TimerConfig::new(TimerStartCondition::Immediate, 3.0, None),
-                ),
-                (
-                    DilemmaConsequenceEvents::Scream,
-                    TimerConfig::new(TimerStartCondition::Immediate, 1.0, None),
                 ),
                 (
                     DilemmaConsequenceEvents::Button,
@@ -112,43 +224,29 @@ impl DilemmaConsequenceScene {
     fn spawn_delayed_children(
         mut commands: Commands,
         loading_query: Single<
-            (Entity, &TimerPallet<DilemmaConsequenceEvents>),
+            (
+                Entity,
+                &TimerPallet<DilemmaConsequenceEvents>,
+                &mut ConsequenceEventLatch,
+            ),
             With<DilemmaConsequenceScene>,
         >,
         dilemma: Res<Dilemma>,
         stage_index: Res<CurrentDilemmaStageIndex>,
-        lever: Res<Lever>,
         asset_server: Res<AssetServer>,
         mut next_main_state: ResMut<NextState<MainState>>,
         mut next_game_state: ResMut<NextState<GameState>>,
         mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
-        const SCREAM_SOUND: &str = "./audio/effects/male_scream_long.ogg";
         const SPEEDUP_SOUND: &str = "./audio/effects/speedup.ogg";
         const SPEEDUP_DURATION_SECONDS: f32 = 1.057;
 
-        // Determine if there are fatalities based on the current dilemma option.
-        let stage = dilemma.stages[stage_index.0].clone();
-        let are_fatalities = stage.options[lever.0 as usize].num_humans > 0;
         let num_stages = dilemma.stages.len();
 
-        let (entity, timers) = loading_query.into_inner();
+        let (entity, timers, mut latch) = loading_query.into_inner();
 
-        // Spawn scream audio if the Scream event just finished and there are fatalities.
-        if timers.0[DilemmaConsequenceEvents::Scream].just_finished() && are_fatalities {
-            let scream_audio = OneShotAudio {
-                source: asset_server.load(SCREAM_SOUND),
-                dilatable: true,
-                ..default()
-            };
-
-            commands.entity(entity).with_children(|parent| {
-                parent.spawn(OneShotAudioPallet::new(vec![scream_audio]));
-            });
-        }
-
-        // Spawn speedup audio with associated dilation translation if the SpeedUp event just finished.
-        if timers.0[DilemmaConsequenceEvents::SpeedUp].just_finished() {
+        if !latch.speedup_handled && timers.0[DilemmaConsequenceEvents::SpeedUp].times_finished() > 0
+        {
             let speedup_audio = OneShotAudio {
                 source: asset_server.load(SPEEDUP_SOUND),
                 ..default()
@@ -163,9 +261,12 @@ impl DilemmaConsequenceScene {
                     OneShotAudioPallet::new(vec![speedup_audio]),
                 ));
             });
+
+            latch.speedup_handled = true;
         }
 
-        if timers.0[DilemmaConsequenceEvents::Button].just_finished() {
+        if !latch.button_handled && timers.0[DilemmaConsequenceEvents::Button].times_finished() > 0 {
+            latch.button_handled = true;
             if num_stages - 1 == stage_index.0 {
                 commands.entity(entity).with_children(|parent| {
                     parent.spawn((
@@ -222,6 +323,31 @@ impl DilemmaConsequenceScene {
 
         if let Some(next_stage) = dilemma.stages.get(stage_index.0) {
             *stage = next_stage.clone();
+        }
+    }
+
+    fn cleanup_pre_consequence_scream(
+        mut commands: Commands,
+        scream_audio_query: Query<Entity, With<ConsequenceScreamAudio>>,
+        mut scream_state: ResMut<PreConsequenceScreamState>,
+    ) {
+        for entity in scream_audio_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        scream_state.played = false;
+    }
+
+    fn stop_scream_when_no_people_in_danger(
+        mut commands: Commands,
+        person_query: Query<&PersonSprite>,
+        scream_audio_query: Query<Entity, With<ConsequenceScreamAudio>>,
+    ) {
+        if person_query.iter().any(|person| person.in_danger) {
+            return;
+        }
+
+        for entity in scream_audio_query.iter() {
+            commands.entity(entity).despawn();
         }
     }
 }

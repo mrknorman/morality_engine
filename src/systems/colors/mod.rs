@@ -48,6 +48,27 @@ pub const OPTION_2_COLOR: Color = Color::srgb(
     0.0664 * OPTION_GLOW,
     0.3477 * OPTION_GLOW,
 );
+pub const OPTION_3_COLOR: Color = Color::srgb(
+    1.0 * OPTION_GLOW,
+    (176.0 / 255.0) * OPTION_GLOW,
+    0.0 * OPTION_GLOW,
+);
+
+const OPTION_COLOR_FALLBACKS: [Color; 4] = [
+    Color::srgb(0.3075 * OPTION_GLOW, 0.9150 * OPTION_GLOW, 0.3860 * OPTION_GLOW),
+    Color::srgb(0.9800 * OPTION_GLOW, 0.8800 * OPTION_GLOW, 0.2200 * OPTION_GLOW),
+    Color::srgb(0.6300 * OPTION_GLOW, 0.4385 * OPTION_GLOW, 0.9660 * OPTION_GLOW),
+    Color::srgb(0.8500 * OPTION_GLOW, 0.4600 * OPTION_GLOW, 0.7300 * OPTION_GLOW),
+];
+
+pub fn option_color(option_index: usize) -> Color {
+    match option_index {
+        0 => OPTION_1_COLOR,
+        1 => OPTION_2_COLOR,
+        2 => OPTION_3_COLOR,
+        _ => OPTION_COLOR_FALLBACKS[(option_index - 3) % OPTION_COLOR_FALLBACKS.len()],
+    }
+}
 
 #[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ColorsSystemsActive {
@@ -133,7 +154,7 @@ impl Default for ColorPallet {
             hovered: HOVERED_BUTTON,
             pressed: CLICKED_BUTTON,
             danger: DANGER_COLOR,
-            options: vec![OPTION_1_COLOR, OPTION_2_COLOR],
+            options: vec![OPTION_1_COLOR, OPTION_2_COLOR, OPTION_3_COLOR],
         }
     }
 }

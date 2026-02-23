@@ -13,18 +13,15 @@ use crate::{
         track::Track,
         train::Train,
     },
-    scenes::dilemma::{
-        dilemma::DilemmaStage,
-        lever::{Lever, LeverState},
-    },
+    scenes::dilemma::{dilemma::DilemmaStage, lever::Lever},
     systems::{
         audio::{
-            continuous_audio, ContinuousAudio, ContinuousAudioPallet, TransientAudio,
-            TransientAudioPallet,
+            continuous_audio, ContinuousAudio, ContinuousAudioPallet, OneShotAudio,
+            OneShotAudioPallet, TransientAudio, TransientAudioPallet,
         },
         colors::{
-            ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation, BACKGROUND_COLOR,
-            DANGER_COLOR, OPTION_1_COLOR, OPTION_2_COLOR,
+            option_color, ColorAnchor, ColorChangeEvent, ColorChangeOn, ColorTranslation,
+            BACKGROUND_COLOR, DANGER_COLOR,
         },
         inheritance::BequeathTextColor,
         motion::{Bounce, TransformMultiAnchor},
@@ -50,7 +47,10 @@ impl Plugin for JunctionPlugin {
                 (
                     Junction::switch_junction,
                     Junction::check_if_person_in_path_of_train,
+                    Junction::sync_mass_panic_audio,
+                    Junction::play_mass_rescue_cheer_on_lever_pull,
                 )
+                    .chain()
                     .run_if(in_state(JunctionSystemsActive::True)),
             )
             .add_systems(
@@ -94,6 +94,10 @@ impl Junction {
         Vec3::new(scaled_text_units(-7000.0) / Track::LENGTH as f32, 0.0, 0.0);
     const TURNOUT_TRANSLATION: Vec3 = Vec3::new(scaled_text_units(1281.5), 0.0, 0.0);
     const FATALITY_OFFSET: f32 = scaled_text_units(-1070.0);
+    const MASS_RESCUE_CHEER_SOUND: &str = "./audio/effects/cheer.ogg";
+    const MASS_RESCUE_CHEER_THRESHOLD: usize = 100;
+    const MASS_PANIC_SOUND: &str = "./audio/effects/crowd_panic.ogg";
+    const MASS_PANIC_THRESHOLD: usize = 100;
 
     fn track_color() -> TextColor {
         TextColor(BACKGROUND_COLOR)
@@ -166,17 +170,14 @@ impl Junction {
             true,
         )];
 
-        let crowd_audio = asset_server.load("./audio/effects/crowd_panic.ogg");
-
         let mut commands = world.commands();
         if let Some(junction) = junction {
             let stage: DilemmaStage = junction.stage;
-
-            let track_colors: Vec<Color> = vec![OPTION_1_COLOR, OPTION_2_COLOR];
-            let branch_y_positions = vec![
-                Transform::default(),
-                Transform::from_translation(Junction::BRANCH_SEPARATION),
-            ];
+            let branch_y_positions: Vec<Transform> = (0..stage.options.len())
+                .map(|branch_index| {
+                    Transform::from_translation(Junction::BRANCH_SEPARATION * branch_index as f32)
+                })
+                .collect();
 
             let mut track_entities = vec![];
             commands.entity(entity).with_children(|junction| {
@@ -201,11 +202,8 @@ impl Junction {
                         TransformMultiAnchor(branch_y_positions.clone()),
                     ))
                     .with_children(|turnout| {
-                        for (branch_index, ((option, y_position), color)) in zip(
-                            zip(stage.options.clone(), branch_y_positions.clone()),
-                            track_colors,
-                        )
-                        .enumerate()
+                        for (branch_index, (option, y_position)) in
+                            zip(stage.options.clone(), branch_y_positions.clone()).enumerate()
                         {
                             track_entities.push(
                                 turnout
@@ -214,27 +212,10 @@ impl Junction {
                                             index: branch_index,
                                         },
                                         Track::new(300),
-                                        TextColor(color),
+                                        TextColor(option_color(branch_index)),
                                         y_position,
                                     ))
                                     .with_children(|track: &mut ChildSpawnerCommands<'_>| {
-                                        if option.consequences.total_fatalities >= 500 {
-                                            track.spawn((
-                                                CrowdPanicNoise,
-                                                ContinuousAudioPallet::new(vec![ContinuousAudio {
-                                                    key: EmotionSounds::Exclaim,
-                                                    source: AudioPlayer::<AudioSource>(
-                                                        crowd_audio.clone(),
-                                                    ),
-                                                    settings: PlaybackSettings {
-                                                        volume: Volume::Linear(0.5),
-                                                        ..continuous_audio()
-                                                    },
-                                                    dilatable: true,
-                                                }]),
-                                            ));
-                                        }
-
                                         for fatality_index in
                                             0..option.consequences.total_fatalities
                                         {
@@ -343,13 +324,9 @@ impl Junction {
     ) {
         for mut track in track_query.iter_mut() {
             if let Some(lever) = &lever {
-                let lever = lever.0;
-                let color = match lever {
-                    LeverState::Left => OPTION_1_COLOR,
-                    LeverState::Right => OPTION_2_COLOR,
-                    LeverState::Random => return,
-                };
-                track.0 = color;
+                if let Some(index) = lever.selected_index() {
+                    track.0 = option_color(index);
+                }
             }
         }
     }
@@ -369,19 +346,14 @@ impl Junction {
         const PROPORTIONAL_SPEED_FACTOR: f32 = 10.0;
 
         for (lever_transform, mut transform) in movement_query.iter_mut() {
-            let target_position = match lever.0 {
-                LeverState::Right => Vec3::new(
-                    transform.translation.x,
-                    -lever_transform.0[1].translation.y,
-                    1.0,
-                ),
-                LeverState::Left => Vec3::new(
-                    transform.translation.x,
-                    -lever_transform.0[0].translation.y,
-                    1.0,
-                ),
-                LeverState::Random => return,
+            let Some(target_index) = lever.selected_index() else {
+                return;
             };
+            let Some(target_anchor) = lever_transform.0.get(target_index) else {
+                continue;
+            };
+            let target_position =
+                Vec3::new(transform.translation.x, -target_anchor.translation.y, 1.0);
 
             let distance = (target_position - transform.translation).length();
 
@@ -403,19 +375,115 @@ impl Junction {
         lever: Option<Res<Lever>>,
     ) {
         if let Some(lever) = lever {
+            let selected_index = lever.selected_index();
             for (children, track) in lever_query.iter_mut() {
                 for child in children.iter() {
                     if let Ok((transform, mut person)) = text_query.get_mut(child) {
-                        if train_query.translation().x < transform.translation().x {
-                            person.in_danger = (Some(track.index) == lever.0.to_int())
-                                && !(lever.0 == LeverState::Random);
-                        }
+                        let train_is_before_person =
+                            train_query.translation().x < transform.translation().x;
+                        person.in_danger =
+                            train_is_before_person && selected_index == Some(track.index);
                     }
                 }
             }
         }
     }
+
+    fn sync_mass_panic_audio(
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+        person_query: Query<&PersonSprite>,
+        active_query: Query<Entity, With<CrowdPanicNoise>>,
+    ) {
+        let in_danger_count = person_query
+            .iter()
+            .filter(|person| person.in_danger)
+            .count();
+        let should_play = in_danger_count >= Self::MASS_PANIC_THRESHOLD;
+
+        let mut active_entities = active_query.iter();
+        let first_active = active_entities.next();
+
+        if should_play {
+            if first_active.is_none() {
+                commands.spawn((
+                    CrowdPanicNoise,
+                    ContinuousAudioPallet::new(vec![ContinuousAudio {
+                        key: EmotionSounds::Exclaim,
+                        source: AudioPlayer::<AudioSource>(
+                            asset_server.load(Self::MASS_PANIC_SOUND),
+                        ),
+                        settings: PlaybackSettings {
+                            volume: Volume::Linear(0.5),
+                            ..continuous_audio()
+                        },
+                        dilatable: true,
+                    }]),
+                ));
+            }
+            for extra in active_entities {
+                commands.entity(extra).despawn();
+            }
+            return;
+        }
+
+        if let Some(first) = first_active {
+            commands.entity(first).despawn();
+        }
+        for extra in active_entities {
+            commands.entity(extra).despawn();
+        }
+    }
+
+    fn play_mass_rescue_cheer_on_lever_pull(
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+        person_query: Query<&PersonSprite>,
+        lever: Option<Res<Lever>>,
+        mut tracker: Local<MassRescueCheerTracker>,
+    ) {
+        let current_danger_count = person_query
+            .iter()
+            .filter(|person| person.in_danger)
+            .count();
+        let Some(lever) = lever else {
+            tracker.initialized = false;
+            tracker.last_danger_count = current_danger_count;
+            return;
+        };
+
+        if lever.is_added() {
+            tracker.initialized = true;
+            tracker.last_danger_count = current_danger_count;
+            return;
+        }
+
+        let rescued_count = tracker
+            .last_danger_count
+            .saturating_sub(current_danger_count);
+
+        if tracker.initialized
+            && lever.is_changed()
+            && rescued_count >= Self::MASS_RESCUE_CHEER_THRESHOLD
+        {
+            commands.spawn(OneShotAudioPallet::new(vec![OneShotAudio {
+                source: asset_server.load(Self::MASS_RESCUE_CHEER_SOUND),
+                volume: 0.8,
+                dilatable: true,
+                ..default()
+            }]));
+        }
+
+        tracker.initialized = true;
+        tracker.last_danger_count = current_danger_count;
+    }
 }
 
 #[derive(Component)]
 pub struct CrowdPanicNoise;
+
+#[derive(Default)]
+struct MassRescueCheerTracker {
+    initialized: bool,
+    last_danger_count: usize,
+}

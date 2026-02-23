@@ -72,11 +72,12 @@ pub(super) const VIDEO_MENU_SCAN_JITTER_TEXT: &str = "JITTER";
 pub(super) const VIDEO_MENU_SCAN_ABERRATION_TEXT: &str = "RGB SPLIT";
 pub(super) const VIDEO_MENU_SCAN_PHOSPHOR_TEXT: &str = "PHOSPHOR MASK";
 pub(super) const VIDEO_MENU_SCAN_VIGNETTE_TEXT: &str = "VIGNETTE";
+pub(super) const VIDEO_MENU_SCREEN_SHAKE_TEXT: &str = "SCREEN SHAKE";
 pub(super) const VIDEO_MENU_APPLY_TEXT: &str = "APPLY [a]";
 pub(super) const VIDEO_MENU_RESET_TEXT: &str = "RESET [z]";
 pub(super) const VIDEO_MENU_BACK_TEXT: &str = "BACK [⌫]";
 pub(super) const VIDEO_MENU_VALUE_PLACEHOLDER: &str = "---";
-pub(super) const VIDEO_TABS: [&str; 4] = ["DISPLAY", "BLOOM", "ADVANCED", "CRT"];
+pub(super) const VIDEO_TABS: [&str; 4] = ["DISPLAY", "BLOOM", "ADVANCED", "EFFECTS"];
 pub(super) const VIDEO_TOP_OPTION_COUNT: usize = 8;
 pub(super) const VIDEO_FOOTER_OPTION_COUNT: usize = 3;
 pub(super) const VIDEO_FOOTER_OPTION_START_INDEX: usize = VIDEO_TOP_OPTION_COUNT;
@@ -544,6 +545,7 @@ pub(super) struct VideoSettingsSnapshot {
     pub(super) chromatic_enabled: bool,
     pub(super) chromatic_intensity: CrtEffectLevel,
     pub(super) crt_enabled: bool,
+    pub(super) screen_shake_intensity: CrtEffectLevel,
     pub(super) scan_spacing: ScanSpacing,
     pub(super) scan_thickness: ScanThickness,
     pub(super) scan_darkness: ScanDarkness,
@@ -581,6 +583,7 @@ impl Default for VideoSettingsSnapshot {
             chromatic_enabled: false,
             chromatic_intensity: CrtEffectLevel::Medium,
             crt_enabled: true,
+            screen_shake_intensity: CrtEffectLevel::Medium,
             scan_spacing: ScanSpacing::Balanced,
             scan_thickness: ScanThickness::Medium,
             scan_darkness: ScanDarkness::Medium,
@@ -1188,6 +1191,7 @@ pub(super) enum VideoTopOptionKey {
     ChromaticEnabled,
     ChromaticIntensity,
     CrtEnabled,
+    ScreenShakeIntensity,
     ScanSpacing,
     ScanThickness,
     ScanDarkness,
@@ -1239,7 +1243,7 @@ pub(super) fn video_top_option_keys(
             VideoTopOptionKey::ScanJitter,
             VideoTopOptionKey::ScanAberration,
             VideoTopOptionKey::ScanPhosphor,
-            VideoTopOptionKey::ScanVignette,
+            VideoTopOptionKey::ScreenShakeIntensity,
         ],
     }
 }
@@ -1276,6 +1280,7 @@ impl VideoTopOptionKey {
             VideoTopOptionKey::ChromaticEnabled => VIDEO_MENU_CHROMATIC_TEXT,
             VideoTopOptionKey::ChromaticIntensity => VIDEO_MENU_CHROMATIC_INTENSITY_TEXT,
             VideoTopOptionKey::CrtEnabled => VIDEO_MENU_CRT_ENABLED_TEXT,
+            VideoTopOptionKey::ScreenShakeIntensity => VIDEO_MENU_SCREEN_SHAKE_TEXT,
             VideoTopOptionKey::ScanSpacing => VIDEO_MENU_SCAN_SPACING_TEXT,
             VideoTopOptionKey::ScanThickness => VIDEO_MENU_SCAN_THICKNESS_TEXT,
             VideoTopOptionKey::ScanDarkness => VIDEO_MENU_SCAN_DARKNESS_TEXT,
@@ -1349,6 +1354,9 @@ impl VideoTopOptionKey {
                 "How strong the color fringing effect appears."
             }
             VideoTopOptionKey::CrtEnabled => "Master switch for all CRT screen effects.",
+            VideoTopOptionKey::ScreenShakeIntensity => {
+                "How strong gameplay camera shake is near high-impact moments."
+            }
             VideoTopOptionKey::ScanSpacing => "Space between CRT-style scan lines.",
             VideoTopOptionKey::ScanThickness => "Thickness of each CRT scan line.",
             VideoTopOptionKey::ScanDarkness => "How dark the scan-line overlay appears.",
@@ -1434,7 +1442,8 @@ impl VideoTopOptionKey {
             | VideoTopOptionKey::AnamorphicScale => 3,
             VideoTopOptionKey::BloomBoost
             | VideoTopOptionKey::CasStrength
-            | VideoTopOptionKey::ChromaticIntensity => 4,
+            | VideoTopOptionKey::ChromaticIntensity
+            | VideoTopOptionKey::ScreenShakeIntensity => 4,
             VideoTopOptionKey::ScanSpacing
             | VideoTopOptionKey::ScanThickness
             | VideoTopOptionKey::ScanDarkness
@@ -1473,6 +1482,7 @@ impl VideoTopOptionKey {
                 | VideoTopOptionKey::ScanAberration
                 | VideoTopOptionKey::ScanPhosphor
                 | VideoTopOptionKey::ScanVignette
+                | VideoTopOptionKey::ScreenShakeIntensity
         )
     }
 
@@ -1493,7 +1503,8 @@ impl VideoTopOptionKey {
             | VideoTopOptionKey::ScanJitter
             | VideoTopOptionKey::ScanAberration
             | VideoTopOptionKey::ScanPhosphor
-            | VideoTopOptionKey::ScanVignette => {
+            | VideoTopOptionKey::ScanVignette
+            | VideoTopOptionKey::ScreenShakeIntensity => {
                 let choice_count = self.choice_count();
                 let slot_count = if self.slider_has_zero_state() {
                     choice_count.saturating_sub(1)
@@ -1700,6 +1711,12 @@ impl VideoTopOptionKey {
                 toggle_text(true).to_string(),
                 toggle_text(false).to_string(),
             ],
+            VideoTopOptionKey::ScreenShakeIntensity => vec![
+                crt_effect_level_text(CrtEffectLevel::Off).to_string(),
+                crt_effect_level_text(CrtEffectLevel::Low).to_string(),
+                crt_effect_level_text(CrtEffectLevel::Medium).to_string(),
+                crt_effect_level_text(CrtEffectLevel::High).to_string(),
+            ],
             VideoTopOptionKey::ScanSpacing => vec![
                 scan_spacing_text(ScanSpacing::Off).to_string(),
                 scan_spacing_text(ScanSpacing::Fine).to_string(),
@@ -1903,6 +1920,12 @@ impl VideoTopOptionKey {
                     1
                 }
             }
+            VideoTopOptionKey::ScreenShakeIntensity => match snapshot.screen_shake_intensity {
+                CrtEffectLevel::Off => 0,
+                CrtEffectLevel::Low => 1,
+                CrtEffectLevel::Medium => 2,
+                CrtEffectLevel::High => 3,
+            },
             VideoTopOptionKey::ScanSpacing => match snapshot.scan_spacing {
                 ScanSpacing::Off => 0,
                 ScanSpacing::Fine => 1,
@@ -2252,6 +2275,20 @@ impl VideoTopOptionKey {
                     false
                 } else {
                     snapshot.crt_enabled = next;
+                    true
+                }
+            }
+            VideoTopOptionKey::ScreenShakeIntensity => {
+                let next = match index {
+                    0 => CrtEffectLevel::Off,
+                    1 => CrtEffectLevel::Low,
+                    2 => CrtEffectLevel::Medium,
+                    _ => CrtEffectLevel::High,
+                };
+                if snapshot.screen_shake_intensity == next {
+                    false
+                } else {
+                    snapshot.screen_shake_intensity = next;
                     true
                 }
             }
