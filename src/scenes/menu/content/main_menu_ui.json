@@ -11,19 +11,25 @@
       "id": "menu_start_option",
       "label": "Start Game",
       "command": "enter_game",
-      "y": 46.0
+      "y": 69.0
+    },
+    {
+      "id": "menu_level_select_option",
+      "label": "Level Select",
+      "command": "open_level_select",
+      "y": 23.0
     },
     {
       "id": "menu_options_option",
       "label": "Options",
       "command": "open_options",
-      "y": 0.0
+      "y": -23.0
     },
     {
       "id": "menu_exit_option",
       "label": "Exit to Desktop",
       "command": "exit_desktop",
-      "y": -46.0
+      "y": -69.0
     }
   ]
 }

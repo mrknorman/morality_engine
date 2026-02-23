@@ -24,6 +24,7 @@ use bevy::{
 };
 
 use crate::{
+    data::stats::GameStats,
     data::states::{DilemmaPhase, GameState, MainState, PauseState},
     scenes::{Scene, SceneQueue},
     startup::render::{CrtSettings, MainCamera, OffscreenCamera},
@@ -60,6 +61,7 @@ mod dropdown_view;
 #[cfg(test)]
 mod flow_tests;
 mod footer_nav;
+mod level_select;
 mod main_menu;
 mod menu_input;
 mod modal_flow;
@@ -169,6 +171,7 @@ struct MenuCommandContext<'w, 's> {
     dilation: Res<'w, Dilation>,
     window_exit: WindowExitContext<'w, 's>,
     scene_queue: ResMut<'w, SceneQueue>,
+    stats: ResMut<'w, GameStats>,
     next_main_state: ResMut<'w, NextState<MainState>>,
     next_game_state: ResMut<'w, NextState<GameState>>,
     next_sub_state: ResMut<'w, NextState<DilemmaPhase>>,
@@ -194,6 +197,7 @@ struct MenuCommandContext<'w, 's> {
     main_camera_transform_query: Query<'w, 's, &'static GlobalTransform, With<MainCamera>>,
     offscreen_camera_query: Query<'w, 's, &'static GlobalTransform, With<OffscreenCamera>>,
     main_menu_overlay_query: Query<'w, 's, (), With<MainMenuOptionsOverlay>>,
+    level_select_overlay_query: Query<'w, 's, (), With<level_select::LevelSelectOverlay>>,
     // Read-only layer resolution and mutable dropdown visibility live in one ParamSet to keep
     // Visibility access disjoint (avoids Bevy B0001 conflicts).
     layer_queries: ParamSet<

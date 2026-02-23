@@ -11,7 +11,8 @@ pub struct StatsPlugin;
 impl Plugin for StatsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameStats::default())
-            .insert_resource(DilemmaStats::default());
+            .insert_resource(DilemmaStats::default())
+            .insert_resource(DilemmaRunStatsScope::default());
     }
 }
 
@@ -88,6 +89,7 @@ impl DilemmaStats {
     ) {
         self.result = Some(*lever);
         self.num_fatalities = consequence.total_fatalities;
+        self.decision_time_available = timer.duration();
         self.decision_time_used = timer.elapsed();
 
         if self.num_decisions > 0 {
@@ -211,11 +213,49 @@ impl DilemmaStats {
     fn reset(&mut self) {
         self.decisions.clear();
         self.result = None;
+        self.decision_time_available = Duration::ZERO;
+        self.decision_time_used = Duration::ZERO;
         self.num_fatalities = 0;
         self.num_decisions = 0;
         self.average_num_decisions_per_second = None;
         self.duration_before_first_decision = None;
         self.duration_remaining_at_last_decision = None;
+    }
+}
+
+#[derive(Resource, Clone, Copy, Debug)]
+pub struct DilemmaRunStatsScope {
+    pub start_index: usize,
+    pub expected_stage_count: usize,
+}
+
+impl Default for DilemmaRunStatsScope {
+    fn default() -> Self {
+        Self {
+            start_index: 0,
+            expected_stage_count: 1,
+        }
+    }
+}
+
+impl DilemmaRunStatsScope {
+    pub const fn new(start_index: usize, expected_stage_count: usize) -> Self {
+        Self {
+            start_index,
+            expected_stage_count,
+        }
+    }
+
+    pub fn range(self, total_entries: usize) -> std::ops::Range<usize> {
+        let start = self.start_index.min(total_entries);
+        let expected_count = self.expected_stage_count.max(1);
+        let end = start.saturating_add(expected_count).min(total_entries);
+        start..end
+    }
+
+    pub fn entries<'a>(self, stats: &'a GameStats) -> &'a [DilemmaStats] {
+        let range = self.range(stats.dilemma_stats.len());
+        &stats.dilemma_stats[range]
     }
 }
 
@@ -249,6 +289,14 @@ impl Default for GameStats {
 }
 
 impl GameStats {
+    pub fn from_dilemma_stats(dilemma_stats: &[DilemmaStats]) -> Self {
+        let mut summary = Self::default();
+        for stats in dilemma_stats {
+            summary.update(stats.clone());
+        }
+        summary
+    }
+
     pub fn update(&mut self, new_dilemma_stats: DilemmaStats) {
         self.dilemma_stats.push(new_dilemma_stats);
 
@@ -433,5 +481,58 @@ impl GameStats {
             columns: vec![left_column, right_column],
             rows,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finalize_records_timer_duration_even_without_decisions() {
+        let mut stats = DilemmaStats::default();
+        let mut timer = Timer::new(Duration::from_secs_f32(10.0), TimerMode::Once);
+        timer.tick(Duration::from_secs_f32(2.5));
+
+        stats.finalize(
+            &DilemmaOptionConsequences {
+                total_fatalities: 3,
+            },
+            &LeverState::Left,
+            &timer,
+        );
+
+        assert_eq!(stats.decision_time_available, timer.duration());
+        assert_eq!(stats.decision_time_used, timer.elapsed());
+    }
+
+    #[test]
+    fn reset_clears_timing_fields_between_stages() {
+        let mut stats = DilemmaStats::new(Duration::from_secs(12));
+        let mut timer = Timer::new(Duration::from_secs_f32(12.0), TimerMode::Once);
+        timer.tick(Duration::from_secs_f32(4.0));
+
+        stats.update(&LeverState::Right, &timer);
+        stats.finalize(
+            &DilemmaOptionConsequences {
+                total_fatalities: 1,
+            },
+            &LeverState::Right,
+            &timer,
+        );
+        stats.reset();
+
+        assert_eq!(stats.decision_time_available, Duration::ZERO);
+        assert_eq!(stats.decision_time_used, Duration::ZERO);
+        assert_eq!(stats.num_decisions, 0);
+        assert!(stats.duration_before_first_decision.is_none());
+        assert!(stats.duration_remaining_at_last_decision.is_none());
+    }
+
+    #[test]
+    fn run_scope_clamps_to_available_entries() {
+        let scope = DilemmaRunStatsScope::new(5, 4);
+        assert_eq!(scope.range(7), 5..7);
+        assert_eq!(scope.range(3), 3..3);
     }
 }

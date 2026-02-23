@@ -25,6 +25,7 @@ pub struct MainMenuOptionList;
 static MAIN_MENU_COMMAND_REGISTRY: Lazy<schema::CommandRegistry<MenuCommand>> = Lazy::new(|| {
     schema::CommandRegistry::from_entries([
         ("enter_game", MenuCommand::NextScene),
+        ("open_level_select", MenuCommand::OpenLevelSelectOverlay),
         ("open_options", MenuCommand::OpenMainMenuOptionsOverlay),
         ("exit_desktop", MenuCommand::ExitApplication),
     ])
@@ -158,6 +159,11 @@ mod tests {
         assert_eq!(
             resolve_main_menu_command_id("enter_game").expect("enter_game should resolve"),
             MenuCommand::NextScene
+        );
+        assert_eq!(
+            resolve_main_menu_command_id("open_level_select")
+                .expect("open_level_select should resolve"),
+            MenuCommand::OpenLevelSelectOverlay
         );
         assert_eq!(
             resolve_main_menu_command_id("open_options").expect("open_options should resolve"),

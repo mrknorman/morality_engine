@@ -11,7 +11,7 @@ macro_rules! define_dilemma {
             $($variant:ident => $path:literal),* $(,)?
         }
     ) => {
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum $enum_name {
             $($variant),*
         }
@@ -26,7 +26,7 @@ macro_rules! define_dilemma {
     };
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DilemmaScene {
     Lab0(Lab0Dilemma),
     Lab1(Lab1Dilemma),

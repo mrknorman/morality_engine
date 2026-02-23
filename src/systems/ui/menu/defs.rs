@@ -5,6 +5,7 @@ use super::schema;
 
 use crate::{
     data::states::{MainState, PauseState},
+    scenes::dilemma::content::DilemmaScene,
     entities::{
         sprites::compound::RectangleSides,
         text::{scaled_font_size, Cell, Column, Row, Table, TextContent},
@@ -619,6 +620,8 @@ pub enum MenuCommand {
     Push(MenuPage),
     Pop,
     OpenMainMenuOptionsOverlay,
+    OpenLevelSelectOverlay,
+    StartSingleLevel(DilemmaScene),
     NextScene,
     OpenDebugUiShowcase,
     ToggleVideoTopOption(usize),

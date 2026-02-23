@@ -15,7 +15,7 @@ use crate::{
         stats::{DilemmaStats, GameStats},
     },
     entities::text::{scaled_font_size, TextRaw},
-    scenes::{dialogue::content::*, ending::content::*, Scene, SceneQueue},
+    scenes::{dialogue::content::*, ending::content::*, Scene, SceneFlowMode, SceneQueue},
     systems::{inheritance::BequeathTextColor, motion::Pulse, time::Dilation},
 };
 
@@ -384,6 +384,10 @@ impl Dilemma {
     }
 
     pub fn update_queue(mut queue: ResMut<SceneQueue>, stats: Res<GameStats>) {
+        if queue.flow_mode() == SceneFlowMode::SingleLevel {
+            return;
+        }
+
         let latest = match stats.dilemma_stats.last() {
             Some(latest) => latest,
             None => panic!("Latest decision not found"),

@@ -1,7 +1,7 @@
 use crate::{
     data::{
         states::{DilemmaPhase, GameState},
-        stats::DilemmaStats,
+        stats::{DilemmaRunStatsScope, DilemmaStats, GameStats},
     },
     entities::{
         large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
@@ -110,7 +110,12 @@ impl DilemmaScene {
     );
     const TRACK_COLORS: [Color; 2] = [OPTION_1_COLOR, OPTION_2_COLOR];
 
-    fn setup(mut commands: Commands, queue: Res<SceneQueue>, asset_server: Res<AssetServer>) {
+    fn setup(
+        mut commands: Commands,
+        queue: Res<SceneQueue>,
+        asset_server: Res<AssetServer>,
+        stats: Res<GameStats>,
+    ) {
         let scene = queue.current;
 
         let dilemma = match scene {
@@ -122,6 +127,10 @@ impl DilemmaScene {
             dilemma.stages.iter().map(|s| s.countdown_duration).sum();
 
         commands.insert_resource(DilemmaStats::new(total_dilemma_time));
+        commands.insert_resource(DilemmaRunStatsScope::new(
+            stats.dilemma_stats.len(),
+            dilemma.stages.len(),
+        ));
 
         commands.insert_resource(CurrentDilemmaStageIndex(0));
 

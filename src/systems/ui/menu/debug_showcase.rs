@@ -15,14 +15,13 @@ use crate::{
         text::{scaled_font_size, TextRaw},
     },
     startup::system_menu,
-    systems::{
+        systems::{
         interaction::{
             is_cursor_within_region, Clickable, Draggable, Hoverable, OptionCycler, Selectable,
             SelectableClickActivation, SelectableMenu, SelectableScopeOwner, SystemMenuActions,
         },
         ui::{
             dropdown::{self, DropdownLayerState, DropdownSurface},
-            hover_box,
             layer::UiLayer,
             menu_surface::MenuSurface,
             scroll::{
@@ -30,9 +29,10 @@ use crate::{
                 ScrollableRoot, ScrollableViewport,
             },
             selector::SelectorSurface,
-            tabs::{TabBar, TabBarState, TabItem},
+            tabs::{TabBar, TabBarState},
             window::{
-                UiWindow, UiWindowContentMetrics, UiWindowOverflowPolicy, UiWindowTitle,
+                UiWindow, UiWindowContent, UiWindowContentMetrics, UiWindowOverflowPolicy,
+                UiWindowTabRow, UiWindowTitle,
             },
         },
     },
@@ -46,7 +46,6 @@ const WINDOW_COL_X: f32 = 360.0;
 const WINDOW_ROW_Y: f32 = 186.0;
 
 const MENU_OPTION_REGION: Vec2 = Vec2::new(320.0, 34.0);
-const TAB_REGION: Vec2 = Vec2::new(120.0, 36.0);
 const DROPDOWN_TRIGGER_REGION: Vec2 = Vec2::new(290.0, 36.0);
 const DROPDOWN_ITEM_REGION: Vec2 = Vec2::new(264.0, 30.0);
 
@@ -160,17 +159,8 @@ pub(super) struct DebugMenuDemoOption {
 }
 
 #[derive(Component, Clone, Copy)]
-pub(super) struct DebugTabsDemoRoot;
-
-#[derive(Component, Clone, Copy)]
-pub(super) struct DebugTabsDemoLabel {
-    root: Entity,
-    index: usize,
-}
-
-#[derive(Component, Clone, Copy)]
 pub(super) struct DebugTabsDemoContent {
-    root: Entity,
+    window: Entity,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -213,7 +203,7 @@ fn spawn_window_base(
     title: &str,
     size: Vec2,
     translation: Vec3,
-) -> Entity {
+) -> (Entity, Entity) {
     let window_entity = world
         .commands()
         .spawn((
@@ -240,12 +230,21 @@ fn spawn_window_base(
             Transform::from_translation(translation),
         ))
         .id();
+    let content_root = world
+        .commands()
+        .spawn((
+            Name::new(format!("{name}_content_root")),
+            UiWindowContent::new(window_entity),
+            Transform::default(),
+        ))
+        .id();
+    world.commands().entity(window_entity).add_child(content_root);
     world.commands().entity(root).add_child(window_entity);
-    window_entity
+    (window_entity, content_root)
 }
 
 fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
-    let window_entity = spawn_window_base(
+    let (window_entity, content_root) = spawn_window_base(
         world,
         root,
         "debug_ui_showcase_menu_selector_window",
@@ -256,7 +255,7 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
 
     world
         .commands()
-        .entity(window_entity)
+        .entity(content_root)
         .with_children(|window_parent| {
             window_parent.spawn((
                 Name::new("debug_menu_demo_hint"),
@@ -323,99 +322,40 @@ fn spawn_menu_selector_window(world: &mut DeferredWorld, root: Entity) {
 }
 
 fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
-    let window_entity = spawn_window_base(
+    let tab_width = 120.0;
+    let tab_total_width = tab_width * TABS_LABELS.len() as f32;
+    let (window_entity, content_root) = spawn_window_base(
         world,
         root,
         "debug_ui_showcase_tabs_window",
         "Tabs Demo",
-        Vec2::new(430.0, 270.0),
+        Vec2::new(tab_total_width, 270.0),
         showcase_window_translation(1, 0),
+    );
+    world.commands().entity(window_entity).insert(
+        UiWindowTabRow::from_labels(&TABS_LABELS)
+            .with_tab_width(tab_width)
+            .with_row_height(40.0)
+            .with_color(Color::WHITE)
+            .with_z(0.24),
     );
 
     world
         .commands()
-        .entity(window_entity)
+        .entity(content_root)
         .with_children(|window_parent| {
-            let hover_root = hover_box::spawn_hover_box_root(
-                window_parent,
-                "debug_tabs_demo_hover_box",
-                window_entity,
-                crate::systems::ui::layer::UiLayerKind::Base,
-                Vec2::new(398.0, 238.0),
-                hover_box::HoverBoxStyle::default()
-                    .with_size(Vec2::new(312.0, 96.0))
-                    .with_font_size(scaled_font_size(12.0))
-                    .with_z(0.42),
-                0.35,
-            );
-
             window_parent.spawn((
                 Name::new("debug_tabs_demo_hint"),
                 TextRaw,
-                Text2d::new("Arrow Left/Right switches tabs. Click tabs directly."),
+                Text2d::new("Left/Right changes tab. Hover or click tabs directly."),
                 TextFont {
                     font_size: scaled_font_size(12.0),
                     ..default()
                 },
                 TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
-                Transform::from_xyz(-194.0, 92.0, 0.2),
+                Transform::from_xyz(-tab_total_width * 0.5 + 12.0, 74.0, 0.2),
             ));
-
-            let tab_root = window_parent
-                .spawn((
-                    Name::new("debug_tabs_demo_root"),
-                    DebugTabsDemoRoot,
-                    TabBarState::default(),
-                    SelectableScopeOwner::new(window_entity),
-                    SelectableMenu::new(
-                        0,
-                        vec![KeyCode::ArrowLeft],
-                        vec![KeyCode::ArrowRight],
-                        vec![KeyCode::Enter],
-                        true,
-                    )
-                    .with_click_activation(SelectableClickActivation::HoveredOnly),
-                    Transform::from_xyz(-168.0, 54.0, 0.2),
-                ))
-                .id();
-            window_parent.commands().entity(tab_root).insert((
-                TabBar::new(tab_root),
-                MenuSurface::new(tab_root)
-                    .without_layer()
-                    .with_click_activation(SelectableClickActivation::HoveredOnly),
-            ));
-
-            window_parent
-                .commands()
-                .entity(tab_root)
-                .with_children(|tabs_parent| {
-                    for (index, label) in TABS_LABELS.into_iter().enumerate() {
-                        tabs_parent.spawn((
-                            Name::new(format!("debug_tabs_demo_label_{index}")),
-                            TextRaw,
-                            Text2d::new(label),
-                            TextFont {
-                                font_size: scaled_font_size(BASE_FONT_SIZE),
-                                ..default()
-                            },
-                            TextColor(debug_text_color()),
-                            Anchor::CENTER,
-                            TabItem { index },
-                            SelectorSurface::new(tab_root, index),
-                            Clickable::with_region(vec![SystemMenuActions::Activate], TAB_REGION),
-                            hover_box::HoverBoxTarget::new(hover_root, TAB_REGION),
-                            hover_box::HoverBoxContent {
-                                text: TABS_CONTENT[index].to_string(),
-                            },
-                            DebugTabsDemoLabel {
-                                root: tab_root,
-                                index,
-                            },
-                            Transform::from_xyz(index as f32 * 120.0, 0.0, 0.02),
-                        ));
-                    }
-                });
 
             window_parent.spawn((
                 Name::new("debug_tabs_demo_content"),
@@ -427,14 +367,16 @@ fn spawn_tabs_window(world: &mut DeferredWorld, root: Entity) {
                 },
                 TextColor(debug_text_color()),
                 Anchor::CENTER_LEFT,
-                DebugTabsDemoContent { root: tab_root },
-                Transform::from_xyz(-180.0, -18.0, 0.2),
+                DebugTabsDemoContent {
+                    window: window_entity,
+                },
+                Transform::from_xyz(-tab_total_width * 0.5 + 18.0, -24.0, 0.2),
             ));
         });
 }
 
 fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
-    let window_entity = spawn_window_base(
+    let (window_entity, content_root) = spawn_window_base(
         world,
         root,
         "debug_ui_showcase_dropdown_window",
@@ -445,7 +387,7 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
 
     world
         .commands()
-        .entity(window_entity)
+        .entity(content_root)
         .with_children(|window_parent| {
             window_parent.spawn((
                 Name::new("debug_dropdown_demo_hint"),
@@ -573,13 +515,13 @@ fn spawn_dropdown_window(world: &mut DeferredWorld, root: Entity) {
                 .insert(DebugDropdownDemoState {
                     selected_index: 0,
                     trigger_entity,
-                    dropdown_parent: window_entity,
+                    dropdown_parent: content_root,
                 });
         });
 }
 
 fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
-    let window_entity = spawn_window_base(
+    let (window_entity, content_root) = spawn_window_base(
         world,
         root,
         "debug_ui_showcase_scroll_window",
@@ -590,7 +532,7 @@ fn spawn_scroll_window(world: &mut DeferredWorld, root: Entity) {
 
     world
         .commands()
-        .entity(window_entity)
+        .entity(content_root)
         .with_children(|window_parent| {
             window_parent.spawn((
                 Name::new("debug_scroll_demo_hint"),
@@ -789,52 +731,20 @@ pub(super) fn sync_menu_demo_visuals(
 }
 
 pub(super) fn sync_tabs_demo_visuals(
-    tab_state_query: Query<&TabBarState, With<DebugTabsDemoRoot>>,
-    mut label_query: Query<
-        (
-            &DebugTabsDemoLabel,
-            &Hoverable,
-            &mut Text2d,
-            &mut TextFont,
-            &mut TextColor,
-        ),
-        Without<DebugTabsDemoContent>,
-    >,
-    mut content_query: Query<(&DebugTabsDemoContent, &mut Text2d), Without<DebugTabsDemoLabel>>,
+    tab_state_query: Query<(&TabBarState, &ChildOf), With<TabBar>>,
+    mut content_query: Query<(&DebugTabsDemoContent, &mut Text2d)>,
 ) {
-    // Query contract:
-    // - Label/content text queries are disjoint via reciprocal `Without` filters.
-    // - This keeps mutable `Text2d` access B0001-safe.
-    for (label, hoverable, mut text, mut font, mut color) in label_query.iter_mut() {
-        let Ok(tab_state) = tab_state_query.get(label.root) else {
-            continue;
-        };
-        let active = tab_state.active_index == label.index;
-        let tab_label = TABS_LABELS.get(label.index).copied().unwrap_or("TAB");
-        text.0 = if active {
-            format!("[{tab_label}]")
-        } else {
-            tab_label.to_string()
-        };
-        font.font_size = scaled_font_size(if active {
-            SELECTED_FONT_SIZE
-        } else if hoverable.hovered {
-            HOVER_FONT_SIZE
-        } else {
-            BASE_FONT_SIZE
-        });
-        color.0 = if active {
-            debug_active_text_color()
-        } else {
-            debug_text_color()
-        };
+    let mut active_index_by_window: HashMap<Entity, usize> = HashMap::new();
+    for (tab_state, parent) in tab_state_query.iter() {
+        active_index_by_window.insert(parent.parent(), tab_state.active_index);
     }
 
     for (content, mut text) in content_query.iter_mut() {
-        let Ok(tab_state) = tab_state_query.get(content.root) else {
-            continue;
-        };
-        let active = tab_state.active_index.min(TABS_CONTENT.len() - 1);
+        let active = active_index_by_window
+            .get(&content.window)
+            .copied()
+            .unwrap_or(0)
+            .min(TABS_CONTENT.len() - 1);
         text.0 = TABS_CONTENT[active].to_string();
     }
 }

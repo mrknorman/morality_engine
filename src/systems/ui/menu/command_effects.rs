@@ -1,7 +1,10 @@
 use super::command_reducer::{MenuReducerResult, MenuStateTransition};
 use super::debug_showcase;
+use super::level_select;
 use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
 use super::*;
+use crate::data::stats::GameStats;
+use crate::scenes::dilemma::content::DilemmaScene;
 
 const MAIN_MENU_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const MAIN_MENU_OVERLAY_DIM_SIZE: f32 = 6000.0;
@@ -151,6 +154,19 @@ fn handle_next_scene_command(
     }
 }
 
+fn handle_start_single_level_command(
+    scene: DilemmaScene,
+    stats: &mut ResMut<GameStats>,
+    scene_queue: &mut ResMut<SceneQueue>,
+    next_main_state: &mut ResMut<NextState<MainState>>,
+    next_game_state: &mut ResMut<NextState<GameState>>,
+    next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
+) {
+    **stats = GameStats::default();
+    scene_queue.configure_single_level(scene);
+    handle_next_scene_command(scene_queue, next_main_state, next_game_state, next_sub_state);
+}
+
 pub(super) fn apply_menu_reducer_result(
     result: MenuReducerResult,
     menu_entity: Entity,
@@ -179,7 +195,9 @@ pub(super) fn apply_menu_reducer_result(
     next_game_state: &mut ResMut<NextState<GameState>>,
     next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
     scene_queue: &mut ResMut<SceneQueue>,
+    stats: &mut ResMut<GameStats>,
     existing_overlay_query: &Query<(), With<MainMenuOptionsOverlay>>,
+    existing_level_select_overlay_query: &Query<(), With<level_select::LevelSelectOverlay>>,
     offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
     main_camera_transform_query: &Query<&GlobalTransform, With<MainCamera>>,
     showcase_root_query: &Query<Entity, With<debug_showcase::DebugUiShowcaseRoot>>,
@@ -209,8 +227,28 @@ pub(super) fn apply_menu_reducer_result(
             main_camera_transform_query,
         );
     }
+    if result.open_level_select_overlay {
+        level_select::spawn_level_select_overlay(
+            commands,
+            menu_root,
+            asset_server,
+            existing_level_select_overlay_query,
+            offscreen_camera_query,
+            main_camera_transform_query,
+        );
+    }
     if result.advance_to_next_scene {
         handle_next_scene_command(
+            scene_queue,
+            next_main_state,
+            next_game_state,
+            next_sub_state,
+        );
+    }
+    if let Some(scene) = result.start_single_level_scene {
+        handle_start_single_level_command(
+            scene,
+            stats,
             scene_queue,
             next_main_state,
             next_game_state,

@@ -577,6 +577,10 @@ Conflict safety:
 Window UI already shares interaction primitives with menus via `Clickable`, `Selectable`, and `InteractionGate`.
 
 - Window z/layer behavior and click blocking are handled in `src/systems/ui/window/mod.rs` and respected by the interaction systems.
+- Window content composition is explicit: attach `UiWindowContent { window_entity }` to a content-root entity and parent feature UI under it.
+  This is now the source of truth for routing content into a window's scroll slot (no implicit "non-chrome child" rerouting).
+- Window scroll extents now read measured child bounds from the explicit content root and then apply `UiWindowContentMetrics` as an override floor.
+  Use metrics for minimum/preferred constraints, not as the only overflow signal.
 - `src/entities/sprites/window.rs` is a compatibility re-export shim during migration to `UiWindow*` naming.
 - Dropdown/selector utilities now live under `systems/ui`, so non-menu window UIs can reuse:
   - `DropdownLayerState` + dropdown helpers for layered popup lists.

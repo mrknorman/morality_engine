@@ -25,7 +25,7 @@ const DEBUG_OVERLAY_Z: f32 = 900.0;
 const DEBUG_LABEL_Z: f32 = 901.0;
 const DEBUG_CONTENT_Z: f32 = 910.0;
 const DEBUG_OVERLAY_SIZE: f32 = 100_000.0;
-const DEBUG_LABEL: &str = "DEBUG MODE\n[F3 or Q to exit]\n[Tab for menu]";
+const DEBUG_LABEL: &str = "DEBUG MODE\n[F3 or Q to exit]\n[ESC for menu]";
 const DEBUG_WINDOW_TITLE: &str = "Debug Lorem Ipsum";
 const DEBUG_LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.";
 const SYSTEM_MUSIC_PATH: &str = "./audio/music/suspended_systems.ogg";
@@ -170,7 +170,7 @@ fn toggle_debug_menu_overlay(
     main_camera_query: Query<&GlobalTransform, With<MainCamera>>,
     asset_server: Res<AssetServer>,
 ) {
-    if !keyboard_input.just_pressed(KeyCode::Tab) {
+    if !keyboard_input.just_pressed(KeyCode::Escape) {
         return;
     }
 

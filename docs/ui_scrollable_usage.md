@@ -12,6 +12,10 @@ Primary module:
 Menu adapter example:
 - `src/systems/ui/menu/scroll_adapter.rs`
 
+Window integration:
+- `src/systems/ui/window/mod.rs`
+- Window-managed roots opt into zoom (`Ctrl +/-`, pinch) while generic scroll roots remain zoom-disabled by default.
+
 ## Core Components
 Attach these to a scroll root entity:
 1. `ScrollableRoot { owner, axis, backend, input_layer }`
@@ -23,6 +27,11 @@ Optional explicit child content root:
 1. `ScrollableContent`
    - `ScrollPlugin` now auto-seeds a default `ScrollableContent` child if one is missing.
    - Add your own explicit `ScrollableContent` child when you want deterministic naming/placement during composition.
+
+Window explicit content routing:
+1. Attach `UiWindowContent { window_entity }` to a content-root entity.
+2. Parent your feature nodes under that content root.
+3. `UiWindow` will route that content root into its internal scroll slot deterministically.
 
 Attach this to optional scrollbar entity (can be a child of the root or auto-reparented):
 1. `ScrollBar::new(scrollable_root_entity)`

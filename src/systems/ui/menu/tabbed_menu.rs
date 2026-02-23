@@ -198,6 +198,7 @@ pub fn sync_tabbed_menu_focus(
         >,
         Query<&mut SelectableMenu, With<TabbedMenuConfig>>,
         Query<&mut TabBarState, With<TabbedMenuConfig>>,
+        Query<&mut tabs::TabActivationPolicy, With<TabbedMenuConfig>>,
     )>,
     mut tab_changed: MessageWriter<TabChanged>,
 ) {
@@ -441,28 +442,37 @@ pub fn sync_tabbed_menu_focus(
         tab_updates.push((tab_root_entity, focus, tab_selection_target));
     }
 
-    let mut tab_menu_query = tab_queries.p1();
     for (tab_root_entity, focus, tab_selection_target) in tab_updates {
-        let Ok(mut tab_menu) = tab_menu_query.get_mut(tab_root_entity) else {
-            continue;
-        };
-        match focus {
-            TabbedMenuFocus::Tabs => {
-                tab_menu.up_keys = vec![KeyCode::ArrowLeft];
-                tab_menu.down_keys = vec![KeyCode::ArrowRight, KeyCode::Tab];
-                tab_menu.activate_keys = vec![KeyCode::Enter];
-            }
-            TabbedMenuFocus::Options => {
-                tab_menu.up_keys.clear();
-                tab_menu.down_keys.clear();
-                tab_menu.activate_keys.clear();
+        {
+            let mut tab_policy_query = tab_queries.p3();
+            if let Ok(mut policy) = tab_policy_query.get_mut(tab_root_entity) {
+                // In tabbed menus, TAB is strictly navigation; Enter confirms activation.
+                policy.activate_keys = vec![KeyCode::Enter];
             }
         }
-        tab_menu.wrap = true;
-        tab_menu.click_activation = SelectableClickActivation::HoveredOnly;
-        if let Some(target_index) = tab_selection_target {
-            if tab_menu.selected_index != target_index {
-                tab_menu.selected_index = target_index;
+        {
+            let mut tab_menu_query = tab_queries.p1();
+            let Ok(mut tab_menu) = tab_menu_query.get_mut(tab_root_entity) else {
+                continue;
+            };
+            match focus {
+                TabbedMenuFocus::Tabs => {
+                    tab_menu.up_keys = vec![KeyCode::ArrowLeft];
+                    tab_menu.down_keys = vec![KeyCode::ArrowRight, KeyCode::Tab];
+                    tab_menu.activate_keys = vec![KeyCode::Enter];
+                }
+                TabbedMenuFocus::Options => {
+                    tab_menu.up_keys.clear();
+                    tab_menu.down_keys.clear();
+                    tab_menu.activate_keys.clear();
+                }
+            }
+            tab_menu.wrap = true;
+            tab_menu.click_activation = SelectableClickActivation::HoveredOnly;
+            if let Some(target_index) = tab_selection_target {
+                if tab_menu.selected_index != target_index {
+                    tab_menu.selected_index = target_index;
+                }
             }
         }
     }

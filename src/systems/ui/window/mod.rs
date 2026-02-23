@@ -1,6 +1,7 @@
 use std::{collections::HashMap, f32::consts::FRAC_PI_4};
 
 use bevy::{
+    camera::primitives::Aabb,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
     sprite::Anchor,
@@ -10,19 +11,24 @@ use enum_map::{enum_map, Enum};
 
 use crate::{
     entities::sprites::compound::*,
-    entities::text::scaled_font_size,
+    entities::text::{scaled_font_size, Cell, Column, Row, Table, TextContent},
     startup::{cursor::CustomCursor, render::OffscreenCamera},
     systems::{
         audio::{TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
         interaction::{
             ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
-            InputAction, InteractionGate, InteractionSystem, InteractionVisualPalette,
-            InteractionVisualState, SelectableScopeOwner,
+            Hoverable, InputAction, InteractionGate, InteractionSystem, InteractionVisualPalette,
+            InteractionVisualState, SelectableClickActivation, SelectableMenu,
+            SelectableScopeOwner,
         },
         ui::scroll::{
-            ScrollAxis, ScrollBackend, ScrollBar, ScrollZoomConfig, ScrollableContent,
-            ScrollableContentExtent, ScrollableRoot, ScrollState, ScrollableViewport,
+            ScrollAxis, ScrollBackend, ScrollBar, ScrollState, ScrollZoomConfig, ScrollableContent,
+            ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
+        },
+        ui::{
+            selector::SelectorSurface,
+            tabs::{TabBar, TabBarState, TabItem},
         },
     },
 };
@@ -49,6 +55,7 @@ impl Plugin for WindowPlugin {
                     Window::raise_window_on_pointer_down,
                     Window::assign_stack_order,
                     Window::cache_parts,
+                    Window::sync_close_button_interaction_gate,
                     Window::enact_resize,
                 )
                     .chain()
@@ -58,7 +65,8 @@ impl Plugin for WindowPlugin {
                 Update,
                 (
                     Window::resolve_constraints,
-                    Window::route_children_into_scroll_content,
+                    Window::sync_tab_row_layout,
+                    Window::route_explicit_window_content,
                     Window::sync_scroll_runtime_geometry,
                     Window::sync_horizontal_proxy_offset,
                     Window::sync_root_drag_bounds,
@@ -71,6 +79,12 @@ impl Plugin for WindowPlugin {
                 Update,
                 Window::update
                     .in_set(WindowSystem::Layout)
+                    .before(CompoundSystem::Propagate),
+            )
+            .add_systems(
+                Update,
+                Window::sync_tab_row_visuals
+                    .after(InteractionSystem::Selectable)
                     .before(CompoundSystem::Propagate),
             );
     }
@@ -151,9 +165,233 @@ pub struct Window {
     pub root_entity: Option<Entity>,
 }
 
+#[derive(Component, Clone)]
+#[require(Window)]
+#[component(on_insert = WindowTabRow::on_insert)]
+pub struct WindowTabRow {
+    pub labels: Vec<String>,
+    pub tab_width: f32,
+    pub row_height: f32,
+    pub text_size: f32,
+    pub selected_text_size: f32,
+    pub color: Color,
+    pub z: f32,
+    pub click_activation: SelectableClickActivation,
+}
+
+impl Default for WindowTabRow {
+    fn default() -> Self {
+        Self {
+            labels: vec![],
+            tab_width: 120.0,
+            row_height: 40.0,
+            text_size: scaled_font_size(14.0),
+            selected_text_size: scaled_font_size(21.0),
+            color: Color::WHITE,
+            z: 0.2,
+            click_activation: SelectableClickActivation::HoveredOnly,
+        }
+    }
+}
+
+impl WindowTabRow {
+    pub fn from_labels(labels: &[&str]) -> Self {
+        Self {
+            labels: labels.iter().map(|label| (*label).to_string()).collect(),
+            ..default()
+        }
+    }
+
+    pub fn with_tab_width(mut self, tab_width: f32) -> Self {
+        self.tab_width = tab_width;
+        self
+    }
+
+    pub fn with_row_height(mut self, row_height: f32) -> Self {
+        self.row_height = row_height;
+        self
+    }
+
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn with_z(mut self, z: f32) -> Self {
+        self.z = z;
+        self
+    }
+
+    fn total_width(&self) -> f32 {
+        self.tab_width.max(1.0) * self.labels.len().max(1) as f32
+    }
+
+    fn build_table(&self) -> Table {
+        let tab_count = self.labels.len().max(1);
+        let tab_column_width = self.total_width() / tab_count as f32;
+        let tab_border_sides = RectangleSides {
+            top: true,
+            bottom: true,
+            left: true,
+            right: true,
+        };
+        let columns = self
+            .labels
+            .iter()
+            .map(|label| {
+                Column::new(
+                    vec![Cell::new(TextContent::new(
+                        label.clone(),
+                        self.color,
+                        self.text_size,
+                    ))],
+                    tab_column_width,
+                    Vec2::new(8.0, 6.0),
+                    Anchor::CENTER,
+                    false,
+                )
+                .with_cell_boundary_sides(tab_border_sides)
+                .with_cell_boundary_color(self.color)
+            })
+            .collect();
+        Table {
+            columns,
+            rows: vec![Row {
+                height: self.row_height.max(1.0),
+            }],
+        }
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let (tab_row, owner_entity) = {
+            let Some(tab_row) = world.entity(entity).get::<WindowTabRow>().cloned() else {
+                return;
+            };
+            let owner_entity = world
+                .entity(entity)
+                .get::<Window>()
+                .and_then(|window| window.root_entity)
+                .unwrap_or(entity);
+            (tab_row, owner_entity)
+        };
+        if tab_row.labels.is_empty() {
+            return;
+        }
+
+        let total_width = tab_row.total_width();
+        let row_height = tab_row.row_height.max(1.0);
+        let tab_width = tab_row.tab_width.max(1.0);
+        let tab_hitbox = Vec2::new((tab_width - 8.0).max(8.0), (row_height - 4.0).max(8.0));
+        let table_z = tab_row.z;
+        let interaction_z = table_z + 0.02;
+        let click_activation = tab_row.click_activation;
+
+        let mut tab_root = Entity::PLACEHOLDER;
+        let mut table_entity = Entity::PLACEHOLDER;
+        world.commands().entity(entity).with_children(|parent| {
+            tab_root = parent
+                .spawn((
+                    Name::new("window_tab_row_root"),
+                    WindowTabRowInteractionRoot,
+                    SelectableScopeOwner::new(owner_entity),
+                    SelectableMenu::new(
+                        0,
+                        vec![KeyCode::ArrowLeft],
+                        vec![KeyCode::ArrowRight, KeyCode::Tab],
+                        vec![KeyCode::Enter],
+                        true,
+                    )
+                    .with_click_activation(click_activation),
+                    Transform::from_xyz(0.0, 0.0, interaction_z),
+                ))
+                .id();
+            parent
+                .commands()
+                .entity(tab_root)
+                .insert(TabBar::new(tab_root));
+
+            table_entity = parent
+                .spawn((
+                    Name::new("window_tab_row_table"),
+                    WindowTabRowTable { tab_root },
+                    tab_row.build_table(),
+                    Transform::from_xyz(-total_width * 0.5, 0.0, table_z),
+                ))
+                .id();
+
+            for (index, _) in tab_row.labels.iter().enumerate() {
+                let center_x = -total_width * 0.5 + tab_width * (index as f32 + 0.5);
+                parent.spawn((
+                    Name::new(format!("window_tab_row_target_{index}")),
+                    WindowTabRowTarget { tab_root, index },
+                    TabItem { index },
+                    SelectorSurface::new(tab_root, index),
+                    Clickable::<WindowActions>::with_region(vec![], tab_hitbox),
+                    Transform::from_xyz(center_x, 0.0, interaction_z),
+                ));
+            }
+        });
+
+        world.commands().entity(entity).insert(WindowTabRowRuntime {
+            tab_root,
+            table_entity,
+            total_width,
+            tab_width,
+            row_height,
+            text_size: tab_row.text_size,
+            selected_text_size: tab_row.selected_text_size,
+            color: tab_row.color,
+            z: tab_row.z,
+        });
+    }
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+struct WindowTabRowTable {
+    tab_root: Entity,
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+struct WindowTabRowInteractionRoot;
+
+#[derive(Component, Clone, Copy, Debug)]
+struct WindowTabRowTarget {
+    tab_root: Entity,
+    index: usize,
+}
+
+#[derive(Component, Clone, Debug)]
+struct WindowTabRowRuntime {
+    tab_root: Entity,
+    table_entity: Entity,
+    total_width: f32,
+    tab_width: f32,
+    row_height: f32,
+    text_size: f32,
+    selected_text_size: f32,
+    color: Color,
+    z: f32,
+}
+
 #[derive(Component, Clone, Copy, Debug)]
 pub struct WindowContentHost {
     pub window_entity: Entity,
+}
+
+/// Explicit ownership marker for content that belongs inside a `UiWindow`'s
+/// scrollable content slot.
+///
+/// Attach this to a content-root entity and parent your window content under
+/// that root. This avoids brittle implicit "all non-chrome children" routing.
+#[derive(Component, Clone, Copy, Debug)]
+pub struct WindowContent {
+    pub window_entity: Entity,
+}
+
+impl WindowContent {
+    pub const fn new(window_entity: Entity) -> Self {
+        Self { window_entity }
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -249,11 +487,18 @@ impl Default for Window {
 /* ─────────────────────────  UPDATE  ───────────────────────── */
 
 impl Window {
-    fn header_drag_region(window_width: f32, header_height: f32, has_close_button: bool) -> (Vec2, f32) {
+    fn header_drag_region(
+        window_width: f32,
+        header_height: f32,
+        has_close_button: bool,
+    ) -> (Vec2, f32) {
         let vertical_padding = 10.0;
         if !has_close_button {
             return (
-                Vec2::new(window_width + vertical_padding, header_height + vertical_padding),
+                Vec2::new(
+                    window_width + vertical_padding,
+                    header_height + vertical_padding,
+                ),
                 0.0,
             );
         }
@@ -262,7 +507,10 @@ impl Window {
         // clicking close never races with drag-start.
         let reserved_right = header_height + 22.0;
         let width = (window_width - reserved_right).max(24.0);
-        (Vec2::new(width, header_height + vertical_padding), -reserved_right * 0.5)
+        (
+            Vec2::new(width, header_height + vertical_padding),
+            -reserved_right * 0.5,
+        )
     }
 
     fn raise_window_on_pointer_down(
@@ -313,7 +561,8 @@ impl Window {
             let replace = match top_candidate {
                 None => true,
                 Some((current_entity, current_z)) => {
-                    z > current_z || (z == current_z && root_entity.index() > current_entity.index())
+                    z > current_z
+                        || (z == current_z && root_entity.index() > current_entity.index())
                 }
             };
             if replace {
@@ -392,32 +641,35 @@ impl Window {
         mut commands: Commands,
         mut z_stack: ResMut<WindowZStack>,
         q_added_windows: Query<(Entity, &Window), Added<Window>>,
-        q_all_windows: Query<(), With<Window>>,
+        q_all_windows: Query<(Entity, &Window), With<Window>>,
         q_window_base: Query<&WindowBaseZ>,
         mut q_transforms: Query<&mut Transform>,
     ) {
-        let added_windows: Vec<(Entity, Entity)> = q_added_windows
+        let mut added_roots: Vec<Entity> = q_added_windows
             .iter()
-            .map(|(window_entity, window)| {
-                (
-                    window_entity,
-                    window.root_entity.unwrap_or(window_entity),
-                )
-            })
+            .map(|(window_entity, window)| window.root_entity.unwrap_or(window_entity))
             .collect();
-        if added_windows.is_empty() {
+        added_roots.sort_by_key(|entity| entity.index());
+        added_roots.dedup();
+        if added_roots.is_empty() {
             return;
         }
 
-        let total_window_count = q_all_windows.iter().count();
-        let existing_window_count = total_window_count.saturating_sub(added_windows.len());
-        if existing_window_count == 0 {
+        let mut all_roots: Vec<Entity> = q_all_windows
+            .iter()
+            .map(|(window_entity, window)| window.root_entity.unwrap_or(window_entity))
+            .collect();
+        all_roots.sort_by_key(|entity| entity.index());
+        all_roots.dedup();
+
+        let existing_root_count = all_roots.len().saturating_sub(added_roots.len());
+        if existing_root_count == 0 {
             // Fresh stack after all windows were closed: restart depth ordering
             // from baseline so z does not drift upward across reopen cycles.
             z_stack.next_order = 0;
         }
 
-        for (_window_entity, root_entity) in added_windows {
+        for root_entity in added_roots {
             let Ok(mut root_transform) = q_transforms.get_mut(root_entity) else {
                 continue;
             };
@@ -576,6 +828,31 @@ impl Window {
         }
     }
 
+    fn sync_close_button_interaction_gate(
+        mut commands: Commands,
+        windows: Query<(Entity, &Window, &WindowParts, Option<&InteractionGate>)>,
+        root_gates: Query<&InteractionGate>,
+    ) {
+        for (window_entity, window, parts, gate) in &windows {
+            let resolved_gate = gate.copied().or_else(|| {
+                window
+                    .root_entity
+                    .filter(|root| *root != window_entity)
+                    .and_then(|root| root_gates.get(root).ok().copied())
+            });
+            let Some(resolved_gate) = resolved_gate else {
+                continue;
+            };
+
+            if let Some(close_button_entity) = parts.close_button {
+                commands.entity(close_button_entity).insert(resolved_gate);
+            }
+            if let Some(close_icon_entity) = parts.close_button_icon {
+                commands.entity(close_icon_entity).insert(resolved_gate);
+            }
+        }
+    }
+
     fn enact_resize(
         mut commands: Commands,
         mouse_input: Res<ButtonInput<MouseButton>>,
@@ -593,6 +870,7 @@ impl Window {
                 Option<&ChildOf>,
                 Option<&WindowContentMetrics>,
                 Option<&WindowOverflowPolicy>,
+                Option<&WindowTabRowRuntime>,
             )>,
             Query<(&mut Transform, Option<&ChildOf>)>,
         )>,
@@ -721,6 +999,7 @@ impl Window {
                 parent,
                 metrics,
                 overflow_policy,
+                tab_row_runtime,
             )) = writable_windows.get_mut(state.window_entity)
             else {
                 commands
@@ -730,7 +1009,8 @@ impl Window {
                 return;
             };
 
-            let min_inner = Self::min_inner_constraints(&window, metrics, overflow_policy);
+            let min_inner =
+                Self::min_inner_constraints(&window, metrics, overflow_policy, tab_row_runtime);
             let max_inner = Self::max_inner_constraints(metrics, overflow_policy);
 
             let unclamped_width = match state.corner {
@@ -799,13 +1079,8 @@ impl Window {
             }
         }
 
-        if let Some((
-            root_entity,
-            edge_center_local,
-            new_width,
-            header_height,
-            has_close_button,
-        )) = drag_region_update
+        if let Some((root_entity, edge_center_local, new_width, header_height, has_close_button)) =
+            drag_region_update
         {
             if let Ok(mut draggable) = draggables.get_mut(root_entity) {
                 let (region, offset_x) =
@@ -818,31 +1093,31 @@ impl Window {
         }
     }
 
-    fn route_children_into_scroll_content(
+    fn route_explicit_window_content(
         mut commands: Commands,
-        windows: Query<(Entity, &WindowScrollRuntime, Option<&Children>)>,
-        internal_children: Query<
-            (),
-            Or<(
-                With<WindowBody>,
-                With<WindowHeader>,
-                With<WindowCloseButton>,
-                With<WindowScrollManaged>,
-            )>,
-        >,
+        runtime_query: Query<&WindowScrollRuntime, With<Window>>,
+        content_query: Query<(Entity, &WindowContent, Option<&ChildOf>)>,
     ) {
-        for (_window_entity, runtime, children) in windows.iter() {
-            let Some(children) = children else {
+        for (entity, content, parent) in content_query.iter() {
+            let Ok(runtime) = runtime_query.get(content.window_entity) else {
                 continue;
             };
-            for child in children.iter() {
-                if internal_children.get(child).is_ok() {
-                    continue;
-                }
-                // Keep window chrome fixed and route user content through the
-                // nested scroll content root by default.
-                commands.entity(runtime.content_root).add_child(child);
+            if entity == content.window_entity
+                || entity == runtime.vertical_root
+                || entity == runtime.horizontal_root
+                || entity == runtime.horizontal_proxy
+                || entity == runtime.content_root
+                || entity == runtime.vertical_bar
+                || entity == runtime.horizontal_bar
+            {
+                continue;
             }
+            if parent.is_some_and(|parent| parent.parent() == runtime.content_root) {
+                continue;
+            }
+            // Explicit routing: only entities that opt in via `WindowContent`
+            // are parented into the window's scroll content slot.
+            commands.entity(runtime.content_root).add_child(entity);
         }
     }
 
@@ -853,17 +1128,158 @@ impl Window {
             Option<&WindowContentRect>,
             Option<&WindowContentMetrics>,
         )>,
-        mut root_query: Query<(&mut ScrollableViewport, &mut ScrollableContentExtent), With<ScrollableRoot>>,
+        mut root_query: Query<
+            (&mut ScrollableViewport, &mut ScrollableContentExtent),
+            With<ScrollableRoot>,
+        >,
         mut bar_query: Query<&mut ScrollBar>,
+        children_query: Query<&Children>,
+        geometry_query: Query<(
+            &GlobalTransform,
+            Option<&Aabb>,
+            Option<&InheritedVisibility>,
+        )>,
     ) {
+        fn accumulate_content_bounds(
+            entity: Entity,
+            root_inverse: Mat4,
+            children_query: &Query<&Children>,
+            geometry_query: &Query<(
+                &GlobalTransform,
+                Option<&Aabb>,
+                Option<&InheritedVisibility>,
+            )>,
+            min_local: &mut Vec2,
+            max_local: &mut Vec2,
+            saw_any: &mut bool,
+        ) {
+            let Ok((global_transform, aabb, inherited_visibility)) = geometry_query.get(entity)
+            else {
+                if let Ok(children) = children_query.get(entity) {
+                    for child in children.iter() {
+                        accumulate_content_bounds(
+                            child,
+                            root_inverse,
+                            children_query,
+                            geometry_query,
+                            min_local,
+                            max_local,
+                            saw_any,
+                        );
+                    }
+                }
+                return;
+            };
+            if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+                return;
+            }
+
+            let matrix = global_transform.to_matrix();
+            if let Some(aabb) = aabb {
+                let center = Vec3::new(aabb.center.x, aabb.center.y, aabb.center.z);
+                let half_x = aabb.half_extents.x.max(0.0);
+                let half_y = aabb.half_extents.y.max(0.0);
+                let corners = [
+                    Vec3::new(-half_x, -half_y, 0.0),
+                    Vec3::new(half_x, -half_y, 0.0),
+                    Vec3::new(half_x, half_y, 0.0),
+                    Vec3::new(-half_x, half_y, 0.0),
+                ];
+                for corner in corners {
+                    let world = matrix.transform_point3(center + corner);
+                    let local = root_inverse.transform_point3(world).truncate();
+                    if !*saw_any {
+                        *min_local = local;
+                        *max_local = local;
+                        *saw_any = true;
+                    } else {
+                        min_local.x = min_local.x.min(local.x);
+                        min_local.y = min_local.y.min(local.y);
+                        max_local.x = max_local.x.max(local.x);
+                        max_local.y = max_local.y.max(local.y);
+                    }
+                }
+            } else {
+                let local = root_inverse
+                    .transform_point3(global_transform.translation())
+                    .truncate();
+                if !*saw_any {
+                    *min_local = local;
+                    *max_local = local;
+                    *saw_any = true;
+                } else {
+                    min_local.x = min_local.x.min(local.x);
+                    min_local.y = min_local.y.min(local.y);
+                    max_local.x = max_local.x.max(local.x);
+                    max_local.y = max_local.y.max(local.y);
+                }
+            }
+
+            if let Ok(children) = children_query.get(entity) {
+                for child in children.iter() {
+                    accumulate_content_bounds(
+                        child,
+                        root_inverse,
+                        children_query,
+                        geometry_query,
+                        min_local,
+                        max_local,
+                        saw_any,
+                    );
+                }
+            }
+        }
+
+        fn measured_content_inner_size(
+            content_root: Entity,
+            children_query: &Query<&Children>,
+            geometry_query: &Query<(
+                &GlobalTransform,
+                Option<&Aabb>,
+                Option<&InheritedVisibility>,
+            )>,
+        ) -> Vec2 {
+            let Ok((content_root_global, _, _)) = geometry_query.get(content_root) else {
+                return Vec2::ZERO;
+            };
+            let Ok(children) = children_query.get(content_root) else {
+                return Vec2::ZERO;
+            };
+
+            let root_inverse = content_root_global.to_matrix().inverse();
+            let mut min_local = Vec2::ZERO;
+            let mut max_local = Vec2::ZERO;
+            let mut saw_any = false;
+            for child in children.iter() {
+                accumulate_content_bounds(
+                    child,
+                    root_inverse,
+                    children_query,
+                    geometry_query,
+                    &mut min_local,
+                    &mut max_local,
+                    &mut saw_any,
+                );
+            }
+            if !saw_any {
+                return Vec2::ZERO;
+            }
+            (max_local - min_local).max(Vec2::ZERO)
+        }
+
         for (window, runtime, content_rect, metrics) in windows.iter() {
             let inner_size = content_rect
                 .map(|content_rect| content_rect.inner_size)
                 .unwrap_or(window.boundary.dimensions)
                 .max(Vec2::splat(1.0));
+            // Runtime extents track actual composed content bounds first and
+            // then respect optional explicit metrics as an override floor.
+            let measured_inner =
+                measured_content_inner_size(runtime.content_root, &children_query, &geometry_query);
             let preferred_inner = metrics
                 .map(|metrics| metrics.preferred_inner.max(Vec2::ZERO))
-                .unwrap_or(inner_size)
+                .unwrap_or(Vec2::ZERO)
+                .max(measured_inner)
                 .max(inner_size);
 
             if let Ok((mut viewport, mut extent)) = root_query.get_mut(runtime.vertical_root) {
@@ -910,6 +1326,7 @@ impl Window {
                 &Window,
                 Option<&WindowContentMetrics>,
                 Option<&WindowOverflowPolicy>,
+                Option<&WindowTabRowRuntime>,
                 Option<&WindowContentRect>,
             )>,
             Query<&mut Window>,
@@ -921,8 +1338,11 @@ impl Window {
         let mut rect_inserts: Vec<(Entity, Vec2)> = Vec::new();
 
         {
-            for (entity, window, metrics, overflow_policy, content_rect) in windows.p0().iter() {
-                let min_inner = Self::min_inner_constraints(window, metrics, overflow_policy);
+            for (entity, window, metrics, overflow_policy, tab_row_runtime, content_rect) in
+                windows.p0().iter()
+            {
+                let min_inner =
+                    Self::min_inner_constraints(window, metrics, overflow_policy, tab_row_runtime);
                 let max_inner = Self::max_inner_constraints(metrics, overflow_policy);
                 let clamped_inner =
                     Self::clamp_inner_size(window.boundary.dimensions, min_inner, max_inner);
@@ -957,6 +1377,159 @@ impl Window {
             commands.entity(entity).insert(WindowContentRect {
                 inner_size: clamped_inner,
             });
+        }
+    }
+
+    fn sync_tab_row_layout(
+        windows: Query<
+            (&Window, &WindowTabRowRuntime),
+            Or<(Changed<Window>, Changed<WindowTabRowRuntime>)>,
+        >,
+        target_query: Query<(Entity, &WindowTabRowTarget)>,
+        mut transforms: Query<&mut Transform>,
+    ) {
+        for (window, runtime) in windows.iter() {
+            let row_center_y = window.boundary.dimensions.y * 0.5 - runtime.row_height * 0.5;
+            // `Table` rows are laid out from a top baseline (first row center at
+            // `-row_height/2`), so the table transform must be set to the row's
+            // top Y to visually align with center-positioned interaction targets.
+            let row_top_y = row_center_y + runtime.row_height * 0.5;
+            if let Ok(mut table_transform) = transforms.get_mut(runtime.table_entity) {
+                table_transform.translation =
+                    Vec3::new(-runtime.total_width * 0.5, row_top_y, runtime.z);
+            }
+            if let Ok(mut root_transform) = transforms.get_mut(runtime.tab_root) {
+                root_transform.translation = Vec3::new(0.0, row_center_y, runtime.z + 0.02);
+            }
+            for (target_entity, target) in target_query.iter() {
+                if target.tab_root != runtime.tab_root {
+                    continue;
+                }
+                if let Ok(mut target_transform) = transforms.get_mut(target_entity) {
+                    target_transform.translation = Vec3::new(
+                        -runtime.total_width * 0.5
+                            + runtime.tab_width * (target.index as f32 + 0.5),
+                        row_center_y,
+                        runtime.z + 0.02,
+                    );
+                }
+            }
+        }
+    }
+
+    fn sync_tab_row_visuals(
+        tab_root_query: Query<
+            (Entity, &TabBarState, &SelectableMenu),
+            With<WindowTabRowInteractionRoot>,
+        >,
+        runtime_query: Query<&WindowTabRowRuntime, With<WindowTabRow>>,
+        target_query: Query<(&WindowTabRowTarget, &Hoverable)>,
+        mut table_query: Query<(Entity, &WindowTabRowTable, &mut Table)>,
+        table_children_query: Query<&Children>,
+        column_children_query: Query<&Children, With<Column>>,
+        cell_children_query: Query<&Children>,
+        mut cell_query: Query<&mut Cell>,
+        mut text_query: Query<(&mut TextColor, &mut TextFont, &mut Transform)>,
+    ) {
+        let mut state_by_root: HashMap<Entity, (usize, usize)> = HashMap::new();
+        for (root_entity, tab_state, selectable_menu) in tab_root_query.iter() {
+            state_by_root.insert(
+                root_entity,
+                (tab_state.active_index, selectable_menu.selected_index),
+            );
+        }
+
+        let mut style_by_root: HashMap<Entity, (Color, f32, f32, f32)> = HashMap::new();
+        for runtime in runtime_query.iter() {
+            style_by_root.insert(
+                runtime.tab_root,
+                (
+                    runtime.color,
+                    runtime.text_size,
+                    runtime.selected_text_size,
+                    runtime.z + 0.1,
+                ),
+            );
+        }
+
+        let mut hovered_by_root_index: HashMap<(Entity, usize), bool> = HashMap::new();
+        for (target, hoverable) in target_query.iter() {
+            if hoverable.hovered {
+                hovered_by_root_index.insert((target.tab_root, target.index), true);
+            }
+        }
+
+        for (table_entity, table_binding, mut table) in table_query.iter_mut() {
+            let Some((active_index, selected_index)) =
+                state_by_root.get(&table_binding.tab_root).copied()
+            else {
+                continue;
+            };
+            let Some((tab_color, text_size, selected_text_size, text_z)) =
+                style_by_root.get(&table_binding.tab_root).copied()
+            else {
+                continue;
+            };
+            if table.columns.is_empty() {
+                continue;
+            }
+
+            let active_index = active_index.min(table.columns.len() - 1);
+            let selected_index = selected_index.min(table.columns.len() - 1);
+            for (column_index, column) in table.columns.iter_mut().enumerate() {
+                column.cell_boundary_sides = Some(RectangleSides {
+                    top: true,
+                    bottom: column_index != active_index,
+                    left: true,
+                    right: true,
+                });
+                column.cell_boundary_color = Some(tab_color);
+            }
+
+            let Ok(column_entities) = table_children_query.get(table_entity) else {
+                continue;
+            };
+            for (column_index, column_entity) in column_entities.iter().enumerate() {
+                let Ok(cells) = column_children_query.get(column_entity) else {
+                    continue;
+                };
+                let Some(cell_entity) = cells.first() else {
+                    continue;
+                };
+
+                let highlighted = hovered_by_root_index
+                    .get(&(table_binding.tab_root, column_index))
+                    .copied()
+                    .unwrap_or(column_index == selected_index);
+                let open = column_index == active_index;
+                if let Ok(mut cell) = cell_query.get_mut(*cell_entity) {
+                    cell.set_fill_color(if highlighted { tab_color } else { Color::BLACK });
+                }
+
+                let Ok(cell_children) = cell_children_query.get(*cell_entity) else {
+                    continue;
+                };
+                for child in cell_children.iter() {
+                    let Ok((mut color, mut font, mut transform)) = text_query.get_mut(child) else {
+                        continue;
+                    };
+                    if highlighted {
+                        color.0 = Color::BLACK;
+                        font.font_size = selected_text_size;
+                        font.weight = FontWeight::BOLD;
+                    } else if open {
+                        color.0 = tab_color;
+                        font.font_size = selected_text_size;
+                        font.weight = FontWeight::BOLD;
+                    } else {
+                        color.0 = tab_color;
+                        font.font_size = text_size;
+                        font.weight = FontWeight::NORMAL;
+                    }
+                    transform.translation.z = text_z;
+                    break;
+                }
+            }
         }
     }
 
@@ -1171,11 +1744,15 @@ impl Window {
         window: &Window,
         metrics: Option<&WindowContentMetrics>,
         overflow_policy: Option<&WindowOverflowPolicy>,
+        tab_row_runtime: Option<&WindowTabRowRuntime>,
     ) -> Vec2 {
         let mut min_inner = Vec2::new(
             WINDOW_MIN_WIDTH.max(window.header_height + 10.0),
             WINDOW_MIN_HEIGHT,
         );
+        if let Some(tab_row_runtime) = tab_row_runtime {
+            min_inner.x = min_inner.x.max(tab_row_runtime.total_width);
+        }
         let overflow_policy = overflow_policy.copied().unwrap_or_default();
         if overflow_policy.enforce_content_constraints() {
             if let Some(metrics) = metrics {
@@ -1433,7 +2010,9 @@ impl Window {
         let horizontal_bar = horizontal_bar.expect("window horizontal scroll bar");
 
         commands.entity(vertical_root).add_child(vertical_content);
-        commands.entity(vertical_content).add_child(horizontal_proxy);
+        commands
+            .entity(vertical_content)
+            .add_child(horizontal_proxy);
         commands.entity(horizontal_proxy).add_child(content_root);
 
         WindowScrollRuntime {
@@ -1568,9 +2147,8 @@ impl Window {
                     {
                         plus.dimensions = close_boundary.dimensions - 10.0;
                         plus.color = close_boundary.color;
-                        let region = Some(Vec2::splat(
-                            (close_boundary.dimensions.x - 8.0).max(8.0),
-                        ));
+                        let region =
+                            Some(Vec2::splat((close_boundary.dimensions.x - 8.0).max(8.0)));
                         click.region = region;
                         color_anchor.0 = close_boundary.color;
                         palette.idle_color = close_boundary.color;
@@ -1638,18 +2216,18 @@ impl Window {
 
             // Close button -----
             if close_btn {
-                close_button_entity = Some(
-                    parent
-                        .spawn((
-                            WindowCloseButton { root_entity },
-                            Transform::from_xyz(
-                                (boundary.dimensions.x - header_h) / 2.0,
-                                (boundary.dimensions.y + header_h) / 2.0,
-                                0.0,
-                            ),
-                        ))
-                        .id(),
-                );
+                let mut close_button = parent.spawn((
+                    WindowCloseButton { root_entity },
+                    Transform::from_xyz(
+                        (boundary.dimensions.x - header_h) / 2.0,
+                        (boundary.dimensions.y + header_h) / 2.0,
+                        0.0,
+                    ),
+                ));
+                if let Some(gate) = gate {
+                    close_button.insert(gate);
+                }
+                close_button_entity = Some(close_button.id());
             }
         });
 
@@ -1679,10 +2257,7 @@ impl Window {
                     Self::header_drag_region(boundary.dimensions.x, header_h, close_btn);
                 draggable.region = Some(DraggableRegion {
                     region,
-                    offset: Vec2::new(
-                        offset_x,
-                        (boundary.dimensions.y + header_h) * 0.5,
-                    ),
+                    offset: Vec2::new(offset_x, (boundary.dimensions.y + header_h) * 0.5),
                 });
             }
         }
@@ -1726,22 +2301,41 @@ pub struct WindowCloseButton {
 
 impl WindowCloseButton {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let root = {
-            let b = world.entity(entity).get::<WindowCloseButton>().unwrap();
-            b.root_entity
+        let Some(button) = world.entity(entity).get::<WindowCloseButton>() else {
+            return;
         };
-
-        let handle = world
+        let root = button.root_entity;
+        let gate = world
+            .entity(entity)
+            .get::<InteractionGate>()
+            .copied()
+            .or_else(|| {
+                world.entity(entity).get::<ChildOf>().and_then(|parent| {
+                    world
+                        .entity(parent.parent())
+                        .get::<InteractionGate>()
+                        .copied()
+                })
+            });
+        let click_sound = world
             .get_resource::<AssetServer>()
-            .unwrap()
-            .load("./audio/effects/mouse_click.ogg");
+            .map(|assets| assets.load("./audio/effects/mouse_click.ogg"));
 
         world.commands().entity(entity).with_children(|parent| {
             let default_region = Vec2::splat(12.0);
             let default_icon_dim = Vec2::splat(10.0);
             parent.spawn((WindowCloseButtonBorder, BorderedRectangle::default()));
 
-            parent.spawn((
+            let close_actions = if click_sound.is_some() {
+                vec![
+                    InputAction::PlaySound(WindowSounds::Close),
+                    InputAction::Despawn(root),
+                ]
+            } else {
+                vec![InputAction::Despawn(root)]
+            };
+
+            let mut icon_commands = parent.spawn((
                 WindowCloseButtonIcon,
                 Plus {
                     dimensions: default_icon_dim,
@@ -1762,16 +2356,23 @@ impl WindowCloseButton {
                     ..default()
                 },
                 ActionPallet::<WindowActions, WindowSounds>(enum_map!(
-                    WindowActions::CloseWindow => vec![
-                        InputAction::PlaySound(WindowSounds::Close),
-                        InputAction::Despawn(root)
-                    ]
+                    WindowActions::CloseWindow => close_actions.clone()
                 )),
-                TransientAudioPallet::new(vec![(
-                    WindowSounds::Close,
-                    vec![TransientAudio::new(handle, 0.1, true, 1.0, true)],
-                )]),
             ));
+            if let Some(gate) = gate {
+                icon_commands.insert(gate);
+            }
+            let icon_entity = icon_commands.id();
+
+            if let Some(handle) = click_sound.clone() {
+                parent
+                    .commands()
+                    .entity(icon_entity)
+                    .insert(TransientAudioPallet::new(vec![(
+                        WindowSounds::Close,
+                        vec![TransientAudio::new(handle, 0.1, true, 1.0, true)],
+                    )]));
+            }
         });
     }
 }
@@ -1793,6 +2394,7 @@ pub enum WindowActions {
 // New UI-primitive naming, kept as aliases during migration.
 pub use self::Window as UiWindow;
 pub use self::WindowActions as UiWindowActions;
+pub use self::WindowContent as UiWindowContent;
 pub use self::WindowContentHost as UiWindowContentHost;
 pub use self::WindowContentMetrics as UiWindowContentMetrics;
 pub use self::WindowOverflowPolicy as UiWindowOverflowPolicy;
@@ -1800,6 +2402,7 @@ pub use self::WindowPlugin as UiWindowPlugin;
 pub use self::WindowResizeInProgress as UiWindowResizeInProgress;
 pub use self::WindowSounds as UiWindowSounds;
 pub use self::WindowSystem as UiWindowSystem;
+pub use self::WindowTabRow as UiWindowTabRow;
 pub use self::WindowTitle as UiWindowTitle;
 
 #[cfg(test)]
@@ -1873,6 +2476,40 @@ mod tests {
     }
 
     #[test]
+    fn ui_window_close_button_clickable_inherits_window_interaction_gate() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<bevy::audio::AudioSource>();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<ColorMaterial>>();
+
+        app.world_mut().spawn((
+            InteractionGate::PauseMenuOnly,
+            UiWindow::new(
+                None,
+                HollowRectangle {
+                    dimensions: Vec2::new(120.0, 80.0),
+                    ..default()
+                },
+                20.0,
+                true,
+                None,
+            ),
+        ));
+        app.update();
+
+        let has_gated_close_clickable = {
+            let world = app.world_mut();
+            let mut query = world.query::<(&Clickable<UiWindowActions>, &InteractionGate)>();
+            query.iter(world).any(|(clickable, gate)| {
+                clickable.actions.contains(&UiWindowActions::CloseWindow)
+                    && *gate == InteractionGate::PauseMenuOnly
+            })
+        };
+        assert!(has_gated_close_clickable);
+    }
+
+    #[test]
     fn ui_window_on_insert_seeds_default_scroll_runtime() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default()));
@@ -1912,7 +2549,10 @@ mod tests {
             .get::<WindowScrollRuntime>(window_entity)
             .copied()
             .expect("window scroll runtime");
-        assert!(app.world().entity(runtime.vertical_root).contains::<ScrollableRoot>());
+        assert!(app
+            .world()
+            .entity(runtime.vertical_root)
+            .contains::<ScrollableRoot>());
         assert!(app
             .world()
             .entity(runtime.horizontal_root)
@@ -1925,11 +2565,13 @@ mod tests {
             .world()
             .entity(runtime.content_root)
             .contains::<WindowScrollManaged>());
-        assert!(app.world().entity(runtime.vertical_bar).contains::<ScrollBar>());
+        assert!(app
+            .world()
+            .entity(runtime.vertical_bar)
+            .contains::<ScrollBar>());
         assert!(app
             .world()
             .entity(runtime.horizontal_bar)
             .contains::<ScrollBar>());
     }
-
 }

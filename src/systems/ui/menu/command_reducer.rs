@@ -1,4 +1,5 @@
 use super::*;
+use crate::scenes::dilemma::content::DilemmaScene;
 
 fn apply_push_transition(
     menu_stack: &mut MenuStack,
@@ -32,10 +33,12 @@ pub(super) struct MenuReducerResult {
     pub(super) dirty_menu: bool,
     pub(super) close_menu: bool,
     pub(super) open_main_menu_options_overlay: bool,
+    pub(super) open_level_select_overlay: bool,
     pub(super) advance_to_next_scene: bool,
     pub(super) spawn_exit_unsaved_modal: bool,
     pub(super) open_debug_ui_showcase: bool,
     pub(super) apply_video_settings: bool,
+    pub(super) start_single_level_scene: Option<DilemmaScene>,
     pub(super) state_transition: Option<MenuStateTransition>,
     pub(super) exit_application: bool,
 }
@@ -163,6 +166,15 @@ pub(super) fn reduce_menu_command(
         },
         MenuCommand::OpenMainMenuOptionsOverlay => MenuReducerResult {
             open_main_menu_options_overlay: true,
+            ..MenuReducerResult::default()
+        },
+        MenuCommand::OpenLevelSelectOverlay => MenuReducerResult {
+            open_level_select_overlay: true,
+            ..MenuReducerResult::default()
+        },
+        MenuCommand::StartSingleLevel(scene) => MenuReducerResult {
+            start_single_level_scene: Some(scene),
+            close_menu: true,
             ..MenuReducerResult::default()
         },
         MenuCommand::NextScene => MenuReducerResult {
@@ -361,6 +373,58 @@ mod tests {
 
         assert!(result.open_main_menu_options_overlay);
         assert!(!result.advance_to_next_scene);
+    }
+
+    #[test]
+    fn open_level_select_overlay_sets_overlay_flag() {
+        let menu_entity = test_menu_entity();
+        let mut menu_stack = MenuStack::new(MenuPage::PauseRoot);
+        let mut selectable_menu = test_selectable_menu();
+        let mut settings = VideoSettingsState::default();
+        let mut dropdown_state = DropdownLayerState::default();
+        let mut navigation_state = MenuNavigationState::default();
+
+        let result = reduce_menu_command(
+            MenuCommand::OpenLevelSelectOverlay,
+            menu_entity,
+            menu_stack.current_page(),
+            VideoTabKind::Display,
+            &mut menu_stack,
+            &mut selectable_menu,
+            &mut settings,
+            &mut dropdown_state,
+            &mut navigation_state,
+        );
+
+        assert!(result.open_level_select_overlay);
+        assert!(!result.advance_to_next_scene);
+    }
+
+    #[test]
+    fn start_single_level_requests_scene_start_and_closes_menu() {
+        let menu_entity = test_menu_entity();
+        let mut menu_stack = MenuStack::new(MenuPage::PauseRoot);
+        let mut selectable_menu = test_selectable_menu();
+        let mut settings = VideoSettingsState::default();
+        let mut dropdown_state = DropdownLayerState::default();
+        let mut navigation_state = MenuNavigationState::default();
+        let scene =
+            DilemmaScene::Lab0(crate::scenes::dilemma::content::Lab0Dilemma::IncompetentBandit);
+
+        let result = reduce_menu_command(
+            MenuCommand::StartSingleLevel(scene),
+            menu_entity,
+            menu_stack.current_page(),
+            VideoTabKind::Display,
+            &mut menu_stack,
+            &mut selectable_menu,
+            &mut settings,
+            &mut dropdown_state,
+            &mut navigation_state,
+        );
+
+        assert_eq!(result.start_single_level_scene, Some(scene));
+        assert!(result.close_menu);
     }
 
     #[test]
