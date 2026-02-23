@@ -29,8 +29,7 @@ impl OptionCommandSuppressions {
 
 pub(super) fn handle_menu_option_commands(
     mut commands: Commands,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     showcase_root_query: Query<Entity, With<debug_showcase::DebugUiShowcaseRoot>>,
     mut dropdown_anchor_state: ResMut<DropdownAnchorState>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
@@ -48,12 +47,8 @@ pub(super) fn handle_menu_option_commands(
     // - option command consumption happens in `option_query`.
     // - menu stack + layer/dropdown state mutations are isolated in ParamSet-backed
     //   context queries (`MenuCommandContext`) to prevent aliasing conflicts.
-    let pause_state = pause_state.as_ref();
     let active_tabs = active_video_tabs_by_menu(&ctx.video_tab_query);
-    let active_layers = {
-        let ui_layer_query = ctx.layer_queries.p0();
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query)
-    };
+    let active_layers = &interaction_state.active_layers_by_owner;
     let mut dropdown_query = ctx.layer_queries.p1();
     let mut dirty_menus = HashSet::new();
     let mut closed_menus = HashSet::new();
@@ -109,7 +104,7 @@ pub(super) fn handle_menu_option_commands(
                 .unwrap_or(0),
         );
         let active_kind =
-            layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
+            layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
 
         if active_kind == UiLayerKind::Modal {
             continue;
@@ -251,8 +246,7 @@ pub(super) fn handle_menu_option_commands(
 
 pub(super) fn handle_option_cycler_commands(
     mut commands: Commands,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     mut option_query: Query<(
         Entity,
         &Selectable,
@@ -264,19 +258,12 @@ pub(super) fn handle_option_cycler_commands(
     dilation: Res<Dilation>,
     mut settings: ResMut<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&UiInputPolicy>,
-    )>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
 ) {
     // Query contract:
     // option-cycler writes are local to `option_query`; layer/tab queries are
     // read-only lookups used for arbitration.
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
     let active_tabs = active_video_tabs_by_menu(&tab_query);
 
     let mut pending_cyclers: Vec<(Entity, bool)> = Vec::new();
@@ -304,7 +291,7 @@ pub(super) fn handle_option_cycler_commands(
         };
 
         let active_kind =
-            layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
+            layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
         if active_kind != UiLayerKind::Base || !settings.initialized {
             continue;
         }
@@ -344,18 +331,11 @@ pub(super) fn handle_option_cycler_commands(
 
 pub(super) fn handle_video_discrete_slider_slot_commands(
     mut commands: Commands,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     cursor: Res<CustomCursor>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
     mut settings: ResMut<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&UiInputPolicy>,
-    )>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
     mut slot_query: Query<(
         Entity,
@@ -384,8 +364,7 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
         return;
     }
 
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
     let active_tabs = active_video_tabs_by_menu(&tab_query);
 
     let mut click_targets: Vec<(Entity, Entity, usize)> = Vec::new();
@@ -420,7 +399,7 @@ pub(super) fn handle_video_discrete_slider_slot_commands(
         if tabbed_focus.is_tabs_focused(slider_meta.menu_entity) {
             continue;
         }
-        if layer::active_layer_kind_for_owner(&active_layers, slider_meta.menu_entity)
+        if layer::active_layer_kind_for_owner(active_layers, slider_meta.menu_entity)
             != UiLayerKind::Base
         {
             continue;

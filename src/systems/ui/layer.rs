@@ -16,7 +16,7 @@ use crate::{
     data::states::PauseState,
     systems::interaction::{
         ui_input_mode_is_captured_for_owner, ui_input_policy_allows, UiInputCaptureOwner,
-        UiInputCaptureToken, UiInputPolicy,
+        UiInputCaptureToken, UiInputPolicy, UiInteractionActiveLayer,
     },
 };
 
@@ -54,13 +54,7 @@ impl UiLayer {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct ActiveUiLayer {
-    /// Active root entity for the owner.
-    pub entity: Entity,
-    /// Active layer kind.
-    pub kind: UiLayerKind,
-}
+pub type ActiveUiLayer = UiInteractionActiveLayer;
 
 /// Returns the resolved active layer for `owner` when present.
 pub fn active_layer_for_owner(

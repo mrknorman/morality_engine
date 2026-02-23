@@ -32,10 +32,10 @@ use crate::{
     systems::{
         audio::{continuous_audio, DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
-            option_cycler_input_system, ui_input_policy_allows_for_owner, Clickable, Hoverable,
+            option_cycler_input_system, ui_input_policy_allows_mode, Clickable, Hoverable,
             InteractionSystem, InteractionVisualState, OptionCycler, Selectable,
             SelectableClickActivation, SelectableMenu, SystemMenuActions, SystemMenuSounds,
-            UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy,
+            UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy, UiInteractionState,
         },
         time::Dilation,
         ui::{

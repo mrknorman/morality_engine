@@ -243,14 +243,7 @@ fn close_video_modals(commands: &mut Commands, modal_query: &Query<Entity, With<
 
 pub(super) fn handle_video_modal_shortcuts(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&UiInputPolicy>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
     modal_query: Query<
         (
             Entity,
@@ -271,13 +264,12 @@ pub(super) fn handle_video_modal_shortcuts(
         return;
     }
 
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
     let mut modal_kind_by_owner: HashMap<Entity, (bool, bool)> = HashMap::new();
     for (modal_entity, ui_layer, is_apply_modal, is_exit_modal) in modal_query.iter() {
-        if layer::active_layer_kind_for_owner(&active_layers, ui_layer.owner) != UiLayerKind::Modal
+        if layer::active_layer_kind_for_owner(active_layers, ui_layer.owner) != UiLayerKind::Modal
             || !layer::is_active_layer_entity_for_owner(
-                &active_layers,
+                active_layers,
                 ui_layer.owner,
                 modal_entity,
             )
@@ -289,7 +281,7 @@ pub(super) fn handle_video_modal_shortcuts(
             (is_apply_modal.is_some(), is_exit_modal.is_some()),
         );
     }
-    for owner in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Modal) {
+    for owner in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Modal) {
         let Some((is_apply_modal, is_exit_modal)) = modal_kind_by_owner.get(&owner).copied() else {
             continue;
         };
@@ -325,14 +317,7 @@ pub(super) fn handle_video_modal_shortcuts(
 
 pub(super) fn handle_video_modal_button_commands(
     mut commands: Commands,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&UiInputPolicy>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
     modal_layer_query: Query<&UiLayer, With<VideoModalRoot>>,
     mut settings: ResMut<VideoSettingsState>,
     mut crt_settings: ResMut<CrtSettings>,
@@ -365,8 +350,7 @@ pub(super) fn handle_video_modal_button_commands(
     // - modal-layer ownership lookup is read-only (`modal_layer_query`).
     // - button click consumption/mutation is isolated to `button_query`.
     // Active-layer arbitration keeps modal button resolution owner-scoped.
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     let mut selected_button: Option<(Entity, VideoModalButton, usize, u64, Entity)> = None;
     for (entity, selectable, button, mut clickable, _) in button_query.iter_mut() {
@@ -379,12 +363,12 @@ pub(super) fn handle_video_modal_button_commands(
         let Ok(modal_layer) = modal_layer_query.get(modal_entity) else {
             continue;
         };
-        if layer::active_layer_kind_for_owner(&active_layers, modal_layer.owner)
+        if layer::active_layer_kind_for_owner(active_layers, modal_layer.owner)
             != UiLayerKind::Modal
         {
             continue;
         }
-        if !layer::is_active_layer_entity_for_owner(&active_layers, modal_layer.owner, modal_entity)
+        if !layer::is_active_layer_entity_for_owner(active_layers, modal_layer.owner, modal_entity)
         {
             continue;
         }

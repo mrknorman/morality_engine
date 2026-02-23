@@ -39,6 +39,14 @@ This repo is executing a full replacement of legacy interaction gate/capture API
 
 During migration, prefer referencing the unified-refactor plan for canonical state transitions and scope ownership contracts.
 
+### Phase Completion Snapshot
+
+- `Phase 0`: baseline/test matrix/documentation guardrails complete.
+- `Phase 1`: legacy gate/capture names replaced by `UiInput*` model.
+- `Phase 2`: frame-level `UiInteractionState` resolver added.
+- `Phase 3`: primitive interaction systems migrated to resolver state.
+- `Phase 4`: menu stack/layered UI routing migrated to `UiInteractionState`.
+
 ## UI Interaction Test Matrix (Phase 0 Baseline)
 
 Manual verification targets to run at phase boundaries:
@@ -145,6 +153,7 @@ Core gating primitives now use unified names:
 - helper APIs:
   - `ui_input_mode_is_captured(...)`
   - `ui_input_mode_is_captured_for_owner(...)`
+  - `ui_input_policy_allows_mode(...)`
   - `ui_input_policy_allows(...)`
   - `ui_input_policy_allows_for_owner(...)`
 
@@ -178,10 +187,15 @@ Primitive systems migrated to this model:
 - `selectable_system`
 - `Draggable::enact`
 
-Pattern:
+Menu/layered systems migrated to this model:
 
-- Gameplay entities: `InteractionGate::GameplayOnly`
-- Menu entities opened over gameplay: `InteractionGate::PauseMenuOnly`
+- `src/systems/ui/menu/menu_input.rs`
+- `src/systems/ui/menu/tabbed_menu.rs`
+- `src/systems/ui/menu/dropdown_flow.rs`
+- `src/systems/ui/menu/modal_flow.rs`
+- `src/systems/ui/menu/command_flow.rs`
+- `src/systems/ui/menu/main_menu.rs`
+- `src/startup/system_menu.rs` owner-scoped navigation sound helper
 
 ### `Hoverable`
 

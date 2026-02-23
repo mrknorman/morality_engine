@@ -8,7 +8,6 @@ use bevy::{
 use enum_map::{Enum, EnumArray};
 
 use crate::{
-    data::states::PauseState,
     entities::{
         sprites::compound::HollowRectangle,
         text::{scaled_font_size, TextButton, TextRaw},
@@ -17,9 +16,9 @@ use crate::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, SYSTEM_MENU_COLOR},
         interaction::{
-            ui_input_policy_allows_for_owner, Clickable, Hoverable, InteractionVisualPalette,
+            ui_input_policy_allows_mode, Clickable, Hoverable, InteractionVisualPalette,
             InteractionVisualState, OptionCycler, SelectableMenu, SystemMenuActions,
-            UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy,
+            UiInputPolicy, UiInteractionState,
         },
         ui::selector::SelectorSurface,
     },
@@ -576,8 +575,7 @@ pub fn spawn_chrome_with_marker<M>(
 pub fn play_navigation_sound_owner_scoped<S, F>(
     commands: &mut Commands,
     keyboard_input: &ButtonInput<KeyCode>,
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    interaction_state: &UiInteractionState,
     menu_query: &Query<
         (
             Entity,
@@ -596,7 +594,8 @@ pub fn play_navigation_sound_owner_scoped<S, F>(
     F: QueryFilter,
 {
     for (menu_entity, menu, pallet, gate) in menu_query.iter() {
-        if !ui_input_policy_allows_for_owner(gate, pause_state, capture_query, menu_entity) {
+        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(menu_entity))
+        {
             continue;
         }
         play_navigation_switch(

@@ -1,11 +1,10 @@
 use super::*;
 use crate::systems::{colors::ColorAnchor, interaction::InteractionVisualPalette};
 use crate::{
-    data::states::PauseState,
     startup::render::{MainCamera, OffscreenCamera},
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
-        interaction::{UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
+        interaction::{UiInputPolicy, UiInteractionState},
         time::Dilation,
     },
 };
@@ -122,8 +121,7 @@ pub(super) fn sync_main_menu_options_overlay_position(
 pub(super) fn play_main_menu_navigation_sound(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
+    interaction_state: Res<UiInteractionState>,
     menu_query: Query<
         (
             Entity,
@@ -139,8 +137,7 @@ pub(super) fn play_main_menu_navigation_sound(
     system_menu::play_navigation_sound_owner_scoped(
         &mut commands,
         &keyboard_input,
-        pause_state.as_ref(),
-        &capture_query,
+        &interaction_state,
         &menu_query,
         &mut audio_query,
         SystemMenuSounds::Switch,
