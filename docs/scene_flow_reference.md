@@ -17,6 +17,11 @@ Campaign branching policy is isolated in:
 - `src/scenes/flow/mod.rs`
   - `next_scenes_for_current_dilemma(...)`
 
+Shared cross-scene dependency wiring is centralized in:
+
+- `src/scenes/composition.rs`
+  - `SceneCompositionPlugin`
+
 ## Routing Table
 
 | Scene | MainState | GameState | DilemmaPhase |
@@ -42,6 +47,11 @@ Current consumers of canonical scene routing:
   - `trigger_next_scene`
 - `src/systems/ui/menu/command_effects.rs`
   - `handle_next_scene_command`
+
+Scene modules consume shared dependencies via one composition layer:
+
+- `src/scenes/mod.rs`
+  - `SceneCompositionPlugin` is registered once before scene usage plugins
 
 ## Fault-Tolerance Behavior
 

@@ -25,7 +25,10 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - Stage 1 complete: `5152bf5`
 - Stage 2 complete: `eebf918`
 - Stage 3 complete: `13d49d5`
-- Stage 4 in progress: working tree (branching policy extraction)
+- Stage 4 complete: `aa749d6`
+- Stage 5 complete: plugin/dependency normalization
+- Stage 6 pending
+- Stage 7 pending
 
 ## Current High-Level Issues
 

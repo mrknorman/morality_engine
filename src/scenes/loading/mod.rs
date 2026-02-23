@@ -6,10 +6,7 @@ use std::{time::Duration, vec};
 use crate::{
     data::states::GameState,
     entities::text::{TextButton, TextFrames},
-    style::{
-        common_ui::{NextButton, NextButtonConfig},
-        ui::IOPlugin,
-    },
+    style::common_ui::{NextButton, NextButtonConfig},
     systems::{
         audio::{
             continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, MusicAudio,
@@ -18,8 +15,8 @@ use crate::{
         cascade::{Cascade, CascadePlugin},
         colors::{AlphaTranslation, DIM_BACKGROUND_COLOR},
         inheritance::BequeathTextAlpha,
-        interaction::{ActionPallet, InputAction, InteractionPlugin},
-        scheduling::{TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin},
+        interaction::{ActionPallet, InputAction},
+        scheduling::{TimerConfig, TimerPallet, TimerStartCondition},
     },
 };
 
@@ -48,15 +45,6 @@ impl Plugin for LoadingScenePlugin {
         }
         if !app.is_plugin_added::<LoadingBarPlugin>() {
             app.add_plugins(LoadingBarPlugin);
-        }
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<TimingPlugin>() {
-            app.add_plugins(TimingPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
         }
     }
 }

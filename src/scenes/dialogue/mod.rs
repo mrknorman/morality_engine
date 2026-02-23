@@ -9,13 +9,11 @@ use crate::{
     },
     entities::graph::Graph,
     scenes::{runtime::SceneNavigator, Scene, SceneQueue},
-    style::ui::IOPlugin,
     systems::{
         audio::{continuous_audio, ContinuousAudio, ContinuousAudioPallet},
         cascade::Cascade,
         colors::{AlphaTranslation, DIM_BACKGROUND_COLOR},
         inheritance::BequeathTextAlpha,
-        interaction::InteractionPlugin,
     },
 };
 
@@ -30,12 +28,6 @@ impl Plugin for DialogueScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Dialogue), DialogueScene::setup);
 
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
-        }
         if !app.is_plugin_added::<DialoguePlugin>() {
             app.add_plugins(DialoguePlugin);
         }

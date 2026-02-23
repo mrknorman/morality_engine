@@ -1,3 +1,4 @@
+pub mod composition;
 pub mod dialogue;
 pub mod dilemma;
 pub mod ending;
@@ -10,6 +11,7 @@ use std::collections::VecDeque;
 
 use bevy::prelude::*;
 
+use composition::SceneCompositionPlugin;
 use dialogue::{content::*, DialogueScenePlugin};
 use dilemma::{content::*, DilemmaScenePlugin};
 use ending::{content::*, EndingScenePlugin};
@@ -20,6 +22,7 @@ pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            SceneCompositionPlugin,
             MenuScenePlugin,
             LoadingScenePlugin,
             DialogueScenePlugin,

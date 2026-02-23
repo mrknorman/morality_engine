@@ -66,10 +66,6 @@ impl Plugin for EndingScenePlugin {
         app.add_systems(OnEnter(GameState::Ending), EndingScene::setup)
             .add_systems(Update, EndingScene::spawn_delayed_children)
             .insert_resource(Ending::default());
-
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
     }
 }
 

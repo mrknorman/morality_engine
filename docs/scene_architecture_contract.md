@@ -16,6 +16,16 @@ ECS-friendly, and fault-tolerant under iteration.
   - UI menu policy reducers
   - per-scene content/asset parsing rules
 
+### `src/scenes/composition/*` (shared composition wiring)
+- Owns shared scene dependency wiring.
+- Allowed responsibilities:
+  - registering cross-scene plugins used by multiple scene modules
+  - centralizing plugin ownership so scene modules do not duplicate it
+- Must not:
+  - include scene-local setup/update systems
+  - own campaign branching policy
+  - own route mapping internals
+
 ### `src/scenes/flow/*` (composition/policy)
 - Owns campaign and branching policy.
 - Allowed responsibilities:
@@ -60,9 +70,10 @@ ECS-friendly, and fault-tolerant under iteration.
 
 Allowed direction:
 1. `scenes/runtime` -> `data/states` + core scene enum types.
-2. `scenes/flow` -> `scenes/runtime` + scene content enums + stats.
-3. `scenes/*` usage modules -> `scenes/runtime` and `scenes/flow` APIs.
-4. `systems/*` (interaction/menu) -> `scenes/runtime` transition APIs.
+2. `scenes/composition` -> shared plugins/resources used across scene modules.
+3. `scenes/flow` -> `scenes/runtime` + scene content enums + stats.
+4. `scenes/*` usage modules -> `scenes/runtime` and `scenes/flow` APIs.
+5. `systems/*` (interaction/menu) -> `scenes/runtime` transition APIs.
 
 Disallowed direction:
 - `scenes/runtime` -> `scenes/dilemma/*` phase internals.

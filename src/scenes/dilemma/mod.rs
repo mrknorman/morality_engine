@@ -4,31 +4,29 @@ use crate::{
         stats::{DilemmaRunStatsScope, DilemmaStats, GameStats},
     },
     entities::{
-        large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
+        large_fonts::{AsciiString, TextEmotion},
         person::{BloodSprite, PersonPlugin},
         sprites::SpritePlugin,
         text::{scaled_font_size, TextPlugin, TextWindow},
         track::Track,
-        train::{content::TrainTypes, Train, TrainPlugin},
+        train::{content::TrainTypes, Train},
     },
     scenes::dilemma::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
         phases::transition::DilemmaTransitionPlugin,
     },
     scenes::runtime::SceneNavigator,
-    style::ui::IOPlugin,
     systems::{
         audio::{continuous_audio, MusicAudio},
-        backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
+        backgrounds::{content::BackgroundTypes, Background},
         colors::{
             option_color, AlphaTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR,
             PRIMARY_COLOR,
         },
         inheritance::BequeathTextAlpha,
-        interaction::{Draggable, InteractionPlugin},
+        interaction::Draggable,
         motion::PointToPointTranslation,
         physics::ExplodedGlyph,
-        scheduling::TimingPlugin,
         ui::window::UiWindowTitle,
     },
 };
@@ -78,35 +76,17 @@ impl Plugin for DilemmaScenePlugin {
         if !app.is_plugin_added::<TextPlugin>() {
             app.add_plugins(TextPlugin);
         }
-        if !app.is_plugin_added::<TrainPlugin>() {
-            app.add_plugins(TrainPlugin);
-        }
-        if !app.is_plugin_added::<AsciiPlugin>() {
-            app.add_plugins(AsciiPlugin);
-        }
         if !app.is_plugin_added::<LeverPlugin>() {
             app.add_plugins(LeverPlugin);
         }
         if !app.is_plugin_added::<PersonPlugin>() {
             app.add_plugins(PersonPlugin);
         }
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<TimingPlugin>() {
-            app.add_plugins(TimingPlugin);
-        }
-        if !app.is_plugin_added::<BackgroundPlugin>() {
-            app.add_plugins(BackgroundPlugin);
-        }
         if !app.is_plugin_added::<JunctionPlugin>() {
             app.add_plugins(JunctionPlugin);
         }
         if !app.is_plugin_added::<DilemmaPlugin>() {
             app.add_plugins(DilemmaPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
         }
     }
 }
