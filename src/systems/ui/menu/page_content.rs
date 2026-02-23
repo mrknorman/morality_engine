@@ -78,7 +78,7 @@ fn spawn_video_page_scaffold(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     menu_entity: Entity,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
     panel_size: Vec2,
 ) -> VideoPageSpawnContext {
     let mut context = VideoPageSpawnContext::default();
@@ -374,7 +374,7 @@ pub(super) fn spawn_page_content(
     asset_server: &Res<AssetServer>,
     menu_entity: Entity,
     page: MenuPage,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) {
     let page_def = page_definition(page);
     let is_video_page = matches!(page, MenuPage::Video);
@@ -575,7 +575,7 @@ pub(super) fn rebuild_menu_page(
     asset_server: &Res<AssetServer>,
     menu_entity: Entity,
     page: MenuPage,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
     page_content_query: &Query<(Entity, &ChildOf), With<MenuPageContent>>,
 ) {
     clear_page_content(commands, menu_entity, page_content_query);

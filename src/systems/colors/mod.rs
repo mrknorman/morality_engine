@@ -12,13 +12,13 @@ use rand_pcg::Pcg64Mcg;
 use std::time::Duration;
 
 use crate::{
-    data::{rng::GlobalRng, states::PauseState},
+    data::rng::GlobalRng,
     entities::sprites::compound::{AssembleShape, Plus},
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_context_active, interaction_gate_allows, is_cursor_within_bounds,
-            is_cursor_within_region, InteractionCapture, InteractionGate,
+            is_cursor_within_bounds, is_cursor_within_region, ui_input_policy_allows_mode,
+            UiInputPolicy, UiInteractionState,
         },
         motion::{Bounce, Pulse},
         time::Dilation,
@@ -559,20 +559,19 @@ impl ColorChangeOn {
     fn handle_cursor_events_shapes<T: AssembleShape + Component<Mutability = Mutable>>(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        interaction_state: Res<UiInteractionState>,
         mut query: Query<(
             &mut ColorChangeOn,
             &mut T,
             &Transform,
             &GlobalTransform,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_mode = interaction_state.input_mode;
 
         for (mut color_change, mut shape, transform, global_transform, gate) in query.iter_mut() {
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows_mode(gate, interaction_mode) {
                 continue;
             }
 
@@ -624,20 +623,19 @@ impl ColorChangeOn {
     fn handle_cursor_events(
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
-        pause_state: Option<Res<State<PauseState>>>,
-        capture_query: Query<(), With<InteractionCapture>>,
+        interaction_state: Res<UiInteractionState>,
         mut query: Query<(
             &mut ColorChangeOn,
             &mut TextColor,
             &Aabb,
             &GlobalTransform,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         )>,
     ) {
-        let interaction_captured = interaction_context_active(pause_state.as_ref(), &capture_query);
+        let interaction_mode = interaction_state.input_mode;
 
         for (mut color_change, mut text_color, aabb, transform, gate) in query.iter_mut() {
-            if !interaction_gate_allows(gate, interaction_captured) {
+            if !ui_input_policy_allows_mode(gate, interaction_mode) {
                 continue;
             }
 

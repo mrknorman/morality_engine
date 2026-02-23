@@ -2,9 +2,7 @@ use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds, time::Re
 
 use crate::{
     data::states::MainState,
-    entities::{
-        text::{scaled_font_size, TextPlugin, TextRaw, TextWindow},
-    },
+    entities::text::{scaled_font_size, TextPlugin, TextRaw, TextWindow},
     startup::{
         cursor::CustomCursor,
         render::{MainCamera, OffscreenCamera},
@@ -12,7 +10,7 @@ use crate::{
     },
     systems::{
         audio::{continuous_audio, MusicAudio},
-        interaction::{Draggable, InteractionGate},
+        interaction::{Draggable, UiInputPolicy},
         particles::FireworkLauncher,
         ui::{
             menu::{self, MenuHost, MenuPage},
@@ -261,7 +259,7 @@ fn spawn_debug_menu_overlay(
             system_menu::MENU_Z,
         ),
         MenuPage::DebugRoot,
-        InteractionGate::GameplayOnly,
+        UiInputPolicy::WorldOnly,
     );
     commands.entity(menu_entity).insert((
         DebugOverlay,

@@ -8,18 +8,17 @@ use super::{
     tabbed_focus::{resolve_tabbed_focus, TabbedFocusInputs},
 };
 use crate::{
-    data::states::PauseState,
     startup::cursor::CustomCursor,
     systems::{
         audio::{DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
-            interaction_gate_allows_for_owner, Clickable, Hoverable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate, InteractionVisualState, Selectable,
+            ui_input_policy_allows_mode, Clickable, Hoverable, InteractionVisualState, Selectable,
             SelectableClickActivation, SelectableMenu, SystemMenuActions, SystemMenuSounds,
+            UiInputPolicy, UiInteractionState,
         },
         time::Dilation,
         ui::{
-            layer::{self, UiLayer, UiLayerKind},
+            layer::{self, UiLayerKind},
             tabs::{self, TabBar, TabBarState, TabChanged, TabItem},
         },
     },
@@ -153,14 +152,7 @@ pub fn sync_tabbed_menu_focus(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<CustomCursor>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
     tab_item_query: Query<
         (
             Entity,
@@ -192,7 +184,7 @@ pub fn sync_tabbed_menu_focus(
                 &TabBarState,
                 &SelectableMenu,
                 &TabbedMenuConfig,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             ),
             With<TabbedMenuConfig>,
         >,
@@ -207,9 +199,7 @@ pub fn sync_tabbed_menu_focus(
     // - Base-menu mutable `SelectableMenu` access excludes tab roots, while tab-root
     //   mutable `SelectableMenu` access lives in the ParamSet tab query branch.
     // This keeps focus arbitration B0001-safe as tabbed layers evolve.
-    let pause_state = pause_state.as_ref();
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
     let tab_pressed = keyboard_input.just_pressed(KeyCode::Tab);
     let up_pressed = keyboard_input.just_pressed(KeyCode::ArrowUp);
     let down_pressed = keyboard_input.just_pressed(KeyCode::ArrowDown);
@@ -230,8 +220,10 @@ pub fn sync_tabbed_menu_focus(
     {
         let tab_root_query = tab_queries.p0();
         for (tab_root_entity, tab_bar, tab_state, tab_menu, config, gate) in tab_root_query.iter() {
-            if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner)
-            {
+            if !ui_input_policy_allows_mode(
+                gate,
+                interaction_state.input_mode_for_owner(tab_bar.owner),
+            ) {
                 continue;
             }
             owner_by_tab_root.insert(tab_root_entity, tab_bar.owner);
@@ -346,7 +338,7 @@ pub fn sync_tabbed_menu_focus(
 
     let mut tab_updates: Vec<(Entity, TabbedMenuFocus, Option<usize>)> = Vec::new();
     let mut pending_tab_activations: Vec<(Entity, usize)> = Vec::new();
-    for menu_entity in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Base) {
+    for menu_entity in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Base) {
         let Some(&(tab_root_entity, active_tab_index, selected_tab_index, config)) =
             tabbed_by_menu.get(&menu_entity)
         else {
@@ -509,14 +501,7 @@ pub fn suppress_tabbed_options_while_tabs_focused(
 pub fn commit_tab_activation(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
     focus_state: Res<TabbedMenuFocusState>,
     tab_item_query: Query<
         (Entity, &TabItem, &Selectable, &Clickable<SystemMenuActions>),
@@ -530,7 +515,7 @@ pub fn commit_tab_activation(
             &SelectableMenu,
             Option<&tabs::TabActivationPolicy>,
             Option<&TransientAudioPallet<SystemMenuSounds>>,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
         ),
         With<TabbedMenuConfig>,
     >,
@@ -541,9 +526,7 @@ pub fn commit_tab_activation(
     // Tab activation only reads tab-item click state from entities that are not
     // tabbed menu options (`Without<TabbedMenuOption>`), keeping click ownership
     // contracts explicit and avoiding mixed-role entities.
-    let pause_state = pause_state.as_ref();
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     let clicked_by_tab_root = tabs::collect_clicked_tab_indices(&tab_item_query);
 
@@ -557,10 +540,11 @@ pub fn commit_tab_activation(
         gate,
     ) in tab_query.iter_mut()
     {
-        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, tab_bar.owner) {
+        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(tab_bar.owner))
+        {
             continue;
         }
-        if layer::active_layer_kind_for_owner(&active_layers, tab_bar.owner) != UiLayerKind::Base {
+        if layer::active_layer_kind_for_owner(active_layers, tab_bar.owner) != UiLayerKind::Base {
             continue;
         }
 
@@ -690,7 +674,7 @@ mod tests {
             .id();
         world.entity_mut(stale_menu).insert(MenuRoot {
             host: crate::systems::ui::menu::MenuHost::Pause,
-            gate: InteractionGate::PauseMenuOnly,
+            gate: UiInputPolicy::CapturedOnly,
         });
         world
             .resource_mut::<TabbedMenuFocusState>()

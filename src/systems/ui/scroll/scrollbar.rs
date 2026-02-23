@@ -1,16 +1,14 @@
 use bevy::prelude::*;
 
 use crate::{
-    data::states::PauseState,
     entities::sprites::compound::{BorderedRectangle, HollowRectangle},
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            focused_scope_owner_from_registry, interaction_gate_allows_for_owner,
-            resolve_focused_scope_owner, scoped_owner_has_focus, Clickable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate, ScrollUiActions, SelectableScopeOwner,
+            scoped_owner_has_focus, ui_input_policy_allows_mode, Clickable, ScrollUiActions,
+            UiInputPolicy, UiInteractionState,
         },
-        ui::layer::{self, UiLayer, UiLayerKind},
+        ui::layer::UiLayerKind,
     },
 };
 
@@ -30,7 +28,7 @@ pub(super) fn seed_scrollbar_parts(
     commands: &mut Commands,
     scrollbar_entity: Entity,
     scrollbar: &ScrollBar,
-    gate: InteractionGate,
+    gate: UiInputPolicy,
 ) {
     let mut track_entity = None;
     let mut thumb_entity = None;
@@ -90,7 +88,7 @@ pub(super) fn seed_scrollbar_parts(
 
 pub(super) fn ensure_scrollbar_parts(
     mut commands: Commands,
-    root_gate_query: Query<Option<&InteractionGate>, With<ScrollableRoot>>,
+    root_gate_query: Query<Option<&UiInputPolicy>, With<ScrollableRoot>>,
     scrollbar_query: Query<(
         Entity,
         &ScrollBar,
@@ -107,11 +105,11 @@ pub(super) fn ensure_scrollbar_parts(
     // - track/thumb presence checks are read-only marker queries used to validate
     //   `ScrollBarParts` handles before reseeding.
     for (scrollbar_entity, scrollbar, parent, parts) in scrollbar_query.iter() {
-        let parent_target = scrollbar.parent_override.unwrap_or(scrollbar.scrollable_root);
+        let parent_target = scrollbar
+            .parent_override
+            .unwrap_or(scrollbar.scrollable_root);
         if parent.is_none_or(|parent| parent.parent() != parent_target) {
-            commands
-                .entity(parent_target)
-                .add_child(scrollbar_entity);
+            commands.entity(parent_target).add_child(scrollbar_entity);
         }
 
         let parts_live = parts.is_some_and(|parts| {
@@ -144,13 +142,13 @@ pub(super) fn ensure_scrollbar_parts(
 }
 
 pub(super) fn sync_scrollbar_visuals(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: Res<UiInteractionState>,
     root_query: Query<
         (
             &ScrollableRoot,
             &ScrollableViewport,
             &ScrollState,
+            Option<&UiInputPolicy>,
             Option<&InheritedVisibility>,
         ),
         With<ScrollableRoot>,
@@ -165,12 +163,6 @@ pub(super) fn sync_scrollbar_visuals(
         (Without<ScrollBarTrack>, Without<ScrollBarThumb>),
     >,
     mut query_set: ParamSet<(
-        Query<(
-            Entity,
-            &UiLayer,
-            Option<&Visibility>,
-            Option<&InteractionGate>,
-        )>,
         Query<
             (
                 &mut BorderedRectangle,
@@ -192,27 +184,26 @@ pub(super) fn sync_scrollbar_visuals(
     )>,
 ) {
     // Query contract:
-    // - Ui-layer visibility reads (p0) are separated from track/thumb visibility
-    //   mutations (p1/p2) via ParamSet to avoid B0001 aliasing.
+    // - Track/thumb visibility mutations are separated (p0/p1) via ParamSet to
+    //   avoid B0001 aliasing.
     // - Scrollbar root transforms are mutated via `scrollbar_query`.
     // - Track/thumb transforms and clickables are mutated via disjoint
-    //   `Without`-guarded queries (p1/p2).
+    //   `Without`-guarded queries (p0/p1).
     // This prevents Bevy B0001 aliasing across shared components.
-    let active_layers = {
-        let ui_layer_query = query_set.p0();
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query)
-    };
+    let active_layers = &interaction_state.active_layers_by_owner;
     for (scrollbar, parts, mut scrollbar_transform, scrollbar_visibility) in
         scrollbar_query.iter_mut()
     {
-        let Ok((root, viewport, state, root_visibility)) =
+        let Ok((root, viewport, state, gate, root_visibility)) =
             root_query.get(scrollbar.scrollable_root)
         else {
             continue;
         };
+        let input_allowed =
+            ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(root.owner));
         let root_visible = root_visibility.is_none_or(|visibility| visibility.get());
         let scrollbar_visible = scrollbar_visibility.is_none_or(|visibility| visibility.get());
-        let visible = root_visible && scrollbar_visible;
+        let visible = root_visible && scrollbar_visible && input_allowed;
 
         let track_extent = axis_extent(viewport.size, root.axis).max(1.0);
         let thickness = scrollbar.width.max(2.0);
@@ -235,6 +226,8 @@ pub(super) fn sync_scrollbar_visuals(
             .map(|active_layer| active_layer.kind)
             .unwrap_or(UiLayerKind::Base)
             == root.input_layer;
+        let owner_has_focus =
+            scoped_owner_has_focus(Some(root.owner), interaction_state.focused_owner);
         let has_scroll_range =
             state.max_offset > SCROLL_EPSILON && state.content_extent > state.viewport_extent;
         let part_visibility = if visible && has_scroll_range {
@@ -242,7 +235,7 @@ pub(super) fn sync_scrollbar_visuals(
         } else {
             Visibility::Hidden
         };
-        let effective_part_visibility = if active_layer_matches_input {
+        let effective_part_visibility = if active_layer_matches_input && owner_has_focus {
             part_visibility
         } else {
             Visibility::Hidden
@@ -282,7 +275,7 @@ pub(super) fn sync_scrollbar_visuals(
         }
 
         {
-            let mut track_query = query_set.p1();
+            let mut track_query = query_set.p0();
             let Ok((
                 mut track_rect,
                 mut track_transform,
@@ -302,7 +295,7 @@ pub(super) fn sync_scrollbar_visuals(
         }
 
         {
-            let mut thumb_query = query_set.p2();
+            let mut thumb_query = query_set.p1();
             let Ok((
                 mut thumb_rect,
                 mut thumb_transform,
@@ -324,25 +317,15 @@ pub(super) fn sync_scrollbar_visuals(
 }
 
 pub(super) fn handle_scrollbar_input(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
-    scope_owner_query: Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
-    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
+    interaction_state: Res<UiInteractionState>,
     cursor: Res<CustomCursor>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     root_meta_query: Query<
         (
             &ScrollableRoot,
             &ScrollableViewport,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&InheritedVisibility>,
-            &GlobalTransform,
         ),
         With<ScrollableRoot>,
     >,
@@ -384,31 +367,8 @@ pub(super) fn handle_scrollbar_input(
     //   `Without` filters.
     // - Scroll state reads/writes are isolated through `ParamSet`.
     // This keeps drag/track paging paths query-safe under rapid interaction.
-    let pause_state = pause_state.as_ref();
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
-    let focused_scoped_owner =
-        focused_scope_owner_from_registry(pause_state, &capture_query, &scope_owner_query, &owner_transform_query)
-            .or_else(|| {
-                resolve_focused_scope_owner(root_meta_query.iter().filter_map(
-                    |(root, _viewport, gate, root_visibility, global_transform)| {
-                        if root_visibility.is_some_and(|visibility| !visibility.get()) {
-                            return None;
-                        }
-                        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
-                            return None;
-                        }
-                        let active_layer_kind = active_layers
-                            .get(&root.owner)
-                            .map(|active_layer| active_layer.kind)
-                            .unwrap_or(UiLayerKind::Base);
-                        if active_layer_kind != root.input_layer {
-                            return None;
-                        }
-                        Some((root.owner, global_transform.translation().z))
-                    },
-                ))
-            });
+    let active_layers = &interaction_state.active_layers_by_owner;
+    let focused_scoped_owner = interaction_state.focused_owner;
     let cursor_position = cursor.position;
     let mouse_down = mouse_input.pressed(MouseButton::Left);
 
@@ -421,7 +381,7 @@ pub(super) fn handle_scrollbar_input(
     for (_scrollbar_entity, scrollbar, parts, mut drag_state, scrollbar_visibility) in
         scrollbar_query.iter_mut()
     {
-        let Ok((root, _viewport, gate, root_visibility, _)) =
+        let Ok((root, _viewport, gate, root_visibility)) =
             root_meta_query.get(scrollbar.scrollable_root)
         else {
             continue;
@@ -432,7 +392,7 @@ pub(super) fn handle_scrollbar_input(
             drag_state.dragging = false;
             continue;
         }
-        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
+        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(root.owner)) {
             drag_state.dragging = false;
             continue;
         }

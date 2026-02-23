@@ -29,6 +29,42 @@ Covered systems and modules:
 - Interaction behavior must use interaction primitives as source of truth; visual state is derived output only.
 - Primitive authoring should prefer required-components plus insert hooks over new Bundle-first APIs.
 
+## Unified Input Refactor Status (No Compatibility Layer)
+
+This repo is executing a full replacement of legacy interaction gate/capture APIs.
+
+- Source plan: `docs/ui_unified_focus_gating_refactor_plan.md`
+- Migration style: full replacement, no dual-path compatibility bridge
+- Phase policy: every phase must update docs and end with a checkpoint commit
+
+During migration, prefer referencing the unified-refactor plan for canonical state transitions and scope ownership contracts.
+
+### Phase Completion Snapshot
+
+- `Phase 0`: baseline/test matrix/documentation guardrails complete.
+- `Phase 1`: legacy gate/capture names replaced by `UiInput*` model.
+- `Phase 2`: frame-level `UiInteractionState` resolver added.
+- `Phase 3`: primitive interaction systems migrated to resolver state.
+- `Phase 4`: menu stack/layered UI routing migrated to `UiInteractionState`.
+- `Phase 5`: window close/drag/resize routing now consumes unified focus/mode state.
+- `Phase 6`: scroll and hover-box subsystems now consume unified focus/layer state.
+- `Phase 7`: remaining legacy gate consumers migrated to unified policy/state checks.
+- `Phase 8`: cleanup/tests/docs pass completed for unified routing baseline.
+
+## UI Interaction Test Matrix (Phase 0 Baseline)
+
+Manual verification targets to run at phase boundaries:
+
+1. Main menu keyboard/mouse navigation and activation.
+2. Pause menu capture behavior over gameplay.
+3. Options/video tabs focus switching and footer navigation.
+4. Dropdown open/close/select with mouse + keyboard.
+5. Modal blocking behavior (input and visual stack).
+6. Window drag/close/resize with focused-owner behavior.
+7. Scrollbars/wheel/keyboard behavior in windows and menu scroll roots.
+8. Hover box behavior for options and dropdown items.
+9. Debug UI showcase interactions across multiple windows.
+
 ## Latest Style and Coding Preferences (2026-02-20)
 
 - Build reusable UI as self-contained primitives first (`src/systems/ui/*`), then compose in feature modules.
@@ -108,16 +144,78 @@ Major reusable UI features now have root-level insertion/runtime coverage:
 
 ## Core Interaction Primitives
 
-### `InteractionGate` and `InteractionCapture`
+### `UiInputPolicy` and `UiInputCaptureToken`
 
-- `InteractionGate` controls whether an entity can be interacted with in the current context.
-- `InteractionCapture` marks contexts where gameplay interaction should be suppressed by menu interaction.
-- Use `interaction_context_active(...)` + `interaction_gate_allows(...)` to gate every interaction system.
+Core gating primitives now use unified names:
 
-Pattern:
+- `UiInputPolicy`
+  - `WorldOnly`
+  - `CapturedOnly`
+  - `Any`
+- `UiInputCaptureToken`
+- `UiInputCaptureOwner`
+- helper APIs:
+  - `ui_input_policy_allows_mode(...)`
+  - `UiInteractionState::input_mode_for_owner(...)`
+  - `scoped_owner_has_focus(...)`
 
-- Gameplay entities: `InteractionGate::GameplayOnly`
-- Menu entities opened over gameplay: `InteractionGate::PauseMenuOnly`
+Runtime systems should consume `UiInteractionState` directly and avoid local pause/capture
+recomputation.
+
+### `UiInteractionState` Resolver
+
+`InteractionPlugin` now computes `UiInteractionState` once per frame before primitive interaction systems.
+
+State currently includes:
+
+- `input_mode` (`World` or `Captured`)
+- owner-scoped capture metadata (`global_capture`, `captured_owners`)
+- resolved active layer per owner (`active_layers_by_owner`)
+- resolved focused owner (`focused_owner`)
+
+Resolver system:
+
+- `refresh_ui_interaction_state` in `src/systems/interaction/mod.rs`
+
+Design rule:
+
+- systems should consume `UiInteractionState` instead of recomputing capture/focus context ad hoc.
+
+Primitive systems migrated to this model:
+
+- `hoverable_system`
+- `clickable_system`
+- `pressable_system`
+- `selectable_system`
+- `Draggable::enact`
+
+Menu/layered systems migrated to this model:
+
+- `src/systems/ui/menu/menu_input.rs`
+- `src/systems/ui/menu/tabbed_menu.rs`
+- `src/systems/ui/menu/dropdown_flow.rs`
+- `src/systems/ui/menu/modal_flow.rs`
+- `src/systems/ui/menu/command_flow.rs`
+- `src/systems/ui/menu/main_menu.rs`
+- `src/startup/system_menu.rs` owner-scoped navigation sound helper
+
+Window systems migrated to this model:
+
+- `src/systems/ui/window/mod.rs`
+  - resize begin/update now gates through `UiInteractionState` (`UiInputPolicy`, focused owner, active base layer)
+  - close button contract now inherits policy/scope via insert hooks, not per-frame gate sync
+
+Scroll/hover systems migrated to this model:
+
+- `src/systems/ui/scroll/behavior.rs`
+- `src/systems/ui/scroll/scrollbar.rs`
+- `src/systems/ui/hover_box.rs`
+- Scrollbar visuals are now gated by focused owner in the shared interaction state (not just input paths).
+
+Remaining non-UI consumers migrated:
+
+- `src/systems/colors/mod.rs`
+- `src/systems/cascade/mod.rs`
 
 ### `Hoverable`
 
@@ -249,7 +347,7 @@ Use this instead of manual per-frame color writes when possible.
 
 Use this order when writing UI behavior:
 
-1. Gating and scope: `InteractionGate`, `InteractionCapture`, `UiLayer`/active-layer resolution.
+1. Gating and scope: `UiInteractionState` + `UiInputPolicy` + `UiLayer` active-layer resolution.
 2. Hover: `Hoverable.hovered`.
 3. Activation:
    - Pointer/selection activation: `Clickable<T>.triggered`.
@@ -460,16 +558,15 @@ These helpers are reusable for any dropdown component type `D` and any root-owne
 
 - `UiLayerKind`: `Base`, `Dropdown`, `Modal` (with explicit priority).
 - `UiLayer { owner, kind }`: attached to each layer root entity.
-- `active_layers_by_owner_scoped(...)`: resolves the active layer per owner using:
-  - `Visibility`
-  - owner-scoped interaction capture + `InteractionGate`
-  - kind priority (`Modal > Dropdown > Base`)
 - `ordered_active_layers_by_owner(...)`: deterministic owner-first traversal helper.
 - `ordered_active_owners_by_kind(...)`: deterministic owner traversal filtered by active layer kind.
 
+`UiInteractionState.active_layers_by_owner` is the runtime source of truth for active owner layers.
+`layer.rs` traversal helpers operate on that resolved map.
+
 Usage rule:
 
-- Attach `UiLayer` to every menu-layer root you spawn, then use `active_layers_by_owner_scoped(...)` in shortcut/command systems instead of custom modal/dropdown-open checks.
+- Attach `UiLayer` to every menu-layer root you spawn, then consume `UiInteractionState.active_layers_by_owner` in shortcut/command systems instead of custom modal/dropdown-open checks.
 - For owner-level shortcut/command routing, iterate owners via `ordered_active_owners_by_kind(...)` instead of local hash/query sorting.
 
 ### Selector/Shortcut Utilities (Shared UI)
@@ -574,7 +671,8 @@ Conflict safety:
 
 ## Window Integration
 
-Window UI already shares interaction primitives with menus via `Clickable`, `Selectable`, and `InteractionGate`.
+Window UI already shares interaction primitives with menus via `Clickable`, `Selectable`,
+`UiInputPolicy`, and `UiInteractionState`.
 
 - Window z/layer behavior and click blocking are handled in `src/systems/ui/window/mod.rs` and respected by the interaction systems.
 - Window content composition is explicit: attach `UiWindowContent { window_entity }` to a content-root entity and parent feature UI under it.

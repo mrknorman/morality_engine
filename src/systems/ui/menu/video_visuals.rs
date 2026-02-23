@@ -550,9 +550,9 @@ pub(super) fn ensure_video_discrete_slider_slot_clickables(
         ),
     >,
     slider_query: Query<(Entity, &ChildOf), With<VideoOptionDiscreteSlider>>,
-    option_gate_query: Query<&InteractionGate, With<MenuOptionCommand>>,
+    option_gate_query: Query<&UiInputPolicy, With<MenuOptionCommand>>,
 ) {
-    let mut gate_by_slider: HashMap<Entity, InteractionGate> = HashMap::new();
+    let mut gate_by_slider: HashMap<Entity, UiInputPolicy> = HashMap::new();
     for (slider_entity, slider_parent) in slider_query.iter() {
         let Ok(gate) = option_gate_query.get(slider_parent.parent()) else {
             continue;
@@ -910,7 +910,7 @@ mod tests {
         tabs::{TabBar, TabBarState},
     };
 
-    fn test_menu_root(gate: InteractionGate) -> MenuRoot {
+    fn test_menu_root(gate: UiInputPolicy) -> MenuRoot {
         MenuRoot {
             host: MenuHost::Pause,
             gate,
@@ -932,7 +932,7 @@ mod tests {
         let mut world = World::new();
         let menu_entity = world
             .spawn((
-                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_menu_root(UiInputPolicy::CapturedOnly),
                 test_selectable_menu(VIDEO_FOOTER_OPTION_START_INDEX),
             ))
             .id();
@@ -987,7 +987,7 @@ mod tests {
         let mut world = World::new();
         let menu_entity = world
             .spawn((
-                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_menu_root(UiInputPolicy::CapturedOnly),
                 test_selectable_menu(VIDEO_FOOTER_OPTION_START_INDEX),
             ))
             .id();
@@ -1035,7 +1035,7 @@ mod tests {
         let menu_entity = app
             .world_mut()
             .spawn((
-                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_menu_root(UiInputPolicy::CapturedOnly),
                 MenuStack::new(MenuPage::Video),
                 test_selectable_menu(0),
             ))
@@ -1146,7 +1146,7 @@ mod tests {
         let menu_entity = app
             .world_mut()
             .spawn((
-                test_menu_root(InteractionGate::PauseMenuOnly),
+                test_menu_root(UiInputPolicy::CapturedOnly),
                 test_selectable_menu(0),
             ))
             .id();

@@ -5,15 +5,15 @@ use super::schema;
 
 use crate::{
     data::states::{MainState, PauseState},
-    scenes::dilemma::content::DilemmaScene,
     entities::{
         sprites::compound::RectangleSides,
         text::{scaled_font_size, Cell, Column, Row, Table, TextContent},
     },
+    scenes::dilemma::content::DilemmaScene,
     startup::system_menu::{SystemMenuLayout, CYCLE_ARROW_HALF_WIDTH, PANEL_WIDTH},
     systems::{
         colors::SYSTEM_MENU_COLOR,
-        interaction::InteractionGate,
+        interaction::UiInputPolicy,
         ui::discrete_slider::{slot_center_x, slot_span_bounds},
     },
 };
@@ -208,7 +208,7 @@ pub enum MenuPage {
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MenuRoot {
     pub host: MenuHost,
-    pub gate: InteractionGate,
+    pub gate: UiInputPolicy,
 }
 
 #[derive(Clone, Copy, Debug)]

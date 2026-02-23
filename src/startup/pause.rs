@@ -8,7 +8,7 @@ use crate::{
         system_menu,
     },
     systems::{
-        interaction::{InteractionCapture, InteractionCaptureOwner, InteractionGate},
+        interaction::{UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
         ui::menu::{self, MenuHost, MenuPage, PauseMenuAudio},
     },
 };
@@ -157,7 +157,7 @@ fn setup_pause_menu_overlay(
             system_menu::MENU_Z,
         ),
         MenuPage::PauseRoot,
-        InteractionGate::PauseMenuOnly,
+        UiInputPolicy::CapturedOnly,
     );
     commands
         .entity(menu_entity)
@@ -166,8 +166,8 @@ fn setup_pause_menu_overlay(
     commands.entity(menu_entity).with_children(|parent| {
         parent.spawn((
             Name::new("pause_menu_dimmer"),
-            InteractionCapture,
-            InteractionCaptureOwner::new(menu_entity),
+            UiInputCaptureToken,
+            UiInputCaptureOwner::new(menu_entity),
             Sprite::from_color(
                 Color::srgba(0.0, 0.0, 0.0, PAUSE_MENU_DIM_ALPHA),
                 Vec2::splat(PAUSE_MENU_DIM_SIZE),

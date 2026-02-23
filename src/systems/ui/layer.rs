@@ -4,15 +4,21 @@
 //! non-menu surfaces. Each UI owner can expose multiple layer roots
 //! (`Base`, `Dropdown`, `Modal`), and systems resolve a single active layer
 //! per owner for deterministic input routing.
+//!
+//! Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+//! - fold layer arbitration into unified interaction state resolver
+//! - stop deriving capture/gating state independently per module
 use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::systems::interaction::UiInteractionActiveLayer;
+#[cfg(test)]
 use crate::{
     data::states::PauseState,
     systems::interaction::{
-        interaction_context_active_for_owner, interaction_gate_allows, InteractionCapture,
-        InteractionCaptureOwner, InteractionGate,
+        ui_input_mode_is_captured_for_owner, ui_input_policy_allows, UiInputCaptureOwner,
+        UiInputCaptureToken, UiInputPolicy,
     },
 };
 
@@ -50,13 +56,7 @@ impl UiLayer {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct ActiveUiLayer {
-    /// Active root entity for the owner.
-    pub entity: Entity,
-    /// Active layer kind.
-    pub kind: UiLayerKind,
-}
+pub type ActiveUiLayer = UiInteractionActiveLayer;
 
 /// Returns the resolved active layer for `owner` when present.
 pub fn active_layer_for_owner(
@@ -110,6 +110,7 @@ pub fn ordered_active_owners_by_kind(
         .collect()
 }
 
+#[cfg(test)]
 fn is_visible(visibility: Option<&Visibility>) -> bool {
     visibility.copied().unwrap_or(Visibility::Visible) != Visibility::Hidden
 }
@@ -118,21 +119,22 @@ fn is_visible(visibility: Option<&Visibility>) -> bool {
 ///
 /// Priority is `Modal > Dropdown > Base`. Ties within a kind are broken by
 /// deterministic entity rank.
+#[cfg(test)]
 pub fn active_layers_by_owner_scoped(
     pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    capture_query: &Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
     layer_query: &Query<(
         Entity,
         &UiLayer,
         Option<&Visibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
 ) -> HashMap<Entity, ActiveUiLayer> {
     let mut active: HashMap<Entity, ActiveUiLayer> = HashMap::new();
     for (entity, layer, visibility, gate) in layer_query.iter() {
         let interaction_captured =
-            interaction_context_active_for_owner(pause_state, capture_query, layer.owner);
-        if !is_visible(visibility) || !interaction_gate_allows(gate, interaction_captured) {
+            ui_input_mode_is_captured_for_owner(pause_state, capture_query, layer.owner);
+        if !is_visible(visibility) || !ui_input_policy_allows(gate, interaction_captured) {
             continue;
         }
 
@@ -172,14 +174,14 @@ mod tests {
             .id();
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 
@@ -203,14 +205,14 @@ mod tests {
             .id();
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 
@@ -330,14 +332,14 @@ mod tests {
             .id();
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 
@@ -411,35 +413,35 @@ mod tests {
             .spawn((
                 UiLayer::new(owner_a, UiLayerKind::Base),
                 Visibility::Visible,
-                InteractionGate::PauseMenuOnly,
+                UiInputPolicy::CapturedOnly,
             ))
             .id();
         let owner_b_pause_menu = world
             .spawn((
                 UiLayer::new(owner_b, UiLayerKind::Base),
                 Visibility::Visible,
-                InteractionGate::PauseMenuOnly,
+                UiInputPolicy::CapturedOnly,
             ))
             .id();
         let owner_b_gameplay = world
             .spawn((
                 UiLayer::new(owner_b, UiLayerKind::Base),
                 Visibility::Visible,
-                InteractionGate::GameplayOnly,
+                UiInputPolicy::WorldOnly,
             ))
             .id();
 
-        world.spawn((InteractionCapture, InteractionCaptureOwner::new(owner_a)));
+        world.spawn((UiInputCaptureToken, UiInputCaptureOwner::new(owner_a)));
 
         let mut capture_state: SystemState<
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+            Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
         > = SystemState::new(&mut world);
         let mut layer_state: SystemState<
             Query<(
                 Entity,
                 &UiLayer,
                 Option<&Visibility>,
-                Option<&InteractionGate>,
+                Option<&UiInputPolicy>,
             )>,
         > = SystemState::new(&mut world);
 

@@ -1,5 +1,10 @@
 use std::{collections::HashMap, f32::consts::FRAC_PI_4};
 
+// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// - migrate window interaction gating to unified input policy/state
+// - keep drag/close/resize focus ownership deterministic per root window
+// - remove legacy gate propagation once unified resolver is live
+
 use bevy::{
     camera::primitives::Aabb,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
@@ -17,16 +22,18 @@ use crate::{
         audio::{TransientAudio, TransientAudioPallet},
         colors::{ColorAnchor, CLICKED_BUTTON, HOVERED_BUTTON, PRIMARY_COLOR},
         interaction::{
-            ActionPallet, Clickable, Draggable, DraggableRegion, DraggableViewportBounds,
-            Hoverable, InputAction, InteractionGate, InteractionSystem, InteractionVisualPalette,
-            InteractionVisualState, SelectableClickActivation, SelectableMenu,
-            SelectableScopeOwner,
+            scoped_owner_has_focus, ui_input_policy_allows_mode, ActionPallet, Clickable,
+            Draggable, DraggableRegion, DraggableViewportBounds, Hoverable, InputAction,
+            InteractionSystem, InteractionVisualPalette, InteractionVisualState,
+            SelectableClickActivation, SelectableMenu, SelectableScopeOwner, UiInputPolicy,
+            UiInteractionState,
         },
         ui::scroll::{
             ScrollAxis, ScrollBackend, ScrollBar, ScrollState, ScrollZoomConfig, ScrollableContent,
             ScrollableContentExtent, ScrollableRoot, ScrollableViewport,
         },
         ui::{
+            layer::UiLayerKind,
             selector::SelectorSurface,
             tabs::{TabBar, TabBarState, TabItem},
         },
@@ -40,6 +47,7 @@ impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WindowZStack>()
             .init_resource::<ActiveWindowInteraction>()
+            .init_resource::<UiInteractionState>()
             .configure_sets(
                 Update,
                 (
@@ -55,7 +63,6 @@ impl Plugin for WindowPlugin {
                     Window::raise_window_on_pointer_down,
                     Window::assign_stack_order,
                     Window::cache_parts,
-                    Window::sync_close_button_interaction_gate,
                     Window::enact_resize,
                 )
                     .chain()
@@ -828,46 +835,29 @@ impl Window {
         }
     }
 
-    fn sync_close_button_interaction_gate(
-        mut commands: Commands,
-        windows: Query<(Entity, &Window, &WindowParts, Option<&InteractionGate>)>,
-        root_gates: Query<&InteractionGate>,
-    ) {
-        for (window_entity, window, parts, gate) in &windows {
-            let resolved_gate = gate.copied().or_else(|| {
-                window
-                    .root_entity
-                    .filter(|root| *root != window_entity)
-                    .and_then(|root| root_gates.get(root).ok().copied())
-            });
-            let Some(resolved_gate) = resolved_gate else {
-                continue;
-            };
-
-            if let Some(close_button_entity) = parts.close_button {
-                commands.entity(close_button_entity).insert(resolved_gate);
-            }
-            if let Some(close_icon_entity) = parts.close_button_icon {
-                commands.entity(close_icon_entity).insert(resolved_gate);
-            }
-        }
-    }
-
     fn enact_resize(
         mut commands: Commands,
         mouse_input: Res<ButtonInput<MouseButton>>,
         cursor: Res<CustomCursor>,
+        interaction_state: Res<UiInteractionState>,
         mut active_interaction: ResMut<ActiveWindowInteraction>,
         parent_globals: Query<&GlobalTransform>,
         mut draggables: Query<&mut Draggable>,
         mut windows: ParamSet<(
-            Query<(Entity, &Window, &GlobalTransform, Option<&ChildOf>)>,
+            Query<(
+                Entity,
+                &Window,
+                &GlobalTransform,
+                Option<&ChildOf>,
+                Option<&UiInputPolicy>,
+            )>,
             Query<(
                 Entity,
                 &mut Window,
                 &mut Transform,
                 &GlobalTransform,
                 Option<&ChildOf>,
+                Option<&UiInputPolicy>,
                 Option<&WindowContentMetrics>,
                 Option<&WindowOverflowPolicy>,
                 Option<&WindowTabRowRuntime>,
@@ -895,7 +885,15 @@ impl Window {
         if mouse_input.just_pressed(MouseButton::Left) {
             let mut top_window_z: Option<f32> = None;
             {
-                for (_, window, global_transform, _) in windows.p0().iter() {
+                for (entity, window, global_transform, _, gate) in windows.p0().iter() {
+                    if !Self::window_interaction_allowed(
+                        entity,
+                        window,
+                        gate,
+                        &interaction_state,
+                    ) {
+                        continue;
+                    }
                     if !Self::is_cursor_over_window_surface(
                         cursor_position,
                         window,
@@ -912,7 +910,15 @@ impl Window {
 
             let mut candidate: Option<(Entity, ResizeCorner, f32, f32, f32)> = None;
             {
-                for (entity, window, global_transform, _) in windows.p0().iter() {
+                for (entity, window, global_transform, _, gate) in windows.p0().iter() {
+                    if !Self::window_interaction_allowed(
+                        entity,
+                        window,
+                        gate,
+                        &interaction_state,
+                    ) {
+                        continue;
+                    }
                     let z = global_transform.translation().z;
                     if let Some(blocking_z) = top_window_z {
                         if z + 0.001 < blocking_z {
@@ -992,11 +998,12 @@ impl Window {
         {
             let mut writable_windows = windows.p1();
             let Ok((
-                _,
+                entity,
                 mut window,
                 mut window_transform,
                 window_global,
                 parent,
+                gate,
                 metrics,
                 overflow_policy,
                 tab_row_runtime,
@@ -1008,6 +1015,14 @@ impl Window {
                 active_interaction.state = None;
                 return;
             };
+
+            if !Self::window_interaction_allowed(entity, &window, gate, &interaction_state) {
+                commands
+                    .entity(state.window_entity)
+                    .remove::<WindowResizeInProgress>();
+                active_interaction.state = None;
+                return;
+            }
 
             let min_inner =
                 Self::min_inner_constraints(&window, metrics, overflow_policy, tab_row_runtime);
@@ -1831,6 +1846,29 @@ impl Window {
         delta.x.abs() <= half_extents.x && delta.y.abs() <= half_extents.y
     }
 
+    fn interaction_owner(window_entity: Entity, window: &Window) -> Entity {
+        window.root_entity.unwrap_or(window_entity)
+    }
+
+    fn owner_base_layer_active(interaction_state: &UiInteractionState, owner: Entity) -> bool {
+        interaction_state
+            .active_layers_by_owner
+            .get(&owner)
+            .is_none_or(|active| active.kind == UiLayerKind::Base)
+    }
+
+    fn window_interaction_allowed(
+        window_entity: Entity,
+        window: &Window,
+        policy: Option<&UiInputPolicy>,
+        interaction_state: &UiInteractionState,
+    ) -> bool {
+        let owner = Self::interaction_owner(window_entity, window);
+        ui_input_policy_allows_mode(policy, interaction_state.input_mode_for_owner(owner))
+            && scoped_owner_has_focus(Some(owner), interaction_state.focused_owner)
+            && Self::owner_base_layer_active(interaction_state, owner)
+    }
+
     fn spawn_title_child(
         commands: &mut Commands,
         header_entity: Entity,
@@ -1889,7 +1927,7 @@ impl Window {
         owner_entity: Entity,
         inner_size: Vec2,
         color: Color,
-        gate: Option<InteractionGate>,
+        gate: Option<UiInputPolicy>,
     ) -> WindowScrollRuntime {
         let mut vertical_root = None;
         let mut vertical_content = None;
@@ -2171,9 +2209,14 @@ impl Window {
                 w.header_height,
                 w.has_close_button,
                 w.root_entity,
-                entity_mut.get::<InteractionGate>().copied(),
+                entity_mut.get::<UiInputPolicy>().copied(),
             )
         };
+        let resolved_gate = gate.or_else(|| {
+            root_entity
+                .filter(|root| *root != entity)
+                .and_then(|root| world.entity(root).get::<UiInputPolicy>().copied())
+        });
 
         if !world.entity(entity).contains::<WindowOverflowPolicy>() {
             world
@@ -2224,7 +2267,10 @@ impl Window {
                         0.0,
                     ),
                 ));
-                if let Some(gate) = gate {
+                if let Some(root_entity) = root_entity {
+                    close_button.insert(SelectableScopeOwner::new(root_entity));
+                }
+                if let Some(gate) = resolved_gate {
                     close_button.insert(gate);
                 }
                 close_button_entity = Some(close_button.id());
@@ -2246,7 +2292,7 @@ impl Window {
                 owner_entity,
                 boundary.dimensions,
                 boundary.color,
-                gate,
+                resolved_gate,
             );
             world.commands().entity(entity).insert(runtime);
         }
@@ -2307,15 +2353,18 @@ impl WindowCloseButton {
         let root = button.root_entity;
         let gate = world
             .entity(entity)
-            .get::<InteractionGate>()
+            .get::<UiInputPolicy>()
             .copied()
             .or_else(|| {
                 world.entity(entity).get::<ChildOf>().and_then(|parent| {
                     world
                         .entity(parent.parent())
-                        .get::<InteractionGate>()
+                        .get::<UiInputPolicy>()
                         .copied()
                 })
+            })
+            .or_else(|| {
+                root.and_then(|root| world.entity(root).get::<UiInputPolicy>().copied())
             });
         let click_sound = world
             .get_resource::<AssetServer>()
@@ -2361,6 +2410,9 @@ impl WindowCloseButton {
             ));
             if let Some(gate) = gate {
                 icon_commands.insert(gate);
+            }
+            if let Some(root) = root {
+                icon_commands.insert(SelectableScopeOwner::new(root));
             }
             let icon_entity = icon_commands.id();
 
@@ -2484,7 +2536,7 @@ mod tests {
         app.init_resource::<Assets<ColorMaterial>>();
 
         app.world_mut().spawn((
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
             UiWindow::new(
                 None,
                 HollowRectangle {
@@ -2500,10 +2552,10 @@ mod tests {
 
         let has_gated_close_clickable = {
             let world = app.world_mut();
-            let mut query = world.query::<(&Clickable<UiWindowActions>, &InteractionGate)>();
+            let mut query = world.query::<(&Clickable<UiWindowActions>, &UiInputPolicy)>();
             query.iter(world).any(|(clickable, gate)| {
                 clickable.actions.contains(&UiWindowActions::CloseWindow)
-                    && *gate == InteractionGate::PauseMenuOnly
+                    && *gate == UiInputPolicy::CapturedOnly
             })
         };
         assert!(has_gated_close_clickable);

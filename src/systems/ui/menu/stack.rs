@@ -42,7 +42,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: crate::systems::interaction::InteractionGate::PauseMenuOnly,
+                    gate: crate::systems::interaction::UiInputPolicy::CapturedOnly,
                 },
                 super::super::MenuStack::new(MenuPage::PauseRoot),
             ))

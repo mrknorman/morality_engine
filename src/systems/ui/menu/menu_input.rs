@@ -1,5 +1,10 @@
+// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// - replace capture/gate checks with unified interaction state
+// - keep base/dropdown/modal owner routing deterministic
+// - preserve current shortcut semantics while changing data source
 use super::modal_flow::spawn_exit_unsaved_modal;
 use super::*;
+use crate::systems::interaction::{ui_input_policy_allows_mode, UiInteractionState};
 
 #[derive(Default)]
 struct ActiveMenuShortcutContext {
@@ -11,23 +16,19 @@ struct ActiveMenuShortcutContext {
 fn menu_is_active_base_layer(
     menu_entity: Entity,
     menu_root: &MenuRoot,
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: &UiInteractionState,
     active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
 ) -> bool {
-    interaction_gate_allows_for_owner(
+    ui_input_policy_allows_mode(
         Some(&menu_root.gate),
-        pause_state,
-        capture_query,
-        menu_entity,
+        interaction_state.input_mode_for_owner(menu_entity),
     ) && layer::active_layer_kind_for_owner(active_layers, menu_entity) == UiLayerKind::Base
 }
 
 fn handle_escape_shortcut_for_active_menus(
     escape_pressed: bool,
     settings: &VideoSettingsState,
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: &UiInteractionState,
     active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
     menu_query: &Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     navigation_state: &mut MenuNavigationState,
@@ -38,7 +39,7 @@ fn handle_escape_shortcut_for_active_menus(
         return;
     }
 
-    let mut selected_menu: Option<(Entity, MenuPage, InteractionGate)> = None;
+    let mut selected_menu: Option<(Entity, MenuPage, UiInputPolicy)> = None;
     for menu_entity in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Base) {
         let Ok((_, menu_stack, menu_root, _)) = menu_query.get(menu_entity) else {
             continue;
@@ -46,8 +47,7 @@ fn handle_escape_shortcut_for_active_menus(
         if !menu_is_active_base_layer(
             menu_entity,
             menu_root,
-            pause_state,
-            capture_query,
+            interaction_state,
             active_layers,
         ) {
             continue;
@@ -75,8 +75,7 @@ fn handle_escape_shortcut_for_active_menus(
 }
 
 fn collect_active_menu_shortcut_context(
-    pause_state: Option<&Res<State<PauseState>>>,
-    capture_query: &Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: &UiInteractionState,
     active_layers: &HashMap<Entity, layer::ActiveUiLayer>,
     menu_query: &Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     tabbed_focus: &tabbed_menu::TabbedMenuFocusState,
@@ -89,8 +88,7 @@ fn collect_active_menu_shortcut_context(
         if !menu_is_active_base_layer(
             menu_entity,
             menu_root,
-            pause_state,
-            capture_query,
+            interaction_state,
             active_layers,
         ) {
             continue;
@@ -274,15 +272,8 @@ pub(super) fn apply_menu_intents(
 pub(super) fn play_menu_navigation_sound(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: Res<UiInteractionState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
     layer_menu_query: Query<(
         Entity,
         &MenuStack,
@@ -292,13 +283,12 @@ pub(super) fn play_menu_navigation_sound(
     mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
     dilation: Res<Dilation>,
 ) {
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
     let left_pressed = keyboard_input.just_pressed(KeyCode::ArrowLeft);
     let right_pressed = keyboard_input.just_pressed(KeyCode::ArrowRight);
     let tab_pressed = keyboard_input.just_pressed(KeyCode::Tab);
     let horizontal_pressed = left_pressed ^ right_pressed;
-    for (_, active_layer) in layer::ordered_active_layers_by_owner(&active_layers) {
+    for (_, active_layer) in layer::ordered_active_layers_by_owner(active_layers) {
         let Ok((layer_entity, menu_stack, menu, pallet)) =
             layer_menu_query.get(active_layer.entity)
         else {
@@ -331,14 +321,7 @@ pub(super) fn play_menu_navigation_sound(
 }
 
 pub(super) fn enforce_active_layer_focus(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
     layer_meta_query: Query<&UiLayer>,
     mut layer_menu_query: Query<(Entity, &UiLayer, &mut SelectableMenu)>,
     mut option_query: Query<
@@ -355,14 +338,13 @@ pub(super) fn enforce_active_layer_focus(
     // - Layer-level `SelectableMenu` mutations are isolated from option-level
     //   visual/clickable mutations (`MenuOptionCommand` entities).
     // - `layer_meta_query` is read-only metadata lookup.
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     let mut live_layers = HashSet::new();
     for (layer_entity, ui_layer, mut selectable_menu) in layer_menu_query.iter_mut() {
         live_layers.insert(layer_entity);
         let is_active =
-            layer::is_active_layer_entity_for_owner(&active_layers, ui_layer.owner, layer_entity);
+            layer::is_active_layer_entity_for_owner(active_layers, ui_layer.owner, layer_entity);
 
         if is_active {
             cached_indices
@@ -388,7 +370,7 @@ pub(super) fn enforce_active_layer_focus(
             continue;
         };
         let is_active = layer::is_active_layer_entity_for_owner(
-            &active_layers,
+            active_layers,
             ui_layer.owner,
             selectable.menu_entity,
         );
@@ -408,17 +390,10 @@ pub(super) fn handle_menu_shortcuts(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: Res<UiInteractionState>,
     settings: Res<VideoSettingsState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     mut navigation_state: ResMut<MenuNavigationState>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
     menu_query: Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
     option_shortcut_query: Query<(&Selectable, &ShortcutKey, &MenuOptionCommand)>,
     option_command_query: Query<(
@@ -435,16 +410,13 @@ pub(super) fn handle_menu_shortcuts(
     let activate_right = right_pressed && !left_pressed;
     let activate_left = left_pressed && !right_pressed;
 
-    let pause_state = pause_state.as_ref();
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     handle_escape_shortcut_for_active_menus(
         escape_pressed,
         &settings,
-        pause_state,
-        &capture_query,
-        &active_layers,
+        &interaction_state,
+        active_layers,
         &menu_query,
         &mut navigation_state,
         &mut commands,
@@ -452,9 +424,8 @@ pub(super) fn handle_menu_shortcuts(
     );
 
     let context = collect_active_menu_shortcut_context(
-        pause_state,
-        &capture_query,
-        &active_layers,
+        &interaction_state,
+        active_layers,
         &menu_query,
         &tabbed_focus,
     );
@@ -482,14 +453,7 @@ pub(super) fn handle_menu_shortcuts(
 }
 
 pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
     tabbed_focus: Res<tabbed_menu::TabbedMenuFocusState>,
     mut option_query: Query<
         (
@@ -500,12 +464,11 @@ pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
         With<MenuOptionCommand>,
     >,
 ) {
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query);
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     for (selectable, row, mut visual_state) in option_query.iter_mut() {
         let active_kind =
-            layer::active_layer_kind_for_owner(&active_layers, selectable.menu_entity);
+            layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
         let suppress_for_layer = active_kind != UiLayerKind::Base;
         let suppress_for_tabs = tabbed_focus.is_tabs_focused(selectable.menu_entity)
             && row.is_some_and(|row| row.index < VIDEO_TOP_OPTION_COUNT);
@@ -764,7 +727,7 @@ mod tests {
                 MenuStack::new(MenuPage::Video),
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 SelectableMenu::new(
                     VIDEO_FOOTER_OPTION_START_INDEX,
@@ -780,7 +743,7 @@ mod tests {
                 MenuStack::new(MenuPage::PauseRoot),
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 SelectableMenu::new(0, vec![], vec![], vec![], true),
             ))
@@ -802,15 +765,16 @@ mod tests {
             },
         );
 
-        let mut query_state: SystemState<(
-            Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-            Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>,
-        )> = SystemState::new(&mut world);
-        let (capture_query, menu_query) = query_state.get(&world);
+        let mut query_state: SystemState<Query<(Entity, &MenuStack, &MenuRoot, &SelectableMenu)>> =
+            SystemState::new(&mut world);
+        let menu_query = query_state.get(&world);
+        let interaction_state = UiInteractionState {
+            active_layers_by_owner: active_layers.clone(),
+            ..default()
+        };
 
         let context = collect_active_menu_shortcut_context(
-            None,
-            &capture_query,
+            &interaction_state,
             &active_layers,
             &menu_query,
             &tabbed_menu::TabbedMenuFocusState::default(),

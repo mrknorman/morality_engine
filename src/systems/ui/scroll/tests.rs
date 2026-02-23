@@ -11,7 +11,9 @@ use std::any::Any;
 
 use crate::{
     startup::cursor::CustomCursor,
-    systems::interaction::{Clickable, InteractionGate, ScrollUiActions, SelectableScopeOwner},
+    systems::interaction::{
+        Clickable, ScrollUiActions, SelectableScopeOwner, UiInputPolicy, UiInteractionState,
+    },
     systems::ui::layer::{UiLayer, UiLayerKind},
 };
 
@@ -19,9 +21,9 @@ use super::{
     scrollbar_math::{offset_from_thumb_center, thumb_center_for_offset, thumb_extent_for_state},
     ScrollAxis, ScrollBar, ScrollBarDragState, ScrollBarParts, ScrollBarThumb, ScrollBarTrack,
     ScrollFocusFollowLock, ScrollPlugin, ScrollRenderSettings, ScrollState, ScrollZoomConfig,
-    ScrollZoomState,
-    ScrollableContent, ScrollableContentCamera, ScrollableContentExtent, ScrollableListAdapter,
-    ScrollableRenderTarget, ScrollableRoot, ScrollableSurface, ScrollableViewport,
+    ScrollZoomState, ScrollableContent, ScrollableContentCamera, ScrollableContentExtent,
+    ScrollableListAdapter, ScrollableRenderTarget, ScrollableRoot, ScrollableSurface,
+    ScrollableViewport,
 };
 
 fn make_scroll_test_app() -> App {
@@ -35,6 +37,7 @@ fn make_scroll_test_app() -> App {
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<ColorMaterial>>();
+    app.init_resource::<UiInteractionState>();
     app.add_plugins(ScrollPlugin);
     app
 }
@@ -49,6 +52,7 @@ fn make_gpu_scroll_smoke_app() -> App {
             .disable::<bevy::window::WindowPlugin>(),
     );
     app.init_resource::<CustomCursor>();
+    app.init_resource::<UiInteractionState>();
     app.add_plugins(ScrollPlugin);
     app
 }
@@ -138,7 +142,7 @@ fn scrollbar_insert_hook_seeds_parts_and_parents_to_scroll_root() {
         .world_mut()
         .spawn((
             ScrollableRoot::new(owner, ScrollAxis::Vertical),
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
     let scrollbar = app.world_mut().spawn(ScrollBar::new(root)).id();
@@ -159,12 +163,12 @@ fn scrollbar_insert_hook_seeds_parts_and_parents_to_scroll_root() {
     assert!(app.world().entity(parts.track).contains::<ScrollBarTrack>());
     assert!(app.world().entity(parts.thumb).contains::<ScrollBarThumb>());
     assert_eq!(
-        app.world().entity(parts.track).get::<InteractionGate>(),
-        Some(&InteractionGate::PauseMenuOnly),
+        app.world().entity(parts.track).get::<UiInputPolicy>(),
+        Some(&UiInputPolicy::CapturedOnly),
     );
     assert_eq!(
-        app.world().entity(parts.thumb).get::<InteractionGate>(),
-        Some(&InteractionGate::PauseMenuOnly),
+        app.world().entity(parts.thumb).get::<UiInputPolicy>(),
+        Some(&UiInputPolicy::CapturedOnly),
     );
 }
 
@@ -176,7 +180,7 @@ fn ensure_scrollbar_parts_rebuilds_when_part_entities_are_stale() {
         .world_mut()
         .spawn((
             ScrollableRoot::new(owner, ScrollAxis::Vertical),
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
         ))
         .id();
     let scrollbar = app.world_mut().spawn(ScrollBar::new(root)).id();
@@ -616,12 +620,10 @@ fn ctrl_plus_zooms_focused_vertical_root() {
     let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
     app.world_mut()
         .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
-    app.world_mut()
-        .entity_mut(root)
-        .insert(ScrollZoomConfig {
-            enabled: true,
-            ..default()
-        });
+    app.world_mut().entity_mut(root).insert(ScrollZoomConfig {
+        enabled: true,
+        ..default()
+    });
     app.world_mut().resource_mut::<CustomCursor>().position = None;
 
     let before = app
@@ -676,12 +678,10 @@ fn pinch_zoom_uses_hovered_root() {
     let (owner, root) = spawn_owner_and_scroll_root(&mut app, 300.0, 100.0);
     app.world_mut()
         .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
-    app.world_mut()
-        .entity_mut(root)
-        .insert(ScrollZoomConfig {
-            enabled: true,
-            ..default()
-        });
+    app.world_mut().entity_mut(root).insert(ScrollZoomConfig {
+        enabled: true,
+        ..default()
+    });
     app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
 
     let before = app
@@ -734,10 +734,14 @@ fn focused_owner_blocks_wheel_input_for_unfocused_scroll_root() {
     let (owner_a, root_a) = spawn_owner_and_scroll_root(&mut app, 360.0, 100.0);
     let (owner_b, root_b) = spawn_owner_and_scroll_root(&mut app, 360.0, 100.0);
 
-    app.world_mut()
-        .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible));
-    app.world_mut()
-        .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut().spawn((
+        UiLayer::new(owner_a, UiLayerKind::Base),
+        Visibility::Visible,
+    ));
+    app.world_mut().spawn((
+        UiLayer::new(owner_b, UiLayerKind::Base),
+        Visibility::Visible,
+    ));
 
     // Keep owner B focused by z while cursor hovers owner A's viewport.
     set_root_global_translation(&mut app, root_a, Vec3::new(0.0, 0.0, 10.0));
@@ -747,8 +751,14 @@ fn focused_owner_blocks_wheel_input_for_unfocused_scroll_root() {
     write_wheel(&mut app, -1.0);
     app.update();
 
-    let state_a = app.world().get::<ScrollState>(root_a).expect("scroll state a");
-    let state_b = app.world().get::<ScrollState>(root_b).expect("scroll state b");
+    let state_a = app
+        .world()
+        .get::<ScrollState>(root_a)
+        .expect("scroll state a");
+    let state_b = app
+        .world()
+        .get::<ScrollState>(root_b)
+        .expect("scroll state b");
     assert_eq!(state_a.offset_px, 0.0);
     assert_eq!(state_b.offset_px, 0.0);
 }
@@ -759,10 +769,14 @@ fn focused_owner_blocks_scrollbar_track_click_for_unfocused_root() {
     let (owner_a, root_a) = spawn_owner_and_scroll_root(&mut app, 520.0, 140.0);
     let (owner_b, root_b) = spawn_owner_and_scroll_root(&mut app, 520.0, 140.0);
 
-    app.world_mut()
-        .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible));
-    app.world_mut()
-        .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut().spawn((
+        UiLayer::new(owner_a, UiLayerKind::Base),
+        Visibility::Visible,
+    ));
+    app.world_mut().spawn((
+        UiLayer::new(owner_b, UiLayerKind::Base),
+        Visibility::Visible,
+    ));
 
     set_root_global_translation(&mut app, root_a, Vec3::new(0.0, 0.0, 10.0));
     set_root_global_translation(&mut app, root_b, Vec3::new(500.0, 0.0, 20.0));
@@ -802,8 +816,10 @@ fn focused_owner_blocks_scrollbar_track_click_for_unfocused_root() {
 fn focused_scope_registry_blocks_scroll_input_without_scroll_peer() {
     let mut app = make_scroll_test_app();
     let (owner_a, root_a) = spawn_owner_and_scroll_root(&mut app, 360.0, 100.0);
-    app.world_mut()
-        .spawn((UiLayer::new(owner_a, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut().spawn((
+        UiLayer::new(owner_a, UiLayerKind::Base),
+        Visibility::Visible,
+    ));
 
     // Register a higher-z focused scope owner that has no scroll root.
     let owner_b = app
@@ -818,15 +834,20 @@ fn focused_scope_registry_blocks_scroll_input_without_scroll_peer() {
     app.world_mut()
         .entity_mut(owner_b)
         .insert(SelectableScopeOwner::new(owner_b));
-    app.world_mut()
-        .spawn((UiLayer::new(owner_b, UiLayerKind::Base), Visibility::Visible));
+    app.world_mut().spawn((
+        UiLayer::new(owner_b, UiLayerKind::Base),
+        Visibility::Visible,
+    ));
 
     set_root_global_translation(&mut app, root_a, Vec3::new(0.0, 0.0, 10.0));
     app.world_mut().resource_mut::<CustomCursor>().position = Some(Vec2::ZERO);
     write_wheel(&mut app, -1.0);
     app.update();
 
-    let state_a = app.world().get::<ScrollState>(root_a).expect("scroll state a");
+    let state_a = app
+        .world()
+        .get::<ScrollState>(root_a)
+        .expect("scroll state a");
     assert_eq!(state_a.offset_px, 0.0);
 }
 

@@ -1,5 +1,10 @@
 use std::collections::HashMap;
 
+// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// - remove local capture/focus arbitration
+// - consume unified interaction state for owner, layer, and focus routing
+// - preserve deterministic target ranking for nested scroll roots
+
 use bevy::{
     input::gestures::PinchGesture,
     input::mouse::{MouseScrollUnit, MouseWheel},
@@ -7,15 +12,13 @@ use bevy::{
 };
 
 use crate::{
-    data::states::PauseState,
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            focused_scope_owner_from_registry, interaction_gate_allows_for_owner,
-            is_cursor_within_region, resolve_focused_scope_owner, scoped_owner_has_focus,
-            InteractionCapture, InteractionCaptureOwner, InteractionGate, SelectableScopeOwner,
+            is_cursor_within_region, scoped_owner_has_focus, ui_input_policy_allows_mode,
+            UiInputPolicy, UiInteractionState,
         },
-        ui::layer::{self, UiLayer, UiLayerKind},
+        ui::layer::UiLayerKind,
     },
 };
 
@@ -78,16 +81,7 @@ pub(super) fn sync_scroll_extents(
 }
 
 pub(super) fn handle_scrollable_pointer_and_keyboard_input(
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    ui_layer_query: Query<(
-        Entity,
-        &UiLayer,
-        Option<&Visibility>,
-        Option<&InteractionGate>,
-    )>,
-    scope_owner_query: Query<(Option<&InteractionGate>, &SelectableScopeOwner)>,
-    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
+    interaction_state: Res<UiInteractionState>,
     cursor: Res<CustomCursor>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut wheel_events: MessageReader<MouseWheel>,
@@ -105,20 +99,17 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             &mut ScrollFocusFollowLock,
             &mut ScrollZoomState,
             &ScrollZoomConfig,
-            Option<&InteractionGate>,
+            Option<&UiInputPolicy>,
             Option<&InheritedVisibility>,
         ),
         With<ScrollableRoot>,
     >,
 ) {
     // Query contract:
-    // - active-layer arbitration queries are read-only
-    //   (`capture_query`, `ui_layer_query`).
     // - scroll state/focus lock mutations are isolated to `root_query`.
-    // This keeps pointer+keyboard reduction deterministic and query-safe.
-    let pause_state = pause_state.as_ref();
-    let active_layers =
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query);
+    // - input mode, active-layer routing, and focused owner are consumed from
+    //   `UiInteractionState` without local recomputation.
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     let mut wheel_vertical = 0.0;
     let mut wheel_horizontal = 0.0;
@@ -164,7 +155,10 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
     let pinch_zoom_requested = pinch_delta.abs() > SCROLL_EPSILON;
     let cursor_position = cursor.position;
 
-    fn scroll_root_depth(entity: Entity, root_parent_query: &Query<&ChildOf, With<ScrollableRoot>>) -> u32 {
+    fn scroll_root_depth(
+        entity: Entity,
+        root_parent_query: &Query<&ChildOf, With<ScrollableRoot>>,
+    ) -> u32 {
         let mut depth = 0u32;
         let mut cursor = entity;
         while let Ok(parent) = root_parent_query.get(cursor) {
@@ -202,12 +196,16 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
     }
 
-    fn replace_keyboard_candidate(current: Option<Candidate>, next: Candidate) -> Option<Candidate> {
+    fn replace_keyboard_candidate(
+        current: Option<Candidate>,
+        next: Candidate,
+    ) -> Option<Candidate> {
         match current {
             None => Some(next),
             Some(current) => {
                 let replace = (next.depth < current.depth)
-                    || (next.depth == current.depth && next.viewport_extent > current.viewport_extent)
+                    || (next.depth == current.depth
+                        && next.viewport_extent > current.viewport_extent)
                     || (next.depth == current.depth
                         && (next.viewport_extent - current.viewport_extent).abs() <= f32::EPSILON
                         && (next.z > current.z
@@ -238,15 +236,16 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
     }
 
-    let mut scoped_owner_candidates: Vec<(Entity, f32)> = Vec::new();
     let mut hovered_vertical: Option<Candidate> = None;
     let mut edge_vertical: Option<EdgeCandidate> = None;
     let mut keyboard_vertical: Option<Candidate> = None;
     let mut hovered_horizontal: Option<Candidate> = None;
     let mut edge_horizontal: Option<EdgeCandidate> = None;
     let mut keyboard_horizontal: Option<Candidate> = None;
-    let roots_with_scrollbars: std::collections::HashSet<Entity> =
-        scrollbar_query.iter().map(|scrollbar| scrollbar.scrollable_root).collect();
+    let roots_with_scrollbars: std::collections::HashSet<Entity> = scrollbar_query
+        .iter()
+        .map(|scrollbar| scrollbar.scrollable_root)
+        .collect();
     for (
         entity,
         root,
@@ -259,13 +258,12 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         _,
         gate,
         inherited_visibility,
-    ) in
-        root_query.iter_mut()
+    ) in root_query.iter_mut()
     {
         if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
             continue;
         }
-        if !interaction_gate_allows_for_owner(gate, pause_state, &capture_query, root.owner) {
+        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(root.owner)) {
             continue;
         }
         let active_layer_kind = active_layers
@@ -277,7 +275,6 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
 
         let z = global_transform.translation().z;
-        scoped_owner_candidates.push((root.owner, z));
 
         let keyboard_candidate = Candidate {
             entity,
@@ -289,7 +286,8 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         };
         match root.axis {
             ScrollAxis::Vertical => {
-                keyboard_vertical = replace_keyboard_candidate(keyboard_vertical, keyboard_candidate)
+                keyboard_vertical =
+                    replace_keyboard_candidate(keyboard_vertical, keyboard_candidate)
             }
             ScrollAxis::Horizontal => {
                 keyboard_horizontal =
@@ -331,7 +329,9 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
                     edge_delta,
                 };
                 match root.axis {
-                    ScrollAxis::Vertical => edge_vertical = replace_edge_candidate(edge_vertical, candidate),
+                    ScrollAxis::Vertical => {
+                        edge_vertical = replace_edge_candidate(edge_vertical, candidate)
+                    }
                     ScrollAxis::Horizontal => {
                         edge_horizontal = replace_edge_candidate(edge_horizontal, candidate)
                     }
@@ -349,16 +349,16 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
             viewport_extent: axis_extent(viewport.size, root.axis),
         };
         match root.axis {
-            ScrollAxis::Vertical => hovered_vertical = replace_candidate(hovered_vertical, candidate),
+            ScrollAxis::Vertical => {
+                hovered_vertical = replace_candidate(hovered_vertical, candidate)
+            }
             ScrollAxis::Horizontal => {
                 hovered_horizontal = replace_candidate(hovered_horizontal, candidate)
             }
         };
     }
 
-    let focused_scoped_owner =
-        focused_scope_owner_from_registry(pause_state, &capture_query, &scope_owner_query, &owner_transform_query)
-            .or_else(|| resolve_focused_scope_owner(scoped_owner_candidates));
+    let focused_scoped_owner = interaction_state.focused_owner;
 
     let mut vertical_target: Option<(Entity, f32, bool)> = None;
     if let Some(candidate) = hovered_vertical {
@@ -367,7 +367,11 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
     } else if let Some(edge_candidate) = edge_vertical {
         if scoped_owner_has_focus(Some(edge_candidate.candidate.owner), focused_scoped_owner) {
-            vertical_target = Some((edge_candidate.candidate.entity, edge_candidate.edge_delta, true));
+            vertical_target = Some((
+                edge_candidate.candidate.entity,
+                edge_candidate.edge_delta,
+                true,
+            ));
         }
     } else if keyboard_navigation_requested && vertical_navigation_requested {
         if let Some(candidate) = keyboard_vertical {
@@ -384,7 +388,11 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
         }
     } else if let Some(edge_candidate) = edge_horizontal {
         if scoped_owner_has_focus(Some(edge_candidate.candidate.owner), focused_scoped_owner) {
-            horizontal_target = Some((edge_candidate.candidate.entity, edge_candidate.edge_delta, true));
+            horizontal_target = Some((
+                edge_candidate.candidate.entity,
+                edge_candidate.edge_delta,
+                true,
+            ));
         }
     } else if keyboard_navigation_requested && horizontal_navigation_requested {
         if let Some(candidate) = keyboard_horizontal {
@@ -494,8 +502,7 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
                         next_scale -= zoom_config.keyboard_step;
                     }
                     if pinch_zoom_requested {
-                        next_scale *=
-                            (1.0 + pinch_delta * zoom_config.pinch_sensitivity).max(0.1);
+                        next_scale *= (1.0 + pinch_delta * zoom_config.pinch_sensitivity).max(0.1);
                     }
 
                     let min_scale = zoom_config.min_scale.min(zoom_config.max_scale);
@@ -532,7 +539,10 @@ pub(super) fn handle_scrollable_pointer_and_keyboard_input(
 
 pub(super) fn sync_scroll_content_offsets(
     mut commands: Commands,
-    root_query: Query<(Entity, &ScrollableRoot, &ScrollState, &ScrollZoomState), With<ScrollableRoot>>,
+    root_query: Query<
+        (Entity, &ScrollableRoot, &ScrollState, &ScrollZoomState),
+        With<ScrollableRoot>,
+    >,
     mut content_query: Query<
         (
             Entity,

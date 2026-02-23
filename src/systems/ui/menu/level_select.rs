@@ -12,7 +12,7 @@ use crate::{
     },
     startup::system_menu,
     systems::{
-        interaction::{Draggable, InteractionCapture, InteractionCaptureOwner, InteractionGate},
+        interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
         ui::window::{
             UiWindow, UiWindowContent, UiWindowContentMetrics, UiWindowOverflowPolicy,
             UiWindowTitle,
@@ -160,10 +160,10 @@ pub(super) fn spawn_level_select_overlay(
         LevelSelectOverlay,
         MenuRoot {
             host: MenuHost::Main,
-            gate: InteractionGate::PauseMenuOnly,
+            gate: UiInputPolicy::CapturedOnly,
         },
         MenuStack::new(MenuPage::PauseRoot),
-        InteractionGate::PauseMenuOnly,
+        UiInputPolicy::CapturedOnly,
         MenuSurface::new(overlay_entity)
             .with_layer(UiLayerKind::Base)
             .with_click_activation(SelectableClickActivation::HoveredOnly),
@@ -173,8 +173,8 @@ pub(super) fn spawn_level_select_overlay(
     commands.entity(overlay_entity).with_children(|parent| {
         parent.spawn((
             Name::new("main_menu_level_select_dimmer"),
-            InteractionCapture,
-            InteractionCaptureOwner::new(overlay_entity),
+            UiInputCaptureToken,
+            UiInputCaptureOwner::new(overlay_entity),
             Sprite::from_color(
                 Color::srgba(0.0, 0.0, 0.0, LEVEL_SELECT_OVERLAY_DIM_ALPHA),
                 Vec2::splat(LEVEL_SELECT_OVERLAY_DIM_SIZE),
@@ -204,7 +204,7 @@ pub(super) fn spawn_level_select_overlay(
             ),
             UiWindowContentMetrics::from_min_inner(LEVEL_SELECT_WINDOW_SIZE),
             UiWindowOverflowPolicy::AllowOverflow,
-            InteractionGate::PauseMenuOnly,
+            UiInputPolicy::CapturedOnly,
             Transform::from_xyz(0.0, 0.0, LEVEL_SELECT_WINDOW_Z),
         ))
         .id();
@@ -253,7 +253,7 @@ pub(super) fn spawn_level_select_overlay(
                 Clickable::with_region(vec![SystemMenuActions::Activate], LEVEL_SELECT_ROW_REGION),
                 MenuOptionCommand(MenuCommand::StartSingleLevel(entry.scene)),
                 system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
-                InteractionGate::PauseMenuOnly,
+                UiInputPolicy::CapturedOnly,
                 Anchor::CENTER_LEFT,
                 TextLayout {
                     justify: Justify::Left,

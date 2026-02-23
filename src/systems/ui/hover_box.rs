@@ -2,6 +2,10 @@
 //!
 //! Hover boxes are owner-scoped, layer-scoped overlays that appear after a
 //! configurable hover delay and clamp to an owner-local region.
+//!
+//! Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+//! - switch hover-box input gating to unified interaction state
+//! - remove direct dependency on legacy gate/capture helpers
 use std::collections::HashMap;
 
 use bevy::{
@@ -12,15 +16,13 @@ use bevy::{
 };
 
 use crate::{
-    data::states::PauseState,
     entities::sprites::compound::HollowRectangle,
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            interaction_gate_allows_for_owner, Hoverable, InteractionCapture,
-            InteractionCaptureOwner, InteractionGate,
+            ui_input_policy_allows_mode, Hoverable, UiInputPolicy, UiInteractionState,
         },
-        ui::layer::{self, UiLayer, UiLayerKind},
+        ui::layer::{UiLayer, UiLayerKind},
     },
 };
 
@@ -336,16 +338,9 @@ fn is_preferred_candidate(candidate: &HoverBoxCandidate, current: &HoverBoxCandi
 fn sync_hover_boxes(
     time: Res<Time<Real>>,
     cursor: Res<CustomCursor>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: Res<UiInteractionState>,
     owner_global_query: Query<&GlobalTransform>,
     mut root_queries: ParamSet<(
-        Query<(
-            Entity,
-            &UiLayer,
-            Option<&Visibility>,
-            Option<&InteractionGate>,
-        )>,
         Query<(Entity, &HoverBoxRoot, &HoverBoxStyle, &HoverBoxDelay)>,
         Query<
             (
@@ -368,7 +363,7 @@ fn sync_hover_boxes(
         &Hoverable,
         &GlobalTransform,
         Option<&InheritedVisibility>,
-        Option<&InteractionGate>,
+        Option<&UiInputPolicy>,
     )>,
     mut label_query: Query<
         (
@@ -384,18 +379,14 @@ fn sync_hover_boxes(
     mut border_query: Query<(&ChildOf, &mut HollowRectangle), With<HoverBoxBorder>>,
 ) {
     // Query-safety contract:
-    // - root layer reads (`p0`) are disjoint from root mutation (`p2`) via ParamSet
+    // - root metadata reads (`p0`) are disjoint from root mutation (`p1`) via ParamSet
     // - labels/borders are child marker queries and only mutate their own components
     // - target query is read-only hover/content input
-    let active_layers = layer::active_layers_by_owner_scoped(
-        pause_state.as_ref(),
-        &capture_query,
-        &root_queries.p0(),
-    );
+    let active_layers = &interaction_state.active_layers_by_owner;
 
     let mut root_meta = HashMap::new();
     {
-        let root_query = root_queries.p1();
+        let root_query = root_queries.p0();
         for (entity, root, style, delay) in root_query.iter() {
             root_meta.insert(entity, (*root, *style, *delay));
         }
@@ -422,15 +413,18 @@ fn sync_hover_boxes(
             let Some((root, _, _)) = root_meta.get(&target.root).copied() else {
                 continue;
             };
-            if !interaction_gate_allows_for_owner(
+            if !ui_input_policy_allows_mode(
                 gate,
-                pause_state.as_ref(),
-                &capture_query,
-                root.owner,
+                interaction_state.input_mode_for_owner(root.owner),
             ) {
                 continue;
             }
-            if layer::active_layer_kind_for_owner(&active_layers, root.owner) != root.input_layer {
+            if active_layers
+                .get(&root.owner)
+                .map(|active_layer| active_layer.kind)
+                .unwrap_or(UiLayerKind::Base)
+                != root.input_layer
+            {
                 continue;
             }
             if let Some(region) = target.hover_region {
@@ -475,9 +469,14 @@ fn sync_hover_boxes(
         mut root_transform,
         mut sprite,
         mut visibility,
-    ) in root_queries.p2().iter_mut()
+    ) in root_queries.p1().iter_mut()
     {
-        if layer::active_layer_kind_for_owner(&active_layers, root.owner) != root.input_layer {
+        if active_layers
+            .get(&root.owner)
+            .map(|active_layer| active_layer.kind)
+            .unwrap_or(UiLayerKind::Base)
+            != root.input_layer
+        {
             reset_hover_box_state(&mut state);
             hide_hover_box(&mut visibility);
             continue;
@@ -578,7 +577,8 @@ pub struct HoverBoxPlugin;
 
 impl Plugin for HoverBoxPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, sync_hover_boxes);
+        app.init_resource::<UiInteractionState>()
+            .add_systems(PostUpdate, sync_hover_boxes);
     }
 }
 

@@ -24,18 +24,18 @@ use bevy::{
 };
 
 use crate::{
-    data::stats::GameStats,
     data::states::{DilemmaPhase, GameState, MainState, PauseState},
+    data::stats::GameStats,
     scenes::{Scene, SceneQueue},
     startup::render::{CrtSettings, MainCamera, OffscreenCamera},
     startup::system_menu,
     systems::{
         audio::{continuous_audio, DilatableAudio, TransientAudio, TransientAudioPallet},
         interaction::{
-            interaction_gate_allows_for_owner, option_cycler_input_system, Clickable, Hoverable,
-            InteractionCapture, InteractionCaptureOwner, InteractionGate, InteractionSystem,
-            InteractionVisualState, OptionCycler, Selectable, SelectableClickActivation,
-            SelectableMenu, SystemMenuActions, SystemMenuSounds,
+            option_cycler_input_system, ui_input_policy_allows_mode, Clickable, Hoverable,
+            InteractionSystem, InteractionVisualState, OptionCycler, Selectable,
+            SelectableClickActivation, SelectableMenu, SystemMenuActions, SystemMenuSounds,
+            UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy, UiInteractionState,
         },
         time::Dilation,
         ui::{
@@ -211,7 +211,7 @@ struct MenuCommandContext<'w, 's> {
                     Entity,
                     &'static UiLayer,
                     Option<&'static Visibility>,
-                    Option<&'static InteractionGate>,
+                    Option<&'static UiInputPolicy>,
                 ),
             >,
             VideoDropdownVisibilityQuery<'w, 's>,
@@ -833,6 +833,7 @@ impl Plugin for MenusPlugin {
         app.init_resource::<VideoSettingsState>()
             .init_resource::<DropdownLayerState>()
             .init_resource::<DropdownAnchorState>()
+            .init_resource::<UiInteractionState>()
             .init_resource::<MenuNavigationState>()
             .init_resource::<OptionCommandSuppressions>()
             .init_resource::<tabbed_menu::TabbedMenuFocusState>()

@@ -102,21 +102,12 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     mut commands: Commands,
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<crate::startup::cursor::CustomCursor>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: Res<UiInteractionState>,
     mut settings: ResMut<VideoSettingsState>,
     dropdown_anchor_state: Res<DropdownAnchorState>,
     menu_query: Query<(Entity, &MenuStack, &SelectableMenu), With<MenuRoot>>,
     tab_query: Query<(&tabs::TabBar, &tabs::TabBarState), With<tabbed_menu::TabbedMenuConfig>>,
-    mut layer_queries: ParamSet<(
-        Query<(
-            Entity,
-            &UiLayer,
-            Option<&Visibility>,
-            Option<&InteractionGate>,
-        )>,
-        Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
-    )>,
+    mut dropdown_query: VideoDropdownVisibilityQuery,
     mut dropdown_state: ResMut<DropdownLayerState>,
     mut item_query: Query<(
         Entity,
@@ -132,29 +123,20 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     dilation: Res<Dilation>,
 ) {
     // Query contract:
-    // - `layer_queries` separates active-layer reads (p0) from dropdown-visibility
-    //   mutations (p1), preventing visibility access overlap.
     // - dropdown-item click consumption happens through `item_query`, while menu
     //   stack reads remain read-only in `menu_query`.
+    // - dropdown visibility mutates through `dropdown_query`.
     if !settings.initialized {
         return;
     }
 
-    // Resolve active layers before mutating dropdown visibility.
-    let active_layers = {
-        let ui_layer_query = layer_queries.p0();
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query)
-    };
+    let active_layers = &interaction_state.active_layers_by_owner;
     let active_tabs = active_video_tabs_by_menu(&tab_query);
 
     let mut dropdown_owner_parent_by_entity: HashMap<Entity, (Entity, Entity)> = HashMap::new();
-    {
-        let mut dropdown_query = layer_queries.p1();
-        for (dropdown_entity, parent, ui_layer, visibility) in dropdown_query.iter_mut() {
-            if *visibility == Visibility::Visible {
-                dropdown_owner_parent_by_entity
-                    .insert(dropdown_entity, (ui_layer.owner, parent.parent()));
-            }
+    for (dropdown_entity, parent, ui_layer, visibility) in dropdown_query.iter_mut() {
+        if *visibility == Visibility::Visible {
+            dropdown_owner_parent_by_entity.insert(dropdown_entity, (ui_layer.owner, parent.parent()));
         }
     }
 
@@ -203,10 +185,10 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         else {
             continue;
         };
-        if layer::active_layer_kind_for_owner(&active_layers, owner) != UiLayerKind::Dropdown {
+        if layer::active_layer_kind_for_owner(active_layers, owner) != UiLayerKind::Dropdown {
             continue;
         }
-        if !layer::is_active_layer_entity_for_owner(&active_layers, owner, dropdown_entity) {
+        if !layer::is_active_layer_entity_for_owner(active_layers, owner, dropdown_entity) {
             continue;
         }
 
@@ -231,7 +213,7 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     }
 
     let mut close_targets: Vec<(Entity, Entity)> = Vec::new();
-    for owner in layer::ordered_active_owners_by_kind(&active_layers, UiLayerKind::Dropdown) {
+    for owner in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Dropdown) {
         let Some((selected_index, _, item_entity, menu_entity)) =
             chosen_by_owner.get(&owner).copied()
         else {
@@ -276,7 +258,6 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         close_targets.push((owner, menu_entity));
     }
 
-    let mut dropdown_query = layer_queries.p1();
     for (owner, menu_entity) in close_targets {
         dropdown_state.mark_suppress_toggle_for_owner(owner);
         close_dropdowns_for_menu(menu_entity, &mut dropdown_state, &mut dropdown_query);
@@ -286,18 +267,9 @@ pub(super) fn handle_resolution_dropdown_item_commands(
 pub(super) fn close_resolution_dropdown_on_outside_click(
     mouse_input: Res<ButtonInput<MouseButton>>,
     cursor: Res<crate::startup::cursor::CustomCursor>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
+    interaction_state: Res<UiInteractionState>,
     settings: Res<VideoSettingsState>,
-    mut layer_queries: ParamSet<(
-        Query<(
-            Entity,
-            &UiLayer,
-            Option<&Visibility>,
-            Option<&InteractionGate>,
-        )>,
-        Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
-    )>,
+    mut dropdown_query: VideoDropdownVisibilityQuery,
     mut dropdown_state: ResMut<DropdownLayerState>,
     dropdown_hit_query: Query<
         (
@@ -321,18 +293,13 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
     >,
 ) {
     // Query contract:
-    // - `layer_queries` separates read-only active-layer resolution (`p0`) from
-    //   dropdown visibility mutation (`p1`) to keep visibility access disjoint.
     // - dropdown hit/item queries are read-only and keyed by explicit dropdown
     //   markers, so outside-click evaluation cannot alias menu mutators.
+    // - dropdown visibility mutates only through `dropdown_query`.
     if !settings.initialized || !mouse_input.just_pressed(MouseButton::Left) {
         return;
     }
-    // Resolve active layers before mutating dropdown visibility.
-    let active_layers = {
-        let ui_layer_query = layer_queries.p0();
-        layer::active_layers_by_owner_scoped(pause_state.as_ref(), &capture_query, &ui_layer_query)
-    };
+    let active_layers = &interaction_state.active_layers_by_owner;
     let any_active_dropdown = active_layers
         .values()
         .any(|active| active.kind == UiLayerKind::Dropdown);
@@ -396,7 +363,6 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
         return;
     }
 
-    let mut dropdown_query = layer_queries.p1();
     let any_visible = dropdown_query
         .iter_mut()
         .any(|(_, _, _, visibility)| *visibility == Visibility::Visible);
@@ -410,17 +376,8 @@ pub(super) fn close_resolution_dropdown_on_outside_click(
 
 pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    pause_state: Option<Res<State<PauseState>>>,
-    capture_query: Query<Option<&InteractionCaptureOwner>, With<InteractionCapture>>,
-    mut layer_queries: ParamSet<(
-        Query<(
-            Entity,
-            &UiLayer,
-            Option<&Visibility>,
-            Option<&InteractionGate>,
-        )>,
-        Query<(Entity, &ChildOf, &UiLayer, &mut Visibility), With<VideoResolutionDropdown>>,
-    )>,
+    interaction_state: Res<UiInteractionState>,
+    mut dropdown_query: VideoDropdownVisibilityQuery,
     settings: Res<VideoSettingsState>,
     mut dropdown_state: ResMut<DropdownLayerState>,
     mut dropdown_anchor_state: ResMut<DropdownAnchorState>,
@@ -448,10 +405,10 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
     >,
 ) {
     // Query contract:
-    // - `layer_queries` and `selectable_menu_queries` use ParamSet to keep
-    //   read/write accesses disjoint across UI layer metadata and menu selection
-    //   state mutations.
+    // - `selectable_menu_queries` uses ParamSet to keep mutable menu and dropdown
+    //   selectable writes disjoint.
     // - option-row visual state writes are isolated to `MenuOptionCommand` items.
+    // - dropdown visibility mutates only through `dropdown_query`.
     if !settings.initialized {
         return;
     }
@@ -473,16 +430,10 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
         return;
     }
 
-    let pause_state = pause_state.as_ref();
     let active_tabs = active_video_tabs_by_menu(&tab_query);
-    // Resolve active layers before mutating dropdown visibility.
-    let active_layers = {
-        let ui_layer_query = layer_queries.p0();
-        layer::active_layers_by_owner_scoped(pause_state, &capture_query, &ui_layer_query)
-    };
-    let mut dropdown_query = layer_queries.p1();
+    let active_layers = &interaction_state.active_layers_by_owner;
     let mut selected_dropdown_menu: Option<(Entity, usize, VideoTabKind)> = None;
-    let ordered_menu_owners: Vec<Entity> = layer::ordered_active_layers_by_owner(&active_layers)
+    let ordered_menu_owners: Vec<Entity> = layer::ordered_active_layers_by_owner(active_layers)
         .into_iter()
         .map(|(owner, _)| owner)
         .collect();
@@ -495,11 +446,9 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
             else {
                 continue;
             };
-            if !interaction_gate_allows_for_owner(
+            if !ui_input_policy_allows_mode(
                 Some(&menu_root.gate),
-                pause_state,
-                &capture_query,
-                menu_entity,
+                interaction_state.input_mode_for_owner(menu_entity),
             ) {
                 continue;
             }
@@ -517,7 +466,7 @@ pub(super) fn handle_resolution_dropdown_keyboard_navigation(
             let anchored_row =
                 dropdown_anchor_state.row_for_parent(menu_entity, menu_entity, selected_row);
             let supports_dropdown = video_row_supports_dropdown(active_tab, selected_row);
-            let active_kind = layer::active_layer_kind_for_owner(&active_layers, menu_entity);
+            let active_kind = layer::active_layer_kind_for_owner(active_layers, menu_entity);
             if active_kind == UiLayerKind::Modal {
                 continue;
             }
@@ -624,7 +573,7 @@ mod tests {
     use crate::{
         startup::cursor::CustomCursor,
         systems::{
-            interaction::{Clickable, InteractionGate, SelectableMenu, SystemMenuActions},
+            interaction::{Clickable, SelectableMenu, SystemMenuActions, UiInputPolicy},
             ui::layer::{UiLayer, UiLayerKind},
         },
     };
@@ -650,7 +599,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Pause,
-                    gate: InteractionGate::PauseMenuOnly,
+                    gate: UiInputPolicy::CapturedOnly,
                 },
                 test_selectable_menu(),
             ))
@@ -870,7 +819,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Debug,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 MenuStack::new(MenuPage::Video),
                 SelectableMenu::new(
@@ -893,7 +842,7 @@ mod tests {
             .spawn((
                 MenuRoot {
                     host: MenuHost::Debug,
-                    gate: InteractionGate::GameplayOnly,
+                    gate: UiInputPolicy::WorldOnly,
                 },
                 MenuStack::new(MenuPage::Video),
                 SelectableMenu::new(
