@@ -73,11 +73,26 @@ All feature systems consume this state and never re-derive capture logic.
 
 ## Migration Plan (Phased)
 
+## Execution Protocol (Mandatory)
+
+1. Phase-by-phase checkpoint commits are required.
+   - At the end of every phase, create one commit that captures the full phase result.
+   - Do not start the next phase until that commit exists.
+2. Documentation is updated continuously, not deferred.
+   - For each phase, update relevant UI documentation in `docs/` to reflect new behavior/API.
+   - Keep docs aligned with implementation decisions at phase boundary.
+3. No compatibility layer is permitted.
+   - Old APIs/components are removed, not wrapped.
+4. Compile health gate per phase.
+   - `cargo check` must pass at phase boundary unless the phase is explicitly marked as
+     an in-progress migration checkpoint.
+
 ### Phase 0: Baseline and Safety
 
 1. Tag baseline in commit history (already checkpointed).
 2. Add temporary migration checklist comments in affected modules.
 3. Add explicit test matrix doc section (menu, window, scroll, modal, dropdown, tabs).
+4. Add phase execution notes to UI docs indicating this is a full replacement with no bridge.
 
 Deliverable:
 - clean compile before intrusive edits.
@@ -96,6 +111,7 @@ Actions:
 4. Update required-components on primitives:
    - `Clickable`, `Pressable`, `Selectable`, `SelectableMenu`, `Draggable`
    to use `UiInputPolicy` / `UiFocusScope` as appropriate.
+5. Update docs for new interaction primitives and removed legacy gates/capture markers.
 
 Deliverable:
 - interaction module compiles with new APIs only.
@@ -113,6 +129,7 @@ Actions:
    - active owners/layers
    - focused owner
 3. Keep deterministic tie-breaking rules centralized.
+4. Update docs describing the resolver pipeline and state ownership rules.
 
 Deliverable:
 - one frame-level source of truth for gating and focus.
@@ -126,6 +143,7 @@ Actions:
 1. Update `hoverable_system`, `clickable_system`, `pressable_system`, `selectable_system`, `Draggable::enact`.
 2. Replace all gate/capture lookups with `UiInteractionState + UiInputPolicy`.
 3. Preserve existing keyboard-lock semantics and click activation policies.
+4. Update docs for primitive behavioral contracts and required components.
 
 Deliverable:
 - primitive interactions behaviorally equivalent under new model.
@@ -145,6 +163,7 @@ Actions:
 1. Replace all `capture_query`/gate filtering with `UiInteractionState`.
 2. Ensure menu active-owner ordering comes from unified state.
 3. Keep tabbed focus transitions intact but remove duplicated owner gating.
+4. Update menu and layered UI docs with new routing model.
 
 Deliverable:
 - menus, modals, dropdowns, tabs all routed by same focus/gating engine.
@@ -158,6 +177,7 @@ Actions:
 1. Replace gate propagation hacks with explicit `UiInputPolicy` inheritance.
 2. Ensure close button, drag region, resize handles obey focused owner and active layer.
 3. Verify window interactions never affect unfocused owners via keyboard.
+4. Update window interaction docs with owner/focus/gating semantics.
 
 Deliverable:
 - stable window interaction model without per-feature gate patches.
@@ -172,6 +192,7 @@ Actions:
 1. Remove independent focus-owner resolution.
 2. Use unified focused owner and active layer only.
 3. Keep nested scroll behavior deterministic and owner-scoped.
+4. Update scroll/hover docs with focus and routing contract changes.
 
 Deliverable:
 - scroll/hover arbitration consistent with menus/windows.
@@ -188,6 +209,7 @@ Files:
 Actions:
 1. Replace all legacy gating checks with policy/state checks.
 2. Remove all legacy component insertions from spawners.
+3. Update any remaining module docs that referenced legacy gate/capture APIs.
 
 Deliverable:
 - zero references to legacy gate/capture APIs.
