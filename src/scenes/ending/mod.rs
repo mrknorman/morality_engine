@@ -1,15 +1,18 @@
 use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds};
 use enum_map::{enum_map, Enum};
 use serde::{Deserialize, Serialize};
+use serde_json::Error as JsonError;
 
 use crate::{
-    data::{states::GameState, stats::GameStats},
+    data::states::{DilemmaPhase, GameState, MainState},
+    data::stats::GameStats,
     entities::{
         large_fonts::{AsciiString, TextEmotion},
         text::{scaled_font_size, TextButton, TextWindow, WindowedTable},
         track::Track,
         train::{content::TrainTypes, Train, TrainState},
     },
+    scenes::runtime::SceneNavigator,
     style::common_ui::NextButton,
     systems::{
         audio::{
@@ -40,9 +43,9 @@ pub struct Ending {
 }
 
 impl Ending {
-    pub fn new(ending_content: EndingScene) -> Self {
+    pub fn try_new(ending_content: EndingScene) -> Result<Self, JsonError> {
         let json_content = ending_content.content();
-        serde_json::from_str(json_content).expect("Failed to pass embedded JSON!")
+        serde_json::from_str(json_content)
     }
 }
 
@@ -106,11 +109,35 @@ impl EndingScene {
         stats: Res<GameStats>,
         queue: Res<SceneQueue>,
         asset_server: Res<AssetServer>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
         let scene = queue.current;
-        let ending = match scene {
-            Scene::Ending(content) => Ending::new(content),
-            _ => panic!("Scene is not dilemma!"),
+        let ending_content = match scene {
+            Scene::Ending(content) => content,
+            _ => {
+                warn!("expected ending scene but found non-ending route; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
+        };
+
+        let ending = match Ending::try_new(ending_content) {
+            Ok(ending) => ending,
+            Err(error) => {
+                warn!("failed to parse ending content: {error}; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
         };
 
         commands.insert_resource(ending.clone());

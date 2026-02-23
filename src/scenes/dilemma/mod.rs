@@ -15,6 +15,7 @@ use crate::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
         phases::transition::DilemmaTransitionPlugin,
     },
+    scenes::runtime::SceneNavigator,
     style::ui::IOPlugin,
     systems::{
         audio::{continuous_audio, MusicAudio},
@@ -126,12 +127,36 @@ impl DilemmaScene {
         queue: Res<SceneQueue>,
         asset_server: Res<AssetServer>,
         stats: Res<GameStats>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
         let scene = queue.current;
 
         let dilemma = match scene {
             Scene::Dilemma(content) => Dilemma::new(&content),
-            _ => panic!("Scene is not dilemma!"),
+            _ => {
+                warn!("expected dilemma scene but found non-dilemma route; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
+        };
+
+        let stage = match dilemma.stages.first().cloned() {
+            Some(stage) => stage,
+            None => {
+                warn!("dilemma content has no stages; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
         };
 
         let total_dilemma_time: Duration =
@@ -145,10 +170,8 @@ impl DilemmaScene {
 
         commands.insert_resource(CurrentDilemmaStageIndex(0));
 
-        let stage: &dilemma::DilemmaStage = dilemma.stages.first().expect("Dilemma has no stages!");
-
         let (transition_duration, train_x_displacement, _, _) =
-            Self::generate_common_parameters(stage);
+            Self::generate_common_parameters(&stage);
 
         commands.spawn((
             scene,
@@ -200,8 +223,7 @@ impl DilemmaScene {
                     Background::new(
                         BackgroundTypes::Desert,
                         0.00002,
-                        -0.5 * (dilemma.stages.first().expect("Dilemma has no stages").speed
-                            / 70.0)
+                        -0.5 * (stage.speed / 70.0)
                     ),
                     BequeathTextAlpha,
                     AlphaTranslation::new(DIM_BACKGROUND_COLOR.alpha(), transition_duration, true)
@@ -225,13 +247,7 @@ impl DilemmaScene {
             Transform::from_translation(Self::MAIN_TRACK_TRANSLATION_END),
         ));
 
-        commands.insert_resource(
-            dilemma
-                .stages
-                .first()
-                .expect("Dilemma has no stages!")
-                .clone(),
-        );
+        commands.insert_resource(stage);
         commands.insert_resource(dilemma);
     }
 

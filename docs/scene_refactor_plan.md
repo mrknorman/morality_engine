@@ -19,6 +19,12 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 4. Update scene documentation at each stage boundary (not deferred).
 5. No panic-driven runtime control flow for recoverable errors.
 
+## Stage Status
+
+- Stage 0 complete: `d2772a1`
+- Stage 1 complete: `5152bf5`
+- Stage 2 in progress: working tree (fault-tolerant flow migration)
+
 ## Current High-Level Issues
 
 1. Scene flow is panic-driven in core progression paths.

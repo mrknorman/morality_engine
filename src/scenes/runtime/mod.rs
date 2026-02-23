@@ -10,6 +10,10 @@ pub enum SceneNavigationError {
 pub struct SceneNavigator;
 
 impl SceneNavigator {
+    pub fn fallback_state_vector() -> StateVector {
+        StateVector::new(Some(MainState::Menu), None, None)
+    }
+
     pub fn state_vector_for(scene: Scene) -> StateVector {
         match scene {
             Scene::Menu => StateVector::new(Some(MainState::Menu), None, None),
@@ -63,6 +67,14 @@ mod tests {
     fn state_vector_for_menu_sets_only_main_state() {
         assert_eq!(
             SceneNavigator::state_vector_for(Scene::Menu),
+            StateVector::new(Some(MainState::Menu), None, None)
+        );
+    }
+
+    #[test]
+    fn fallback_state_vector_routes_to_menu() {
+        assert_eq!(
+            SceneNavigator::fallback_state_vector(),
             StateVector::new(Some(MainState::Menu), None, None)
         );
     }

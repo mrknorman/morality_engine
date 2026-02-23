@@ -1854,6 +1854,11 @@ pub fn trigger_next_scene<K, S>(
                             }
                             Err(error) => {
                                 warn!("failed to advance scene queue: {error:?}");
+                                SceneNavigator::fallback_state_vector().set_state(
+                                    &mut next_main_state,
+                                    &mut next_game_state,
+                                    &mut next_sub_state,
+                                );
                             }
                         }
                     }

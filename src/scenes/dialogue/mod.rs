@@ -5,10 +5,10 @@ use bevy::{asset::AssetServer, audio::Volume, prelude::*};
 use crate::{
     data::{
         character::{Character, CharacterKey},
-        states::GameState,
+        states::{DilemmaPhase, GameState, MainState},
     },
     entities::graph::Graph,
-    scenes::{Scene, SceneQueue},
+    scenes::{runtime::SceneNavigator, Scene, SceneQueue},
     style::ui::IOPlugin,
     systems::{
         audio::{continuous_audio, ContinuousAudio, ContinuousAudioPallet},
@@ -47,6 +47,9 @@ impl DialogueScene {
         mut commands: Commands,
         mut queue: ResMut<SceneQueue>,
         asset_server: Res<AssetServer>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
         let character_map = HashMap::from([
             (
@@ -72,13 +75,21 @@ impl DialogueScene {
         let scene = queue.current;
         let dialogue: DialogueScene = match scene {
             Scene::Dialogue(content) => content,
-            _ => panic!("Scene is not dialogue!"),
+            _ => {
+                warn!("expected dialogue scene but found non-dialogue route; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
         };
 
         let mut dialogue_vector = vec![dialogue];
 
         let next_scene = match queue.next {
-            Some(Scene::Dialogue(_)) => Some(queue.pop()),
+            Some(Scene::Dialogue(_)) => queue.pop(),
             Some(_) | None => None,
         };
         match next_scene {

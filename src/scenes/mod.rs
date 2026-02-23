@@ -45,8 +45,8 @@ impl SceneQueue {
         Some(scene)
     }
 
-    pub fn pop(&mut self) -> Scene {
-        self.try_pop().unwrap_or_else(|| panic!("Queue Is Empty!"))
+    pub fn pop(&mut self) -> Option<Scene> {
+        self.try_pop()
     }
 
     pub fn replace(&mut self, new_queue: Vec<Scene>) {
@@ -123,8 +123,8 @@ mod tests {
         queue.configure_single_level(scene);
 
         assert_eq!(queue.flow_mode(), SceneFlowMode::SingleLevel);
-        assert!(matches!(queue.pop(), Scene::Dilemma(found) if found == scene));
-        assert!(matches!(queue.pop(), Scene::Menu));
+        assert!(matches!(queue.pop(), Some(Scene::Dilemma(found)) if found == scene));
+        assert!(matches!(queue.pop(), Some(Scene::Menu)));
     }
 
     #[test]
@@ -135,7 +135,7 @@ mod tests {
         queue.replace(vec![Scene::Menu]);
 
         assert_eq!(queue.flow_mode(), SceneFlowMode::Campaign);
-        assert!(matches!(queue.pop(), Scene::Menu));
+        assert!(matches!(queue.pop(), Some(Scene::Menu)));
     }
 
     #[test]
