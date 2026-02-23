@@ -33,7 +33,8 @@ use crate::{
         },
         ending::{EndingActions, EndingSounds},
         loading::{LoadingActions, LoadingSounds},
-        Scene, SceneQueue,
+        runtime::SceneNavigator,
+        SceneQueue,
     },
     startup::cursor::{CursorMode, CustomCursor},
     systems::{
@@ -1843,27 +1844,18 @@ pub fn trigger_next_scene<K, S>(
         handle_triggers!(clickable, pressable, pallet, handle => {
             handle_all_actions!(handle, pallet => {
                 NextScene => {
-                        match queue.pop() {
-                            Scene::Menu => {
-                                StateVector::new(Some(MainState::Menu), None, None)
-                            },
-                            Scene::Loading => {
-                                StateVector::new(Some(MainState::InGame), Some(GameState::Loading), None)
-                            },
-                            Scene::Dialogue(_) => {
-                                StateVector::new(Some(MainState::InGame), Some(GameState::Dialogue), None)
-                            },
-                            Scene::Dilemma(_) => {
-                                StateVector::new(Some(MainState::InGame), Some(GameState::Dilemma), Some(DilemmaPhase::Intro))
-                            },
-                            Scene::Ending(_) => {
-                                StateVector::new(Some(MainState::InGame), Some(GameState::Ending), None)
+                        match SceneNavigator::advance(&mut queue) {
+                            Ok((_, state_vector)) => {
+                                state_vector.set_state(
+                                    &mut next_main_state,
+                                    &mut next_game_state,
+                                    &mut next_sub_state,
+                                );
                             }
-                        }.set_state(
-                            &mut next_main_state,
-                            &mut next_game_state,
-                            &mut next_sub_state,
-                        );
+                            Err(error) => {
+                                warn!("failed to advance scene queue: {error:?}");
+                            }
+                        }
                     }
                 }
             );

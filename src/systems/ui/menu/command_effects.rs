@@ -5,6 +5,7 @@ use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
 use super::*;
 use crate::data::stats::GameStats;
 use crate::scenes::dilemma::content::DilemmaScene;
+use crate::scenes::runtime::SceneNavigator;
 
 const MAIN_MENU_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const MAIN_MENU_OVERLAY_DIM_SIZE: f32 = 6000.0;
@@ -136,27 +137,9 @@ fn handle_next_scene_command(
     next_game_state: &mut ResMut<NextState<GameState>>,
     next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
 ) {
-    match scene_queue.pop() {
-        Scene::Menu => {
-            next_main_state.set(MainState::Menu);
-        }
-        Scene::Loading => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Loading);
-        }
-        Scene::Dialogue(_) => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Dialogue);
-        }
-        Scene::Dilemma(_) => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Dilemma);
-            next_sub_state.set(DilemmaPhase::Intro);
-        }
-        Scene::Ending(_) => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Ending);
-        }
+    match SceneNavigator::advance(scene_queue) {
+        Ok((_, state_vector)) => state_vector.set_state(next_main_state, next_game_state, next_sub_state),
+        Err(error) => warn!("failed to advance scene queue: {error:?}"),
     }
 }
 

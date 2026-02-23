@@ -26,7 +26,7 @@ use bevy::{
 use crate::{
     data::states::{DilemmaPhase, GameState, MainState, PauseState},
     data::stats::GameStats,
-    scenes::{Scene, SceneQueue},
+    scenes::SceneQueue,
     startup::render::{CrtSettings, MainCamera, OffscreenCamera, ScreenShakeState},
     startup::system_menu,
     systems::{

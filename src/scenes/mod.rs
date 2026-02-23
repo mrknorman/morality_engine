@@ -3,6 +3,7 @@ pub mod dilemma;
 pub mod ending;
 pub mod loading;
 pub mod menu;
+pub mod runtime;
 
 use std::collections::VecDeque;
 
@@ -37,14 +38,15 @@ pub struct SceneQueue {
 }
 
 impl SceneQueue {
-    pub fn pop(&mut self) -> Scene {
-        let scene = match self.queue.pop_front() {
-            Some(scene) => scene,
-            _ => panic!("Queue Is Empty!"),
-        };
+    pub fn try_pop(&mut self) -> Option<Scene> {
+        let scene = self.queue.pop_front()?;
         self.next = self.queue.front().copied();
         self.current = scene;
-        scene
+        Some(scene)
+    }
+
+    pub fn pop(&mut self) -> Scene {
+        self.try_pop().unwrap_or_else(|| panic!("Queue Is Empty!"))
     }
 
     pub fn replace(&mut self, new_queue: Vec<Scene>) {
@@ -134,5 +136,13 @@ mod tests {
 
         assert_eq!(queue.flow_mode(), SceneFlowMode::Campaign);
         assert!(matches!(queue.pop(), Scene::Menu));
+    }
+
+    #[test]
+    fn try_pop_on_empty_queue_returns_none() {
+        let mut queue = SceneQueue::default();
+        queue.replace(vec![]);
+
+        assert!(queue.try_pop().is_none());
     }
 }
