@@ -14,15 +14,14 @@ use crate::{
         sprites::compound::HollowRectangle,
         text::{scaled_font_size, TextRaw},
     },
-    startup::system_menu,
     scenes::{dilemma::content::DilemmaScene, Scene, SceneFlowMode, SceneQueue},
+    startup::system_menu,
     systems::{
         interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
         ui::{
             scroll::{
-                focus_scroll_offset_to_row, row_visible_in_viewport, ScrollAxis, ScrollBar,
-                ScrollFocusFollowLock, ScrollState, ScrollableContent, ScrollableContentExtent,
-                ScrollableItem, ScrollableRoot, ScrollableTableAdapter, ScrollableViewport,
+                focus_scroll_offset_to_row, row_visible_in_viewport, ScrollAxis,
+                ScrollFocusFollowLock, ScrollState, ScrollableRoot,
             },
             search_box::{SearchBox, SearchBoxConfig, SearchBoxQueryChanged},
             text_input_box::TextInputBoxStyle,
@@ -49,22 +48,12 @@ const LEVEL_SELECT_LIST_X: f32 = -320.0;
 const LEVEL_SELECT_LIST_ROW_STEP: f32 = 22.0;
 const LEVEL_SELECT_TREE_INDENT: f32 = 14.0;
 const LEVEL_SELECT_ROW_REGION: Vec2 = Vec2::new(630.0, 20.0);
-const LEVEL_SELECT_LIST_VIEWPORT_TOP_Y: f32 = 154.0;
-const LEVEL_SELECT_LIST_VIEWPORT_BOTTOM_Y: f32 = -196.0;
-const LEVEL_SELECT_LIST_VIEWPORT_HEIGHT: f32 =
-    LEVEL_SELECT_LIST_VIEWPORT_TOP_Y - LEVEL_SELECT_LIST_VIEWPORT_BOTTOM_Y;
-const LEVEL_SELECT_LIST_CENTER_Y: f32 =
-    (LEVEL_SELECT_LIST_VIEWPORT_TOP_Y + LEVEL_SELECT_LIST_VIEWPORT_BOTTOM_Y) * 0.5;
 const LEVEL_SELECT_LIST_CONTENT_TOP_Y: f32 = 146.0;
-const LEVEL_SELECT_LIST_LEADING_PADDING: f32 =
-    LEVEL_SELECT_LIST_VIEWPORT_TOP_Y - LEVEL_SELECT_LIST_CONTENT_TOP_Y;
-const LEVEL_SELECT_LIST_VIEWPORT_SIZE: Vec2 = Vec2::new(640.0, LEVEL_SELECT_LIST_VIEWPORT_HEIGHT);
+const LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING: f32 =
+    LEVEL_SELECT_WINDOW_SIZE.y * 0.5 - LEVEL_SELECT_LIST_CONTENT_TOP_Y;
 
 #[derive(Component)]
 pub(super) struct LevelSelectOverlay;
-
-#[derive(Component)]
-pub(super) struct LevelSelectScrollRoot;
 
 #[derive(Component, Clone, Copy)]
 pub(super) struct LevelSelectScrollRow {
@@ -82,7 +71,7 @@ pub(super) struct LevelSelectRuntime {
     expansion: LevelSelectExpansionState,
     visible_rows: Vec<LevelSelectVisibleRow>,
     query_normalized: String,
-    scroll_root: Entity,
+    window_entity: Entity,
     rows_root: Entity,
     dirty: bool,
 }
@@ -104,12 +93,27 @@ fn level_select_row_center_y(index: usize) -> f32 {
     LEVEL_SELECT_LIST_CONTENT_TOP_Y - (index as f32 + 0.5) * LEVEL_SELECT_LIST_ROW_STEP
 }
 
-fn level_select_scroll_local_y(world_y: f32) -> f32 {
-    world_y - LEVEL_SELECT_LIST_CENTER_Y
+fn level_select_last_row_bottom_y(row_count: usize) -> f32 {
+    if row_count == 0 {
+        LEVEL_SELECT_LIST_CONTENT_TOP_Y - LEVEL_SELECT_ROW_REGION.y * 0.5
+    } else {
+        level_select_row_center_y(row_count - 1) - LEVEL_SELECT_ROW_REGION.y * 0.5
+    }
 }
 
-fn level_select_scroll_content_height(row_count: usize) -> f32 {
-    LEVEL_SELECT_LIST_LEADING_PADDING + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP
+fn level_select_preferred_inner_size(row_count: usize) -> Vec2 {
+    let content_top = LEVEL_SELECT_SEARCH_BOX_Y + LEVEL_SELECT_SEARCH_BOX_SIZE.y * 0.5;
+    let content_bottom = level_select_last_row_bottom_y(row_count);
+    let height = (content_top - content_bottom + 16.0).max(LEVEL_SELECT_WINDOW_SIZE.y);
+    Vec2::new(LEVEL_SELECT_WINDOW_SIZE.x, height)
+}
+
+fn level_select_window_content_metrics(row_count: usize) -> UiWindowContentMetrics {
+    UiWindowContentMetrics {
+        min_inner: LEVEL_SELECT_WINDOW_SIZE,
+        preferred_inner: level_select_preferred_inner_size(row_count),
+        max_inner: None,
+    }
 }
 
 fn level_select_visible_rows(
@@ -171,7 +175,7 @@ fn spawn_level_select_rows(
             rows_parent,
             label,
             LEVEL_SELECT_LIST_X + row.depth as f32 * LEVEL_SELECT_TREE_INDENT,
-            level_select_scroll_local_y(level_select_row_center_y(index)),
+            level_select_row_center_y(index),
             overlay_entity,
             index,
             system_menu::SystemMenuOptionVisualStyle::default(),
@@ -180,7 +184,6 @@ fn spawn_level_select_rows(
         rows_parent.commands().entity(option_entity).insert((
             Name::new(format!("level_select_row_{index}")),
             LevelSelectScrollRow { index, folder_id },
-            ScrollableItem::new(index as u64 + 1, index, LEVEL_SELECT_LIST_ROW_STEP),
             Clickable::with_region(vec![SystemMenuActions::Activate], LEVEL_SELECT_ROW_REGION),
             MenuOptionCommand(command),
             system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
@@ -281,7 +284,7 @@ pub(super) fn spawn_level_select_overlay(
                 true,
                 Some(overlay_entity),
             ),
-            UiWindowContentMetrics::from_min_inner(LEVEL_SELECT_WINDOW_SIZE),
+            level_select_window_content_metrics(initial_rows.len()),
             UiWindowOverflowPolicy::AllowOverflow,
             UiInputPolicy::CapturedOnly,
             Transform::from_xyz(0.0, 0.0, LEVEL_SELECT_WINDOW_Z),
@@ -297,7 +300,6 @@ pub(super) fn spawn_level_select_overlay(
     commands.entity(window_entity).add_child(content_root);
     commands.entity(overlay_entity).add_child(window_entity);
 
-    let mut scroll_root = None;
     let mut rows_root = None;
     commands.entity(content_root).with_children(|content| {
         content.spawn((
@@ -337,45 +339,14 @@ pub(super) fn spawn_level_select_overlay(
             Transform::from_xyz(0.0, 166.0, 0.2),
         ));
 
-        let root_entity = content
-            .spawn((
-                Name::new("level_select_list_scroll_root"),
-                LevelSelectScrollRoot,
-                UiInputPolicy::CapturedOnly,
-                ScrollableRoot::new(overlay_entity, ScrollAxis::Vertical),
-                ScrollableViewport::new(LEVEL_SELECT_LIST_VIEWPORT_SIZE),
-                ScrollableContentExtent(level_select_scroll_content_height(initial_rows.len())),
-                ScrollableTableAdapter::new(
-                    overlay_entity,
-                    initial_rows.len(),
-                    LEVEL_SELECT_LIST_ROW_STEP,
-                    LEVEL_SELECT_LIST_LEADING_PADDING,
-                ),
-                Transform::from_xyz(0.0, LEVEL_SELECT_LIST_CENTER_Y, 0.22),
-            ))
-            .id();
-        scroll_root = Some(root_entity);
-
         let content_entity = content
             .spawn((
-                Name::new("level_select_list_scroll_content"),
-                ScrollableContent,
+                Name::new("level_select_rows_root"),
                 Transform::default(),
             ))
             .id();
         rows_root = Some(content_entity);
 
-        content.commands().entity(root_entity).add_child(content_entity);
-        content
-            .commands()
-            .entity(root_entity)
-            .with_children(|scroll_root_parent| {
-                scroll_root_parent.spawn((
-                    Name::new("level_select_list_scrollbar"),
-                    ScrollBar::new(root_entity),
-                    Transform::from_xyz(0.0, 0.0, 0.12),
-                ));
-            });
         content
             .commands()
             .entity(content_entity)
@@ -392,9 +363,6 @@ pub(super) fn spawn_level_select_overlay(
             });
     });
 
-    let Some(scroll_root) = scroll_root else {
-        return;
-    };
     let Some(rows_root) = rows_root else {
         return;
     };
@@ -402,7 +370,7 @@ pub(super) fn spawn_level_select_overlay(
         expansion: initial_expansion,
         visible_rows: initial_rows,
         query_normalized: String::new(),
-        scroll_root,
+        window_entity,
         rows_root,
         dirty: false,
     });
@@ -492,10 +460,7 @@ pub(super) fn rebuild_level_select_rows(
         With<LevelSelectOverlay>,
     >,
     children_query: Query<&Children>,
-    mut scroll_query: Query<
-        (&mut ScrollableTableAdapter, &mut ScrollableContentExtent),
-        With<LevelSelectScrollRoot>,
-    >,
+    mut window_metrics_query: Query<&mut UiWindowContentMetrics>,
 ) {
     for (overlay_entity, mut runtime, mut menu) in overlay_query.iter_mut() {
         if !runtime.dirty {
@@ -530,9 +495,8 @@ pub(super) fn rebuild_level_select_rows(
                 );
             });
 
-        if let Ok((mut adapter, mut content_extent)) = scroll_query.get_mut(runtime.scroll_root) {
-            adapter.row_count = row_count;
-            content_extent.0 = level_select_scroll_content_height(row_count);
+        if let Ok(mut metrics) = window_metrics_query.get_mut(runtime.window_entity) {
+            metrics.preferred_inner = level_select_preferred_inner_size(row_count);
         }
 
         menu.selected_index = if row_count == 0 {
@@ -585,14 +549,10 @@ pub(super) fn mark_level_select_dirty_on_unlock_change(
 
 pub(super) fn sync_level_select_scroll_focus_follow(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    menu_query: Query<&SelectableMenu, With<LevelSelectOverlay>>,
+    overlay_query: Query<(Entity, &SelectableMenu, &LevelSelectRuntime), With<LevelSelectOverlay>>,
     mut root_query: Query<
-        (
-            &ScrollableTableAdapter,
-            &mut ScrollState,
-            &mut ScrollFocusFollowLock,
-        ),
-        With<LevelSelectScrollRoot>,
+        (&ScrollableRoot, &mut ScrollState, &mut ScrollFocusFollowLock),
+        With<ScrollableRoot>,
     >,
     mut previous_selection_by_owner: Local<HashMap<Entity, usize>>,
 ) {
@@ -603,38 +563,42 @@ pub(super) fn sync_level_select_scroll_focus_follow(
         || keyboard_input.just_pressed(KeyCode::Home)
         || keyboard_input.just_pressed(KeyCode::End);
 
-    for (adapter, mut state, mut focus_lock) in root_query.iter_mut() {
-        let Ok(menu) = menu_query.get(adapter.owner) else {
-            continue;
-        };
+    for (overlay_entity, menu, runtime) in overlay_query.iter() {
+        let row_count = runtime.visible_rows.len();
         let selection_changed =
-            previous_selection_by_owner.insert(adapter.owner, menu.selected_index)
+            previous_selection_by_owner.insert(overlay_entity, menu.selected_index)
                 != Some(menu.selected_index);
-        if menu.selected_index >= adapter.row_count {
+        if menu.selected_index >= row_count {
             continue;
         }
 
-        if keyboard_navigation {
-            focus_lock.manual_override = false;
-        }
-        if focus_lock.manual_override {
-            continue;
-        }
-        if !keyboard_navigation && !selection_changed {
-            continue;
-        }
+        for (root, mut state, mut focus_lock) in root_query.iter_mut() {
+            if root.owner != overlay_entity || root.axis != ScrollAxis::Vertical {
+                continue;
+            }
+            if keyboard_navigation {
+                focus_lock.manual_override = false;
+            }
+            if focus_lock.manual_override {
+                break;
+            }
+            if !keyboard_navigation && !selection_changed {
+                break;
+            }
 
-        focus_scroll_offset_to_row(
-            &mut state,
-            menu.selected_index,
-            adapter.row_extent,
-            adapter.leading_padding,
-        );
+            focus_scroll_offset_to_row(
+                &mut state,
+                menu.selected_index,
+                LEVEL_SELECT_LIST_ROW_STEP,
+                LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING,
+            );
+            break;
+        }
     }
 }
 
 pub(super) fn sync_level_select_option_hit_regions_to_viewport(
-    root_query: Query<(&ScrollableTableAdapter, &ScrollState), With<LevelSelectScrollRoot>>,
+    root_query: Query<(&ScrollableRoot, &ScrollState), With<ScrollableRoot>>,
     mut option_query: Query<
         (
             &Selectable,
@@ -645,19 +609,25 @@ pub(super) fn sync_level_select_option_hit_regions_to_viewport(
     >,
 ) {
     let mut adapter_state_by_owner = HashMap::new();
-    for (adapter, state) in root_query.iter() {
-        adapter_state_by_owner.insert(adapter.owner, (*adapter, *state));
+    for (root, state) in root_query.iter() {
+        if root.axis != ScrollAxis::Vertical {
+            continue;
+        }
+        adapter_state_by_owner.insert(root.owner, *state);
     }
 
     for (selectable, row, mut clickable) in option_query.iter_mut() {
-        let Some((adapter, state)) = adapter_state_by_owner.get(&selectable.menu_entity).copied()
-        else {
+        let Some(state) = adapter_state_by_owner.get(&selectable.menu_entity).copied() else {
             clickable.region = Some(LEVEL_SELECT_ROW_REGION);
             continue;
         };
 
-        let visible =
-            row_visible_in_viewport(&state, row.index, adapter.row_extent, adapter.leading_padding);
+        let visible = row_visible_in_viewport(
+            &state,
+            row.index,
+            LEVEL_SELECT_LIST_ROW_STEP,
+            LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING,
+        );
         clickable.region = if visible {
             Some(LEVEL_SELECT_ROW_REGION)
         } else {
@@ -675,13 +645,10 @@ mod tests {
     #[test]
     fn level_select_scroll_content_height_matches_row_geometry() {
         let row_count = 19;
-        let content_height = level_select_scroll_content_height(row_count);
-        let max_offset = (content_height - LEVEL_SELECT_LIST_VIEWPORT_HEIGHT).max(0.0);
-        let last_row_bottom =
-            LEVEL_SELECT_LIST_LEADING_PADDING + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP;
+        let preferred_inner = level_select_preferred_inner_size(row_count);
 
-        assert!(content_height > LEVEL_SELECT_LIST_VIEWPORT_HEIGHT);
-        assert!((last_row_bottom - (max_offset + LEVEL_SELECT_LIST_VIEWPORT_HEIGHT)).abs() < 0.001);
+        assert!(preferred_inner.y > LEVEL_SELECT_WINDOW_SIZE.y);
+        assert!(preferred_inner.x >= LEVEL_SELECT_WINDOW_SIZE.x);
     }
 
     #[test]
