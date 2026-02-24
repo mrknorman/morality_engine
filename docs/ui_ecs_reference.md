@@ -130,6 +130,12 @@ Major reusable UI features now have root-level insertion/runtime coverage:
 - Hover box root:
   - `HoverBoxRoot` (`src/systems/ui/hover_box.rs`)
   - `hover_box_root_insertion_adds_required_components_and_children`
+- Text input root:
+  - `TextInputBox` (`src/systems/ui/text_input_box.rs`)
+  - `text_input_box_insert_hook_wires_clickable_layer_and_parts`
+- Search composition root:
+  - `SearchBox` (`src/systems/ui/search_box.rs`)
+  - `search_box_insert_hook_adds_text_input_box`
 - Discrete slider root:
   - `DiscreteSlider` (`src/systems/ui/discrete_slider.rs`)
   - `slider_insertion_adds_required_components`
