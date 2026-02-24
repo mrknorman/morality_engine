@@ -127,8 +127,14 @@ pub struct InactionPath {
 
 impl InactionPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
-        assert!(number <= 6, "Path number must be less than 6");
-        Self { number, outcome }
+        let normalized_number = number.min(6);
+        if normalized_number != number {
+            warn!("inaction path index {number} is out of range; clamped to {normalized_number}");
+        }
+        Self {
+            number: normalized_number,
+            outcome,
+        }
     }
 
     // Helper to get the JSON content based on path parameters
@@ -174,8 +180,16 @@ pub struct DeontologicalPath {
 
 impl DeontologicalPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
-        assert!(number <= 4, "Path number must be less than 4");
-        Self { number, outcome }
+        let normalized_number = number.min(3);
+        if normalized_number != number {
+            warn!(
+                "deontological path index {number} is out of range; clamped to {normalized_number}"
+            );
+        }
+        Self {
+            number: normalized_number,
+            outcome,
+        }
     }
 
     // Helper to get the JSON content based on path parameters
@@ -244,16 +258,19 @@ pub struct UtilitarianPath {
 
 impl UtilitarianPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
-        assert!(number <= 5, "Path number must be less than 5");
-        Self { number, outcome }
+        let normalized_number = number.clamp(1, 4);
+        if normalized_number != number {
+            warn!("utilitarian path index {number} is out of range; clamped to {normalized_number}");
+        }
+        Self {
+            number: normalized_number,
+            outcome,
+        }
     }
 
     // Helper to get the JSON content based on path parameters
     fn get_json_content(&self) -> &'static str {
         match (&self.outcome, self.number) {
-            // TODO(SCN-001): enforce valid path indices in constructors/callers and remove sentinel panic branch.
-            (_, 0) => panic!("Should not be 0"),
-
             (PathOutcome::Pass, 1) => include_str!("./lab/4/path_utilitarian/1/pass.json"),
             (PathOutcome::Fail, 1) => include_str!("./lab/4/path_utilitarian/1/fail.json"),
 

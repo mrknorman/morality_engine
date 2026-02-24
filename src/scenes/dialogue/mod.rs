@@ -91,6 +91,19 @@ impl DialogueScene {
             _ => (),
         };
 
+        let dialogue_bundle = match Dialogue::init(&asset_server, &dialogue_vector, &character_map) {
+            Ok(dialogue_bundle) => dialogue_bundle,
+            Err(error) => {
+                warn!("failed to load dialogue content: {error}; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
+        };
+
         commands.spawn((
             scene,
             DespawnOnExit(GameState::Dialogue),
@@ -131,7 +144,7 @@ impl DialogueScene {
             ]),
             children![
                 (
-                    Dialogue::init(&asset_server, &dialogue_vector, &character_map),
+                    dialogue_bundle,
                     Transform::from_xyz(-500.0, 0.0, 1.0),
                 ),
                 (

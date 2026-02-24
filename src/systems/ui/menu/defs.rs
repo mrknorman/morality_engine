@@ -737,10 +737,13 @@ static OPTIONS_MENU_COMMAND_REGISTRY: Lazy<schema::CommandRegistry<MenuCommand>>
     });
 
 static OPTIONS_MENU_PAGE_SCHEMA: Lazy<SchemaMenuPageDef> = Lazy::new(|| {
-    // TODO(SCN-002): handle invalid schema with a recoverable fallback options page.
-    resolve_options_menu_schema().unwrap_or_else(|error| {
-        panic!("invalid options menu schema: {error}");
-    })
+    match resolve_options_menu_schema() {
+        Ok(schema) => schema,
+        Err(error) => {
+            warn!("invalid options menu schema: {error}; using fallback options page");
+            fallback_options_menu_schema()
+        }
+    }
 });
 
 fn leak_schema_text(text: String) -> &'static str {
@@ -831,6 +834,53 @@ fn options_menu_layout_from_schema(
         182.0,
         140.0,
     ))
+}
+
+fn fallback_options_menu_schema() -> SchemaMenuPageDef {
+    let schema_id = String::from("system_options_menu");
+    let name_prefix = leak_schema_text(schema_id.clone());
+    let options = vec![
+        MenuOptionDef {
+            name: leak_schema_text(format!("{schema_id}_video_option")),
+            label: OPTIONS_MENU_VIDEO_TEXT,
+            y: 60.0,
+            command: MenuCommand::Push(MenuPage::Video),
+            shortcut: None,
+            cyclable: false,
+        },
+        MenuOptionDef {
+            name: leak_schema_text(format!("{schema_id}_audio_option")),
+            label: OPTIONS_MENU_AUDIO_TEXT,
+            y: 20.0,
+            command: MenuCommand::None,
+            shortcut: None,
+            cyclable: false,
+        },
+        MenuOptionDef {
+            name: leak_schema_text(format!("{schema_id}_controls_option")),
+            label: OPTIONS_MENU_CONTROLS_TEXT,
+            y: -20.0,
+            command: MenuCommand::None,
+            shortcut: None,
+            cyclable: false,
+        },
+        MenuOptionDef {
+            name: leak_schema_text(format!("{schema_id}_back_option")),
+            label: OPTIONS_MENU_BACK_TEXT,
+            y: -65.0,
+            command: MenuCommand::Pop,
+            shortcut: Some(KeyCode::Backspace),
+            cyclable: false,
+        },
+    ];
+
+    SchemaMenuPageDef {
+        name_prefix,
+        title: OPTIONS_MENU_TITLE,
+        hint: OPTIONS_MENU_HINT,
+        layout: SystemMenuLayout::new(Vec2::new(PANEL_WIDTH, 630.0), 182.0, 140.0),
+        options,
+    }
 }
 
 fn resolve_options_menu_schema() -> Result<SchemaMenuPageDef, String> {

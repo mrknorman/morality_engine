@@ -1,6 +1,6 @@
 # Scene Compliance Matrix
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 
 Scope:
 - `src/scenes/*`
@@ -34,9 +34,9 @@ Legend:
 
 | Module | Status | Current Pattern | Follow-up |
 |---|---|---|---|
-| `src/scenes/dialogue/dialogue.rs` | Partial | Dialogue content parse/character resolution still uses `expect(...)`. | Convert to typed loader errors + route-safe fallback for content iteration. |
-| `src/scenes/dilemma/dilemma.rs` | Partial | Dilemma JSON parse still uses `expect(...)`. | Convert to typed loader errors and scene fallback behavior. |
-| `src/scenes/loading/loading_bar.rs` | Partial | Loading bar config parse still uses `expect(...)`. | Return typed config errors and keep loading scene recoverable. |
+| `src/scenes/dialogue/dialogue.rs` | Compliant | Dialogue content parsing now returns typed loader errors and setup falls back safely. | None. |
+| `src/scenes/dilemma/dilemma.rs` | Compliant | Dilemma content parsing now returns typed loader errors and setup falls back safely. | None. |
+| `src/scenes/loading/loading_bar.rs` | Compliant | Loading bar config failures recover with safe defaults instead of panicking. | None. |
 
 ## Transition Consumers
 

@@ -7,7 +7,8 @@ use serde::{
     de::{Deserializer, Error},
     Deserialize, Serialize,
 };
-use std::{path::PathBuf, str::FromStr, time::Duration};
+use std::{fmt, path::PathBuf, str::FromStr, time::Duration};
+use serde_json::Error as JsonError;
 
 use crate::{
     data::{
@@ -350,20 +351,41 @@ pub struct Dilemma {
     pub music_path: PathBuf,
 }
 
+#[derive(Debug)]
+pub enum DilemmaLoadError {
+    Parse(JsonError),
+    EmptyStageOptions { stage_index: usize },
+}
+
+impl fmt::Display for DilemmaLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Parse(error) => write!(f, "failed to parse embedded dilemma json: {error}"),
+            Self::EmptyStageOptions { stage_index } => {
+                write!(
+                    f,
+                    "dilemma stage {stage_index} must define at least one option template"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for DilemmaLoadError {}
+
 impl Dilemma {
-    pub fn new(content: &DilemmaScene) -> Self {
+    pub fn try_new(content: &DilemmaScene) -> Result<Self, DilemmaLoadError> {
         let loaded_dilemma: DilemmaLoader =
-            serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
+            serde_json::from_str(content.content()).map_err(DilemmaLoadError::Parse)?;
 
         let mut stages: Vec<DilemmaStage> = Vec::new();
 
-        for stage_loader in loaded_dilemma.stages {
+        for (stage_index, stage_loader) in loaded_dilemma.stages.into_iter().enumerate() {
+            let total_option_templates = stage_loader.options.len();
+            if total_option_templates == 0 {
+                return Err(DilemmaLoadError::EmptyStageOptions { stage_index });
+            }
             for _ in 0..stage_loader.repeat {
-                let total_option_templates = stage_loader.options.len();
-                assert!(
-                    total_option_templates > 0,
-                    "Dilemma stage must define at least one option"
-                );
                 let resolved_option_count = stage_loader
                     .option_count
                     .as_ref()
@@ -393,14 +415,14 @@ impl Dilemma {
             }
         }
 
-        Self {
+        Ok(Self {
             index: loaded_dilemma.index,
             name: loaded_dilemma.name,
             narration_path: loaded_dilemma.narration_path,
             description: loaded_dilemma.description,
             stages,
             music_path: loaded_dilemma.music_path,
-        }
+        })
     }
 
     pub fn update_queue(mut queue: ResMut<SceneQueue>, stats: Res<GameStats>) {

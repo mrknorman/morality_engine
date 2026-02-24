@@ -114,7 +114,18 @@ impl DilemmaScene {
         let scene = queue.current_scene();
 
         let dilemma = match scene {
-            Scene::Dilemma(content) => Dilemma::new(&content),
+            Scene::Dilemma(content) => match Dilemma::try_new(&content) {
+                Ok(dilemma) => dilemma,
+                Err(error) => {
+                    warn!("failed to load dilemma content: {error}; falling back to menu");
+                    SceneNavigator::fallback_state_vector().set_state(
+                        &mut next_main_state,
+                        &mut next_game_state,
+                        &mut next_sub_state,
+                    );
+                    return;
+                }
+            },
             _ => {
                 warn!("expected dilemma scene but found non-dilemma route; falling back to menu");
                 SceneNavigator::fallback_state_vector().set_state(

@@ -19,6 +19,7 @@ use crate::{
         interaction::InteractionVisualPalette,
         ui::menu::{
             main_menu_command_registry, schema, spawn_main_menu_option_list, MainMenuEntry,
+            MenuCommand,
         },
     },
 };
@@ -30,24 +31,55 @@ const SYSTEM_MUSIC_PATH: &str = "./audio/music/the_last_decision.ogg";
 const MAIN_MENU_SCHEMA_JSON: &str = include_str!("./content/main_menu_ui.json");
 
 static MAIN_MENU_OPTIONS: Lazy<Vec<MainMenuEntry>> = Lazy::new(|| {
-    // TODO(SCN-002): fall back to a minimal safe menu when schema parsing fails.
-    let resolved = schema::load_and_resolve_menu_schema_with_registry(
+    match schema::load_and_resolve_menu_schema_with_registry(
         MAIN_MENU_SCHEMA_JSON,
         main_menu_command_registry(),
-    )
-    .unwrap_or_else(|error| panic!("invalid main menu schema: {error}"));
-
-    resolved
-        .options
-        .into_iter()
-        .map(|option| MainMenuEntry {
-            name: option.id,
-            label: option.label,
-            y: option.y,
-            command: option.command,
-        })
-        .collect()
+    ) {
+        Ok(resolved) => resolved
+            .options
+            .into_iter()
+            .map(|option| MainMenuEntry {
+                name: option.id,
+                label: option.label,
+                y: option.y,
+                command: option.command,
+            })
+            .collect(),
+        Err(error) => {
+            warn!("invalid main menu schema: {error}; using fallback menu options");
+            fallback_main_menu_options()
+        }
+    }
 });
+
+fn fallback_main_menu_options() -> Vec<MainMenuEntry> {
+    vec![
+        MainMenuEntry {
+            name: String::from("menu_start_option"),
+            label: String::from("Start Game"),
+            y: 69.0,
+            command: MenuCommand::NextScene,
+        },
+        MainMenuEntry {
+            name: String::from("menu_level_select_option"),
+            label: String::from("Level Select"),
+            y: 23.0,
+            command: MenuCommand::OpenLevelSelectOverlay,
+        },
+        MainMenuEntry {
+            name: String::from("menu_options_option"),
+            label: String::from("Options"),
+            y: -23.0,
+            command: MenuCommand::OpenMainMenuOptionsOverlay,
+        },
+        MainMenuEntry {
+            name: String::from("menu_exit_option"),
+            label: String::from("Exit to Desktop"),
+            y: -69.0,
+            command: MenuCommand::ExitApplication,
+        },
+    ]
+}
 
 pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {

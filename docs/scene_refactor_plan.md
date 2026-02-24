@@ -1,6 +1,6 @@
 # Scene System Refactor Plan
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 
 ## Goal
 
@@ -60,7 +60,8 @@ Resolved in Stages 1-6:
 5. Singleton/ownership assumptions were tightened with queue APIs and query guards.
 
 Remaining targeted follow-up (tracked in compliance matrix):
-1. Convert remaining scene content parser `expect(...)` usage to typed, recoverable errors.
+1. Normalize lever ownership model (resource + component duality) to a single ECS ownership contract.
+2. Continue reducing per-scene ad-hoc shared plugin registration where practical.
 
 ## Stage Plan
 

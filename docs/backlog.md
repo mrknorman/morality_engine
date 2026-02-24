@@ -126,6 +126,19 @@ Acceptance criteria:
 - CRT options color update applied consistently.
 - No regressions in existing menu command actions.
 
+### SCN-016 - Campaign graph viewer/editor tooling
+
+- Status: todo
+- Priority: medium
+- Area: scenes/flow, tooling
+- Why: campaign branching is non-linear and difficult to reason about in raw JSON alone.
+Acceptance criteria:
+- Read-only graph viewer renders `campaign_graph.json` with route/rule labels.
+- Path-family filters exist (lab, inaction, deontological, utilitarian).
+- Graph validity status is visible in the tool (schema + validation pass/fail).
+- Export or snapshot artifact can be generated for docs/review.
+- Phase-2 scope documented for edit mode (node/edge/rule editing + safe writeback).
+
 ## Later
 
 ### SCN-011 - Meta progression systems (hardware/software architect)

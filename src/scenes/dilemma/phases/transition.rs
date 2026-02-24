@@ -114,7 +114,7 @@ fn setup(
             timer: Timer::new(transition_duration, TimerMode::Once),
         });
         background.speed = -stage.speed * stage.countdown_duration.as_secs_f32() / 350.0;
-        commands.run_system(systems.0["update_background_speeds"]);
+        commands.run_system(systems.update_speeds_system());
     }
 }
 
@@ -144,7 +144,7 @@ fn trigger_exit(
     if has_train_translation && all_train_translations_finished {
         for mut background in background_query.iter_mut() {
             background.speed = 0.0;
-            commands.run_system(systems.0["update_background_speeds"]);
+            commands.run_system(systems.update_speeds_system());
         }
 
         *next_sub_state = NextState::PendingIfNeq(DilemmaPhase::Decision);
