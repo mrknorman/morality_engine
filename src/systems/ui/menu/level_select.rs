@@ -2,7 +2,13 @@ use std::collections::HashMap;
 
 use bevy::{prelude::*, sprite::Anchor};
 
-use super::*;
+use super::{
+    level_select_catalog::{
+        self, LevelSelectExpansionState, LevelSelectNodeId, LevelSelectVisibleRow,
+        LevelSelectVisibleRowKind,
+    },
+    *,
+};
 use crate::{
     entities::{
         sprites::compound::HollowRectangle,
@@ -11,24 +17,33 @@ use crate::{
     startup::system_menu,
     systems::{
         interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
-        ui::scroll::{
-            focus_scroll_offset_to_row, row_visible_in_viewport, ScrollAxis, ScrollBar,
-            ScrollFocusFollowLock, ScrollState, ScrollableContent, ScrollableContentExtent,
-            ScrollableItem, ScrollableRoot, ScrollableTableAdapter, ScrollableViewport,
-        },
-        ui::window::{
-            UiWindow, UiWindowContent, UiWindowContentMetrics, UiWindowOverflowPolicy,
-            UiWindowTitle,
+        ui::{
+            scroll::{
+                focus_scroll_offset_to_row, row_visible_in_viewport, ScrollAxis, ScrollBar,
+                ScrollFocusFollowLock, ScrollState, ScrollableContent, ScrollableContentExtent,
+                ScrollableItem, ScrollableRoot, ScrollableTableAdapter, ScrollableViewport,
+            },
+            search_box::{SearchBox, SearchBoxConfig, SearchBoxQueryChanged},
+            text_input_box::TextInputBoxStyle,
+            window::{
+                UiWindow, UiWindowContent, UiWindowContentMetrics, UiWindowOverflowPolicy,
+                UiWindowTitle,
+            },
         },
     },
 };
-use super::level_select_catalog::{self, LevelSelectVisibleRowKind};
 
 const LEVEL_SELECT_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const LEVEL_SELECT_OVERLAY_DIM_SIZE: f32 = 6000.0;
 const LEVEL_SELECT_OVERLAY_DIM_Z: f32 = -5.0;
+
 const LEVEL_SELECT_WINDOW_SIZE: Vec2 = Vec2::new(690.0, 440.0);
 const LEVEL_SELECT_WINDOW_Z: f32 = 0.4;
+
+const LEVEL_SELECT_SEARCH_BOX_Y: f32 = 205.0;
+const LEVEL_SELECT_SEARCH_BOX_SIZE: Vec2 = Vec2::new(640.0, 24.0);
+const LEVEL_SELECT_SEARCH_FONT_SIZE: f32 = scaled_font_size(11.0);
+
 const LEVEL_SELECT_LIST_X: f32 = -320.0;
 const LEVEL_SELECT_LIST_ROW_STEP: f32 = 22.0;
 const LEVEL_SELECT_TREE_INDENT: f32 = 14.0;
@@ -45,11 +60,30 @@ const LEVEL_SELECT_LIST_LEADING_PADDING: f32 =
 const LEVEL_SELECT_LIST_VIEWPORT_SIZE: Vec2 = Vec2::new(640.0, LEVEL_SELECT_LIST_VIEWPORT_HEIGHT);
 
 #[derive(Component)]
+pub(super) struct LevelSelectOverlay;
+
+#[derive(Component)]
 pub(super) struct LevelSelectScrollRoot;
 
 #[derive(Component, Clone, Copy)]
 pub(super) struct LevelSelectScrollRow {
     index: usize,
+    folder_id: Option<LevelSelectNodeId>,
+}
+
+#[derive(Component)]
+pub(super) struct LevelSelectSearchBox {
+    owner: Entity,
+}
+
+#[derive(Component)]
+pub(super) struct LevelSelectRuntime {
+    expansion: LevelSelectExpansionState,
+    visible_rows: Vec<LevelSelectVisibleRow>,
+    query_normalized: String,
+    scroll_root: Entity,
+    rows_root: Entity,
+    dirty: bool,
 }
 
 fn level_select_row_center_y(index: usize) -> f32 {
@@ -64,8 +98,75 @@ fn level_select_scroll_content_height(row_count: usize) -> f32 {
     LEVEL_SELECT_LIST_LEADING_PADDING + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP
 }
 
-#[derive(Component)]
-pub(super) struct LevelSelectOverlay;
+fn level_select_visible_rows(
+    expansion: &LevelSelectExpansionState,
+    normalized_query: &str,
+) -> Vec<LevelSelectVisibleRow> {
+    let root = level_select_catalog::level_select_catalog_root();
+    level_select_catalog::visible_rows_for_query(&root, expansion, normalized_query)
+}
+
+fn level_select_folder_label(
+    row: &LevelSelectVisibleRow,
+    expansion: &LevelSelectExpansionState,
+    query_active: bool,
+) -> String {
+    let expanded = query_active || expansion.is_expanded(row.id);
+    if expanded {
+        format!("[-] {}/", row.label)
+    } else {
+        format!("[+] {}/", row.label)
+    }
+}
+
+fn spawn_level_select_rows(
+    rows_parent: &mut ChildSpawnerCommands<'_>,
+    asset_server: &Res<AssetServer>,
+    overlay_entity: Entity,
+    rows: &[LevelSelectVisibleRow],
+    expansion: &LevelSelectExpansionState,
+    query_active: bool,
+) {
+    for (index, row) in rows.iter().enumerate() {
+        let (label, folder_id, command) = match row.kind {
+            LevelSelectVisibleRowKind::Folder => (
+                level_select_folder_label(row, expansion, query_active),
+                Some(row.id),
+                MenuCommand::None,
+            ),
+            LevelSelectVisibleRowKind::File(file) => (
+                row.label.to_string(),
+                None,
+                MenuCommand::StartSingleLevel(file.scene),
+            ),
+        };
+
+        let option_entity = system_menu::spawn_option(
+            rows_parent,
+            label,
+            LEVEL_SELECT_LIST_X + row.depth as f32 * LEVEL_SELECT_TREE_INDENT,
+            level_select_scroll_local_y(level_select_row_center_y(index)),
+            overlay_entity,
+            index,
+            system_menu::SystemMenuOptionVisualStyle::default(),
+        );
+
+        rows_parent.commands().entity(option_entity).insert((
+            Name::new(format!("level_select_row_{index}")),
+            LevelSelectScrollRow { index, folder_id },
+            ScrollableItem::new(index as u64 + 1, index, LEVEL_SELECT_LIST_ROW_STEP),
+            Clickable::with_region(vec![SystemMenuActions::Activate], LEVEL_SELECT_ROW_REGION),
+            MenuOptionCommand(command),
+            system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
+            UiInputPolicy::CapturedOnly,
+            Anchor::CENTER_LEFT,
+            TextLayout {
+                justify: Justify::Left,
+                ..default()
+            },
+        ));
+    }
+}
 
 pub(super) fn spawn_level_select_overlay(
     commands: &mut Commands,
@@ -89,11 +190,7 @@ pub(super) fn spawn_level_select_overlay(
         commands,
         asset_server,
         "main_menu_level_select_overlay",
-        Vec3::new(
-            camera_translation.x,
-            camera_translation.y,
-            system_menu::MENU_Z,
-        ),
+        Vec3::new(camera_translation.x, camera_translation.y, system_menu::MENU_Z),
         SystemMenuSounds::Switch,
         SelectableMenu::new(
             0,
@@ -132,6 +229,12 @@ pub(super) fn spawn_level_select_overlay(
         ));
     });
 
+    let initial_expansion = {
+        let root = level_select_catalog::level_select_catalog_root();
+        LevelSelectExpansionState::all_expanded(&root)
+    };
+    let initial_rows = level_select_visible_rows(&initial_expansion, "");
+
     let window_entity = commands
         .spawn((
             Name::new("level_select_window"),
@@ -167,7 +270,28 @@ pub(super) fn spawn_level_select_overlay(
     commands.entity(window_entity).add_child(content_root);
     commands.entity(overlay_entity).add_child(window_entity);
 
+    let mut scroll_root = None;
+    let mut rows_root = None;
     commands.entity(content_root).with_children(|content| {
+        content.spawn((
+            Name::new("level_select_search_box"),
+            LevelSelectSearchBox {
+                owner: overlay_entity,
+            },
+            SearchBox::new(overlay_entity, UiLayerKind::Base),
+            SearchBoxConfig {
+                placeholder: "Search files and folders...".to_string(),
+                ..default()
+            },
+            TextInputBoxStyle {
+                size: LEVEL_SELECT_SEARCH_BOX_SIZE,
+                font_size: LEVEL_SELECT_SEARCH_FONT_SIZE,
+                padding: Vec2::new(10.0, 4.0),
+                ..default()
+            },
+            UiInputPolicy::CapturedOnly,
+            Transform::from_xyz(0.0, LEVEL_SELECT_SEARCH_BOX_Y, 0.24),
+        ));
         content.spawn((
             Name::new("level_select_hint"),
             TextRaw,
@@ -186,82 +310,216 @@ pub(super) fn spawn_level_select_overlay(
             Transform::from_xyz(0.0, 166.0, 0.2),
         ));
 
-        let file_rows: Vec<_> = level_select_catalog::default_level_select_file_rows();
-
-        let scroll_root = content
+        let root_entity = content
             .spawn((
                 Name::new("level_select_list_scroll_root"),
                 LevelSelectScrollRoot,
                 UiInputPolicy::CapturedOnly,
                 ScrollableRoot::new(overlay_entity, ScrollAxis::Vertical),
                 ScrollableViewport::new(LEVEL_SELECT_LIST_VIEWPORT_SIZE),
-                ScrollableContentExtent(level_select_scroll_content_height(file_rows.len())),
+                ScrollableContentExtent(level_select_scroll_content_height(initial_rows.len())),
                 ScrollableTableAdapter::new(
                     overlay_entity,
-                    file_rows.len(),
+                    initial_rows.len(),
                     LEVEL_SELECT_LIST_ROW_STEP,
                     LEVEL_SELECT_LIST_LEADING_PADDING,
                 ),
                 Transform::from_xyz(0.0, LEVEL_SELECT_LIST_CENTER_Y, 0.22),
             ))
             .id();
-        let scroll_content = content
+        scroll_root = Some(root_entity);
+
+        let content_entity = content
             .spawn((
                 Name::new("level_select_list_scroll_content"),
                 ScrollableContent,
                 Transform::default(),
             ))
             .id();
-        content.commands().entity(scroll_root).add_child(scroll_content);
+        rows_root = Some(content_entity);
+
+        content.commands().entity(root_entity).add_child(content_entity);
         content
             .commands()
-            .entity(scroll_root)
+            .entity(root_entity)
             .with_children(|scroll_root_parent| {
                 scroll_root_parent.spawn((
                     Name::new("level_select_list_scrollbar"),
-                    ScrollBar::new(scroll_root),
+                    ScrollBar::new(root_entity),
                     Transform::from_xyz(0.0, 0.0, 0.12),
                 ));
             });
-
         content
             .commands()
-            .entity(scroll_content)
+            .entity(content_entity)
             .with_children(|rows_parent| {
-                for (index, row) in file_rows.iter().enumerate() {
-                    let LevelSelectVisibleRowKind::File(file) = row.kind else {
-                        continue;
-                    };
-                    let option_entity = system_menu::spawn_option(
-                        rows_parent,
-                        row.label,
-                        LEVEL_SELECT_LIST_X + row.depth as f32 * LEVEL_SELECT_TREE_INDENT,
-                        level_select_scroll_local_y(level_select_row_center_y(index)),
-                        overlay_entity,
-                        index,
-                        system_menu::SystemMenuOptionVisualStyle::default(),
-                    );
-
-                    rows_parent.commands().entity(option_entity).insert((
-                        Name::new(format!("level_select_file_{index}")),
-                        LevelSelectScrollRow { index },
-                        ScrollableItem::new(index as u64 + 1, index, LEVEL_SELECT_LIST_ROW_STEP),
-                        Clickable::with_region(
-                            vec![SystemMenuActions::Activate],
-                            LEVEL_SELECT_ROW_REGION,
-                        ),
-                        MenuOptionCommand(MenuCommand::StartSingleLevel(file.scene)),
-                        system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
-                        UiInputPolicy::CapturedOnly,
-                        Anchor::CENTER_LEFT,
-                        TextLayout {
-                            justify: Justify::Left,
-                            ..default()
-                        },
-                    ));
-                }
+                spawn_level_select_rows(
+                    rows_parent,
+                    asset_server,
+                    overlay_entity,
+                    &initial_rows,
+                    &initial_expansion,
+                    false,
+                );
             });
     });
+
+    let Some(scroll_root) = scroll_root else {
+        return;
+    };
+    let Some(rows_root) = rows_root else {
+        return;
+    };
+    commands.entity(overlay_entity).insert(LevelSelectRuntime {
+        expansion: initial_expansion,
+        visible_rows: initial_rows,
+        query_normalized: String::new(),
+        scroll_root,
+        rows_root,
+        dirty: false,
+    });
+}
+
+pub(super) fn sync_level_select_search_query(
+    mut query_changes: MessageReader<SearchBoxQueryChanged>,
+    search_box_query: Query<&LevelSelectSearchBox>,
+    mut runtime_query: Query<&mut LevelSelectRuntime, With<LevelSelectOverlay>>,
+) {
+    for changed in query_changes.read() {
+        let Ok(search_box) = search_box_query.get(changed.entity) else {
+            continue;
+        };
+        let Ok(mut runtime) = runtime_query.get_mut(search_box.owner) else {
+            continue;
+        };
+        if runtime.query_normalized == changed.normalized {
+            continue;
+        }
+        runtime.query_normalized = changed.normalized.clone();
+        runtime.dirty = true;
+    }
+}
+
+pub(super) fn handle_level_select_folder_activation(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    overlay_query: Query<(Entity, &SelectableMenu), With<LevelSelectOverlay>>,
+    row_query: Query<
+        (
+            Entity,
+            &Selectable,
+            &LevelSelectScrollRow,
+            &Clickable<SystemMenuActions>,
+        ),
+        With<MenuOptionCommand>,
+    >,
+    mut runtime_query: Query<&mut LevelSelectRuntime, With<LevelSelectOverlay>>,
+) {
+    for (overlay_entity, menu) in overlay_query.iter() {
+        let activate_requested = menu
+            .activate_keys
+            .iter()
+            .any(|key| keyboard_input.just_pressed(*key));
+        let mut folder_to_toggle = None;
+        let mut click_rank = 0;
+
+        for (row_entity, selectable, row, clickable) in row_query.iter() {
+            if selectable.menu_entity != overlay_entity {
+                continue;
+            }
+            let Some(folder_id) = row.folder_id else {
+                continue;
+            };
+
+            if clickable.triggered {
+                let rank = row_entity.to_bits();
+                if rank >= click_rank {
+                    click_rank = rank;
+                    folder_to_toggle = Some(folder_id);
+                }
+                continue;
+            }
+
+            if activate_requested && selectable.index == menu.selected_index {
+                folder_to_toggle = Some(folder_id);
+            }
+        }
+
+        let Some(folder_id) = folder_to_toggle else {
+            continue;
+        };
+        let Ok(mut runtime) = runtime_query.get_mut(overlay_entity) else {
+            continue;
+        };
+        runtime.expansion.toggle(folder_id);
+        runtime.dirty = true;
+    }
+}
+
+pub(super) fn rebuild_level_select_rows(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut overlay_query: Query<
+        (Entity, &mut LevelSelectRuntime, &mut SelectableMenu),
+        With<LevelSelectOverlay>,
+    >,
+    children_query: Query<&Children>,
+    mut scroll_query: Query<
+        (&mut ScrollableTableAdapter, &mut ScrollableContentExtent),
+        With<LevelSelectScrollRoot>,
+    >,
+) {
+    for (overlay_entity, mut runtime, mut menu) in overlay_query.iter_mut() {
+        if !runtime.dirty {
+            continue;
+        }
+        runtime.dirty = false;
+
+        let selected_row_id = runtime.visible_rows.get(menu.selected_index).map(|row| row.id);
+        let next_rows = level_select_visible_rows(&runtime.expansion, &runtime.query_normalized);
+        let query_active = !runtime.query_normalized.trim().is_empty();
+        let row_count = next_rows.len();
+
+        if let Ok(children) = children_query.get(runtime.rows_root) {
+            for child in children.iter() {
+                commands.entity(child).despawn_related::<Children>();
+                commands.entity(child).despawn();
+            }
+        }
+
+        let expansion = runtime.expansion.clone();
+        commands
+            .entity(runtime.rows_root)
+            .with_children(|rows_parent| {
+                spawn_level_select_rows(
+                    rows_parent,
+                    &asset_server,
+                    overlay_entity,
+                    &next_rows,
+                    &expansion,
+                    query_active,
+                );
+            });
+
+        if let Ok((mut adapter, mut content_extent)) = scroll_query.get_mut(runtime.scroll_root) {
+            adapter.row_count = row_count;
+            content_extent.0 = level_select_scroll_content_height(row_count);
+        }
+
+        menu.selected_index = if row_count == 0 {
+            0
+        } else {
+            let fallback = menu.selected_index.min(row_count - 1);
+            selected_row_id
+                .and_then(|selected_row_id| {
+                    next_rows
+                        .iter()
+                        .position(|row| row.id == selected_row_id)
+                })
+                .unwrap_or(fallback)
+        };
+
+        runtime.visible_rows = next_rows;
+    }
 }
 
 pub(super) fn sync_level_select_scroll_focus_follow(
@@ -331,19 +589,14 @@ pub(super) fn sync_level_select_option_hit_regions_to_viewport(
     }
 
     for (selectable, row, mut clickable) in option_query.iter_mut() {
-        let Some((adapter, state)) =
-            adapter_state_by_owner.get(&selectable.menu_entity).copied()
+        let Some((adapter, state)) = adapter_state_by_owner.get(&selectable.menu_entity).copied()
         else {
             clickable.region = Some(LEVEL_SELECT_ROW_REGION);
             continue;
         };
 
-        let visible = row_visible_in_viewport(
-            &state,
-            row.index,
-            adapter.row_extent,
-            adapter.leading_padding,
-        );
+        let visible =
+            row_visible_in_viewport(&state, row.index, adapter.row_extent, adapter.leading_padding);
         clickable.region = if visible {
             Some(LEVEL_SELECT_ROW_REGION)
         } else {
@@ -363,8 +616,8 @@ mod tests {
         let row_count = 19;
         let content_height = level_select_scroll_content_height(row_count);
         let max_offset = (content_height - LEVEL_SELECT_LIST_VIEWPORT_HEIGHT).max(0.0);
-        let last_row_bottom = LEVEL_SELECT_LIST_LEADING_PADDING
-            + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP;
+        let last_row_bottom =
+            LEVEL_SELECT_LIST_LEADING_PADDING + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP;
 
         assert!(content_height > LEVEL_SELECT_LIST_VIEWPORT_HEIGHT);
         assert!((last_row_bottom - (max_offset + LEVEL_SELECT_LIST_VIEWPORT_HEIGHT)).abs() < 0.001);
@@ -374,8 +627,17 @@ mod tests {
     fn level_select_scroll_systems_initialize_without_query_alias_panics() {
         let mut world = World::new();
 
-        let mut focus_follow_system =
-            IntoSystem::into_system(sync_level_select_scroll_focus_follow);
+        let mut search_query_system = IntoSystem::into_system(sync_level_select_search_query);
+        search_query_system.initialize(&mut world);
+
+        let mut folder_activation_system =
+            IntoSystem::into_system(handle_level_select_folder_activation);
+        folder_activation_system.initialize(&mut world);
+
+        let mut rebuild_system = IntoSystem::into_system(rebuild_level_select_rows);
+        rebuild_system.initialize(&mut world);
+
+        let mut focus_follow_system = IntoSystem::into_system(sync_level_select_scroll_focus_follow);
         focus_follow_system.initialize(&mut world);
 
         let mut hit_region_system =

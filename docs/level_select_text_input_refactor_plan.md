@@ -17,8 +17,9 @@ Refactor the level select overlay into a robust, extensible UI flow with:
 
 - Stage 1 (`TextInputBox` primitive): completed (`896ceb3`).
 - Stage 2 (`SearchBox` composition primitive): completed (`896ceb3`).
-- Stage 3 (catalog/tree model extraction): partially completed (catalog + flattening API + level-select wiring).
+- Stage 3 (catalog/tree model extraction): completed (folder/file rows + expansion state + deterministic row projection).
 - Stage 4 (scroll root-cause fix): completed (explicit list scroll root + deterministic extent/focus-follow).
+- Stage 5 (search integration): completed (SearchBox wiring + incremental filtered projection + ancestor inclusion).
 
 ## Architecture Direction
 

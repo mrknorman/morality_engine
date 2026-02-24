@@ -952,6 +952,8 @@ impl Plugin for MenusPlugin {
                 handle_video_modal_button_commands,
                 handle_resolution_dropdown_item_commands,
                 close_resolution_dropdown_on_outside_click,
+                level_select::sync_level_select_search_query,
+                level_select::handle_level_select_folder_activation,
             )
                 .chain()
                 .in_set(MenuSystems::Commands)
@@ -993,6 +995,7 @@ impl Plugin for MenusPlugin {
                 tabs::sanitize_tab_selection_indices,
                 tabs::sync_tab_bar_state,
                 tabbed_menu::cleanup_tabbed_menu_state,
+                level_select::rebuild_level_select_rows,
                 sanitize_menu_selection_indices,
                 scroll_adapter::sync_video_top_scroll_focus_follow,
                 level_select::sync_level_select_scroll_focus_follow,

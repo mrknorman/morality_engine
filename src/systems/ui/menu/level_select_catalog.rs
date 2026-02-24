@@ -57,6 +57,19 @@ impl LevelSelectExpansionState {
     pub(super) fn is_expanded(&self, id: LevelSelectNodeId) -> bool {
         self.expanded.contains(&id)
     }
+
+    pub(super) fn set_expanded(&mut self, id: LevelSelectNodeId, expanded: bool) {
+        if expanded {
+            self.expanded.insert(id);
+        } else {
+            self.expanded.remove(&id);
+        }
+    }
+
+    pub(super) fn toggle(&mut self, id: LevelSelectNodeId) {
+        let expand = !self.is_expanded(id);
+        self.set_expanded(id, expand);
+    }
 }
 
 fn folder(
@@ -222,6 +235,23 @@ pub(super) fn flatten_visible_rows(
     rows
 }
 
+pub(super) fn visible_rows_for_query(
+    root: &LevelSelectFolderNode,
+    expansion: &LevelSelectExpansionState,
+    normalized_query: &str,
+) -> Vec<LevelSelectVisibleRow> {
+    let query = normalized_query.trim();
+    if query.is_empty() {
+        return flatten_visible_rows(root, expansion);
+    }
+
+    let mut rows = Vec::new();
+    let query = query.to_ascii_lowercase();
+    flatten_children_matching_query(&root.children, 0, &query, &mut rows);
+    rows
+}
+
+#[cfg(test)]
 pub(super) fn default_level_select_file_rows() -> Vec<LevelSelectVisibleRow> {
     let root = level_select_catalog_root();
     let expansion = LevelSelectExpansionState::all_expanded(&root);
@@ -260,6 +290,57 @@ fn flatten_children(
             }
         }
     }
+}
+
+fn flatten_children_matching_query(
+    children: &[LevelSelectNode],
+    depth: usize,
+    query: &str,
+    rows: &mut Vec<LevelSelectVisibleRow>,
+) -> bool {
+    let mut matched_any = false;
+
+    for node in children {
+        match node {
+            LevelSelectNode::Folder(folder) => {
+                let folder_matches = query_match(folder.label, query);
+                let mut child_rows = Vec::new();
+                let child_matches = flatten_children_matching_query(
+                    &folder.children,
+                    depth + 1,
+                    query,
+                    &mut child_rows,
+                );
+                if folder_matches || child_matches {
+                    rows.push(LevelSelectVisibleRow {
+                        id: folder.id,
+                        label: folder.label,
+                        depth,
+                        kind: LevelSelectVisibleRowKind::Folder,
+                    });
+                    rows.extend(child_rows);
+                    matched_any = true;
+                }
+            }
+            LevelSelectNode::File(file) => {
+                if query_match(file.file_name, query) {
+                    rows.push(LevelSelectVisibleRow {
+                        id: file.id,
+                        label: file.file_name,
+                        depth,
+                        kind: LevelSelectVisibleRowKind::File(*file),
+                    });
+                    matched_any = true;
+                }
+            }
+        }
+    }
+
+    matched_any
+}
+
+fn query_match(label: &str, query: &str) -> bool {
+    label.to_ascii_lowercase().contains(query)
 }
 
 fn collect_folder_ids(folder: &LevelSelectFolderNode, expanded: &mut HashSet<LevelSelectNodeId>) {
@@ -304,5 +385,26 @@ mod tests {
         for row in rows {
             assert!(ids.insert(row.id));
         }
+    }
+
+    #[test]
+    fn query_projection_includes_folder_ancestors_for_matching_files() {
+        let root = level_select_catalog_root();
+        let expansion = LevelSelectExpansionState::default();
+        let rows = visible_rows_for_query(&root, &expansion, "unorthodox");
+
+        assert!(rows.iter().any(|row| row.label == "path_utilitarian"
+            && matches!(row.kind, LevelSelectVisibleRowKind::Folder)));
+        assert!(rows.iter().any(|row| row.label == "path_utilitarian_unorthodox_surgery.dilem"
+            && matches!(row.kind, LevelSelectVisibleRowKind::File(_))));
+    }
+
+    #[test]
+    fn query_projection_is_case_insensitive() {
+        let root = level_select_catalog_root();
+        let expansion = LevelSelectExpansionState::default();
+        let rows = visible_rows_for_query(&root, &expansion, "LAB4_RANDOM_DEATHS");
+
+        assert!(rows.iter().any(|row| row.label == "lab4_random_deaths.dilem"));
     }
 }
