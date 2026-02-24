@@ -11,8 +11,7 @@ use crate::{
     },
     entities::{
         graph::GraphPlugin,
-        sprites::SpritePlugin,
-        text::{scaled_font_size, TextButton, TextPlugin, TextWindow},
+        text::{scaled_font_size, TextButton, TextWindow},
     },
     style::common_ui::NextButton,
     systems::{
@@ -53,12 +52,6 @@ impl Plugin for DialoguePlugin {
         if !app.is_plugin_added::<GraphPlugin>() {
             app.add_plugins(GraphPlugin);
         };
-        if !app.is_plugin_added::<SpritePlugin>() {
-            app.add_plugins(SpritePlugin);
-        }
-        if !app.is_plugin_added::<TextPlugin>() {
-            app.add_plugins(TextPlugin);
-        }
     }
 }
 

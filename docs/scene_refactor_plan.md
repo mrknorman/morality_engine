@@ -29,6 +29,7 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - Stage 5 complete: `14bf517`
 - Stage 6 complete: `751b002`
 - Stage 7 complete: docs finalization and validation
+- Stage 8 complete: lever ownership normalization, shared plugin consolidation, train fallback hardening
 
 ## Scene Documentation Set
 
@@ -52,16 +53,19 @@ Status:
 
 ## High-Level Issue Status
 
-Resolved in Stages 1-6:
+Resolved in Stages 1-8:
 1. Scene flow panic paths in core progression were replaced with fallbacks and guarded routing.
 2. Scene-to-state mapping duplication was removed through `SceneNavigator`.
 3. Campaign/branching policy was moved into `src/scenes/flow/mod.rs`.
 4. Shared plugin/dependency wiring was centralized in `src/scenes/composition.rs`.
-5. Singleton/ownership assumptions were tightened with queue APIs and query guards.
+5. Lever ownership was normalized to a single contract (`Lever` resource + `LeverRoot` entity marker).
+6. Scene-local ad-hoc registration of shared sprite/text/cascade plugins was removed.
+7. Train setup/content-loading runtime paths now use warning + fallback behavior instead of hard panics.
+8. Singleton assumptions in scene phases were reviewed; current remaining `Single` call sites are invariant-driven and non-panicking.
 
 Remaining targeted follow-up (tracked in compliance matrix):
-1. Normalize lever ownership model (resource + component duality) to a single ECS ownership contract.
-2. Continue reducing per-scene ad-hoc shared plugin registration where practical.
+1. Build campaign graph viewer/editor tooling for non-linear authoring workflows (`SCN-016`).
+2. Continue targeted audits of scene-content/runtime setup for fallback quality and error observability.
 
 ## Stage Plan
 
@@ -140,6 +144,18 @@ Exit gate:
 - `cargo check` passes.
 - Clean checkpoint commit.
 
+### Stage 8: Ownership and Composition Completion
+
+Scope:
+- Normalize lever ownership to one ECS ownership contract.
+- Remove remaining per-scene registration of shared composition plugins.
+- Harden train setup/content-loading runtime behavior with safe fallbacks.
+
+Exit gate:
+- No resource+component dual ownership for lever state.
+- Shared sprite/text/cascade dependencies come from composition plugin layer.
+- Targeted scene/runtime tests pass with no new panic-driven flow paths.
+
 ## Commit Convention
 
 Use one commit per stage with clear scope prefixes, for example:
@@ -152,3 +168,4 @@ Use one commit per stage with clear scope prefixes, for example:
 - `refactor(scenes): stage 5 plugin/dependency normalization`
 - `refactor(scenes): stage 6 ecs ownership/query safety`
 - `docs(scenes): stage 7 finalize docs and validation`
+- `refactor(scenes): stage 8 ownership/composition completion`

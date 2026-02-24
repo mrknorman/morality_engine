@@ -12,7 +12,7 @@ use crate::{
             continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, MusicAudio,
             NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet,
         },
-        cascade::{Cascade, CascadePlugin},
+        cascade::Cascade,
         colors::{AlphaTranslation, DIM_BACKGROUND_COLOR},
         inheritance::BequeathTextAlpha,
         interaction::{ActionPallet, InputAction},
@@ -40,9 +40,6 @@ impl Plugin for LoadingScenePlugin {
                     .run_if(in_state(GameState::Loading)),
             );
 
-        if !app.is_plugin_added::<CascadePlugin>() {
-            app.add_plugins(CascadePlugin);
-        }
         if !app.is_plugin_added::<LoadingBarPlugin>() {
             app.add_plugins(LoadingBarPlugin);
         }

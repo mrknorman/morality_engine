@@ -15,7 +15,7 @@ use crate::{
     },
     scenes::dilemma::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage, DilemmaTimer},
-        lever::{Lever, LeverState, LEVER_BASE},
+        lever::{Lever, LeverRoot, LeverState, LEVER_BASE},
         DilemmaSounds,
     },
     style::common_ui::CenterLever,
@@ -302,7 +302,7 @@ impl DecisionScene {
                         Transform::from_translation(Self::TIMER_TRANSLATION)
                     ),
                     (
-                        Lever::with_option_count(state, option_count),
+                        LeverRoot,
                         ClickablePong::new(click_actions, initial_click_state)
                             .with_region(Self::LEVER_CLICK_REGION),
                         Pressable::new(option_key_mappings),
@@ -468,7 +468,7 @@ impl DecisionScene {
                 &mut Clickable<LeverActions>,
                 &mut InteractionState,
             ),
-            With<Lever>,
+            With<LeverRoot>,
         >,
     ) {
         let Some(selected_index) = lever.selected_index() else {

@@ -32,7 +32,7 @@ impl Plugin for LeverPlugin {
     }
 }
 
-fn activate_systems(mut state: ResMut<NextState<LeverSystemsActive>>, query: Query<&Lever>) {
+fn activate_systems(mut state: ResMut<NextState<LeverSystemsActive>>, query: Query<&LeverRoot>) {
     if !query.is_empty() {
         state.set(LeverSystemsActive::True)
     } else {
@@ -79,10 +79,64 @@ impl LeverState {
     }
 }
 
-#[derive(Component, Resource, Clone, Copy)]
-#[require(LeverBase, ClickableCursorIcons = Lever::default_cursor_icons())]
-#[component(on_insert = Lever::on_insert)]
+#[derive(Component, Clone, Copy)]
+#[require(LeverBase, ClickableCursorIcons = LeverRoot::default_cursor_icons())]
+#[component(on_insert = LeverRoot::on_insert)]
+pub struct LeverRoot;
+
+#[derive(Resource, Clone, Copy)]
 pub struct Lever(pub LeverState, pub usize);
+
+impl LeverRoot {
+    fn default_cursor_icons() -> ClickableCursorIcons {
+        ClickableCursorIcons {
+            on_hover: CursorMode::PullLeft,
+        }
+    }
+
+    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+        let mut has_shaft = false;
+        if let Some(children) = world.entity(entity).get::<Children>() {
+            for child in children.iter() {
+                if let Ok(child_ref) = world.get_entity(child) {
+                    if child_ref.contains::<LeverShaftPivot>() {
+                        has_shaft = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if has_shaft {
+            return;
+        }
+
+        world.commands().entity(entity).with_children(|parent| {
+            parent
+                .spawn((
+                    Name::new("lever_shaft_pivot"),
+                    LeverShaftPivot,
+                    Transform::from_xyz(0.0, LEVER_SHAFT_PIVOT_Y, LEVER_SHAFT_PIVOT_Z),
+                ))
+                .with_children(|shaft_parent| {
+                    shaft_parent.spawn((
+                        Name::new("lever_shaft"),
+                        LeverShaft,
+                        Text2d::new(LEVER_SHAFT),
+                        TextFont {
+                            font_size: scaled_font_size(LEVER_FONT_SIZE),
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                        TextLayout {
+                            justify: Justify::Center,
+                            ..default()
+                        },
+                        Anchor::BOTTOM_CENTER,
+                    ));
+                });
+        });
+    }
+}
 
 impl Lever {
     pub fn with_option_count(state: LeverState, option_count: usize) -> Self {
@@ -140,60 +194,11 @@ impl Lever {
         angle_deg.to_radians()
     }
 
-    fn default_cursor_icons() -> ClickableCursorIcons {
-        ClickableCursorIcons {
-            on_hover: CursorMode::PullLeft,
-        }
-    }
-
-    fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-        let mut has_shaft = false;
-        if let Some(children) = world.entity(entity).get::<Children>() {
-            for child in children.iter() {
-                if let Ok(child_ref) = world.get_entity(child) {
-                    if child_ref.contains::<LeverShaftPivot>() {
-                        has_shaft = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if has_shaft {
-            return;
-        }
-
-        world.commands().entity(entity).with_children(|parent| {
-            parent
-                .spawn((
-                    Name::new("lever_shaft_pivot"),
-                    LeverShaftPivot,
-                    Transform::from_xyz(0.0, LEVER_SHAFT_PIVOT_Y, LEVER_SHAFT_PIVOT_Z),
-                ))
-                .with_children(|shaft_parent| {
-                    shaft_parent.spawn((
-                        Name::new("lever_shaft"),
-                        LeverShaft,
-                        Text2d::new(LEVER_SHAFT),
-                        TextFont {
-                            font_size: scaled_font_size(LEVER_FONT_SIZE),
-                            ..default()
-                        },
-                        TextColor(Color::WHITE),
-                        TextLayout {
-                            justify: Justify::Center,
-                            ..default()
-                        },
-                        Anchor::BOTTOM_CENTER,
-                    ));
-                });
-        });
-    }
-
     pub fn update(
         lever: Option<Res<Lever>>,
         mut base_query: Query<
             (&mut TextColor, &mut ClickableCursorIcons),
-            (With<Lever>, With<LeverBase>),
+            (With<LeverRoot>, With<LeverBase>),
         >,
         mut shaft_pivot_query: Query<&mut Transform, (With<LeverShaftPivot>, Without<LeverBase>)>,
         mut shaft_query: Query<&mut TextColor, (With<LeverShaft>, Without<LeverBase>)>,

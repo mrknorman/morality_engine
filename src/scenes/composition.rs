@@ -3,11 +3,14 @@ use bevy::prelude::*;
 use crate::{
     entities::{
         large_fonts::AsciiPlugin,
+        sprites::SpritePlugin,
+        text::TextPlugin,
         train::TrainPlugin,
     },
     style::ui::IOPlugin,
     systems::{
         backgrounds::BackgroundPlugin,
+        cascade::CascadePlugin,
         interaction::InteractionPlugin,
         scheduling::TimingPlugin,
     },
@@ -23,6 +26,9 @@ impl Plugin for SceneCompositionPlugin {
         ensure_plugin(app, TrainPlugin);
         ensure_plugin(app, BackgroundPlugin);
         ensure_plugin(app, AsciiPlugin);
+        ensure_plugin(app, SpritePlugin);
+        ensure_plugin(app, TextPlugin);
+        ensure_plugin(app, CascadePlugin);
     }
 }
 

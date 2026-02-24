@@ -6,8 +6,7 @@ use crate::{
     entities::{
         large_fonts::{AsciiString, TextEmotion},
         person::{BloodSprite, PersonPlugin},
-        sprites::SpritePlugin,
-        text::{scaled_font_size, TextPlugin, TextWindow},
+        text::{scaled_font_size, TextWindow},
         track::Track,
         train::{content::TrainTypes, Train},
     },
@@ -70,12 +69,6 @@ impl Plugin for DilemmaScenePlugin {
             .add_plugins(DilemmaResultsPlugin)
             .add_plugins(DilemmaSkipPlugin);
 
-        if !app.is_plugin_added::<SpritePlugin>() {
-            app.add_plugins(SpritePlugin);
-        }
-        if !app.is_plugin_added::<TextPlugin>() {
-            app.add_plugins(TextPlugin);
-        }
         if !app.is_plugin_added::<LeverPlugin>() {
             app.add_plugins(LeverPlugin);
         }

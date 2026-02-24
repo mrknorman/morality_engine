@@ -30,6 +30,13 @@ Legend:
 | `src/scenes/dilemma/mod.rs` | Compliant | Runtime routing/fallback through `SceneNavigator`; scene-local setup remains modular. | None. |
 | `src/scenes/ending/mod.rs` | Compliant | Typed parse + fallback route on ending-content failure. | None. |
 
+## ECS Ownership Contracts
+
+| Module | Status | Current Pattern | Follow-up |
+|---|---|---|---|
+| `src/scenes/dilemma/lever.rs` | Compliant | Lever runtime state is resource-owned (`Lever`) and rendered/interactive root ownership is entity-owned (`LeverRoot`) without dual registration. | None. |
+| `src/scenes/dilemma/phases/decision.rs` | Compliant | Decision phase spawns `LeverRoot`; input synchronization updates `Res<Lever>` instead of component state. | None. |
+
 ## Scene Content Loader Safety
 
 | Module | Status | Current Pattern | Follow-up |
@@ -37,6 +44,7 @@ Legend:
 | `src/scenes/dialogue/dialogue.rs` | Compliant | Dialogue content parsing now returns typed loader errors and setup falls back safely. | None. |
 | `src/scenes/dilemma/dilemma.rs` | Compliant | Dilemma content parsing now returns typed loader errors and setup falls back safely. | None. |
 | `src/scenes/loading/loading_bar.rs` | Compliant | Loading bar config failures recover with safe defaults instead of panicking. | None. |
+| `src/entities/train/mod.rs` | Compliant | Train content parse/setup failures log warnings and use fallback content/resource behavior instead of panicking. | None. |
 
 ## Transition Consumers
 
