@@ -58,7 +58,9 @@ Supported `FlowCondition` operators:
 - `decisions_gt`, `decisions_eq`
 - `total_decisions_gt`, `total_decisions_eq`
 - `selected_option_eq`
+- `last_decision_remaining_is_some`, `last_decision_remaining_is_none`
 - `last_decision_remaining_lt_secs`, `last_decision_remaining_gte_secs`
+- `overall_avg_remaining_is_some`, `overall_avg_remaining_is_none`
 - `overall_avg_remaining_lt_secs`, `overall_avg_remaining_gte_secs`
 
 Evaluation context source model:
@@ -112,3 +114,13 @@ Shadow-mode behavior:
 3. If graph and baseline differ for a graph-covered route, runtime logs a mismatch snapshot
    (scene kind + key stats context).
 4. Parity tests must assert graph/baseline equality for every currently graph-covered route.
+
+## Stage 5 Migration Contract
+
+Campaign migration requirements:
+
+1. `campaign_graph.json` covers all currently hardcoded branch source scenes.
+2. Graph rule ordering preserves previous if/else precedence semantics.
+3. Path-stage progressions (`path_inaction`, `path_deontological`, `path_utilitarian`) are encoded
+   explicitly as route sources and next-scene outputs.
+4. Shadow-mode parity tests cover representative branches across all migrated route families.

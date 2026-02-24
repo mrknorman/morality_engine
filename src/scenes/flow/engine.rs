@@ -90,7 +90,7 @@ fn evaluate_with_graph(
         num_fatalities: latest.num_fatalities,
         num_decisions: latest.num_decisions,
         total_decisions: stats.total_decisions,
-        selected_option: latest.result.and_then(|state| state.to_int()),
+        selected_option: Some(latest.result.and_then(|state| state.to_int()).unwrap_or(0)),
         duration_remaining_at_last_decision_secs: latest
             .duration_remaining_at_last_decision
             .map(|duration| duration.as_secs_f32()),

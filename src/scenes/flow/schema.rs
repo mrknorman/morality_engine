@@ -61,8 +61,12 @@ pub enum FlowCondition {
     TotalDecisionsGt { value: usize },
     TotalDecisionsEq { value: usize },
     SelectedOptionEq { value: usize },
+    LastDecisionRemainingIsSome,
+    LastDecisionRemainingIsNone,
     LastDecisionRemainingLtSecs { value: f32 },
     LastDecisionRemainingGteSecs { value: f32 },
+    OverallAvgRemainingIsSome,
+    OverallAvgRemainingIsNone,
     OverallAvgRemainingLtSecs { value: f32 },
     OverallAvgRemainingGteSecs { value: f32 },
 }
@@ -77,12 +81,20 @@ impl FlowCondition {
             Self::TotalDecisionsGt { value } => context.total_decisions > *value,
             Self::TotalDecisionsEq { value } => context.total_decisions == *value,
             Self::SelectedOptionEq { value } => context.selected_option == Some(*value),
+            Self::LastDecisionRemainingIsSome => {
+                context.duration_remaining_at_last_decision_secs.is_some()
+            }
+            Self::LastDecisionRemainingIsNone => {
+                context.duration_remaining_at_last_decision_secs.is_none()
+            }
             Self::LastDecisionRemainingLtSecs { value } => context
                 .duration_remaining_at_last_decision_secs
                 .is_some_and(|seconds| seconds < *value),
             Self::LastDecisionRemainingGteSecs { value } => context
                 .duration_remaining_at_last_decision_secs
                 .is_some_and(|seconds| seconds >= *value),
+            Self::OverallAvgRemainingIsSome => context.overall_avg_time_remaining_secs.is_some(),
+            Self::OverallAvgRemainingIsNone => context.overall_avg_time_remaining_secs.is_none(),
             Self::OverallAvgRemainingLtSecs { value } => context
                 .overall_avg_time_remaining_secs
                 .is_some_and(|seconds| seconds < *value),

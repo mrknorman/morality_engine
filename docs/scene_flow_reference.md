@@ -30,6 +30,7 @@ Current migration mode:
 
 - graph evaluation runs in shadow mode with hardcoded baseline remaining authoritative
 - mismatches are logged with flow context
+- `campaign_graph.json` now mirrors all current hardcoded campaign branch sources
 
 Shared cross-scene dependency wiring is centralized in:
 

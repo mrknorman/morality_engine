@@ -290,6 +290,16 @@ fn utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scenes::dilemma::lever::LeverState;
+
+    fn assert_graph_matches_baseline(scene: Scene, latest: DilemmaStats, stats: GameStats) {
+        let baseline =
+            next_scenes_hardcoded_for_current_dilemma(scene, &latest, &stats).expect("baseline");
+        let graph = engine::evaluate_next_scenes_from_graph(scene, &latest, &stats)
+            .expect("graph evaluation")
+            .expect("graph route");
+        assert!(graph == baseline);
+    }
 
     #[test]
     fn lab_three_junction_without_five_fatalities_routes_to_utilitarian_path() {
@@ -394,12 +404,94 @@ mod tests {
         let stats = GameStats::default();
         let scene = Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit));
 
-        let baseline =
-            next_scenes_hardcoded_for_current_dilemma(scene, &latest, &stats).expect("baseline");
-        let graph = engine::evaluate_next_scenes_from_graph(scene, &latest, &stats)
-            .expect("graph evaluation")
-            .expect("graph route");
+        assert_graph_matches_baseline(scene, latest, stats);
+    }
 
-        assert!(graph == baseline);
+    #[test]
+    fn graph_shadow_parity_for_representative_migrated_routes() {
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit)),
+            DilemmaStats {
+                num_fatalities: 1,
+                num_decisions: 1,
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit)),
+            DilemmaStats {
+                num_fatalities: 1,
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem)),
+            DilemmaStats {
+                num_fatalities: 5,
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob)),
+            DilemmaStats {
+                num_fatalities: 5,
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::PATH_INACTION[0]),
+            DilemmaStats::default(),
+            GameStats {
+                total_decisions: 1,
+                ..Default::default()
+            },
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::PATH_INACTION[6]),
+            DilemmaStats::default(),
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[0]),
+            DilemmaStats {
+                num_fatalities: 1,
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[2]),
+            DilemmaStats::default(),
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[0]),
+            DilemmaStats {
+                result: Some(LeverState::Selected(1)),
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
+
+        assert_graph_matches_baseline(
+            Scene::Dilemma(DilemmaScene::PATH_UTILITARIAN[3]),
+            DilemmaStats {
+                result: Some(LeverState::Selected(0)),
+                ..Default::default()
+            },
+            GameStats::default(),
+        );
     }
 }
