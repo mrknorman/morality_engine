@@ -36,6 +36,18 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - `docs/scene_flow_reference.md`
 - `docs/scene_compliance_matrix.md`
 - `docs/scene_manual_validation_checklist.md`
+- `docs/scene_progression_graph_spec.md`
+
+## Data-Driven Branching Track
+
+Status:
+- Stage 1 complete: progression graph schema + contract + example content
+- Stage 2 pending: validator + typed scene IDs
+- Stage 3 pending: graph evaluator runtime
+- Stage 4 pending: parity shadow mode
+- Stage 5 pending: campaign content migration
+- Stage 6 pending: cutover + hardcoded path removal
+- Stage 7 pending: authoring docs + validation workflow
 
 ## High-Level Issue Status
 

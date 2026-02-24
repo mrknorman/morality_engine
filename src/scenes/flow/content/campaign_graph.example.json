@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "routes": [
+    {
+      "from": {
+        "kind": "dilemma",
+        "id": "lab_0.incompetent_bandit"
+      },
+      "rules": [
+        {
+          "name": "fail_if_any_fatality",
+          "when": [
+            { "op": "fatalities_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_1.a.fail" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        },
+        {
+          "name": "pass_if_decision_taken",
+          "when": [
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_1.a.pass_indecisive" },
+            { "kind": "dialogue", "id": "lab_1.b.intro" },
+            { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "lab_1.a.pass" },
+        { "kind": "dialogue", "id": "lab_1.b.intro" },
+        { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" }
+      ]
+    }
+  ]
+}

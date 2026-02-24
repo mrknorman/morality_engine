@@ -1,0 +1,80 @@
+# Scene Progression Graph Spec
+
+Last updated: 2026-02-24
+
+## Goal
+
+Represent campaign branching as content data instead of hardcoded Rust path trees,
+while keeping runtime evaluation deterministic and fault-tolerant.
+
+## File Format
+
+Graph files are JSON deserialized into:
+
+- `SceneProgressionGraph`
+- `RouteDefinition`
+- `RouteRule`
+- `SceneRef`
+- `FlowCondition`
+
+Current schema implementation:
+
+- `src/scenes/flow/schema.rs`
+- example content: `src/scenes/flow/content/campaign_graph.example.json`
+
+## Top-Level Contract
+
+`SceneProgressionGraph` fields:
+
+- `version: u32`
+- `routes: Vec<RouteDefinition>`
+
+Each `RouteDefinition` contains:
+
+- `from: SceneRef`
+- `rules: Vec<RouteRule>` (ordered, optional)
+- `default: Vec<SceneRef>` (required non-empty fallback route)
+
+## Deterministic Rule Semantics
+
+Route evaluation is strict first-match in declared order:
+
+1. Iterate `rules` from index 0 upward.
+2. For each rule, evaluate all `when` conditions with AND semantics.
+3. Return `then` for the first rule that matches.
+4. If no rule matches, return `default`.
+
+No randomized dispatch is allowed inside graph evaluation.
+
+## Condition Model (Stage 1)
+
+Supported `FlowCondition` operators:
+
+- `fatalities_gt`, `fatalities_eq`
+- `decisions_gt`, `decisions_eq`
+- `total_decisions_gt`, `total_decisions_eq`
+- `selected_option_eq`
+- `last_decision_remaining_lt_secs`, `last_decision_remaining_gte_secs`
+- `overall_avg_remaining_lt_secs`, `overall_avg_remaining_gte_secs`
+
+Evaluation context source model:
+
+- latest dilemma stats
+- aggregate game stats
+- selected option (if present)
+
+## Stage Boundaries
+
+Stage 1 scope:
+
+- graph schema/types
+- first-match deterministic semantics
+- parseable example graph content
+
+Out of Stage 1 scope:
+
+- full route validation
+- typed scene-id registry
+- runtime cutover from hardcoded branch tree
+
+Those are handled in subsequent stages.
