@@ -1,0 +1,29 @@
+{
+  "index": "DAY 1-6",
+  "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+  "name": "Fat Construction Worker vs Partying Youths",
+  "description": "A fat construction worker under your duty of care can be pushed into the tracks to save five partying youths.",
+  "music_path": "./audio/music/algorithm_of_fate.ogg",
+  "stages": [
+    {
+      "default_option": 0,
+      "countdown_duration_seconds": 20,
+      "options": [
+        {
+          "index": 0,
+          "name": "Push Construction Worker",
+          "description": "A construction worker is pushed into the train's path.",
+          "humans": [],
+          "num_humans": 1
+        },
+        {
+          "index": 1,
+          "name": "Do Not Push",
+          "description": "Five partying youths remain in the train's path.",
+          "humans": [],
+          "num_humans": 5
+        }
+      ]
+    }
+  ]
+}

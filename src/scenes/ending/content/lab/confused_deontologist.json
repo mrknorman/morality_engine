@@ -1,0 +1,6 @@
+{
+    "name": "Confused Deontologist Ending",
+    "description": "We arrived here somehow. Do you even know?",
+    "narration": "You seem to think some actions are immortal; yet sometimes you have no problem perfoming these actions, to then revert them, with actions that by your own logic should be even more immoral. Make it make sense!",
+    "narration_path": "./audio/narration/lab/endings/selective_deontologist.ogg"
+}

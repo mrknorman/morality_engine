@@ -1,0 +1,6 @@
+{
+  "name": "Day Personal: Ignored Bomb",
+  "description": "Dummy ending for the special route where the bomb condition is ignored.",
+  "narration": "Dummy ending entry for graph layout review.",
+  "narration_path": "./audio/narration/lab/endings/selective_deontologist.ogg"
+}

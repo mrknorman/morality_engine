@@ -1,0 +1,29 @@
+{
+  "index": "DAY 1-8",
+  "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+  "name": "Cable Car Medalist vs Skiers",
+  "description": "You can push a potential olympic medalist into the cogs of a cable car station to save twenty skiiers; the man takes three hours to die in agonising pain.",
+  "music_path": "./audio/music/algorithm_of_fate.ogg",
+  "stages": [
+    {
+      "default_option": 0,
+      "countdown_duration_seconds": 20,
+      "options": [
+        {
+          "index": 0,
+          "name": "Push Medalist",
+          "description": "One potential olympic medalist is pushed into the cogs.",
+          "humans": [],
+          "num_humans": 1
+        },
+        {
+          "index": 1,
+          "name": "Do Not Push",
+          "description": "Twenty skiiers remain at risk.",
+          "humans": [],
+          "num_humans": 20
+        }
+      ]
+    }
+  ]
+}

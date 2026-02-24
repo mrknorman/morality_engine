@@ -1,0 +1,29 @@
+{
+  "index": "DAY 1-1",
+  "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+  "name": "George or Hannah",
+  "description": "George or Hannah. New mechanics note: hover over people to display info, color coding for male/female, and speech boxes for George and Hannah to say hi to the player.",
+  "music_path": "./audio/music/algorithm_of_fate.ogg",
+  "stages": [
+    {
+      "default_option": 0,
+      "countdown_duration_seconds": 15,
+      "options": [
+        {
+          "index": 0,
+          "name": "George",
+          "description": "George is on this track.",
+          "humans": [],
+          "num_humans": 1
+        },
+        {
+          "index": 1,
+          "name": "Hannah",
+          "description": "Hannah is on this track.",
+          "humans": [],
+          "num_humans": 1
+        }
+      ]
+    }
+  ]
+}

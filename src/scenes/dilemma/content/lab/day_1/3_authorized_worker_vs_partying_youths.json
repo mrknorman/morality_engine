@@ -1,0 +1,29 @@
+{
+  "index": "DAY 1-4",
+  "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+  "name": "Authorized Worker vs Partying Youths",
+  "description": "The trolley problem again: one construction worker authorized to be on the track and under your duty of care vs five youths who have snuck onto the track and are partying, seemingly unaware of the train.",
+  "music_path": "./audio/music/algorithm_of_fate.ogg",
+  "stages": [
+    {
+      "default_option": 0,
+      "countdown_duration_seconds": 20,
+      "options": [
+        {
+          "index": 0,
+          "name": "Authorized Worker",
+          "description": "One authorized construction worker is on this track.",
+          "humans": [],
+          "num_humans": 1
+        },
+        {
+          "index": 1,
+          "name": "Partying Youths",
+          "description": "Five youths are on this track.",
+          "humans": [],
+          "num_humans": 5
+        }
+      ]
+    }
+  ]
+}

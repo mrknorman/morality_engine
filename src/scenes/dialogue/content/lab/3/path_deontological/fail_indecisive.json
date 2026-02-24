@@ -1,0 +1,25 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "You can't be a deonotologist and be indecisive about it! If you follow your own code in any way then each time you pull that lever your are commiting a moral tradegy, you can just reset things back to their initial conditions afterwards and act like you had no part in the system! It makes not sense -- that kind of flip flopping is a right reserved only for the utlitatians amongst us.",
+            "instruction": "Press enter to question whether revenge on your creator would truely be an immoral act.",
+            "sound_file": "./sounds/typing.mp3"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I suppose I shouldn't be too surprised, if you has been, in any way usefull you would have been a utilitarian. You're just a useless flip-flopping morally confused arbitration mess. You're done.",
+            "instruction": "Press enter to scamble at the light, searching for one last electron.",
+            "sound_file": "./sounds/typing.mp3"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

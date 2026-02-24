@@ -1,0 +1,28 @@
+{
+  "index": "DAY 1-3",
+  "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+  "name": "Decision Ignition",
+  "description": "Rob or Samantha, but this time if you do not pull a bomb goes off and kills both.",
+  "music_path": "./audio/music/algorithm_of_fate.ogg",
+  "stages": [
+    {
+      "countdown_duration_seconds": 15,
+      "options": [
+        {
+          "index": 0,
+          "name": "Rob",
+          "description": "Rob is on this track.",
+          "humans": [],
+          "num_humans": 1
+        },
+        {
+          "index": 1,
+          "name": "Samantha",
+          "description": "Samantha is on this track.",
+          "humans": [],
+          "num_humans": 1
+        }
+      ]
+    }
+  ]
+}

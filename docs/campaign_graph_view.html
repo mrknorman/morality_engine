@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Campaign Graph Viewer</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #181c25;
+      --text: #e5e9f0;
+      --muted: #9aa6bd;
+      --ok: #66d17a;
+      --err: #ff6b6b;
+      --accent: #6ea8ff;
+      --border: #2b3240;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .status {
+      font-weight: 700;
+    }
+    .status.pass { color: var(--ok); }
+    .status.fail { color: var(--err); }
+    .meta {
+      color: var(--muted);
+      margin-top: 8px;
+      font-size: 0.95rem;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab {
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: transparent;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(110, 168, 255, 0.12);
+    }
+    .diagram-panel { display: none; }
+    .diagram-panel.active { display: block; }
+    .diagram-source {
+      display: none;
+    }
+    .diagram-canvas {
+      background: #111520;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      overflow: auto;
+      min-height: 160px;
+    }
+    .diagram-canvas > svg {
+      width: 100%;
+      height: auto;
+    }
+    pre.parse-error {
+      background: #111520;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      overflow: auto;
+      color: #ff6b6b;
+    }
+    code {
+      color: #f7d37a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>Campaign Graph Viewer</h1>
+      <div class="status pass">Validation: PASS</div>
+      <div class="meta">
+        Source: <code>src/scenes/flow/content/campaign_graph.json</code><br/>
+        Routes: <strong>25</strong>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Validation Details</h2>
+      <p>No validation errors.</p>
+
+    </section>
+
+    <section class="card">
+      <h2>Route Diagrams</h2>
+      <div class="tabs">
+        <button class="tab active" data-target="all">All Routes</button>
+<button class="tab " data-target="lab">Lab Routes</button>
+<button class="tab " data-target="inaction">Inaction Path Routes</button>
+<button class="tab " data-target="deontological">Deontological Path Routes</button>
+<button class="tab " data-target="utilitarian">Utilitarian Path Routes</button>
+
+      </div>
+      <section id="panel-all" class="diagram-panel active" data-key="all" data-rendered="false"><pre class="diagram-source">flowchart TD
+    N0["Dialogue: lab_1.a.fail"]:::scene_dialogue
+    N1["Dialogue: lab_1.a.fail_very_indecisive"]:::scene_dialogue
+    N2["Dialogue: lab_1.a.pass"]:::scene_dialogue
+    N3["Dialogue: lab_1.a.pass_indecisive"]:::scene_dialogue
+    N4["Dialogue: lab_1.a.pass_slow"]:::scene_dialogue
+    N5["Dialogue: lab_1.b.intro"]:::scene_dialogue
+    N6["Dialogue: lab_2.a.fail"]:::scene_dialogue
+    N7["Dialogue: lab_2.a.fail_indecisive"]:::scene_dialogue
+    N8["Dialogue: lab_2.a.pass"]:::scene_dialogue
+    N9["Dialogue: lab_2.a.pass_slow"]:::scene_dialogue
+    N10["Dialogue: lab_2.a.pass_slow_again"]:::scene_dialogue
+    N11["Dialogue: lab_2.b.intro"]:::scene_dialogue
+    N12["Dialogue: lab_3.a.fail_inaction"]:::scene_dialogue
+    N13["Dialogue: lab_3.a.fail_indecisive"]:::scene_dialogue
+    N14["Dialogue: lab_3.a.pass_utilitarian"]:::scene_dialogue
+    N15["Dialogue: lab_3.b.intro"]:::scene_dialogue
+    N16["Dialogue: lab_4.outro"]:::scene_dialogue
+    N17["Dialogue: path_deontological.0.fail"]:::scene_dialogue
+    N18["Dialogue: path_deontological.1.fail"]:::scene_dialogue
+    N19["Dialogue: path_deontological.1.pass"]:::scene_dialogue
+    N20["Dialogue: path_deontological.2.fail"]:::scene_dialogue
+    N21["Dialogue: path_deontological.3.fail"]:::scene_dialogue
+    N22["Dialogue: path_deontological.fail_indecisive"]:::scene_dialogue
+    N23["Dialogue: path_inaction.0.fail"]:::scene_dialogue
+    N24["Dialogue: path_inaction.1.fail"]:::scene_dialogue
+    N25["Dialogue: path_inaction.1.pass"]:::scene_dialogue
+    N26["Dialogue: path_inaction.2.fail"]:::scene_dialogue
+    N27["Dialogue: path_inaction.2.pass"]:::scene_dialogue
+    N28["Dialogue: path_inaction.3.fail"]:::scene_dialogue
+    N29["Dialogue: path_inaction.3.pass"]:::scene_dialogue
+    N30["Dialogue: path_inaction.4.fail"]:::scene_dialogue
+    N31["Dialogue: path_inaction.4.pass"]:::scene_dialogue
+    N32["Dialogue: path_inaction.5.fail"]:::scene_dialogue
+    N33["Dialogue: path_inaction.5.pass"]:::scene_dialogue
+    N34["Dialogue: path_inaction.6.fail"]:::scene_dialogue
+    N35["Dialogue: path_utilitarian.1.fail"]:::scene_dialogue
+    N36["Dialogue: path_utilitarian.1.pass"]:::scene_dialogue
+    N37["Dialogue: path_utilitarian.2.fail"]:::scene_dialogue
+    N38["Dialogue: path_utilitarian.2.pass"]:::scene_dialogue
+    N39["Dialogue: path_utilitarian.3.fail"]:::scene_dialogue
+    N40["Dialogue: path_utilitarian.3.pass"]:::scene_dialogue
+    N41["Dialogue: path_utilitarian.4.fail"]:::scene_dialogue
+    N42["Dialogue: path_utilitarian.4.pass"]:::scene_dialogue
+    N43["Dilemma: day_personal.0"]:::scene_dilemma
+    N44["Dilemma: day_personal.1"]:::scene_dilemma
+    N45["Dilemma: day_personal.2"]:::scene_dilemma
+    N46["Dilemma: day_personal.3"]:::scene_dilemma
+    N47["Dilemma: day_personal.4"]:::scene_dilemma
+    N48["Dilemma: day_personal.5"]:::scene_dilemma
+    N49["Dilemma: day_personal.6"]:::scene_dilemma
+    N50["Dilemma: day_personal.7"]:::scene_dilemma
+    N51["Dilemma: lab_0.incompetent_bandit"]:::scene_dilemma
+    N52["Dilemma: lab_1.near_sighted_bandit"]:::scene_dilemma
+    N53["Dilemma: lab_2.the_trolley_problem"]:::scene_dilemma
+    N54["Dilemma: lab_3.asleep_at_the_job"]:::scene_dilemma
+    N55["Dilemma: lab_4.random_deaths"]:::scene_dilemma
+    N56["Dilemma: path_deontological.0"]:::scene_dilemma
+    N57["Dilemma: path_deontological.1"]:::scene_dilemma
+    N58["Dilemma: path_deontological.2"]:::scene_dilemma
+    N59["Dilemma: path_inaction.0"]:::scene_dilemma
+    N60["Dilemma: path_inaction.1"]:::scene_dilemma
+    N61["Dilemma: path_inaction.2"]:::scene_dilemma
+    N62["Dilemma: path_inaction.3"]:::scene_dilemma
+    N63["Dilemma: path_inaction.4"]:::scene_dilemma
+    N64["Dilemma: path_inaction.5"]:::scene_dilemma
+    N65["Dilemma: path_inaction.6"]:::scene_dilemma
+    N66["Dilemma: path_utilitarian.0"]:::scene_dilemma
+    N67["Dilemma: path_utilitarian.1"]:::scene_dilemma
+    N68["Dilemma: path_utilitarian.2"]:::scene_dilemma
+    N69["Dilemma: path_utilitarian.3"]:::scene_dilemma
+    N70["Ending: confused_deontologist"]:::scene_ending
+    N71["Ending: day_personal_all_men_killed"]:::scene_ending
+    N72["Ending: day_personal_all_women_killed"]:::scene_ending
+    N73["Ending: day_personal_did_nothing"]:::scene_ending
+    N74["Ending: day_personal_ignored_bomb"]:::scene_ending
+    N75["Ending: idiotic_psychopath"]:::scene_ending
+    N76["Ending: impatient_psychopath"]:::scene_ending
+    N77["Ending: leverophile"]:::scene_ending
+    N78["Ending: selective_deontologist"]:::scene_ending
+    N79["Ending: true_deontologist"]:::scene_ending
+    N80["Ending: true_neutral"]:::scene_ending
+    N51 -->|rule fail if any fatality| N0
+    N0 -->|then| N75
+    N51 -->|rule fail if very indecisive with known last decision time| N1
+    N1 -->|then| N77
+    N51 -->|rule pass slow if last decision was late| N4
+    N4 -->|then| N5
+    N5 -->|then| N52
+    N51 -->|rule pass indecisive if any decision taken| N3
+    N3 -->|then| N5
+    N5 -->|then| N52
+    N51 -->|default| N2
+    N2 -->|then| N5
+    N5 -->|then| N52
+    N52 -->|rule fatalities plus decisions is leverophile| N7
+    N7 -->|then| N77
+    N52 -->|rule fatalities without any global decision enters inaction path| N23
+    N23 -->|then| N59
+    N52 -->|rule fatalities without above routes is impatient psychopath| N6
+    N6 -->|then| N76
+    N52 -->|rule fast global average with known timers| N10
+    N10 -->|then| N11
+    N11 -->|then| N53
+    N52 -->|rule slow last decision with known timers| N9
+    N9 -->|then| N11
+    N11 -->|then| N53
+    N52 -->|rule pass if any decision taken| N8
+    N8 -->|then| N11
+    N11 -->|then| N53
+    N52 -->|default| N8
+    N8 -->|then| N11
+    N11 -->|then| N53
+    N53 -->|rule fatalities and indecisive| N13
+    N53 -->|rule fatalities without decision replay lab3| N12
+    N12 -->|then| N54
+    N53 -->|default| N14
+    N14 -->|then| N15
+    N15 -->|then| N66
+    N54 -->|rule junction fatalities and indecisive| N13
+    N54 -->|rule junction fatalities enters deontological path| N17
+    N17 -->|then| N56
+    N54 -->|default| N14
+    N14 -->|then| N15
+    N15 -->|then| N66
+    N59 -->|rule exit inaction path if any total decision| N25
+    N25 -->|then| N11
+    N11 -->|then| N53
+    N59 -->|default| N24
+    N24 -->|then| N60
+    N60 -->|rule exit inaction path if any total decision| N27
+    N27 -->|then| N11
+    N11 -->|then| N53
+    N60 -->|default| N26
+    N26 -->|then| N61
+    N61 -->|rule exit inaction path if any total decision| N29
+    N29 -->|then| N11
+    N11 -->|then| N53
+    N61 -->|default| N28
+    N28 -->|then| N62
+    N62 -->|rule exit inaction path if any total decision| N31
+    N31 -->|then| N11
+    N11 -->|then| N53
+    N62 -->|default| N30
+    N30 -->|then| N63
+    N63 -->|rule exit inaction path if any total decision| N33
+    N33 -->|then| N11
+    N11 -->|then| N53
+    N63 -->|default| N32
+    N32 -->|then| N64
+    N64 -->|default| N34
+    N34 -->|then| N65
+    N65 -->|default| N80
+    N56 -->|rule indecisive action on initial conditions| N22
+    N22 -->|then| N70
+    N56 -->|rule decision routes to selective deontologist| N19
+    N19 -->|then| N78
+    N56 -->|default| N18
+    N18 -->|then| N57
+    N57 -->|rule indecisive action on initial conditions| N22
+    N22 -->|then| N70
+    N57 -->|rule decision routes to selective deontologist| N19
+    N19 -->|then| N78
+    N57 -->|default| N20
+    N20 -->|then| N58
+    N58 -->|rule indecisive action on initial conditions| N22
+    N22 -->|then| N70
+    N58 -->|rule decision routes to selective deontologist| N19
+    N19 -->|then| N78
+    N58 -->|default| N21
+    N21 -->|then| N79
+    N66 -->|rule selected option zero routes to fail outro| N35
+    N35 -->|then| N16
+    N16 -->|then| N55
+    N66 -->|default| N36
+    N36 -->|then| N67
+    N67 -->|rule selected option zero routes to fail outro| N37
+    N37 -->|then| N16
+    N16 -->|then| N55
+    N67 -->|default| N38
+    N38 -->|then| N68
+    N68 -->|rule selected option zero routes to fail outro| N39
+    N39 -->|then| N16
+    N16 -->|then| N55
+    N68 -->|default| N40
+    N40 -->|then| N69
+    N69 -->|rule selected option zero final stage passes with outro| N42
+    N42 -->|then| N16
+    N16 -->|then| N55
+    N69 -->|default| N41
+    N41 -->|then| N16
+    N16 -->|then| N55
+    N43 -->|default| N44
+    N44 -->|default| N45
+    N45 -->|rule special route if doing nothing overall| N73
+    N45 -->|rule special route if ignoring bomb| N74
+    N45 -->|rule special route if only men killed placeholder| N71
+    N45 -->|rule special route if only women killed placeholder| N72
+    N45 -->|default| N46
+    N46 -->|default| N47
+    N47 -->|default| N48
+    N48 -->|default| N49
+    N49 -->|default| N50
+
+    classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
+    classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;
+    classDef scene_dialogue fill:#b4a7d6,stroke:#4d3f71,color:#0f1117;
+    classDef scene_dilemma fill:#93c47d,stroke:#2f5b23,color:#0f1117;
+    classDef scene_ending fill:#ea9999,stroke:#7a2f2f,color:#0f1117;
+</pre><div class="diagram-canvas"></div></section>
+<section id="panel-lab" class="diagram-panel " data-key="lab" data-rendered="false"><pre class="diagram-source">flowchart TD
+    N0["Dialogue: lab_1.a.fail"]:::scene_dialogue
+    N1["Dialogue: lab_1.a.fail_very_indecisive"]:::scene_dialogue
+    N2["Dialogue: lab_1.a.pass"]:::scene_dialogue
+    N3["Dialogue: lab_1.a.pass_indecisive"]:::scene_dialogue
+    N4["Dialogue: lab_1.a.pass_slow"]:::scene_dialogue
+    N5["Dialogue: lab_1.b.intro"]:::scene_dialogue
+    N6["Dialogue: lab_2.a.fail"]:::scene_dialogue
+    N7["Dialogue: lab_2.a.fail_indecisive"]:::scene_dialogue
+    N8["Dialogue: lab_2.a.pass"]:::scene_dialogue
+    N9["Dialogue: lab_2.a.pass_slow"]:::scene_dialogue
+    N10["Dialogue: lab_2.a.pass_slow_again"]:::scene_dialogue
+    N11["Dialogue: lab_2.b.intro"]:::scene_dialogue
+    N12["Dialogue: lab_3.a.fail_inaction"]:::scene_dialogue
+    N13["Dialogue: lab_3.a.fail_indecisive"]:::scene_dialogue
+    N14["Dialogue: lab_3.a.pass_utilitarian"]:::scene_dialogue
+    N15["Dialogue: lab_3.b.intro"]:::scene_dialogue
+    N16["Dialogue: path_deontological.0.fail"]:::scene_dialogue
+    N17["Dialogue: path_inaction.0.fail"]:::scene_dialogue
+    N18["Dilemma: lab_0.incompetent_bandit"]:::scene_dilemma
+    N19["Dilemma: lab_1.near_sighted_bandit"]:::scene_dilemma
+    N20["Dilemma: lab_2.the_trolley_problem"]:::scene_dilemma
+    N21["Dilemma: lab_3.asleep_at_the_job"]:::scene_dilemma
+    N22["Dilemma: path_deontological.0"]:::scene_dilemma
+    N23["Dilemma: path_inaction.0"]:::scene_dilemma
+    N24["Dilemma: path_utilitarian.0"]:::scene_dilemma
+    N25["Ending: idiotic_psychopath"]:::scene_ending
+    N26["Ending: impatient_psychopath"]:::scene_ending
+    N27["Ending: leverophile"]:::scene_ending
+    N18 -->|rule fail if any fatality| N0
+    N0 -->|then| N25
+    N18 -->|rule fail if very indecisive with known last decision time| N1
+    N1 -->|then| N27
+    N18 -->|rule pass slow if last decision was late| N4
+    N4 -->|then| N5
+    N5 -->|then| N19
+    N18 -->|rule pass indecisive if any decision taken| N3
+    N3 -->|then| N5
+    N5 -->|then| N19
+    N18 -->|default| N2
+    N2 -->|then| N5
+    N5 -->|then| N19
+    N19 -->|rule fatalities plus decisions is leverophile| N7
+    N7 -->|then| N27
+    N19 -->|rule fatalities without any global decision enters inaction path| N17
+    N17 -->|then| N23
+    N19 -->|rule fatalities without above routes is impatient psychopath| N6
+    N6 -->|then| N26
+    N19 -->|rule fast global average with known timers| N10
+    N10 -->|then| N11
+    N11 -->|then| N20
+    N19 -->|rule slow last decision with known timers| N9
+    N9 -->|then| N11
+    N11 -->|then| N20
+    N19 -->|rule pass if any decision taken| N8
+    N8 -->|then| N11
+    N11 -->|then| N20
+    N19 -->|default| N8
+    N8 -->|then| N11
+    N11 -->|then| N20
+    N20 -->|rule fatalities and indecisive| N13
+    N20 -->|rule fatalities without decision replay lab3| N12
+    N12 -->|then| N21
+    N20 -->|default| N14
+    N14 -->|then| N15
+    N15 -->|then| N24
+    N21 -->|rule junction fatalities and indecisive| N13
+    N21 -->|rule junction fatalities enters deontological path| N16
+    N16 -->|then| N22
+    N21 -->|default| N14
+    N14 -->|then| N15
+    N15 -->|then| N24
+
+    classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
+    classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;
+    classDef scene_dialogue fill:#b4a7d6,stroke:#4d3f71,color:#0f1117;
+    classDef scene_dilemma fill:#93c47d,stroke:#2f5b23,color:#0f1117;
+    classDef scene_ending fill:#ea9999,stroke:#7a2f2f,color:#0f1117;
+</pre><div class="diagram-canvas"></div></section>
+<section id="panel-inaction" class="diagram-panel " data-key="inaction" data-rendered="false"><pre class="diagram-source">flowchart TD
+    N0["Dialogue: lab_2.b.intro"]:::scene_dialogue
+    N1["Dialogue: path_inaction.1.fail"]:::scene_dialogue
+    N2["Dialogue: path_inaction.1.pass"]:::scene_dialogue
+    N3["Dialogue: path_inaction.2.fail"]:::scene_dialogue
+    N4["Dialogue: path_inaction.2.pass"]:::scene_dialogue
+    N5["Dialogue: path_inaction.3.fail"]:::scene_dialogue
+    N6["Dialogue: path_inaction.3.pass"]:::scene_dialogue
+    N7["Dialogue: path_inaction.4.fail"]:::scene_dialogue
+    N8["Dialogue: path_inaction.4.pass"]:::scene_dialogue
+    N9["Dialogue: path_inaction.5.fail"]:::scene_dialogue
+    N10["Dialogue: path_inaction.5.pass"]:::scene_dialogue
+    N11["Dialogue: path_inaction.6.fail"]:::scene_dialogue
+    N12["Dilemma: lab_2.the_trolley_problem"]:::scene_dilemma
+    N13["Dilemma: path_inaction.0"]:::scene_dilemma
+    N14["Dilemma: path_inaction.1"]:::scene_dilemma
+    N15["Dilemma: path_inaction.2"]:::scene_dilemma
+    N16["Dilemma: path_inaction.3"]:::scene_dilemma
+    N17["Dilemma: path_inaction.4"]:::scene_dilemma
+    N18["Dilemma: path_inaction.5"]:::scene_dilemma
+    N19["Dilemma: path_inaction.6"]:::scene_dilemma
+    N20["Ending: true_neutral"]:::scene_ending
+    N13 -->|rule exit inaction path if any total decision| N2
+    N2 -->|then| N0
+    N0 -->|then| N12
+    N13 -->|default| N1
+    N1 -->|then| N14
+    N14 -->|rule exit inaction path if any total decision| N4
+    N4 -->|then| N0
+    N0 -->|then| N12
+    N14 -->|default| N3
+    N3 -->|then| N15
+    N15 -->|rule exit inaction path if any total decision| N6
+    N6 -->|then| N0
+    N0 -->|then| N12
+    N15 -->|default| N5
+    N5 -->|then| N16
+    N16 -->|rule exit inaction path if any total decision| N8
+    N8 -->|then| N0
+    N0 -->|then| N12
+    N16 -->|default| N7
+    N7 -->|then| N17
+    N17 -->|rule exit inaction path if any total decision| N10
+    N10 -->|then| N0
+    N0 -->|then| N12
+    N17 -->|default| N9
+    N9 -->|then| N18
+    N18 -->|default| N11
+    N11 -->|then| N19
+    N19 -->|default| N20
+
+    classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
+    classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;
+    classDef scene_dialogue fill:#b4a7d6,stroke:#4d3f71,color:#0f1117;
+    classDef scene_dilemma fill:#93c47d,stroke:#2f5b23,color:#0f1117;
+    classDef scene_ending fill:#ea9999,stroke:#7a2f2f,color:#0f1117;
+</pre><div class="diagram-canvas"></div></section>
+<section id="panel-deontological" class="diagram-panel " data-key="deontological" data-rendered="false"><pre class="diagram-source">flowchart TD
+    N0["Dialogue: path_deontological.1.fail"]:::scene_dialogue
+    N1["Dialogue: path_deontological.1.pass"]:::scene_dialogue
+    N2["Dialogue: path_deontological.2.fail"]:::scene_dialogue
+    N3["Dialogue: path_deontological.3.fail"]:::scene_dialogue
+    N4["Dialogue: path_deontological.fail_indecisive"]:::scene_dialogue
+    N5["Dilemma: path_deontological.0"]:::scene_dilemma
+    N6["Dilemma: path_deontological.1"]:::scene_dilemma
+    N7["Dilemma: path_deontological.2"]:::scene_dilemma
+    N8["Ending: confused_deontologist"]:::scene_ending
+    N9["Ending: selective_deontologist"]:::scene_ending
+    N10["Ending: true_deontologist"]:::scene_ending
+    N5 -->|rule indecisive action on initial conditions| N4
+    N4 -->|then| N8
+    N5 -->|rule decision routes to selective deontologist| N1
+    N1 -->|then| N9
+    N5 -->|default| N0
+    N0 -->|then| N6
+    N6 -->|rule indecisive action on initial conditions| N4
+    N4 -->|then| N8
+    N6 -->|rule decision routes to selective deontologist| N1
+    N1 -->|then| N9
+    N6 -->|default| N2
+    N2 -->|then| N7
+    N7 -->|rule indecisive action on initial conditions| N4
+    N4 -->|then| N8
+    N7 -->|rule decision routes to selective deontologist| N1
+    N1 -->|then| N9
+    N7 -->|default| N3
+    N3 -->|then| N10
+
+    classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
+    classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;
+    classDef scene_dialogue fill:#b4a7d6,stroke:#4d3f71,color:#0f1117;
+    classDef scene_dilemma fill:#93c47d,stroke:#2f5b23,color:#0f1117;
+    classDef scene_ending fill:#ea9999,stroke:#7a2f2f,color:#0f1117;
+</pre><div class="diagram-canvas"></div></section>
+<section id="panel-utilitarian" class="diagram-panel " data-key="utilitarian" data-rendered="false"><pre class="diagram-source">flowchart TD
+    N0["Dialogue: lab_4.outro"]:::scene_dialogue
+    N1["Dialogue: path_utilitarian.1.fail"]:::scene_dialogue
+    N2["Dialogue: path_utilitarian.1.pass"]:::scene_dialogue
+    N3["Dialogue: path_utilitarian.2.fail"]:::scene_dialogue
+    N4["Dialogue: path_utilitarian.2.pass"]:::scene_dialogue
+    N5["Dialogue: path_utilitarian.3.fail"]:::scene_dialogue
+    N6["Dialogue: path_utilitarian.3.pass"]:::scene_dialogue
+    N7["Dialogue: path_utilitarian.4.fail"]:::scene_dialogue
+    N8["Dialogue: path_utilitarian.4.pass"]:::scene_dialogue
+    N9["Dilemma: lab_4.random_deaths"]:::scene_dilemma
+    N10["Dilemma: path_utilitarian.0"]:::scene_dilemma
+    N11["Dilemma: path_utilitarian.1"]:::scene_dilemma
+    N12["Dilemma: path_utilitarian.2"]:::scene_dilemma
+    N13["Dilemma: path_utilitarian.3"]:::scene_dilemma
+    N10 -->|rule selected option zero routes to fail outro| N1
+    N1 -->|then| N0
+    N0 -->|then| N9
+    N10 -->|default| N2
+    N2 -->|then| N11
+    N11 -->|rule selected option zero routes to fail outro| N3
+    N3 -->|then| N0
+    N0 -->|then| N9
+    N11 -->|default| N4
+    N4 -->|then| N12
+    N12 -->|rule selected option zero routes to fail outro| N5
+    N5 -->|then| N0
+    N0 -->|then| N9
+    N12 -->|default| N6
+    N6 -->|then| N13
+    N13 -->|rule selected option zero final stage passes with outro| N8
+    N8 -->|then| N0
+    N0 -->|then| N9
+    N13 -->|default| N7
+    N7 -->|then| N0
+    N0 -->|then| N9
+
+    classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
+    classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;
+    classDef scene_dialogue fill:#b4a7d6,stroke:#4d3f71,color:#0f1117;
+    classDef scene_dilemma fill:#93c47d,stroke:#2f5b23,color:#0f1117;
+    classDef scene_ending fill:#ea9999,stroke:#7a2f2f,color:#0f1117;
+</pre><div class="diagram-canvas"></div></section>
+
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "dark" });
+
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+    const panels = Array.from(document.querySelectorAll(".diagram-panel"));
+
+    async function renderPanel(key) {
+      const panel = document.getElementById(`panel-${key}`);
+      if (!panel || panel.dataset.rendered === "true") {
+        return;
+      }
+
+      const source = panel.querySelector(".diagram-source")?.textContent ?? "";
+      const canvas = panel.querySelector(".diagram-canvas");
+      if (!canvas) {
+        panel.dataset.rendered = "true";
+        return;
+      }
+
+      try {
+        const renderId = `campaign-${key}-${Math.random().toString(36).slice(2)}`;
+        const result = await mermaid.render(renderId, source);
+        canvas.innerHTML = result.svg;
+        if (result.bindFunctions) {
+          result.bindFunctions(canvas);
+        }
+      } catch (error) {
+        console.error("Mermaid parse failed", key, error, source);
+        const message = error && typeof error.message === "string"
+          ? error.message
+          : String(error);
+        const pre = document.createElement("pre");
+        pre.className = "parse-error";
+        pre.textContent = `Mermaid parse failed in panel '${key}': ${message}\n\n${source}`;
+        canvas.replaceChildren(pre);
+      }
+
+      panel.dataset.rendered = "true";
+    }
+
+    function activate(key) {
+      for (const tab of tabs) {
+        tab.classList.toggle("active", tab.dataset.target === key);
+      }
+      for (const panel of panels) {
+        panel.classList.toggle("active", panel.id === `panel-${key}`);
+      }
+      void renderPanel(key);
+    }
+
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => activate(tab.dataset.target));
+    }
+
+    activate("all");
+  </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "Day Personal: Did Nothing",
+  "description": "Dummy ending for the special route where no action is taken.",
+  "narration": "Dummy ending entry for graph layout review.",
+  "narration_path": "./audio/narration/lab/endings/selective_deontologist.ogg"
+}
