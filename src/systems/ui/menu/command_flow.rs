@@ -103,8 +103,7 @@ pub(super) fn handle_menu_option_commands(
                 .copied()
                 .unwrap_or(0),
         );
-        let active_kind =
-            layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
+        let active_kind = layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
 
         if active_kind == UiLayerKind::Modal {
             continue;
@@ -171,6 +170,7 @@ pub(super) fn handle_menu_option_commands(
             &mut ctx.dropdown_state,
             &mut dropdown_query,
             &mut ctx.crt_settings,
+            &mut ctx.screen_shake,
             &mut ctx.main_camera_query,
             &mut ctx.window_exit,
             &mut ctx.next_pause_state,
@@ -290,8 +290,7 @@ pub(super) fn handle_option_cycler_commands(
             continue;
         };
 
-        let active_kind =
-            layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
+        let active_kind = layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
         if active_kind != UiLayerKind::Base || !settings.initialized {
             continue;
         }

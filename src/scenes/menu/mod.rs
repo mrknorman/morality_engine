@@ -5,21 +5,21 @@ use once_cell::sync::Lazy;
 use crate::{
     data::states::MainState,
     entities::{
-        large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
+        large_fonts::{AsciiString, TextEmotion},
         text::TextRaw,
         track::Track,
-        train::{content::TrainTypes, Train, TrainPlugin},
+        train::{content::TrainTypes, Train},
     },
-    style::ui::IOPlugin,
     systems::{
         audio::{
             continuous_audio, BackgroundAudio, ContinuousAudio, ContinuousAudioPallet, MusicAudio,
         },
-        backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
+        backgrounds::{content::BackgroundTypes, Background},
         colors::{CLICKED_BUTTON, DIM_BACKGROUND_COLOR, HOVERED_BUTTON, MENU_COLOR},
-        interaction::{InteractionPlugin, InteractionVisualPalette},
+        interaction::InteractionVisualPalette,
         ui::menu::{
             main_menu_command_registry, schema, spawn_main_menu_option_list, MainMenuEntry,
+            MenuCommand,
         },
     },
 };
@@ -31,43 +31,60 @@ const SYSTEM_MUSIC_PATH: &str = "./audio/music/the_last_decision.ogg";
 const MAIN_MENU_SCHEMA_JSON: &str = include_str!("./content/main_menu_ui.json");
 
 static MAIN_MENU_OPTIONS: Lazy<Vec<MainMenuEntry>> = Lazy::new(|| {
-    let resolved = schema::load_and_resolve_menu_schema_with_registry(
+    match schema::load_and_resolve_menu_schema_with_registry(
         MAIN_MENU_SCHEMA_JSON,
         main_menu_command_registry(),
-    )
-    .unwrap_or_else(|error| panic!("invalid main menu schema: {error}"));
-
-    resolved
-        .options
-        .into_iter()
-        .map(|option| MainMenuEntry {
-            name: option.id,
-            label: option.label,
-            y: option.y,
-            command: option.command,
-        })
-        .collect()
+    ) {
+        Ok(resolved) => resolved
+            .options
+            .into_iter()
+            .map(|option| MainMenuEntry {
+                name: option.id,
+                label: option.label,
+                y: option.y,
+                command: option.command,
+            })
+            .collect(),
+        Err(error) => {
+            warn!("invalid main menu schema: {error}; using fallback menu options");
+            fallback_main_menu_options()
+        }
+    }
 });
+
+fn fallback_main_menu_options() -> Vec<MainMenuEntry> {
+    vec![
+        MainMenuEntry {
+            name: String::from("menu_start_option"),
+            label: String::from("Start Game"),
+            y: 69.0,
+            command: MenuCommand::NextScene,
+        },
+        MainMenuEntry {
+            name: String::from("menu_level_select_option"),
+            label: String::from("Level Select"),
+            y: 23.0,
+            command: MenuCommand::OpenLevelSelectOverlay,
+        },
+        MainMenuEntry {
+            name: String::from("menu_options_option"),
+            label: String::from("Options"),
+            y: -23.0,
+            command: MenuCommand::OpenMainMenuOptionsOverlay,
+        },
+        MainMenuEntry {
+            name: String::from("menu_exit_option"),
+            label: String::from("Exit to Desktop"),
+            y: -69.0,
+            command: MenuCommand::ExitApplication,
+        },
+    ]
+}
 
 pub struct MenuScenePlugin;
 impl Plugin for MenuScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(MainState::Menu), MenuScene::setup);
-        if !app.is_plugin_added::<TrainPlugin>() {
-            app.add_plugins(TrainPlugin);
-        }
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
-        }
-        if !app.is_plugin_added::<AsciiPlugin>() {
-            app.add_plugins(AsciiPlugin);
-        }
-        if !app.is_plugin_added::<BackgroundPlugin>() {
-            app.add_plugins(BackgroundPlugin);
-        }
     }
 }
 
@@ -101,11 +118,11 @@ impl MenuScene {
             commands.entity(existing_scene).despawn();
         }
 
-        *queue = SceneQueue::default();
+        queue.reset_campaign();
 
         let scene_entity = commands
             .spawn((
-                queue.current,
+                queue.current_scene(),
                 MenuScene,
                 DespawnOnExit(MainState::Menu),
                 children![

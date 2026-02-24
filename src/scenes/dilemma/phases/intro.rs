@@ -60,12 +60,8 @@ struct DilemmaIntroScene;
 
 impl DilemmaIntroScene {
     fn setup(mut commands: Commands, stage: Res<DilemmaStage>) {
-        let state = match stage.default_option {
-            None => LeverState::Random,
-            Some(ref option) if *option == 0 => LeverState::Left,
-            Some(_) => LeverState::Right,
-        };
-        commands.insert_resource(Lever(state));
+        let state = LeverState::from_option_index(stage.default_option);
+        commands.insert_resource(Lever::with_option_count(state, stage.options.len()));
 
         commands.spawn((
             DilemmaIntroScene,

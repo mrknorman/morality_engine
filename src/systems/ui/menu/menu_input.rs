@@ -44,12 +44,7 @@ fn handle_escape_shortcut_for_active_menus(
         let Ok((_, menu_stack, menu_root, _)) = menu_query.get(menu_entity) else {
             continue;
         };
-        if !menu_is_active_base_layer(
-            menu_entity,
-            menu_root,
-            interaction_state,
-            active_layers,
-        ) {
+        if !menu_is_active_base_layer(menu_entity, menu_root, interaction_state, active_layers) {
             continue;
         }
 
@@ -85,12 +80,7 @@ fn collect_active_menu_shortcut_context(
         let Ok((_, menu_stack, menu_root, selectable_menu)) = menu_query.get(menu_entity) else {
             continue;
         };
-        if !menu_is_active_base_layer(
-            menu_entity,
-            menu_root,
-            interaction_state,
-            active_layers,
-        ) {
+        if !menu_is_active_base_layer(menu_entity, menu_root, interaction_state, active_layers) {
             continue;
         }
 
@@ -467,8 +457,7 @@ pub(super) fn suppress_option_visuals_for_inactive_layers_and_tab_focus(
     let active_layers = &interaction_state.active_layers_by_owner;
 
     for (selectable, row, mut visual_state) in option_query.iter_mut() {
-        let active_kind =
-            layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
+        let active_kind = layer::active_layer_kind_for_owner(active_layers, selectable.menu_entity);
         let suppress_for_layer = active_kind != UiLayerKind::Base;
         let suppress_for_tabs = tabbed_focus.is_tabs_focused(selectable.menu_entity)
             && row.is_some_and(|row| row.index < VIDEO_TOP_OPTION_COUNT);

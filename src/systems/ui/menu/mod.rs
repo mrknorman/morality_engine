@@ -26,8 +26,8 @@ use bevy::{
 use crate::{
     data::states::{DilemmaPhase, GameState, MainState, PauseState},
     data::stats::GameStats,
-    scenes::{Scene, SceneQueue},
-    startup::render::{CrtSettings, MainCamera, OffscreenCamera},
+    scenes::SceneQueue,
+    startup::render::{CrtSettings, MainCamera, OffscreenCamera, ScreenShakeState},
     startup::system_menu,
     systems::{
         audio::{continuous_audio, DilatableAudio, TransientAudio, TransientAudioPallet},
@@ -178,6 +178,7 @@ struct MenuCommandContext<'w, 's> {
     next_pause_state: ResMut<'w, NextState<PauseState>>,
     settings: ResMut<'w, VideoSettingsState>,
     crt_settings: ResMut<'w, CrtSettings>,
+    screen_shake: ResMut<'w, ScreenShakeState>,
     dropdown_state: ResMut<'w, DropdownLayerState>,
     navigation_state: ResMut<'w, MenuNavigationState>,
     main_camera_query: Query<
@@ -486,9 +487,31 @@ fn crt_effect_level_from_scalar(value: f32) -> CrtEffectLevel {
     }
 }
 
+fn screen_shake_multiplier(level: CrtEffectLevel) -> f32 {
+    match level {
+        CrtEffectLevel::Off => 0.0,
+        CrtEffectLevel::Low => 0.65,
+        CrtEffectLevel::Medium => 1.0,
+        CrtEffectLevel::High => 1.4,
+    }
+}
+
+fn screen_shake_level_from_multiplier(multiplier: f32) -> CrtEffectLevel {
+    if multiplier <= 0.001 {
+        CrtEffectLevel::Off
+    } else if multiplier < 0.82 {
+        CrtEffectLevel::Low
+    } else if multiplier < 1.2 {
+        CrtEffectLevel::Medium
+    } else {
+        CrtEffectLevel::High
+    }
+}
+
 fn apply_snapshot_to_post_processing(
     snapshot: VideoSettingsSnapshot,
     crt_settings: &mut CrtSettings,
+    screen_shake: &mut ScreenShakeState,
     main_camera_query: &mut Query<
         (
             &mut Bloom,
@@ -545,6 +568,16 @@ fn apply_snapshot_to_post_processing(
         && snapshot.scan_phosphor == CrtEffectLevel::Off
         && snapshot.scan_vignette == CrtEffectLevel::Off;
     crt_settings.pipeline_enabled = snapshot.crt_enabled && !all_effects_off;
+    let shake_multiplier = screen_shake_multiplier(snapshot.screen_shake_intensity);
+    screen_shake.enabled = snapshot.screen_shake_intensity != CrtEffectLevel::Off;
+    screen_shake.max_pixels = ScreenShakeState::DEFAULT_MAX_PIXELS * shake_multiplier;
+    screen_shake.frequency_hz = ScreenShakeState::DEFAULT_FREQUENCY_HZ;
+    screen_shake.rise_per_second = ScreenShakeState::DEFAULT_RISE_PER_SECOND;
+    screen_shake.fall_per_second = ScreenShakeState::DEFAULT_FALL_PER_SECOND;
+    if !screen_shake.enabled {
+        screen_shake.target_intensity = 0.0;
+        screen_shake.current_intensity = 0.0;
+    }
 
     if let Ok((
         mut bloom,
@@ -598,6 +631,7 @@ fn apply_snapshot_to_post_processing(
 fn initialize_video_settings_from_window(
     mut settings: ResMut<VideoSettingsState>,
     crt_settings: Res<CrtSettings>,
+    screen_shake: Res<ScreenShakeState>,
     main_camera_query: Query<
         (
             &Bloom,
@@ -619,6 +653,16 @@ fn initialize_video_settings_from_window(
         return;
     };
     let mut snapshot = snapshot_from_window(window);
+    snapshot.screen_shake_intensity = if !screen_shake.enabled {
+        CrtEffectLevel::Off
+    } else {
+        let multiplier = if ScreenShakeState::DEFAULT_MAX_PIXELS <= f32::EPSILON {
+            0.0
+        } else {
+            (screen_shake.max_pixels / ScreenShakeState::DEFAULT_MAX_PIXELS).max(0.0)
+        };
+        screen_shake_level_from_multiplier(multiplier)
+    };
     if !crt_settings.pipeline_enabled {
         snapshot.crt_enabled = false;
         snapshot.scan_spacing = ScanSpacing::Off;

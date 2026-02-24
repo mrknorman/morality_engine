@@ -23,6 +23,10 @@ use bevy::{
     time::Real,
     window::{PrimaryWindow, WindowResized},
 };
+use noise::NoiseFn;
+use rand_distr::{Distribution, Normal};
+
+use crate::data::rng::GlobalRng;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 enum StartUpOrder {
@@ -34,6 +38,7 @@ pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CrtSettings>()
+            .init_resource::<ScreenShakeState>()
             .add_plugins(Material2dPlugin::<ScanLinesMaterial>::default())
             .add_systems(
                 Startup,
@@ -48,6 +53,8 @@ impl Plugin for RenderPlugin {
             .add_systems(
                 Update,
                 (
+                    update_screen_shake_state,
+                    apply_camera_shake,
                     ScanLinesMaterial::update,
                     ScanLinesMaterial::update_scan_mesh,
                     RenderTargetHandle::update,
@@ -94,9 +101,77 @@ impl Default for CrtSettings {
     }
 }
 
+#[derive(Resource, Clone, Copy, Debug, PartialEq)]
+pub struct ScreenShakeState {
+    pub enabled: bool,
+    pub target_intensity: f32,
+    pub current_intensity: f32,
+    pub max_pixels: f32,
+    pub frequency_hz: f32,
+    pub rise_per_second: f32,
+    pub fall_per_second: f32,
+}
+
+impl ScreenShakeState {
+    pub const DEFAULT_MAX_PIXELS: f32 = 4.8;
+    pub const DEFAULT_FREQUENCY_HZ: f32 = 8.0;
+    pub const DEFAULT_RISE_PER_SECOND: f32 = 5.0;
+    pub const DEFAULT_FALL_PER_SECOND: f32 = 6.0;
+}
+
+impl Default for ScreenShakeState {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            target_intensity: 0.0,
+            current_intensity: 0.0,
+            max_pixels: Self::DEFAULT_MAX_PIXELS,
+            frequency_hz: Self::DEFAULT_FREQUENCY_HZ,
+            rise_per_second: Self::DEFAULT_RISE_PER_SECOND,
+            fall_per_second: Self::DEFAULT_FALL_PER_SECOND,
+        }
+    }
+}
+
+fn update_screen_shake_state(time: Res<Time>, mut shake: ResMut<ScreenShakeState>) {
+    let desired = if shake.enabled {
+        shake.target_intensity.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let current = shake.current_intensity.clamp(0.0, 1.0);
+
+    if (desired - current).abs() <= f32::EPSILON {
+        shake.current_intensity = desired;
+        return;
+    }
+
+    let delta = desired - current;
+    let rate = if delta.is_sign_positive() {
+        shake.rise_per_second.max(0.0)
+    } else {
+        shake.fall_per_second.max(0.0)
+    };
+    let step = rate * time.delta_secs();
+    if step <= 0.0 {
+        shake.current_intensity = current;
+        return;
+    }
+
+    shake.current_intensity = if delta.is_sign_positive() {
+        (current + step).min(desired)
+    } else {
+        (current - step).max(desired)
+    };
+}
+
 const USE_POST_PROCESS: bool = true;
 
-fn neutral_scanline_uniform(resolution: Vec2, real_time: f32) -> ScanLineUniform {
+fn neutral_scanline_uniform(
+    resolution: Vec2,
+    real_time: f32,
+    _screen_shake: ScreenShakeState,
+) -> ScanLineUniform {
     ScanLineUniform {
         spacing: 0,
         thickness: 1,
@@ -108,6 +183,10 @@ fn neutral_scanline_uniform(resolution: Vec2, real_time: f32) -> ScanLineUniform
         phosphor_strength: 0.0,
         vignette_strength: 0.0,
         glow_strength: 0.0,
+        // Camera shake is now transform-driven; shader shake stays disabled.
+        shake_intensity: 0.0,
+        shake_pixels: 0.0,
+        shake_frequency: 0.0,
         resolution,
         real_time,
     }
@@ -115,13 +194,14 @@ fn neutral_scanline_uniform(resolution: Vec2, real_time: f32) -> ScanLineUniform
 
 fn scanline_uniform_from_settings(
     crt_settings: CrtSettings,
+    _screen_shake: ScreenShakeState,
     resolution: Vec2,
     real_time: f32,
 ) -> ScanLineUniform {
     if !crt_settings.pipeline_enabled {
         // Keep the post-process pipeline active, but neutralize CRT effects so
         // color grading and bloom continue to run on the same camera path.
-        return neutral_scanline_uniform(resolution, real_time);
+        return neutral_scanline_uniform(resolution, real_time, _screen_shake);
     }
 
     ScanLineUniform {
@@ -135,6 +215,10 @@ fn scanline_uniform_from_settings(
         phosphor_strength: crt_settings.phosphor_strength.clamp(0.0, 1.0),
         vignette_strength: crt_settings.vignette_strength.clamp(0.0, 1.0),
         glow_strength: crt_settings.glow_strength.max(0.0),
+        // Camera shake is now transform-driven; shader shake stays disabled.
+        shake_intensity: 0.0,
+        shake_pixels: 0.0,
+        shake_frequency: 0.0,
         resolution,
         real_time,
     }
@@ -152,6 +236,11 @@ fn setup_cameras(
         commands.spawn((
             Camera2d,
             OffscreenCamera,
+            OffscreenCameraBaseTransform {
+                translation: Vec3::ZERO,
+                rotation: Quat::IDENTITY,
+            },
+            OffscreenCameraShakeRig::default(),
             RenderLayers::layer(0),
             Hdr,
             RenderTarget::Image(render_target.0.clone().into()),
@@ -200,6 +289,174 @@ fn setup_cameras(
 
 #[derive(Component)]
 pub struct OffscreenCamera;
+
+#[derive(Component)]
+struct OffscreenCameraBaseTransform {
+    translation: Vec3,
+    rotation: Quat,
+}
+
+#[derive(Component)]
+struct OffscreenCameraShakeRig {
+    offset: Vec2,
+    velocity: Vec2,
+    roll: f32,
+    roll_velocity: f32,
+    impact_timer: Timer,
+}
+
+impl Default for OffscreenCameraShakeRig {
+    fn default() -> Self {
+        Self {
+            offset: Vec2::ZERO,
+            velocity: Vec2::ZERO,
+            roll: 0.0,
+            roll_velocity: 0.0,
+            impact_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
+        }
+    }
+}
+
+fn critically_damped_step_vec2(
+    position: &mut Vec2,
+    velocity: &mut Vec2,
+    target: Vec2,
+    stiffness: f32,
+    damping: f32,
+    delta_secs: f32,
+) {
+    let accel = (target - *position) * stiffness - *velocity * damping;
+    *velocity += accel * delta_secs;
+    *position += *velocity * delta_secs;
+}
+
+fn critically_damped_step_scalar(
+    position: &mut f32,
+    velocity: &mut f32,
+    target: f32,
+    stiffness: f32,
+    damping: f32,
+    delta_secs: f32,
+) {
+    let accel = (target - *position) * stiffness - *velocity * damping;
+    *velocity += accel * delta_secs;
+    *position += *velocity * delta_secs;
+}
+
+fn apply_camera_shake(
+    time: Res<Time<Real>>,
+    mut rng: ResMut<GlobalRng>,
+    shake: Res<ScreenShakeState>,
+    mut camera_query: Query<
+        (
+            &mut Transform,
+            &OffscreenCameraBaseTransform,
+            &mut OffscreenCameraShakeRig,
+        ),
+        With<OffscreenCamera>,
+    >,
+) {
+    let intensity = if shake.enabled {
+        shake.current_intensity.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+
+    let dt = time.delta_secs().clamp(0.0, 0.05);
+    let t = time.elapsed_secs();
+
+    for (mut transform, base, mut rig) in camera_query.iter_mut() {
+        if intensity <= 0.0001 || shake.max_pixels <= 0.0 {
+            let mut offset = rig.offset;
+            let mut velocity = rig.velocity;
+            critically_damped_step_vec2(&mut offset, &mut velocity, Vec2::ZERO, 220.0, 30.0, dt);
+            rig.offset = offset;
+            rig.velocity = velocity;
+
+            let mut roll = rig.roll;
+            let mut roll_velocity = rig.roll_velocity;
+            critically_damped_step_scalar(&mut roll, &mut roll_velocity, 0.0, 180.0, 24.0, dt);
+            rig.roll = roll;
+            rig.roll_velocity = roll_velocity;
+            transform.translation = base.translation + rig.offset.extend(0.0);
+            transform.rotation = base.rotation * Quat::from_rotation_z(rig.roll);
+            continue;
+        }
+
+        let cadence_hz =
+            (shake.frequency_hz.max(0.5) * (0.4 + 0.8 * intensity.powf(0.7))).clamp(1.0, 16.0);
+        let impact_interval = (1.0 / cadence_hz).clamp(0.06, 0.5);
+        if (rig.impact_timer.duration().as_secs_f32() - impact_interval).abs() > f32::EPSILON {
+            rig.impact_timer
+                .set_duration(std::time::Duration::from_secs_f32(impact_interval));
+        }
+        rig.impact_timer.tick(time.delta());
+
+        if rig.impact_timer.just_finished() {
+            let impulse_sigma_x = (shake.max_pixels * intensity * 7.5).max(0.001) as f64;
+            let impulse_sigma_y = (shake.max_pixels * intensity * 2.8).max(0.001) as f64;
+            let normal_x = Normal::new(0.0, impulse_sigma_x)
+                .expect("screen shake x impulse normal params must be valid");
+            let normal_y = Normal::new(0.0, impulse_sigma_y)
+                .expect("screen shake y impulse normal params must be valid");
+            let roll_sigma = (0.0018 * intensity).max(0.0001) as f64;
+            let normal_roll = Normal::new(0.0, roll_sigma)
+                .expect("screen shake roll normal params must be valid");
+
+            rig.velocity += Vec2::new(
+                normal_x.sample(&mut rng.uniform) as f32,
+                normal_y.sample(&mut rng.uniform) as f32,
+            );
+            rig.roll_velocity += normal_roll.sample(&mut rng.uniform) as f32;
+        }
+
+        // Low-frequency rumble + subtle vibration. Y amplitude stays lower than X
+        // so the shake feels weighty rather than floaty.
+        let rumble_x = rng.perlin.get([t as f64 * 1.15, 11.0, 0.0]) as f32;
+        let rumble_y = rng.perlin.get([t as f64 * 0.95, 23.0, 0.0]) as f32;
+        let vib_freq = 8.0 + 8.0 * intensity;
+        let vibration = Vec2::new(
+            (t * vib_freq * std::f32::consts::TAU).sin(),
+            (t * vib_freq * 1.33 * std::f32::consts::TAU + 1.1).sin(),
+        );
+        let amp = shake.max_pixels * intensity;
+        let target_offset = Vec2::new(
+            rumble_x * (amp * 0.42) + vibration.x * (amp * 0.09),
+            rumble_y * (amp * 0.18) + vibration.y * (amp * 0.04),
+        );
+        let target_roll = rumble_x * 0.0035 * intensity;
+
+        let stiffness = 160.0 + 120.0 * intensity;
+        let damping = 24.0 + 10.0 * intensity;
+        let mut offset = rig.offset;
+        let mut velocity = rig.velocity;
+        critically_damped_step_vec2(
+            &mut offset,
+            &mut velocity,
+            target_offset,
+            stiffness,
+            damping,
+            dt,
+        );
+        rig.offset = offset;
+        rig.velocity = velocity;
+
+        let mut roll = rig.roll;
+        let mut roll_velocity = rig.roll_velocity;
+        critically_damped_step_scalar(&mut roll, &mut roll_velocity, target_roll, 140.0, 22.0, dt);
+        rig.roll = roll;
+        rig.roll_velocity = roll_velocity;
+
+        let max_displacement = (shake.max_pixels * (0.45 + 0.75 * intensity)).max(0.1);
+        if rig.offset.length() > max_displacement {
+            rig.offset = rig.offset.normalize() * max_displacement;
+            rig.velocity *= 0.8;
+        }
+
+        transform.translation = base.translation + rig.offset.extend(0.0);
+        transform.rotation = base.rotation * Quat::from_rotation_z(rig.roll);
+    }
+}
 
 #[derive(Resource)]
 struct RenderTargetHandle(pub Handle<Image>);
@@ -303,6 +560,7 @@ impl ScanLinesMaterial {
         mut meshes: ResMut<Assets<Mesh>>,
         window: Single<&Window>,
         crt_settings: Res<CrtSettings>,
+        screen_shake: Res<ScreenShakeState>,
     ) {
         // Get the primary window's resolution
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
@@ -316,7 +574,12 @@ impl ScanLinesMaterial {
         // Create our custom material with initial parameters.
         let material: Handle<ScanLinesMaterial> = materials.add(ScanLinesMaterial {
             source_texture: render_target.0.clone(),
-            scan_line: scanline_uniform_from_settings(*crt_settings, window_resolution, 0.0),
+            scan_line: scanline_uniform_from_settings(
+                *crt_settings,
+                *screen_shake,
+                window_resolution,
+                0.0,
+            ),
         });
 
         // Spawn the quad with our custom material.
@@ -334,12 +597,14 @@ impl ScanLinesMaterial {
         window: Single<&Window, With<PrimaryWindow>>,
         time: Res<Time<Real>>,
         crt_settings: Res<CrtSettings>,
+        screen_shake: Res<ScreenShakeState>,
         mut materials: ResMut<Assets<ScanLinesMaterial>>,
     ) {
         let window_resolution = Vec2::new(window.resolution.width(), window.resolution.height());
         for (_id, material) in materials.iter_mut() {
             material.scan_line = scanline_uniform_from_settings(
                 *crt_settings,
+                *screen_shake,
                 window_resolution,
                 time.elapsed_secs(),
             );
@@ -386,6 +651,9 @@ struct ScanLineUniform {
     pub phosphor_strength: f32,
     pub vignette_strength: f32,
     pub glow_strength: f32,
+    pub shake_intensity: f32,
+    pub shake_pixels: f32,
+    pub shake_frequency: f32,
     pub resolution: Vec2,
     pub real_time: f32,
 }

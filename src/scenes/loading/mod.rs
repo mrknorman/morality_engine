@@ -6,20 +6,17 @@ use std::{time::Duration, vec};
 use crate::{
     data::states::GameState,
     entities::text::{TextButton, TextFrames},
-    style::{
-        common_ui::{NextButton, NextButtonConfig},
-        ui::IOPlugin,
-    },
+    style::common_ui::{NextButton, NextButtonConfig},
     systems::{
         audio::{
             continuous_audio, one_shot_audio, ContinuousAudio, ContinuousAudioPallet, MusicAudio,
             NarrationAudio, OneShotAudio, OneShotAudioPallet, TransientAudio, TransientAudioPallet,
         },
-        cascade::{Cascade, CascadePlugin},
+        cascade::Cascade,
         colors::{AlphaTranslation, DIM_BACKGROUND_COLOR},
         inheritance::BequeathTextAlpha,
-        interaction::{ActionPallet, InputAction, InteractionPlugin},
-        scheduling::{TimerConfig, TimerPallet, TimerStartCondition, TimingPlugin},
+        interaction::{ActionPallet, InputAction},
+        scheduling::{TimerConfig, TimerPallet, TimerStartCondition},
     },
 };
 
@@ -43,20 +40,8 @@ impl Plugin for LoadingScenePlugin {
                     .run_if(in_state(GameState::Loading)),
             );
 
-        if !app.is_plugin_added::<CascadePlugin>() {
-            app.add_plugins(CascadePlugin);
-        }
         if !app.is_plugin_added::<LoadingBarPlugin>() {
             app.add_plugins(LoadingBarPlugin);
-        }
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<TimingPlugin>() {
-            app.add_plugins(TimingPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
         }
     }
 }
@@ -94,7 +79,7 @@ struct LoadingScene;
 impl LoadingScene {
     fn setup(mut commands: Commands, queue: Res<SceneQueue>, asset_server: Res<AssetServer>) {
         commands.spawn((
-            queue.current,
+            queue.current_scene(),
             LoadingScene,
             DespawnOnExit(GameState::Loading),
             TimerPallet::new(vec![
@@ -236,7 +221,7 @@ impl LoadingScene {
 
     fn update_button_text(
         next_state_button: Res<NextButtonConfig>,
-        loading_query: Query<(&TimerPallet<LoadingEvents>, &LoadingScene)>,
+        loading_query: Query<&TimerPallet<LoadingEvents>, With<LoadingScene>>,
         mut text_query: Query<(&mut Text2d, &TextFrames)>,
     ) {
         let Some(button_entity) = next_state_button.0 else {
@@ -248,10 +233,9 @@ impl LoadingScene {
             Err(_) => return,
         };
 
-        let (timers, _) = loading_query
-            .iter()
-            .next()
-            .expect("Expected at least one entity with TimerPallet and LoadingRoot");
+        let Ok(timers) = loading_query.single() else {
+            return;
+        };
 
         if timers.0[LoadingEvents::UpdateButton].just_finished() {
             let index = timers.0[LoadingEvents::UpdateButton].times_finished() as usize;

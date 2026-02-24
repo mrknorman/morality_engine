@@ -268,11 +268,7 @@ pub(super) fn handle_video_modal_shortcuts(
     let mut modal_kind_by_owner: HashMap<Entity, (bool, bool)> = HashMap::new();
     for (modal_entity, ui_layer, is_apply_modal, is_exit_modal) in modal_query.iter() {
         if layer::active_layer_kind_for_owner(active_layers, ui_layer.owner) != UiLayerKind::Modal
-            || !layer::is_active_layer_entity_for_owner(
-                active_layers,
-                ui_layer.owner,
-                modal_entity,
-            )
+            || !layer::is_active_layer_entity_for_owner(active_layers, ui_layer.owner, modal_entity)
         {
             continue;
         }
@@ -321,6 +317,7 @@ pub(super) fn handle_video_modal_button_commands(
     modal_layer_query: Query<&UiLayer, With<VideoModalRoot>>,
     mut settings: ResMut<VideoSettingsState>,
     mut crt_settings: ResMut<CrtSettings>,
+    mut screen_shake: ResMut<ScreenShakeState>,
     mut navigation_state: ResMut<MenuNavigationState>,
     mut button_query: Query<(
         Entity,
@@ -428,6 +425,7 @@ pub(super) fn handle_video_modal_button_commands(
                 apply_snapshot_to_post_processing(
                     snapshot,
                     &mut crt_settings,
+                    &mut screen_shake,
                     &mut main_camera_query,
                 );
             }
@@ -456,6 +454,7 @@ pub(super) fn update_apply_confirmation_countdown(
     time: Res<Time<Real>>,
     mut settings: ResMut<VideoSettingsState>,
     mut crt_settings: ResMut<CrtSettings>,
+    mut screen_shake: ResMut<ScreenShakeState>,
     mut countdown_text_query: Query<&mut Text2d, With<VideoApplyCountdownText>>,
     modal_query: Query<Entity, With<VideoModalRoot>>,
     mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
@@ -491,7 +490,12 @@ pub(super) fn update_apply_confirmation_countdown(
         if let Ok(mut window) = primary_window.single_mut() {
             apply_snapshot_to_window(&mut window, snapshot);
         }
-        apply_snapshot_to_post_processing(snapshot, &mut crt_settings, &mut main_camera_query);
+        apply_snapshot_to_post_processing(
+            snapshot,
+            &mut crt_settings,
+            &mut screen_shake,
+            &mut main_camera_query,
+        );
     }
     settings.apply_timer = None;
     close_video_modals(&mut commands, &modal_query);

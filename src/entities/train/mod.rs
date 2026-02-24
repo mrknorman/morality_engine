@@ -8,6 +8,8 @@ use bevy::{
 };
 use enum_map::{enum_map, Enum};
 use rand::Rng;
+use rand::SeedableRng;
+use rand_pcg::Pcg64Mcg;
 use serde::Deserialize;
 
 pub mod content;
@@ -88,18 +90,67 @@ pub struct TrainType {
 }
 
 impl TrainType {
-    pub fn load_from_json(train_type: TrainTypes) -> TrainType {
-        let train_type: TrainType =
-            serde_json::from_str(train_type.content()).unwrap_or_else(|err| {
-                panic!("Failed to parse train from file {}.", err);
-            });
+    fn fallback() -> Self {
+        Self {
+            carriages: vec![String::from("____"), String::from("____")],
+            smoke: Some(vec![String::from("~~")]),
+            track_audio_path: String::from("./audio/effects/static.ogg"),
+            stopped_audio_path: String::from("./audio/effects/static.ogg"),
+            horn_audio_path: None,
+            rising_smoke: Some(vec![
+                String::from(" . "),
+                String::from(" .."),
+                String::from("..."),
+                String::from(" ::"),
+                String::from(":::"),
+                String::from(" **"),
+                String::from("***"),
+            ]),
+        }
+    }
 
-        // Additional validation
-        if train_type.carriages.is_empty() {
-            panic!("TrainType must have at least one carriage");
+    fn normalized(mut self) -> Self {
+        if self.carriages.is_empty() {
+            warn!("train content has no carriages; using fallback carriage");
+            self.carriages = vec![String::from("____")];
         }
 
-        train_type
+        if self.smoke.as_ref().is_none_or(Vec::is_empty) {
+            warn!("train content has no smoke frames; using fallback smoke frame");
+            self.smoke = Some(vec![String::from("~~")]);
+        }
+
+        if self.rising_smoke.as_ref().is_none_or(|frames| frames.len() < 7) {
+            warn!("train content has insufficient rising smoke frames; using fallback set");
+            self.rising_smoke = Some(vec![
+                String::from(" . "),
+                String::from(" .."),
+                String::from("..."),
+                String::from(" ::"),
+                String::from(":::"),
+                String::from(" **"),
+                String::from("***"),
+            ]);
+        }
+
+        self
+    }
+
+    pub fn load_from_json(train_type: TrainTypes) -> TrainType {
+        let train_type: TrainType = match serde_json::from_str(train_type.content()) {
+            Ok(train_type) => train_type,
+            Err(error) => {
+                warn!("failed to parse train content: {error}; using fallback train content");
+                Self::fallback()
+            }
+        };
+
+        if train_type.carriages.is_empty() {
+            warn!("train content has no carriages; using fallback train content");
+            return Self::fallback();
+        }
+
+        train_type.normalized()
     }
 }
 
@@ -180,7 +231,10 @@ impl Train {
                 let carriages: Vec<String> = train_type.carriages.clone();
                 let smoke_frames: Vec<String> = train_type.clone().smoke.unwrap_or(vec![]);
                 let burning_frames: Vec<String> = train_type.clone().rising_smoke.unwrap_or(vec![]);
-                let asset_server: &AssetServer = world.get_resource::<AssetServer>().unwrap();
+                let Some(asset_server) = world.get_resource::<AssetServer>() else {
+                    warn!("AssetServer missing during train setup; skipping train spawn");
+                    return;
+                };
                 let horn_audio: Option<TransientAudio> =
                     train_type.clone().horn_audio_path.map(|path| {
                         TransientAudio::new(asset_server.load(path), 2.0, false, 1.0, true)
@@ -237,7 +291,8 @@ impl Train {
                     bounce_audio,
                 )
             } else {
-                panic!("Train unable to spawn!");
+                warn!("train entity missing required components; skipping train setup");
+                return;
             }
         };
 
@@ -259,10 +314,10 @@ impl Train {
         });
 
         // Continue only if we got the RNG
-        let mut rng = match rng_option {
-            Some(rng) => rng,
-            None => panic!("Rng not found!"),
-        };
+        let mut rng = rng_option.unwrap_or_else(|| {
+            warn!("GlobalRng missing during train setup; using deterministic fallback rng");
+            Pcg64Mcg::seed_from_u64(12345)
+        });
 
         // Now get the commands after all data is collected
         let mut commands = world.commands();

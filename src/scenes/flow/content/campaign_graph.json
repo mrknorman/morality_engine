@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "routes": [
+    {
+      "from": { "kind": "dilemma", "id": "lab_0.incompetent_bandit" },
+      "rules": [
+        {
+          "name": "fail_if_any_fatality",
+          "when": [
+            { "op": "fatalities_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_1.a.fail" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        },
+        {
+          "name": "fail_if_very_indecisive_with_known_last_decision_time",
+          "when": [
+            { "op": "decisions_gt", "value": 10 },
+            { "op": "last_decision_remaining_is_some" }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_1.a.fail_very_indecisive" },
+            { "kind": "ending", "id": "leverophile" }
+          ]
+        },
+        {
+          "name": "pass_slow_if_last_decision_was_late",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "last_decision_remaining_lt_secs", "value": 1.0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_1.a.pass_slow" },
+            { "kind": "dialogue", "id": "lab_1.b.intro" },
+            { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" }
+          ]
+        },
+        {
+          "name": "pass_indecisive_if_any_decision_taken",
+          "when": [
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_1.a.pass_indecisive" },
+            { "kind": "dialogue", "id": "lab_1.b.intro" },
+            { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "lab_1.a.pass" },
+        { "kind": "dialogue", "id": "lab_1.b.intro" },
+        { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" },
+      "rules": [
+        {
+          "name": "fatalities_plus_decisions_is_leverophile",
+          "when": [
+            { "op": "fatalities_gt", "value": 0 },
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_2.a.fail_indecisive" },
+            { "kind": "ending", "id": "leverophile" }
+          ]
+        },
+        {
+          "name": "fatalities_without_any_global_decision_enters_inaction_path",
+          "when": [
+            { "op": "fatalities_gt", "value": 0 },
+            { "op": "total_decisions_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_inaction.0.fail" },
+            { "kind": "dilemma", "id": "path_inaction.0" }
+          ]
+        },
+        {
+          "name": "fatalities_without_above_routes_is_impatient_psychopath",
+          "when": [
+            { "op": "fatalities_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_2.a.fail" },
+            { "kind": "ending", "id": "impatient_psychopath" }
+          ]
+        },
+        {
+          "name": "fast_global_average_with_known_timers",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "last_decision_remaining_is_some" },
+            { "op": "overall_avg_remaining_is_some" },
+            { "op": "overall_avg_remaining_lt_secs", "value": 1.0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_2.a.pass_slow_again" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        },
+        {
+          "name": "slow_last_decision_with_known_timers",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "last_decision_remaining_is_some" },
+            { "op": "overall_avg_remaining_is_some" },
+            { "op": "overall_avg_remaining_gte_secs", "value": 1.0 },
+            { "op": "last_decision_remaining_lt_secs", "value": 1.0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_2.a.pass_slow" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        },
+        {
+          "name": "pass_if_any_decision_taken",
+          "when": [
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_2.a.pass" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "lab_2.a.pass" },
+        { "kind": "dialogue", "id": "lab_2.b.intro" },
+        { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "lab_2.the_trolley_problem" },
+      "rules": [
+        {
+          "name": "fatalities_and_indecisive",
+          "when": [
+            { "op": "fatalities_eq", "value": 5 },
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_3.a.fail_indecisive" }
+          ]
+        },
+        {
+          "name": "fatalities_without_decision_replay_lab3",
+          "when": [
+            { "op": "fatalities_eq", "value": 5 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_3.a.fail_inaction" },
+            { "kind": "dilemma", "id": "lab_3.asleep_at_the_job" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "lab_3.a.pass_utilitarian" },
+        { "kind": "dialogue", "id": "lab_3.b.intro" },
+        { "kind": "dilemma", "id": "path_utilitarian.0" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "lab_3.asleep_at_the_job" },
+      "rules": [
+        {
+          "name": "junction_fatalities_and_indecisive",
+          "when": [
+            { "op": "fatalities_eq", "value": 5 },
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "lab_3.a.fail_indecisive" }
+          ]
+        },
+        {
+          "name": "junction_fatalities_enters_deontological_path",
+          "when": [
+            { "op": "fatalities_eq", "value": 5 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.0.fail" },
+            { "kind": "dilemma", "id": "path_deontological.0" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "lab_3.a.pass_utilitarian" },
+        { "kind": "dialogue", "id": "lab_3.b.intro" },
+        { "kind": "dilemma", "id": "path_utilitarian.0" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.0" },
+      "rules": [
+        {
+          "name": "exit_inaction_path_if_any_total_decision",
+          "when": [
+            { "op": "total_decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_inaction.1.pass" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_inaction.1.fail" },
+        { "kind": "dilemma", "id": "path_inaction.1" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.1" },
+      "rules": [
+        {
+          "name": "exit_inaction_path_if_any_total_decision",
+          "when": [
+            { "op": "total_decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_inaction.2.pass" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_inaction.2.fail" },
+        { "kind": "dilemma", "id": "path_inaction.2" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.2" },
+      "rules": [
+        {
+          "name": "exit_inaction_path_if_any_total_decision",
+          "when": [
+            { "op": "total_decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_inaction.3.pass" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_inaction.3.fail" },
+        { "kind": "dilemma", "id": "path_inaction.3" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.3" },
+      "rules": [
+        {
+          "name": "exit_inaction_path_if_any_total_decision",
+          "when": [
+            { "op": "total_decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_inaction.4.pass" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_inaction.4.fail" },
+        { "kind": "dilemma", "id": "path_inaction.4" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.4" },
+      "rules": [
+        {
+          "name": "exit_inaction_path_if_any_total_decision",
+          "when": [
+            { "op": "total_decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_inaction.5.pass" },
+            { "kind": "dialogue", "id": "lab_2.b.intro" },
+            { "kind": "dilemma", "id": "lab_2.the_trolley_problem" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_inaction.5.fail" },
+        { "kind": "dilemma", "id": "path_inaction.5" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.5" },
+      "rules": [],
+      "default": [
+        { "kind": "dialogue", "id": "path_inaction.6.fail" },
+        { "kind": "dilemma", "id": "path_inaction.6" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_inaction.6" },
+      "rules": [],
+      "default": [
+        { "kind": "ending", "id": "true_neutral" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "path_deontological.0" },
+      "rules": [
+        {
+          "name": "single_fatality_selective_deontologist",
+          "when": [
+            { "op": "fatalities_eq", "value": 1 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.1.pass" },
+            { "kind": "ending", "id": "selective_deontologist" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_deontological.1.fail" },
+        { "kind": "dilemma", "id": "path_deontological.1" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_deontological.1" },
+      "rules": [],
+      "default": [
+        { "kind": "dialogue", "id": "path_deontological.2.fail" },
+        { "kind": "dilemma", "id": "path_deontological.2" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_deontological.2" },
+      "rules": [],
+      "default": [
+        { "kind": "dialogue", "id": "path_deontological.3.fail" },
+        { "kind": "ending", "id": "true_deontologist" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "path_utilitarian.0" },
+      "rules": [
+        {
+          "name": "selected_option_zero_routes_to_fail_outro",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_utilitarian.1.fail" },
+            { "kind": "dialogue", "id": "lab_4.outro" },
+            { "kind": "dilemma", "id": "lab_4.random_deaths" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_utilitarian.1.pass" },
+        { "kind": "dilemma", "id": "path_utilitarian.1" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_utilitarian.1" },
+      "rules": [
+        {
+          "name": "selected_option_zero_routes_to_fail_outro",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_utilitarian.2.fail" },
+            { "kind": "dialogue", "id": "lab_4.outro" },
+            { "kind": "dilemma", "id": "lab_4.random_deaths" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_utilitarian.2.pass" },
+        { "kind": "dilemma", "id": "path_utilitarian.2" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_utilitarian.2" },
+      "rules": [
+        {
+          "name": "selected_option_zero_routes_to_fail_outro",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_utilitarian.3.fail" },
+            { "kind": "dialogue", "id": "lab_4.outro" },
+            { "kind": "dilemma", "id": "lab_4.random_deaths" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_utilitarian.3.pass" },
+        { "kind": "dilemma", "id": "path_utilitarian.3" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_utilitarian.3" },
+      "rules": [
+        {
+          "name": "selected_option_zero_final_stage_passes_with_outro",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_utilitarian.4.pass" },
+            { "kind": "dialogue", "id": "lab_4.outro" },
+            { "kind": "dilemma", "id": "lab_4.random_deaths" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_utilitarian.4.fail" },
+        { "kind": "dialogue", "id": "lab_4.outro" },
+        { "kind": "dilemma", "id": "lab_4.random_deaths" }
+      ]
+    }
+  ]
+}

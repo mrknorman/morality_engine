@@ -91,8 +91,13 @@ impl LoadingBar {
     }
 
     pub fn load(loading_bar_messages: LoadingBarMessages) -> (LoadingBar, TextFrames) {
-        let config = LoadingBarConfig::from_file(loading_bar_messages)
-            .expect("Error reading Loading Bar configuration file!");
+        let config = match LoadingBarConfig::from_file(loading_bar_messages) {
+            Ok(config) => config,
+            Err(error) => {
+                warn!("failed to load loading bar config: {error}; using safe defaults");
+                LoadingBarConfig::fallback()
+            }
+        };
 
         let mut rng: rand::prelude::ThreadRng = rand::rng();
 
@@ -279,5 +284,17 @@ struct LoadingBarConfig {
 impl LoadingBarConfig {
     fn from_file(loading_bar_messages: LoadingBarMessages) -> Result<Self, serde_json::Error> {
         serde_json::from_str(loading_bar_messages.content())
+    }
+
+    fn fallback() -> Self {
+        Self {
+            prefix: String::from("Loading"),
+            final_message: String::from("Complete"),
+            messages: vec![
+                String::from("Booting runtime services..."),
+                String::from("Calibrating simulation environment..."),
+                String::from("Initializing dilemma framework..."),
+            ],
+        }
     }
 }

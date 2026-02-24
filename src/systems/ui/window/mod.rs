@@ -117,11 +117,20 @@ const WINDOW_FOCUS_DEPTH_SPAN: f32 = 60.0;
 const WINDOW_RESIZE_HANDLE_SIZE: f32 = 20.0;
 const WINDOW_MIN_WIDTH: f32 = 60.0;
 const WINDOW_MIN_HEIGHT: f32 = 40.0;
+const WINDOW_CLOSE_BUTTON_MIN_CLICK_REGION: f32 = 8.0;
+const WINDOW_CLOSE_BUTTON_CLICK_REGION_SCALE: f32 = 1.1;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ResizeCorner {
     BottomLeft,
     BottomRight,
+}
+
+fn close_button_click_region(close_button_side: f32) -> Vec2 {
+    Vec2::splat(
+        (close_button_side * WINDOW_CLOSE_BUTTON_CLICK_REGION_SCALE)
+            .max(WINDOW_CLOSE_BUTTON_MIN_CLICK_REGION),
+    )
 }
 
 #[derive(Clone, Copy)]
@@ -510,9 +519,11 @@ impl Window {
             );
         }
 
-        // Reserve the close button segment on the right side of the header so
-        // clicking close never races with drag-start.
-        let reserved_right = header_height + 22.0;
+        // Reserve exactly the close hitbox span on the right side of the
+        // header (plus a tiny safety buffer), so there is no dead zone
+        // between drag and close interactions.
+        let close_region = close_button_click_region(header_height);
+        let reserved_right = 0.5 * header_height + 0.5 * close_region.x + 0.5;
         let width = (window_width - reserved_right).max(24.0);
         (
             Vec2::new(width, header_height + vertical_padding),
@@ -2185,8 +2196,7 @@ impl Window {
                     {
                         plus.dimensions = close_boundary.dimensions - 10.0;
                         plus.color = close_boundary.color;
-                        let region =
-                            Some(Vec2::splat((close_boundary.dimensions.x - 8.0).max(8.0)));
+                        let region = Some(close_button_click_region(close_boundary.dimensions.x));
                         click.region = region;
                         color_anchor.0 = close_boundary.color;
                         palette.idle_color = close_boundary.color;
@@ -2371,7 +2381,7 @@ impl WindowCloseButton {
             .map(|assets| assets.load("./audio/effects/mouse_click.ogg"));
 
         world.commands().entity(entity).with_children(|parent| {
-            let default_region = Vec2::splat(12.0);
+            let default_region = close_button_click_region(20.0);
             let default_icon_dim = Vec2::splat(10.0);
             parent.spawn((WindowCloseButtonBorder, BorderedRectangle::default()));
 

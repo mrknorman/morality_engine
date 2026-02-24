@@ -14,6 +14,9 @@ struct ScanlineSettings {
     phosphor_strength: f32,
     vignette_strength: f32,
     glow_strength: f32,
+    shake_intensity: f32,
+    shake_pixels: f32,
+    shake_frequency: f32,
     resolution: vec2<f32>,
     real_time: f32,
 };

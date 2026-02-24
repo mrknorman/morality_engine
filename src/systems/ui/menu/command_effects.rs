@@ -5,6 +5,7 @@ use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
 use super::*;
 use crate::data::stats::GameStats;
 use crate::scenes::dilemma::content::DilemmaScene;
+use crate::scenes::runtime::SceneNavigator;
 
 const MAIN_MENU_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const MAIN_MENU_OVERLAY_DIM_SIZE: f32 = 6000.0;
@@ -38,6 +39,7 @@ fn handle_apply_video_settings_command(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut VideoDropdownVisibilityQuery,
     crt_settings: &mut CrtSettings,
+    screen_shake: &mut ScreenShakeState,
     main_camera_query: &mut Query<
         (
             &mut Bloom,
@@ -61,7 +63,12 @@ fn handle_apply_video_settings_command(
     if let Ok(mut window) = window_exit.primary_window_queries.p1().single_mut() {
         apply_snapshot_to_window(&mut window, settings.pending);
     }
-    apply_snapshot_to_post_processing(settings.pending, crt_settings, main_camera_query);
+    apply_snapshot_to_post_processing(
+        settings.pending,
+        crt_settings,
+        screen_shake,
+        main_camera_query,
+    );
     settings.apply_timer = Some(Timer::from_seconds(30.0, TimerMode::Once));
     spawn_apply_confirm_modal(commands, menu_entity, asset_server, menu_root.gate);
 }
@@ -130,28 +137,8 @@ fn handle_next_scene_command(
     next_game_state: &mut ResMut<NextState<GameState>>,
     next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
 ) {
-    match scene_queue.pop() {
-        Scene::Menu => {
-            next_main_state.set(MainState::Menu);
-        }
-        Scene::Loading => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Loading);
-        }
-        Scene::Dialogue(_) => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Dialogue);
-        }
-        Scene::Dilemma(_) => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Dilemma);
-            next_sub_state.set(DilemmaPhase::Intro);
-        }
-        Scene::Ending(_) => {
-            next_main_state.set(MainState::InGame);
-            next_game_state.set(GameState::Ending);
-        }
-    }
+    SceneNavigator::next_state_vector_or_fallback(scene_queue)
+        .set_state(next_main_state, next_game_state, next_sub_state);
 }
 
 fn handle_start_single_level_command(
@@ -182,6 +169,7 @@ pub(super) fn apply_menu_reducer_result(
     dropdown_state: &mut DropdownLayerState,
     dropdown_query: &mut VideoDropdownVisibilityQuery,
     crt_settings: &mut CrtSettings,
+    screen_shake: &mut ScreenShakeState,
     main_camera_query: &mut Query<
         (
             &mut Bloom,
@@ -270,6 +258,7 @@ pub(super) fn apply_menu_reducer_result(
             dropdown_state,
             dropdown_query,
             crt_settings,
+            screen_shake,
             main_camera_query,
             window_exit,
         );

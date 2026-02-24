@@ -136,7 +136,8 @@ pub(super) fn handle_resolution_dropdown_item_commands(
     let mut dropdown_owner_parent_by_entity: HashMap<Entity, (Entity, Entity)> = HashMap::new();
     for (dropdown_entity, parent, ui_layer, visibility) in dropdown_query.iter_mut() {
         if *visibility == Visibility::Visible {
-            dropdown_owner_parent_by_entity.insert(dropdown_entity, (ui_layer.owner, parent.parent()));
+            dropdown_owner_parent_by_entity
+                .insert(dropdown_entity, (ui_layer.owner, parent.parent()));
         }
     }
 

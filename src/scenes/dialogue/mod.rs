@@ -5,17 +5,15 @@ use bevy::{asset::AssetServer, audio::Volume, prelude::*};
 use crate::{
     data::{
         character::{Character, CharacterKey},
-        states::GameState,
+        states::{DilemmaPhase, GameState, MainState},
     },
     entities::graph::Graph,
-    scenes::{Scene, SceneQueue},
-    style::ui::IOPlugin,
+    scenes::{runtime::SceneNavigator, Scene, SceneQueue},
     systems::{
         audio::{continuous_audio, ContinuousAudio, ContinuousAudioPallet},
         cascade::Cascade,
         colors::{AlphaTranslation, DIM_BACKGROUND_COLOR},
         inheritance::BequeathTextAlpha,
-        interaction::InteractionPlugin,
     },
 };
 
@@ -30,12 +28,6 @@ impl Plugin for DialogueScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Dialogue), DialogueScene::setup);
 
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
-        }
         if !app.is_plugin_added::<DialoguePlugin>() {
             app.add_plugins(DialoguePlugin);
         }
@@ -47,6 +39,9 @@ impl DialogueScene {
         mut commands: Commands,
         mut queue: ResMut<SceneQueue>,
         asset_server: Res<AssetServer>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
         let character_map = HashMap::from([
             (
@@ -69,16 +64,24 @@ impl DialogueScene {
             ),
         ]);
 
-        let scene = queue.current;
+        let scene = queue.current_scene();
         let dialogue: DialogueScene = match scene {
             Scene::Dialogue(content) => content,
-            _ => panic!("Scene is not dialogue!"),
+            _ => {
+                warn!("expected dialogue scene but found non-dialogue route; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
         };
 
         let mut dialogue_vector = vec![dialogue];
 
-        let next_scene = match queue.next {
-            Some(Scene::Dialogue(_)) => Some(queue.pop()),
+        let next_scene = match queue.next_scene() {
+            Some(Scene::Dialogue(_)) => queue.pop(),
             Some(_) | None => None,
         };
         match next_scene {
@@ -86,6 +89,19 @@ impl DialogueScene {
                 dialogue_vector.push(content);
             }
             _ => (),
+        };
+
+        let dialogue_bundle = match Dialogue::init(&asset_server, &dialogue_vector, &character_map) {
+            Ok(dialogue_bundle) => dialogue_bundle,
+            Err(error) => {
+                warn!("failed to load dialogue content: {error}; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
         };
 
         commands.spawn((
@@ -128,7 +144,7 @@ impl DialogueScene {
             ]),
             children![
                 (
-                    Dialogue::init(&asset_server, &dialogue_vector, &character_map),
+                    dialogue_bundle,
                     Transform::from_xyz(-500.0, 0.0, 1.0),
                 ),
                 (

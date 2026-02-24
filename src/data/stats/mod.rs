@@ -101,7 +101,8 @@ impl DilemmaStats {
     pub fn to_table(&self) -> Table {
         // Compute the formatted strings just as before.
         let final_decision_str = match self.result {
-            Some(ref decision) => format!("{:?}", decision),
+            Some(LeverState::Selected(index)) => format!("Option {}", index + 1),
+            Some(LeverState::Random) => "Random".to_string(),
             None => "None".to_string(),
         };
 
@@ -498,7 +499,7 @@ mod tests {
             &DilemmaOptionConsequences {
                 total_fatalities: 3,
             },
-            &LeverState::Left,
+            &LeverState::Selected(0),
             &timer,
         );
 
@@ -512,12 +513,12 @@ mod tests {
         let mut timer = Timer::new(Duration::from_secs_f32(12.0), TimerMode::Once);
         timer.tick(Duration::from_secs_f32(4.0));
 
-        stats.update(&LeverState::Right, &timer);
+        stats.update(&LeverState::Selected(1), &timer);
         stats.finalize(
             &DilemmaOptionConsequences {
                 total_fatalities: 1,
             },
-            &LeverState::Right,
+            &LeverState::Selected(1),
             &timer,
         );
         stats.reset();

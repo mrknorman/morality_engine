@@ -1,6 +1,5 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use bevy::{
     ecs::{lifecycle::HookContext, system::SystemId, world::DeferredWorld},
@@ -60,18 +59,21 @@ fn toggle_background_systems(
 
 // Resource for background systems
 #[derive(Resource)]
-pub struct BackgroundSystems(pub HashMap<String, SystemId>);
+pub struct BackgroundSystems {
+    update_background_speeds: SystemId,
+}
+
+impl BackgroundSystems {
+    pub const fn update_speeds_system(&self) -> SystemId {
+        self.update_background_speeds
+    }
+}
 
 impl FromWorld for BackgroundSystems {
     fn from_world(world: &mut World) -> Self {
-        let mut systems = HashMap::new();
-
-        systems.insert(
-            "update_background_speeds".into(),
-            world.register_system(Background::update_speeds),
-        );
-
-        BackgroundSystems(systems)
+        Self {
+            update_background_speeds: world.register_system(Background::update_speeds),
+        }
     }
 }
 
@@ -96,10 +98,14 @@ pub struct Background {
 impl Background {
     /// Creates a new Background with the given type, density, and speed
     pub fn new(background_type: BackgroundTypes, density: f32, speed: f32) -> Self {
-        let sprites: Vec<BackgroundSpriteType> = serde_json::from_str(background_type.content())
-            .unwrap_or_else(|err| {
-                panic!("Failed to parse background JSON: {}", err);
-            });
+        let sprites: Vec<BackgroundSpriteType> = match serde_json::from_str(background_type.content())
+        {
+            Ok(sprites) => sprites,
+            Err(error) => {
+                warn!("failed to parse background JSON: {error}; using empty sprite set");
+                Vec::new()
+            }
+        };
 
         Self {
             sprites,

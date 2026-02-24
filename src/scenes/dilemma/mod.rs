@@ -1,32 +1,31 @@
 use crate::{
     data::{
-        states::{DilemmaPhase, GameState},
+        states::{DilemmaPhase, GameState, MainState},
         stats::{DilemmaRunStatsScope, DilemmaStats, GameStats},
     },
     entities::{
-        large_fonts::{AsciiPlugin, AsciiString, TextEmotion},
-        person::PersonPlugin,
-        sprites::SpritePlugin,
-        text::{scaled_font_size, TextPlugin, TextWindow},
+        large_fonts::{AsciiString, TextEmotion},
+        person::{BloodSprite, PersonPlugin},
+        text::{scaled_font_size, TextWindow},
         track::Track,
-        train::{content::TrainTypes, Train, TrainPlugin},
+        train::{content::TrainTypes, Train},
     },
     scenes::dilemma::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
         phases::transition::DilemmaTransitionPlugin,
     },
-    style::ui::IOPlugin,
+    scenes::runtime::SceneNavigator,
     systems::{
         audio::{continuous_audio, MusicAudio},
-        backgrounds::{content::BackgroundTypes, Background, BackgroundPlugin},
+        backgrounds::{content::BackgroundTypes, Background},
         colors::{
-            AlphaTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR, OPTION_1_COLOR,
-            OPTION_2_COLOR, PRIMARY_COLOR,
+            option_color, AlphaTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR,
+            PRIMARY_COLOR,
         },
         inheritance::BequeathTextAlpha,
-        interaction::{Draggable, InteractionPlugin},
+        interaction::Draggable,
         motion::PointToPointTranslation,
-        scheduling::TimingPlugin,
+        physics::ExplodedGlyph,
         ui::window::UiWindowTitle,
     },
 };
@@ -36,7 +35,7 @@ use phases::{
     consequence::DilemmaConsequencePlugin, decision::DilemmaDecisionPlugin,
     intro::DilemmaIntroPlugin, results::DilemmaResultsPlugin, skip::DilemmaSkipPlugin,
 };
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 pub mod phases;
 
@@ -55,6 +54,14 @@ pub struct DilemmaScenePlugin;
 impl Plugin for DilemmaScenePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Dilemma), DilemmaScene::setup)
+            .add_systems(
+                OnExit(GameState::Dilemma),
+                DilemmaScene::cleanup_detached_viscera,
+            )
+            .add_systems(
+                OnEnter(MainState::Menu),
+                DilemmaScene::cleanup_detached_viscera,
+            )
             .add_plugins(DilemmaIntroPlugin)
             .add_plugins(DilemmaDecisionPlugin)
             .add_plugins(DilemmaTransitionPlugin)
@@ -62,41 +69,17 @@ impl Plugin for DilemmaScenePlugin {
             .add_plugins(DilemmaResultsPlugin)
             .add_plugins(DilemmaSkipPlugin);
 
-        if !app.is_plugin_added::<SpritePlugin>() {
-            app.add_plugins(SpritePlugin);
-        }
-        if !app.is_plugin_added::<TextPlugin>() {
-            app.add_plugins(TextPlugin);
-        }
-        if !app.is_plugin_added::<TrainPlugin>() {
-            app.add_plugins(TrainPlugin);
-        }
-        if !app.is_plugin_added::<AsciiPlugin>() {
-            app.add_plugins(AsciiPlugin);
-        }
         if !app.is_plugin_added::<LeverPlugin>() {
             app.add_plugins(LeverPlugin);
         }
         if !app.is_plugin_added::<PersonPlugin>() {
             app.add_plugins(PersonPlugin);
         }
-        if !app.is_plugin_added::<InteractionPlugin>() {
-            app.add_plugins(InteractionPlugin);
-        }
-        if !app.is_plugin_added::<TimingPlugin>() {
-            app.add_plugins(TimingPlugin);
-        }
-        if !app.is_plugin_added::<BackgroundPlugin>() {
-            app.add_plugins(BackgroundPlugin);
-        }
         if !app.is_plugin_added::<JunctionPlugin>() {
             app.add_plugins(JunctionPlugin);
         }
         if !app.is_plugin_added::<DilemmaPlugin>() {
             app.add_plugins(DilemmaPlugin);
-        }
-        if !app.is_plugin_added::<IOPlugin>() {
-            app.add_plugins(IOPlugin);
         }
     }
 }
@@ -108,19 +91,56 @@ impl DilemmaScene {
         Self::TRAIN_INITIAL_POSITION.y + Train::track_alignment_offset_y(),
         0.0,
     );
-    const TRACK_COLORS: [Color; 2] = [OPTION_1_COLOR, OPTION_2_COLOR];
+    pub fn track_color_for_option(option_index: usize) -> Color {
+        option_color(option_index)
+    }
 
     fn setup(
         mut commands: Commands,
         queue: Res<SceneQueue>,
         asset_server: Res<AssetServer>,
         stats: Res<GameStats>,
+        mut next_main_state: ResMut<NextState<MainState>>,
+        mut next_game_state: ResMut<NextState<GameState>>,
+        mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
     ) {
-        let scene = queue.current;
+        let scene = queue.current_scene();
 
         let dilemma = match scene {
-            Scene::Dilemma(content) => Dilemma::new(&content),
-            _ => panic!("Scene is not dilemma!"),
+            Scene::Dilemma(content) => match Dilemma::try_new(&content) {
+                Ok(dilemma) => dilemma,
+                Err(error) => {
+                    warn!("failed to load dilemma content: {error}; falling back to menu");
+                    SceneNavigator::fallback_state_vector().set_state(
+                        &mut next_main_state,
+                        &mut next_game_state,
+                        &mut next_sub_state,
+                    );
+                    return;
+                }
+            },
+            _ => {
+                warn!("expected dilemma scene but found non-dilemma route; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
+        };
+
+        let stage = match dilemma.stages.first().cloned() {
+            Some(stage) => stage,
+            None => {
+                warn!("dilemma content has no stages; falling back to menu");
+                SceneNavigator::fallback_state_vector().set_state(
+                    &mut next_main_state,
+                    &mut next_game_state,
+                    &mut next_sub_state,
+                );
+                return;
+            }
         };
 
         let total_dilemma_time: Duration =
@@ -134,10 +154,8 @@ impl DilemmaScene {
 
         commands.insert_resource(CurrentDilemmaStageIndex(0));
 
-        let stage: &dilemma::DilemmaStage = dilemma.stages.first().expect("Dilemma has no stages!");
-
         let (transition_duration, train_x_displacement, _, _) =
-            Self::generate_common_parameters(stage);
+            Self::generate_common_parameters(&stage);
 
         commands.spawn((
             scene,
@@ -189,8 +207,7 @@ impl DilemmaScene {
                     Background::new(
                         BackgroundTypes::Desert,
                         0.00002,
-                        -0.5 * (dilemma.stages.first().expect("Dilemma has no stages").speed
-                            / 70.0)
+                        -0.5 * (stage.speed / 70.0)
                     ),
                     BequeathTextAlpha,
                     AlphaTranslation::new(DIM_BACKGROUND_COLOR.alpha(), transition_duration, true)
@@ -214,14 +231,24 @@ impl DilemmaScene {
             Transform::from_translation(Self::MAIN_TRACK_TRANSLATION_END),
         ));
 
-        commands.insert_resource(
-            dilemma
-                .stages
-                .first()
-                .expect("Dilemma has no stages!")
-                .clone(),
-        );
+        commands.insert_resource(stage);
         commands.insert_resource(dilemma);
+    }
+
+    fn cleanup_detached_viscera(
+        mut commands: Commands,
+        exploded_query: Query<Entity, With<ExplodedGlyph>>,
+        blood_query: Query<Entity, With<BloodSprite>>,
+    ) {
+        let mut to_despawn = HashSet::new();
+        to_despawn.extend(exploded_query.iter());
+        to_despawn.extend(blood_query.iter());
+
+        for entity in to_despawn {
+            if let Ok(mut entity_commands) = commands.get_entity(entity) {
+                entity_commands.despawn();
+            }
+        }
     }
 
     fn generate_common_parameters(stage: &DilemmaStage) -> (Duration, Vec3, Vec3, Color) {
@@ -233,7 +260,7 @@ impl DilemmaScene {
         let main_track_translation_start: Vec3 = Self::MAIN_TRACK_TRANSLATION_END + final_position;
         let initial_color: Color = match stage.default_option {
             None => Color::WHITE,
-            Some(ref option) => Self::TRACK_COLORS[*option],
+            Some(ref option) => Self::track_color_for_option(*option),
         };
 
         (

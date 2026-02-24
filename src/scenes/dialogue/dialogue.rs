@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, fmt, time::Duration};
 
 use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds};
 use enum_map::{enum_map, Enum};
@@ -11,8 +11,7 @@ use crate::{
     },
     entities::{
         graph::GraphPlugin,
-        sprites::SpritePlugin,
-        text::{scaled_font_size, TextButton, TextPlugin, TextWindow},
+        text::{scaled_font_size, TextButton, TextWindow},
     },
     style::common_ui::NextButton,
     systems::{
@@ -53,12 +52,6 @@ impl Plugin for DialoguePlugin {
         if !app.is_plugin_added::<GraphPlugin>() {
             app.add_plugins(GraphPlugin);
         };
-        if !app.is_plugin_added::<SpritePlugin>() {
-            app.add_plugins(SpritePlugin);
-        }
-        if !app.is_plugin_added::<TextPlugin>() {
-            app.add_plugins(TextPlugin);
-        }
     }
 }
 
@@ -91,6 +84,27 @@ pub struct DialogueLine {
     pub sound_file: String,
     pub character: Character,
 }
+
+#[derive(Debug)]
+pub enum DialogueLoadError {
+    Parse(serde_json::Error),
+    UnknownCharacter { username: String },
+    EmptyDialogueList,
+}
+
+impl fmt::Display for DialogueLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Parse(error) => write!(f, "failed to parse dialogue json: {error}"),
+            Self::UnknownCharacter { username } => {
+                write!(f, "dialogue references unknown character `{username}`")
+            }
+            Self::EmptyDialogueList => write!(f, "dialogue scene list must not be empty"),
+        }
+    }
+}
+
+impl std::error::Error for DialogueLoadError {}
 
 fn dialogue_text_bounds() -> TextBounds {
     TextBounds {
@@ -151,47 +165,49 @@ impl Dialogue {
         }
     }
 
-    pub fn load(content: &DialogueScene, user_map: &HashMap<String, Character>) -> Self {
+    pub fn load(
+        content: &DialogueScene,
+        user_map: &HashMap<String, Character>,
+    ) -> Result<Self, DialogueLoadError> {
         let loaded_dialogue: DialogueLoader =
-            serde_json::from_str(content.content()).expect("Failed to parse embedded JSON");
+            serde_json::from_str(content.content()).map_err(DialogueLoadError::Parse)?;
 
-        let lines = loaded_dialogue
-            .lines
-            .into_iter()
-            .map(|line| {
-                let character = user_map
-                    .get(&line.username)
-                    .expect(&format!(
-                        "Character {} not found in user map",
-                        line.username
-                    ))
-                    .clone();
-                DialogueLine {
-                    raw_text: line.dialogue,
-                    hostname: line.hostname,
-                    instruction: line.instruction,
-                    sound_file: line.sound_file,
-                    character,
-                }
-            })
-            .collect();
+        let mut lines = Vec::with_capacity(loaded_dialogue.lines.len());
+        for line in loaded_dialogue.lines {
+            let Some(character) = user_map.get(&line.username).cloned() else {
+                return Err(DialogueLoadError::UnknownCharacter {
+                    username: line.username,
+                });
+            };
+            lines.push(DialogueLine {
+                raw_text: line.dialogue,
+                hostname: line.hostname,
+                instruction: line.instruction,
+                sound_file: line.sound_file,
+                character,
+            });
+        }
 
-        Self::new(lines)
+        Ok(Self::new(lines))
     }
 
     pub fn init(
         asset_server: &Res<AssetServer>,
-        dialogue_content: &Vec<DialogueScene>,
+        dialogue_content: &[DialogueScene],
         user_map: &HashMap<String, Character>,
-    ) -> (ContinuousAudioPallet<CharacterKey>, Dialogue) {
-        let dialogue = dialogue_content
-            .into_iter()
+    ) -> Result<(ContinuousAudioPallet<CharacterKey>, Dialogue), DialogueLoadError> {
+        let mut loaded_dialogues = dialogue_content
+            .iter()
             .map(|file| Dialogue::load(file, user_map))
-            .reduce(|mut acc, mut d| {
-                acc.lines.extend(d.lines.drain(..));
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let dialogue = loaded_dialogues
+            .drain(..)
+            .reduce(|mut acc, mut next| {
+                acc.lines.append(&mut next.lines);
                 acc
             })
-            .expect("At least one dialogue needed!");
+            .ok_or(DialogueLoadError::EmptyDialogueList)?;
 
         let character_audio: Vec<ContinuousAudio<CharacterKey>> = dialogue
             .lines
@@ -210,7 +226,7 @@ impl Dialogue {
             })
             .collect();
 
-        (ContinuousAudioPallet::new(character_audio), dialogue)
+        Ok((ContinuousAudioPallet::new(character_audio), dialogue))
     }
 
     fn generate_shell_prompt(
@@ -264,10 +280,8 @@ impl Dialogue {
 
                     ev_advance_dialogue.clear();
 
-                    commands
-                        .get_entity(entity)
-                        .unwrap()
-                        .with_children(|parent| {
+                    if let Ok(mut dialogue_entity) = commands.get_entity(entity) {
+                        dialogue_entity.with_children(|parent| {
                             let shell_prompts = Self::generate_shell_prompt(
                                 &line.character.name,
                                 &line.hostname,
@@ -288,6 +302,7 @@ impl Dialogue {
                                 }]),
                             ));
                         });
+                    }
                     dialogue.num_spans += 2;
 
                     dialogue.playing = true;
