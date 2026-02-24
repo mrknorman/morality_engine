@@ -124,3 +124,9 @@ Campaign migration requirements:
 3. Path-stage progressions (`path_inaction`, `path_deontological`, `path_utilitarian`) are encoded
    explicitly as route sources and next-scene outputs.
 4. Shadow-mode parity tests cover representative branches across all migrated route families.
+
+## Stage 6 Cutover Contract
+
+1. `next_scenes_for_current_dilemma(...)` resolves routes through graph evaluation only.
+2. Legacy hardcoded branch helpers are removed from `src/scenes/flow/mod.rs`.
+3. On graph evaluation failure, flow returns a safe menu route fallback.

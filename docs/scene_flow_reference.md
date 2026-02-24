@@ -28,9 +28,9 @@ Data-driven graph schema contract is defined in:
 
 Current migration mode:
 
-- graph evaluation runs in shadow mode with hardcoded baseline remaining authoritative
-- mismatches are logged with flow context
-- `campaign_graph.json` now mirrors all current hardcoded campaign branch sources
+- graph evaluation is authoritative for campaign branching
+- hardcoded branch tree has been removed from `src/scenes/flow/mod.rs`
+- `campaign_graph.json` mirrors the previous campaign branch behavior
 
 Shared cross-scene dependency wiring is centralized in:
 
