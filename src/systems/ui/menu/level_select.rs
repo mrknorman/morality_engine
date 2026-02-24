@@ -6,10 +6,6 @@ use crate::{
         sprites::compound::HollowRectangle,
         text::{scaled_font_size, TextRaw},
     },
-    scenes::dilemma::content::{
-        DilemmaPathDeontological, DilemmaPathInaction, DilemmaPathUtilitarian, DilemmaScene,
-        Lab0Dilemma, Lab1Dilemma, Lab2Dilemma, Lab3Dilemma, Lab4Dilemma,
-    },
     startup::system_menu,
     systems::{
         interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
@@ -19,6 +15,7 @@ use crate::{
         },
     },
 };
+use super::level_select_catalog::{self, LevelSelectVisibleRowKind};
 
 const LEVEL_SELECT_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const LEVEL_SELECT_OVERLAY_DIM_SIZE: f32 = 6000.0;
@@ -28,95 +25,11 @@ const LEVEL_SELECT_WINDOW_Z: f32 = 0.4;
 const LEVEL_SELECT_LIST_X: f32 = -320.0;
 const LEVEL_SELECT_LIST_START_Y: f32 = 146.0;
 const LEVEL_SELECT_LIST_ROW_STEP: f32 = 22.0;
+const LEVEL_SELECT_TREE_INDENT: f32 = 14.0;
 const LEVEL_SELECT_ROW_REGION: Vec2 = Vec2::new(630.0, 20.0);
 
 #[derive(Component)]
 pub(super) struct LevelSelectOverlay;
-
-#[derive(Clone, Copy)]
-struct LevelSelectEntry {
-    scene: DilemmaScene,
-    file_name: &'static str,
-}
-
-const LEVEL_SELECT_ENTRIES: [LevelSelectEntry; 19] = [
-    LevelSelectEntry {
-        scene: DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit),
-        file_name: "lab0_incompetent_bandit.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit),
-        file_name: "lab1_near_sighted_bandit.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem),
-        file_name: "lab2_the_trolley_problem.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::EmptyChoice, 0),
-        file_name: "path_inaction_empty_choice.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::PlentyOfTime, 1),
-        file_name: "path_inaction_plenty_of_time.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::LittleTime, 2),
-        file_name: "path_inaction_little_time.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::FiveOrNothing, 3),
-        file_name: "path_inaction_five_or_nothing.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::CancerCure, 4),
-        file_name: "path_inaction_a_cure_for_cancer.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::OwnChild, 5),
-        file_name: "path_inaction_your_own_child.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathInaction(DilemmaPathInaction::You, 6),
-        file_name: "path_inaction_you.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob),
-        file_name: "lab3_asleep_at_the_job.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathDeontological(DilemmaPathDeontological::TrolleyerProblem, 0),
-        file_name: "path_deontological_trolleyer_problem.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathDeontological(DilemmaPathDeontological::TrolleyestProblem, 1),
-        file_name: "path_deontological_trolleyest_problem.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathDeontological(DilemmaPathDeontological::TrolleygeddonProblem, 2),
-        file_name: "path_deontological_trolleygeddon_problem.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::OneFifth, 0),
-        file_name: "path_utilitarian_one_fifth.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::MarginOfError, 1),
-        file_name: "path_utilitarian_margin_of_error.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::NegligibleDifference, 2),
-        file_name: "path_utilitarian_negligible_difference.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::UnorthodoxSurgery, 3),
-        file_name: "path_utilitarian_unorthodox_surgery.dilem",
-    },
-    LevelSelectEntry {
-        scene: DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths),
-        file_name: "lab4_random_deaths.dilem",
-    },
-];
 
 pub(super) fn spawn_level_select_overlay(
     commands: &mut Commands,
@@ -237,11 +150,15 @@ pub(super) fn spawn_level_select_overlay(
             Transform::from_xyz(0.0, 166.0, 0.2),
         ));
 
-        for (index, entry) in LEVEL_SELECT_ENTRIES.iter().enumerate() {
+        let file_rows: Vec<_> = level_select_catalog::default_level_select_file_rows();
+        for (index, row) in file_rows.iter().enumerate() {
+            let LevelSelectVisibleRowKind::File(file) = row.kind else {
+                continue;
+            };
             let option_entity = system_menu::spawn_option(
                 content,
-                entry.file_name,
-                LEVEL_SELECT_LIST_X,
+                row.label,
+                LEVEL_SELECT_LIST_X + row.depth as f32 * LEVEL_SELECT_TREE_INDENT,
                 LEVEL_SELECT_LIST_START_Y - index as f32 * LEVEL_SELECT_LIST_ROW_STEP,
                 overlay_entity,
                 index,
@@ -251,7 +168,7 @@ pub(super) fn spawn_level_select_overlay(
             content.commands().entity(option_entity).insert((
                 Name::new(format!("level_select_file_{index}")),
                 Clickable::with_region(vec![SystemMenuActions::Activate], LEVEL_SELECT_ROW_REGION),
-                MenuOptionCommand(MenuCommand::StartSingleLevel(entry.scene)),
+                MenuOptionCommand(MenuCommand::StartSingleLevel(file.scene)),
                 system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
                 UiInputPolicy::CapturedOnly,
                 Anchor::CENTER_LEFT,

@@ -62,6 +62,7 @@ mod dropdown_view;
 mod flow_tests;
 mod footer_nav;
 mod level_select;
+mod level_select_catalog;
 mod main_menu;
 mod menu_input;
 mod modal_flow;

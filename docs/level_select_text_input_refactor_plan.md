@@ -13,6 +13,12 @@ Refactor the level select overlay into a robust, extensible UI flow with:
 - dev/release unlock policy separation
 - dev launch choice modal (continue campaign / play once / cancel)
 
+## Status Snapshot
+
+- Stage 1 (`TextInputBox` primitive): completed (`896ceb3`).
+- Stage 2 (`SearchBox` composition primitive): completed (`896ceb3`).
+- Stage 3 (catalog/tree model extraction): partially completed (catalog + flattening API + level-select wiring).
+
 ## Architecture Direction
 
 1. Put reusable primitives in `src/systems/ui/*`.
