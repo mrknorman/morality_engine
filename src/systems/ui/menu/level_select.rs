@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::{prelude::*, sprite::Anchor};
 
 use super::*;
@@ -9,6 +11,11 @@ use crate::{
     startup::system_menu,
     systems::{
         interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
+        ui::scroll::{
+            focus_scroll_offset_to_row, row_visible_in_viewport, ScrollAxis, ScrollBar,
+            ScrollFocusFollowLock, ScrollState, ScrollableContent, ScrollableContentExtent,
+            ScrollableItem, ScrollableRoot, ScrollableTableAdapter, ScrollableViewport,
+        },
         ui::window::{
             UiWindow, UiWindowContent, UiWindowContentMetrics, UiWindowOverflowPolicy,
             UiWindowTitle,
@@ -23,10 +30,39 @@ const LEVEL_SELECT_OVERLAY_DIM_Z: f32 = -5.0;
 const LEVEL_SELECT_WINDOW_SIZE: Vec2 = Vec2::new(690.0, 440.0);
 const LEVEL_SELECT_WINDOW_Z: f32 = 0.4;
 const LEVEL_SELECT_LIST_X: f32 = -320.0;
-const LEVEL_SELECT_LIST_START_Y: f32 = 146.0;
 const LEVEL_SELECT_LIST_ROW_STEP: f32 = 22.0;
 const LEVEL_SELECT_TREE_INDENT: f32 = 14.0;
 const LEVEL_SELECT_ROW_REGION: Vec2 = Vec2::new(630.0, 20.0);
+const LEVEL_SELECT_LIST_VIEWPORT_TOP_Y: f32 = 154.0;
+const LEVEL_SELECT_LIST_VIEWPORT_BOTTOM_Y: f32 = -196.0;
+const LEVEL_SELECT_LIST_VIEWPORT_HEIGHT: f32 =
+    LEVEL_SELECT_LIST_VIEWPORT_TOP_Y - LEVEL_SELECT_LIST_VIEWPORT_BOTTOM_Y;
+const LEVEL_SELECT_LIST_CENTER_Y: f32 =
+    (LEVEL_SELECT_LIST_VIEWPORT_TOP_Y + LEVEL_SELECT_LIST_VIEWPORT_BOTTOM_Y) * 0.5;
+const LEVEL_SELECT_LIST_CONTENT_TOP_Y: f32 = 146.0;
+const LEVEL_SELECT_LIST_LEADING_PADDING: f32 =
+    LEVEL_SELECT_LIST_VIEWPORT_TOP_Y - LEVEL_SELECT_LIST_CONTENT_TOP_Y;
+const LEVEL_SELECT_LIST_VIEWPORT_SIZE: Vec2 = Vec2::new(640.0, LEVEL_SELECT_LIST_VIEWPORT_HEIGHT);
+
+#[derive(Component)]
+pub(super) struct LevelSelectScrollRoot;
+
+#[derive(Component, Clone, Copy)]
+pub(super) struct LevelSelectScrollRow {
+    index: usize,
+}
+
+fn level_select_row_center_y(index: usize) -> f32 {
+    LEVEL_SELECT_LIST_CONTENT_TOP_Y - (index as f32 + 0.5) * LEVEL_SELECT_LIST_ROW_STEP
+}
+
+fn level_select_scroll_local_y(world_y: f32) -> f32 {
+    world_y - LEVEL_SELECT_LIST_CENTER_Y
+}
+
+fn level_select_scroll_content_height(row_count: usize) -> f32 {
+    LEVEL_SELECT_LIST_LEADING_PADDING + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP
+}
 
 #[derive(Component)]
 pub(super) struct LevelSelectOverlay;
@@ -151,32 +187,199 @@ pub(super) fn spawn_level_select_overlay(
         ));
 
         let file_rows: Vec<_> = level_select_catalog::default_level_select_file_rows();
-        for (index, row) in file_rows.iter().enumerate() {
-            let LevelSelectVisibleRowKind::File(file) = row.kind else {
-                continue;
-            };
-            let option_entity = system_menu::spawn_option(
-                content,
-                row.label,
-                LEVEL_SELECT_LIST_X + row.depth as f32 * LEVEL_SELECT_TREE_INDENT,
-                LEVEL_SELECT_LIST_START_Y - index as f32 * LEVEL_SELECT_LIST_ROW_STEP,
-                overlay_entity,
-                index,
-                system_menu::SystemMenuOptionVisualStyle::default(),
-            );
 
-            content.commands().entity(option_entity).insert((
-                Name::new(format!("level_select_file_{index}")),
-                Clickable::with_region(vec![SystemMenuActions::Activate], LEVEL_SELECT_ROW_REGION),
-                MenuOptionCommand(MenuCommand::StartSingleLevel(file.scene)),
-                system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
+        let scroll_root = content
+            .spawn((
+                Name::new("level_select_list_scroll_root"),
+                LevelSelectScrollRoot,
                 UiInputPolicy::CapturedOnly,
-                Anchor::CENTER_LEFT,
-                TextLayout {
-                    justify: Justify::Left,
-                    ..default()
-                },
-            ));
-        }
+                ScrollableRoot::new(overlay_entity, ScrollAxis::Vertical),
+                ScrollableViewport::new(LEVEL_SELECT_LIST_VIEWPORT_SIZE),
+                ScrollableContentExtent(level_select_scroll_content_height(file_rows.len())),
+                ScrollableTableAdapter::new(
+                    overlay_entity,
+                    file_rows.len(),
+                    LEVEL_SELECT_LIST_ROW_STEP,
+                    LEVEL_SELECT_LIST_LEADING_PADDING,
+                ),
+                Transform::from_xyz(0.0, LEVEL_SELECT_LIST_CENTER_Y, 0.22),
+            ))
+            .id();
+        let scroll_content = content
+            .spawn((
+                Name::new("level_select_list_scroll_content"),
+                ScrollableContent,
+                Transform::default(),
+            ))
+            .id();
+        content.commands().entity(scroll_root).add_child(scroll_content);
+        content
+            .commands()
+            .entity(scroll_root)
+            .with_children(|scroll_root_parent| {
+                scroll_root_parent.spawn((
+                    Name::new("level_select_list_scrollbar"),
+                    ScrollBar::new(scroll_root),
+                    Transform::from_xyz(0.0, 0.0, 0.12),
+                ));
+            });
+
+        content
+            .commands()
+            .entity(scroll_content)
+            .with_children(|rows_parent| {
+                for (index, row) in file_rows.iter().enumerate() {
+                    let LevelSelectVisibleRowKind::File(file) = row.kind else {
+                        continue;
+                    };
+                    let option_entity = system_menu::spawn_option(
+                        rows_parent,
+                        row.label,
+                        LEVEL_SELECT_LIST_X + row.depth as f32 * LEVEL_SELECT_TREE_INDENT,
+                        level_select_scroll_local_y(level_select_row_center_y(index)),
+                        overlay_entity,
+                        index,
+                        system_menu::SystemMenuOptionVisualStyle::default(),
+                    );
+
+                    rows_parent.commands().entity(option_entity).insert((
+                        Name::new(format!("level_select_file_{index}")),
+                        LevelSelectScrollRow { index },
+                        ScrollableItem::new(index as u64 + 1, index, LEVEL_SELECT_LIST_ROW_STEP),
+                        Clickable::with_region(
+                            vec![SystemMenuActions::Activate],
+                            LEVEL_SELECT_ROW_REGION,
+                        ),
+                        MenuOptionCommand(MenuCommand::StartSingleLevel(file.scene)),
+                        system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
+                        UiInputPolicy::CapturedOnly,
+                        Anchor::CENTER_LEFT,
+                        TextLayout {
+                            justify: Justify::Left,
+                            ..default()
+                        },
+                    ));
+                }
+            });
     });
+}
+
+pub(super) fn sync_level_select_scroll_focus_follow(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    menu_query: Query<&SelectableMenu, With<LevelSelectOverlay>>,
+    mut root_query: Query<
+        (
+            &ScrollableTableAdapter,
+            &mut ScrollState,
+            &mut ScrollFocusFollowLock,
+        ),
+        With<LevelSelectScrollRoot>,
+    >,
+    mut previous_selection_by_owner: Local<HashMap<Entity, usize>>,
+) {
+    let keyboard_navigation = keyboard_input.just_pressed(KeyCode::ArrowUp)
+        || keyboard_input.just_pressed(KeyCode::ArrowDown)
+        || keyboard_input.just_pressed(KeyCode::PageUp)
+        || keyboard_input.just_pressed(KeyCode::PageDown)
+        || keyboard_input.just_pressed(KeyCode::Home)
+        || keyboard_input.just_pressed(KeyCode::End);
+
+    for (adapter, mut state, mut focus_lock) in root_query.iter_mut() {
+        let Ok(menu) = menu_query.get(adapter.owner) else {
+            continue;
+        };
+        let selection_changed =
+            previous_selection_by_owner.insert(adapter.owner, menu.selected_index)
+                != Some(menu.selected_index);
+        if menu.selected_index >= adapter.row_count {
+            continue;
+        }
+
+        if keyboard_navigation {
+            focus_lock.manual_override = false;
+        }
+        if focus_lock.manual_override {
+            continue;
+        }
+        if !keyboard_navigation && !selection_changed {
+            continue;
+        }
+
+        focus_scroll_offset_to_row(
+            &mut state,
+            menu.selected_index,
+            adapter.row_extent,
+            adapter.leading_padding,
+        );
+    }
+}
+
+pub(super) fn sync_level_select_option_hit_regions_to_viewport(
+    root_query: Query<(&ScrollableTableAdapter, &ScrollState), With<LevelSelectScrollRoot>>,
+    mut option_query: Query<
+        (
+            &Selectable,
+            &LevelSelectScrollRow,
+            &mut Clickable<SystemMenuActions>,
+        ),
+        With<MenuOptionCommand>,
+    >,
+) {
+    let mut adapter_state_by_owner = HashMap::new();
+    for (adapter, state) in root_query.iter() {
+        adapter_state_by_owner.insert(adapter.owner, (*adapter, *state));
+    }
+
+    for (selectable, row, mut clickable) in option_query.iter_mut() {
+        let Some((adapter, state)) =
+            adapter_state_by_owner.get(&selectable.menu_entity).copied()
+        else {
+            clickable.region = Some(LEVEL_SELECT_ROW_REGION);
+            continue;
+        };
+
+        let visible = row_visible_in_viewport(
+            &state,
+            row.index,
+            adapter.row_extent,
+            adapter.leading_padding,
+        );
+        clickable.region = if visible {
+            Some(LEVEL_SELECT_ROW_REGION)
+        } else {
+            None
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::ecs::system::IntoSystem;
+
+    use super::*;
+
+    #[test]
+    fn level_select_scroll_content_height_matches_row_geometry() {
+        let row_count = 19;
+        let content_height = level_select_scroll_content_height(row_count);
+        let max_offset = (content_height - LEVEL_SELECT_LIST_VIEWPORT_HEIGHT).max(0.0);
+        let last_row_bottom = LEVEL_SELECT_LIST_LEADING_PADDING
+            + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP;
+
+        assert!(content_height > LEVEL_SELECT_LIST_VIEWPORT_HEIGHT);
+        assert!((last_row_bottom - (max_offset + LEVEL_SELECT_LIST_VIEWPORT_HEIGHT)).abs() < 0.001);
+    }
+
+    #[test]
+    fn level_select_scroll_systems_initialize_without_query_alias_panics() {
+        let mut world = World::new();
+
+        let mut focus_follow_system =
+            IntoSystem::into_system(sync_level_select_scroll_focus_follow);
+        focus_follow_system.initialize(&mut world);
+
+        let mut hit_region_system =
+            IntoSystem::into_system(sync_level_select_option_hit_regions_to_viewport);
+        hit_region_system.initialize(&mut world);
+    }
 }

@@ -902,6 +902,7 @@ impl Plugin for MenusPlugin {
             (
                 enforce_video_menu_hover_click_activation,
                 scroll_adapter::sync_video_top_option_hit_regions_to_viewport,
+                level_select::sync_level_select_option_hit_regions_to_viewport,
             )
                 .chain()
                 .before(InteractionSystem::Selectable),
@@ -994,6 +995,7 @@ impl Plugin for MenusPlugin {
                 tabbed_menu::cleanup_tabbed_menu_state,
                 sanitize_menu_selection_indices,
                 scroll_adapter::sync_video_top_scroll_focus_follow,
+                level_select::sync_level_select_scroll_focus_follow,
                 enforce_menu_layer_invariants,
             )
                 .chain()
