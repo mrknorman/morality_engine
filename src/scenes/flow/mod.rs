@@ -15,16 +15,36 @@ pub fn next_scenes_for_current_dilemma(
     latest: &DilemmaStats,
     stats: &GameStats,
 ) -> Option<Vec<Scene>> {
+    let baseline = next_scenes_hardcoded_for_current_dilemma(current_scene, latest, stats);
     match engine::evaluate_next_scenes_from_graph(current_scene, latest, stats) {
-        Ok(Some(next_scenes)) => Some(next_scenes),
-        Ok(None) => next_scenes_hardcoded_for_current_dilemma(current_scene, latest, stats),
-        Err(error) => {
-            bevy::log::warn!(
-                "graph-driven flow evaluation failed; using hardcoded fallback: {}",
-                error
-            );
-            next_scenes_hardcoded_for_current_dilemma(current_scene, latest, stats)
+        Ok(Some(graph_scenes)) => {
+            if baseline.as_ref() != Some(&graph_scenes) {
+                bevy::log::warn!(
+                    "scene-flow graph mismatch in shadow mode; scene_kind={}, fatalities={}, decisions={}, total_decisions={}, selected_option={:?}",
+                    scene_kind_label(current_scene),
+                    latest.num_fatalities,
+                    latest.num_decisions,
+                    stats.total_decisions,
+                    latest.result.and_then(|state| state.to_int()),
+                );
+            }
         }
+        Ok(None) => {}
+        Err(error) => {
+            bevy::log::warn!("graph-driven flow evaluation failed in shadow mode: {}", error);
+        }
+    }
+
+    baseline
+}
+
+fn scene_kind_label(scene: Scene) -> &'static str {
+    match scene {
+        Scene::Menu => "menu",
+        Scene::Loading => "loading",
+        Scene::Dialogue(_) => "dialogue",
+        Scene::Dilemma(_) => "dilemma",
+        Scene::Ending(_) => "ending",
     }
 }
 
@@ -329,5 +349,57 @@ mod tests {
             &stats,
         )
         .is_none());
+    }
+
+    #[test]
+    fn graph_shadow_parity_lab0_fail_route_matches_baseline() {
+        let latest = DilemmaStats {
+            num_fatalities: 1,
+            ..Default::default()
+        };
+        let stats = GameStats::default();
+        let scene = Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit));
+
+        let baseline =
+            next_scenes_hardcoded_for_current_dilemma(scene, &latest, &stats).expect("baseline");
+        let graph = engine::evaluate_next_scenes_from_graph(scene, &latest, &stats)
+            .expect("graph evaluation")
+            .expect("graph route");
+
+        assert!(graph == baseline);
+    }
+
+    #[test]
+    fn graph_shadow_parity_lab0_decision_route_matches_baseline() {
+        let latest = DilemmaStats {
+            num_decisions: 1,
+            duration_remaining_at_last_decision: Some(Duration::from_secs(2)),
+            ..Default::default()
+        };
+        let stats = GameStats::default();
+        let scene = Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit));
+
+        let baseline =
+            next_scenes_hardcoded_for_current_dilemma(scene, &latest, &stats).expect("baseline");
+        let graph = engine::evaluate_next_scenes_from_graph(scene, &latest, &stats)
+            .expect("graph evaluation")
+            .expect("graph route");
+
+        assert!(graph == baseline);
+    }
+
+    #[test]
+    fn graph_shadow_parity_lab0_default_route_matches_baseline() {
+        let latest = DilemmaStats::default();
+        let stats = GameStats::default();
+        let scene = Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit));
+
+        let baseline =
+            next_scenes_hardcoded_for_current_dilemma(scene, &latest, &stats).expect("baseline");
+        let graph = engine::evaluate_next_scenes_from_graph(scene, &latest, &stats)
+            .expect("graph evaluation")
+            .expect("graph route");
+
+        assert!(graph == baseline);
     }
 }

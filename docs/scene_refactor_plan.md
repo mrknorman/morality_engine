@@ -44,7 +44,7 @@ Status:
 - Stage 1 complete: progression graph schema + contract + example content
 - Stage 2 complete: validator + typed scene IDs
 - Stage 3 complete: graph evaluator runtime with hardcoded fallback
-- Stage 4 pending: parity shadow mode
+- Stage 4 complete: parity shadow mode and tests for graph-covered routes
 - Stage 5 pending: campaign content migration
 - Stage 6 pending: cutover + hardcoded path removal
 - Stage 7 pending: authoring docs + validation workflow

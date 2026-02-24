@@ -26,6 +26,11 @@ Data-driven graph schema contract is defined in:
 - `src/scenes/flow/content/campaign_graph.json`
 - `docs/scene_progression_graph_spec.md`
 
+Current migration mode:
+
+- graph evaluation runs in shadow mode with hardcoded baseline remaining authoritative
+- mismatches are logged with flow context
+
 Shared cross-scene dependency wiring is centralized in:
 
 - `src/scenes/composition.rs`

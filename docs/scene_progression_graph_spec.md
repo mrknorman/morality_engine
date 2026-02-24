@@ -102,3 +102,13 @@ Runtime evaluation behavior:
 2. If route exists in graph, return graph-selected scenes.
 3. If scene has no graph route, return `None` to allow caller fallback policy.
 4. If graph load/validation/evaluation fails, runtime logs warning and uses hardcoded branch fallback.
+
+## Stage 4 Parity Contract
+
+Shadow-mode behavior:
+
+1. Runtime computes hardcoded baseline and graph route in the same call.
+2. Baseline remains authoritative during migration.
+3. If graph and baseline differ for a graph-covered route, runtime logs a mismatch snapshot
+   (scene kind + key stats context).
+4. Parity tests must assert graph/baseline equality for every currently graph-covered route.
