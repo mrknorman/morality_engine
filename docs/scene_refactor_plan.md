@@ -11,6 +11,12 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - composition/policy in dedicated modules
 - scene modules as usage consumers
 
+## Status
+
+Scene-system refactor scope is complete as of Stage 8 (`ffad054`).
+The only remaining scene-flow item is tooling for graph authoring (`SCN-016`),
+which is a follow-up capability and not a blocker for current architecture goals.
+
 ## Execution Protocol (Mandatory)
 
 1. Work in explicit stages.
@@ -36,7 +42,6 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 - `docs/scene_architecture_contract.md`
 - `docs/scene_flow_reference.md`
 - `docs/scene_compliance_matrix.md`
-- `docs/scene_manual_validation_checklist.md`
 - `docs/scene_progression_graph_spec.md`
 - `docs/scene_flow_graph_authoring.md`
 
@@ -65,7 +70,6 @@ Resolved in Stages 1-8:
 
 Remaining targeted follow-up (tracked in compliance matrix):
 1. Build campaign graph viewer/editor tooling for non-linear authoring workflows (`SCN-016`).
-2. Continue targeted audits of scene-content/runtime setup for fallback quality and error observability.
 
 ## Stage Plan
 
@@ -136,8 +140,8 @@ Exit gate:
 ### Stage 7: Documentation Finalization and Validation
 
 Scope:
-- Publish scene architecture/reference/compliance/checklist docs.
-- Run scene manual validation checklist and final compile gate.
+- Publish scene architecture/reference/compliance docs.
+- Run final compile and targeted test gates.
 
 Exit gate:
 - Scene docs complete and linked.

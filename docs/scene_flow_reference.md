@@ -84,5 +84,4 @@ When a next-scene action occurs and the queue is empty:
 
 - `docs/scene_architecture_contract.md`
 - `docs/scene_compliance_matrix.md`
-- `docs/scene_manual_validation_checklist.md`
 - `docs/scene_flow_graph_authoring.md`

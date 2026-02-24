@@ -2,6 +2,8 @@
 
 Last updated: 2026-02-24
 
+Scene refactor status: complete (core architecture scope).
+
 Scope:
 - `src/scenes/*`
 - scene transition integration points in `src/systems/interaction/*` and `src/systems/ui/menu/*`

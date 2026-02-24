@@ -58,7 +58,8 @@ Key guidance:
    - `cargo test scenes::flow::tests`
 4. Run compile gate:
    - `cargo check`
-5. For substantial branching edits, manually run in-game progression paths from the scene manual checklist.
+5. For substantial branching edits, manually run representative in-game progression paths
+   (baseline lab path + inaction/deontological/utilitarian variants).
 
 ## Safety Rules
 
