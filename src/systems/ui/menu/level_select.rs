@@ -19,7 +19,7 @@ use crate::{
     systems::{
         interaction::{
             Draggable, InteractionVisualState, UiInputCaptureOwner, UiInputCaptureToken,
-            UiInputPolicy,
+            UiInputPolicy, Hoverable,
         },
         ui::{
             scroll::{
@@ -27,7 +27,7 @@ use crate::{
                 ScrollFocusFollowLock, ScrollState, ScrollableRoot,
             },
             search_box::{SearchBox, SearchBoxConfig, SearchBoxQueryChanged},
-            text_input_box::TextInputBoxStyle,
+            text_input_box::{TextInputBoxCaretState, TextInputBoxFocus, TextInputBoxStyle},
             window::{
                 UiWindow, UiWindowContent, UiWindowContentMetrics, UiWindowOverflowPolicy,
                 UiWindowTitle,
@@ -333,6 +333,7 @@ pub(super) fn spawn_level_select_overlay(
                 placeholder: "type to filter folders/files".to_string(),
                 ..default()
             },
+            TextInputBoxFocus { focused: true },
             TextInputBoxStyle {
                 size: LEVEL_SELECT_SEARCH_BOX_SIZE,
                 font_size: LEVEL_SELECT_SEARCH_FONT_SIZE,
@@ -412,47 +413,56 @@ pub(super) fn sync_level_select_search_query(
 pub(super) fn handle_level_select_folder_activation(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     overlay_query: Query<(Entity, &SelectableMenu), With<LevelSelectOverlay>>,
-    row_query: Query<
+    mut row_query: Query<
         (
             Entity,
             &Selectable,
             &LevelSelectScrollRow,
-            &Clickable<SystemMenuActions>,
+            &mut Clickable<SystemMenuActions>,
         ),
         With<MenuOptionCommand>,
     >,
     mut runtime_query: Query<&mut LevelSelectRuntime, With<LevelSelectOverlay>>,
 ) {
+    let activate_requested_global = keyboard_input.just_pressed(KeyCode::Enter)
+        || keyboard_input.just_pressed(KeyCode::ArrowRight);
+
     for (overlay_entity, menu) in overlay_query.iter() {
-        let activate_requested = menu
-            .activate_keys
-            .iter()
-            .any(|key| keyboard_input.just_pressed(*key));
-        let mut folder_to_toggle = None;
+        let activate_requested = activate_requested_global
+            || menu
+                .activate_keys
+                .iter()
+                .any(|key| keyboard_input.just_pressed(*key));
+        let mut clicked_folder_to_toggle = None;
+        let mut selected_folder_to_toggle = None;
         let mut click_rank = 0;
 
-        for (row_entity, selectable, row, clickable) in row_query.iter() {
+        for (row_entity, selectable, row, mut clickable) in row_query.iter_mut() {
             if selectable.menu_entity != overlay_entity {
                 continue;
             }
+
+            if selectable.index == menu.selected_index {
+                selected_folder_to_toggle = row.folder_id;
+            }
+
             let Some(folder_id) = row.folder_id else {
                 continue;
             };
-
-            if clickable.triggered {
-                let rank = row_entity.to_bits();
-                if rank >= click_rank {
-                    click_rank = rank;
-                    folder_to_toggle = Some(folder_id);
-                }
+            if !clickable.triggered {
                 continue;
             }
 
-            if activate_requested && selectable.index == menu.selected_index {
-                folder_to_toggle = Some(folder_id);
+            clickable.triggered = false;
+            let rank = row_entity.to_bits();
+            if rank >= click_rank {
+                click_rank = rank;
+                clicked_folder_to_toggle = Some(folder_id);
             }
         }
 
+        let folder_to_toggle = clicked_folder_to_toggle
+            .or_else(|| activate_requested.then_some(selected_folder_to_toggle).flatten());
         let Some(folder_id) = folder_to_toggle else {
             continue;
         };
@@ -461,6 +471,88 @@ pub(super) fn handle_level_select_folder_activation(
         };
         runtime.expansion.toggle(folder_id);
         runtime.dirty = true;
+    }
+}
+
+pub(super) fn focus_level_select_search_on_typed_input(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut search_box_query: Query<
+        (
+            &LevelSelectSearchBox,
+            &mut TextInputBoxFocus,
+            Option<&mut TextInputBoxCaretState>,
+        ),
+        With<SearchBox>,
+    >,
+    overlay_query: Query<(), With<LevelSelectOverlay>>,
+) {
+    if overlay_query.is_empty() {
+        return;
+    }
+
+    fn is_typing_key(keycode: KeyCode) -> bool {
+        matches!(
+            keycode,
+            KeyCode::KeyA
+                | KeyCode::KeyB
+                | KeyCode::KeyC
+                | KeyCode::KeyD
+                | KeyCode::KeyE
+                | KeyCode::KeyF
+                | KeyCode::KeyG
+                | KeyCode::KeyH
+                | KeyCode::KeyI
+                | KeyCode::KeyJ
+                | KeyCode::KeyK
+                | KeyCode::KeyL
+                | KeyCode::KeyM
+                | KeyCode::KeyN
+                | KeyCode::KeyO
+                | KeyCode::KeyP
+                | KeyCode::KeyQ
+                | KeyCode::KeyR
+                | KeyCode::KeyS
+                | KeyCode::KeyT
+                | KeyCode::KeyU
+                | KeyCode::KeyV
+                | KeyCode::KeyW
+                | KeyCode::KeyX
+                | KeyCode::KeyY
+                | KeyCode::KeyZ
+                | KeyCode::Digit0
+                | KeyCode::Digit1
+                | KeyCode::Digit2
+                | KeyCode::Digit3
+                | KeyCode::Digit4
+                | KeyCode::Digit5
+                | KeyCode::Digit6
+                | KeyCode::Digit7
+                | KeyCode::Digit8
+                | KeyCode::Digit9
+                | KeyCode::Space
+                | KeyCode::Minus
+                | KeyCode::Equal
+                | KeyCode::Backspace
+                | KeyCode::Delete
+        )
+    }
+
+    let typed_input = keyboard_input.get_just_pressed().any(|key| is_typing_key(*key));
+    if !typed_input {
+        return;
+    }
+
+    for (search_box, mut focus, caret_state) in search_box_query.iter_mut() {
+        if overlay_query.get(search_box.owner).is_err() {
+            continue;
+        }
+        if !focus.focused {
+            focus.focused = true;
+        }
+        if let Some(mut caret_state) = caret_state {
+            caret_state.visible = true;
+            caret_state.blink_timer.reset();
+        }
     }
 }
 
@@ -651,7 +743,7 @@ pub(super) fn sync_level_select_option_hit_regions_to_viewport(
 
 pub(super) fn sync_level_select_selection_font_growth(
     mut option_query: Query<
-        (&InteractionVisualState, &mut TextFont),
+        (&InteractionVisualState, &Hoverable, &mut TextFont),
         (
             With<LevelSelectScrollRow>,
             With<system_menu::SystemMenuOption>,
@@ -659,8 +751,8 @@ pub(super) fn sync_level_select_selection_font_growth(
         ),
     >,
 ) {
-    for (state, mut font) in option_query.iter_mut() {
-        let target_size = if state.selected {
+    for (state, hoverable, mut font) in option_query.iter_mut() {
+        let target_size = if state.selected || hoverable.hovered {
             LEVEL_SELECT_SELECTED_FONT_SIZE
         } else {
             LEVEL_SELECT_FONT_SIZE
@@ -706,5 +798,74 @@ mod tests {
         let mut hit_region_system =
             IntoSystem::into_system(sync_level_select_option_hit_regions_to_viewport);
         hit_region_system.initialize(&mut world);
+    }
+
+    #[test]
+    fn folder_activation_marks_runtime_dirty_and_toggles_expansion() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        let overlay = app
+            .world_mut()
+            .spawn((
+                LevelSelectOverlay,
+                SelectableMenu::new(
+                    0,
+                    vec![KeyCode::ArrowUp],
+                    vec![KeyCode::ArrowDown],
+                    vec![KeyCode::Enter],
+                    true,
+                ),
+            ))
+            .id();
+
+        let root = level_select_catalog::level_select_catalog_root();
+        let expansion = LevelSelectExpansionState::all_expanded(&root);
+        let folder_id = LevelSelectNodeId("path_inaction");
+        let window_entity = app.world_mut().spawn_empty().id();
+        let rows_root = app.world_mut().spawn_empty().id();
+        app.world_mut().entity_mut(overlay).insert(LevelSelectRuntime {
+            expansion,
+            visible_rows: vec![],
+            query_normalized: String::new(),
+            window_entity,
+            rows_root,
+            dirty: false,
+        });
+
+        let row_entity = app.world_mut().spawn((
+            Selectable::new(overlay, 0),
+            LevelSelectScrollRow {
+                index: 0,
+                folder_id: Some(folder_id),
+            },
+            Clickable::<SystemMenuActions>::with_region(
+                vec![SystemMenuActions::Activate],
+                LEVEL_SELECT_ROW_REGION,
+            ),
+            MenuOptionCommand(MenuCommand::None),
+        )).id();
+        if let Some(mut clickable) = app
+            .world_mut()
+            .entity_mut(row_entity)
+            .get_mut::<Clickable<SystemMenuActions>>()
+        {
+            clickable.triggered = true;
+        }
+
+        let mut system = IntoSystem::into_system(handle_level_select_folder_activation);
+        system.initialize(app.world_mut());
+        system
+            .run((), app.world_mut())
+            .expect("folder activation should run");
+        system.apply_deferred(app.world_mut());
+
+        let runtime = app
+            .world()
+            .entity(overlay)
+            .get::<LevelSelectRuntime>()
+            .expect("level select runtime");
+        assert!(runtime.dirty);
+        assert!(!runtime.expansion.is_expanded(folder_id));
     }
 }
