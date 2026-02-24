@@ -22,7 +22,9 @@ Current schema implementation:
 - `src/scenes/flow/schema.rs`
 - typed id registry: `src/scenes/flow/ids.rs`
 - validator: `src/scenes/flow/validate.rs`
+- runtime evaluator: `src/scenes/flow/engine.rs`
 - example content: `src/scenes/flow/content/campaign_graph.example.json`
+- runtime graph content: `src/scenes/flow/content/campaign_graph.json`
 
 ## Top-Level Contract
 
@@ -91,3 +93,12 @@ Graph validation currently enforces:
 4. Duplicate route sources are rejected.
 5. Duplicate rule names within a route are rejected.
 6. Empty `then` routes in rules are rejected.
+
+## Stage 3 Runtime Contract
+
+Runtime evaluation behavior:
+
+1. Attempt graph evaluation first via `evaluate_next_scenes_from_graph(...)`.
+2. If route exists in graph, return graph-selected scenes.
+3. If scene has no graph route, return `None` to allow caller fallback policy.
+4. If graph load/validation/evaluation fails, runtime logs warning and uses hardcoded branch fallback.

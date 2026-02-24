@@ -19,9 +19,11 @@ Campaign branching policy is isolated in:
 
 Data-driven graph schema contract is defined in:
 
+- `src/scenes/flow/engine.rs`
 - `src/scenes/flow/schema.rs`
 - `src/scenes/flow/ids.rs`
 - `src/scenes/flow/validate.rs`
+- `src/scenes/flow/content/campaign_graph.json`
 - `docs/scene_progression_graph_spec.md`
 
 Shared cross-scene dependency wiring is centralized in:

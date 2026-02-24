@@ -5,11 +5,30 @@ use crate::{
     scenes::{dialogue::content::*, dilemma::content::*, ending::content::*, Scene},
 };
 
+pub mod engine;
 pub mod ids;
 pub mod schema;
 pub mod validate;
 
 pub fn next_scenes_for_current_dilemma(
+    current_scene: Scene,
+    latest: &DilemmaStats,
+    stats: &GameStats,
+) -> Option<Vec<Scene>> {
+    match engine::evaluate_next_scenes_from_graph(current_scene, latest, stats) {
+        Ok(Some(next_scenes)) => Some(next_scenes),
+        Ok(None) => next_scenes_hardcoded_for_current_dilemma(current_scene, latest, stats),
+        Err(error) => {
+            bevy::log::warn!(
+                "graph-driven flow evaluation failed; using hardcoded fallback: {}",
+                error
+            );
+            next_scenes_hardcoded_for_current_dilemma(current_scene, latest, stats)
+        }
+    }
+}
+
+fn next_scenes_hardcoded_for_current_dilemma(
     current_scene: Scene,
     latest: &DilemmaStats,
     stats: &GameStats,
