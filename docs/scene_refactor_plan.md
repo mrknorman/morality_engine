@@ -42,7 +42,7 @@ ECS-friendly, modular, and extensible, while aligning with the UI architecture m
 
 Status:
 - Stage 1 complete: progression graph schema + contract + example content
-- Stage 2 pending: validator + typed scene IDs
+- Stage 2 complete: validator + typed scene IDs
 - Stage 3 pending: graph evaluator runtime
 - Stage 4 pending: parity shadow mode
 - Stage 5 pending: campaign content migration

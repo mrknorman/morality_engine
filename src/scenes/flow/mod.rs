@@ -5,7 +5,9 @@ use crate::{
     scenes::{dialogue::content::*, dilemma::content::*, ending::content::*, Scene},
 };
 
+pub mod ids;
 pub mod schema;
+pub mod validate;
 
 pub fn next_scenes_for_current_dilemma(
     current_scene: Scene,

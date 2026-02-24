@@ -20,6 +20,8 @@ Graph files are JSON deserialized into:
 Current schema implementation:
 
 - `src/scenes/flow/schema.rs`
+- typed id registry: `src/scenes/flow/ids.rs`
+- validator: `src/scenes/flow/validate.rs`
 - example content: `src/scenes/flow/content/campaign_graph.example.json`
 
 ## Top-Level Contract
@@ -78,3 +80,14 @@ Out of Stage 1 scope:
 - runtime cutover from hardcoded branch tree
 
 Those are handled in subsequent stages.
+
+## Stage 2 Validation Contract
+
+Graph validation currently enforces:
+
+1. Every scene reference resolves to a typed ID (`TypedSceneRef`).
+2. Every route has a non-empty `default`.
+3. Route sources are dilemma-scoped (`SceneRef::Dilemma`) for campaign progression.
+4. Duplicate route sources are rejected.
+5. Duplicate rule names within a route are rejected.
+6. Empty `then` routes in rules are rejected.
