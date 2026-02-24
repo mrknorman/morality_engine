@@ -17,7 +17,10 @@ use crate::{
     scenes::{dilemma::content::DilemmaScene, Scene, SceneFlowMode, SceneQueue},
     startup::system_menu,
     systems::{
-        interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
+        interaction::{
+            Draggable, InteractionVisualState, UiInputCaptureOwner, UiInputCaptureToken,
+            UiInputPolicy,
+        },
         ui::{
             scroll::{
                 focus_scroll_offset_to_row, row_visible_in_viewport, ScrollAxis,
@@ -40,14 +43,19 @@ const LEVEL_SELECT_OVERLAY_DIM_Z: f32 = -5.0;
 const LEVEL_SELECT_WINDOW_SIZE: Vec2 = Vec2::new(690.0, 440.0);
 const LEVEL_SELECT_WINDOW_Z: f32 = 0.4;
 
-const LEVEL_SELECT_SEARCH_BOX_Y: f32 = 205.0;
-const LEVEL_SELECT_SEARCH_BOX_SIZE: Vec2 = Vec2::new(640.0, 24.0);
+const LEVEL_SELECT_SEARCH_ROW_Y: f32 = 186.0;
+const LEVEL_SELECT_SEARCH_HINT_X: f32 = -320.0;
+const LEVEL_SELECT_SEARCH_BOX_X: f32 = 128.0;
+const LEVEL_SELECT_SEARCH_BOX_SIZE: Vec2 = Vec2::new(384.0, 24.0);
 const LEVEL_SELECT_SEARCH_FONT_SIZE: f32 = scaled_font_size(11.0);
 
 const LEVEL_SELECT_LIST_X: f32 = -320.0;
 const LEVEL_SELECT_LIST_ROW_STEP: f32 = 22.0;
 const LEVEL_SELECT_TREE_INDENT: f32 = 14.0;
 const LEVEL_SELECT_ROW_REGION: Vec2 = Vec2::new(630.0, 20.0);
+const LEVEL_SELECT_SELECTION_INDICATOR_OFFSET_X: f32 = 500.0;
+const LEVEL_SELECT_FONT_SIZE: f32 = scaled_font_size(16.0);
+const LEVEL_SELECT_SELECTED_FONT_SIZE: f32 = scaled_font_size(19.0);
 const LEVEL_SELECT_LIST_CONTENT_TOP_Y: f32 = 146.0;
 const LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING: f32 =
     LEVEL_SELECT_WINDOW_SIZE.y * 0.5 - LEVEL_SELECT_LIST_CONTENT_TOP_Y;
@@ -102,7 +110,7 @@ fn level_select_last_row_bottom_y(row_count: usize) -> f32 {
 }
 
 fn level_select_preferred_inner_size(row_count: usize) -> Vec2 {
-    let content_top = LEVEL_SELECT_SEARCH_BOX_Y + LEVEL_SELECT_SEARCH_BOX_SIZE.y * 0.5;
+    let content_top = LEVEL_SELECT_SEARCH_ROW_Y + LEVEL_SELECT_SEARCH_BOX_SIZE.y * 0.5;
     let content_bottom = level_select_last_row_bottom_y(row_count);
     let height = (content_top - content_bottom + 16.0).max(LEVEL_SELECT_WINDOW_SIZE.y);
     Vec2::new(LEVEL_SELECT_WINDOW_SIZE.x, height)
@@ -178,7 +186,8 @@ fn spawn_level_select_rows(
             level_select_row_center_y(index),
             overlay_entity,
             index,
-            system_menu::SystemMenuOptionVisualStyle::default(),
+            system_menu::SystemMenuOptionVisualStyle::default()
+                .with_indicator_offset(LEVEL_SELECT_SELECTION_INDICATOR_OFFSET_X),
         );
 
         rows_parent.commands().entity(option_entity).insert((
@@ -303,35 +312,39 @@ pub(super) fn spawn_level_select_overlay(
     let mut rows_root = None;
     commands.entity(content_root).with_children(|content| {
         content.spawn((
-            Name::new("level_select_search_box"),
-            LevelSelectSearchBox {
-                owner: overlay_entity,
-            },
-            SearchBox::new(overlay_entity, UiLayerKind::Base),
-            SearchBoxConfig {
-                placeholder: "Search files and folders...".to_string(),
-                ..default()
-            },
-            TextInputBoxStyle {
-                size: LEVEL_SELECT_SEARCH_BOX_SIZE,
-                font_size: LEVEL_SELECT_SEARCH_FONT_SIZE,
-                padding: Vec2::new(10.0, 4.0),
-                ..default()
-            },
-            UiInputPolicy::CapturedOnly,
-            Transform::from_xyz(0.0, LEVEL_SELECT_SEARCH_BOX_Y, 0.24),
-        ));
-        content.spawn((
-            Name::new("level_select_hint"),
+            Name::new("level_select_search_hint"),
             TextRaw,
-            Text2d::new("Select a .dilem file to run a single scenario."),
+            Text2d::new("Search / select a .dilem file:"),
             TextFont {
                 font_size: scaled_font_size(12.0),
                 ..default()
             },
             TextColor(Color::WHITE),
             Anchor::CENTER_LEFT,
-            Transform::from_xyz(-320.0, 182.0, 0.2),
+            Transform::from_xyz(LEVEL_SELECT_SEARCH_HINT_X, LEVEL_SELECT_SEARCH_ROW_Y, 0.24),
+        ));
+        content.spawn((
+            Name::new("level_select_search_box"),
+            LevelSelectSearchBox {
+                owner: overlay_entity,
+            },
+            SearchBox::new(overlay_entity, UiLayerKind::Base),
+            SearchBoxConfig {
+                placeholder: "type to filter folders/files".to_string(),
+                ..default()
+            },
+            TextInputBoxStyle {
+                size: LEVEL_SELECT_SEARCH_BOX_SIZE,
+                font_size: LEVEL_SELECT_SEARCH_FONT_SIZE,
+                padding: Vec2::new(10.0, 4.0),
+                background_color: Color::NONE,
+                border_color: Color::NONE,
+                border_color_hovered: Color::NONE,
+                border_color_focused: Color::NONE,
+                ..default()
+            },
+            UiInputPolicy::CapturedOnly,
+            Transform::from_xyz(LEVEL_SELECT_SEARCH_BOX_X, LEVEL_SELECT_SEARCH_ROW_Y, 0.24),
         ));
         content.spawn((
             Name::new("level_select_separator"),
@@ -633,6 +646,28 @@ pub(super) fn sync_level_select_option_hit_regions_to_viewport(
         } else {
             None
         };
+    }
+}
+
+pub(super) fn sync_level_select_selection_font_growth(
+    mut option_query: Query<
+        (&InteractionVisualState, &mut TextFont),
+        (
+            With<LevelSelectScrollRow>,
+            With<system_menu::SystemMenuOption>,
+            Without<VideoModalButton>,
+        ),
+    >,
+) {
+    for (state, mut font) in option_query.iter_mut() {
+        let target_size = if state.selected {
+            LEVEL_SELECT_SELECTED_FONT_SIZE
+        } else {
+            LEVEL_SELECT_FONT_SIZE
+        };
+        if (font.font_size - target_size).abs() > 0.001 {
+            font.font_size = target_size;
+        }
     }
 }
 

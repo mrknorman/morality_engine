@@ -1057,6 +1057,7 @@ impl Plugin for MenusPlugin {
                 sync_resolution_dropdown_items,
                 system_menu::ensure_selection_indicators,
                 system_menu::update_selection_indicators,
+                level_select::sync_level_select_selection_font_growth,
                 system_menu::ensure_selection_bars,
                 system_menu::update_selection_bars,
                 sync_video_top_selection_bars,
