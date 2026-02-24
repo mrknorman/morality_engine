@@ -200,6 +200,7 @@ struct MenuCommandContext<'w, 's> {
     offscreen_camera_query: Query<'w, 's, &'static GlobalTransform, With<OffscreenCamera>>,
     main_menu_overlay_query: Query<'w, 's, (), With<MainMenuOptionsOverlay>>,
     level_select_overlay_query: Query<'w, 's, (), With<level_select::LevelSelectOverlay>>,
+    level_unlock_state: Res<'w, level_select::LevelUnlockState>,
     // Read-only layer resolution and mutable dropdown visibility live in one ParamSet to keep
     // Visibility access disjoint (avoids Bevy B0001 conflicts).
     layer_queries: ParamSet<
@@ -883,6 +884,7 @@ impl Plugin for MenusPlugin {
             .init_resource::<OptionCommandSuppressions>()
             .init_resource::<tabbed_menu::TabbedMenuFocusState>()
             .init_resource::<InactiveLayerSelectionCache>()
+            .init_resource::<level_select::LevelUnlockState>()
             .add_message::<MenuIntent>()
             .add_message::<tabs::TabChanged>();
         app.configure_sets(
@@ -924,6 +926,7 @@ impl Plugin for MenusPlugin {
                 // `InteractionSystem::Selectable` has produced deterministic hover/press
                 // state, and before menu command execution mutates page state.
                 initialize_video_settings_from_window,
+                level_select::track_campaign_reached_dilemmas,
                 selector::sync_option_cycler_bounds,
                 enforce_active_layer_focus,
                 tabbed_menu::sync_tabbed_menu_focus,
@@ -995,6 +998,7 @@ impl Plugin for MenusPlugin {
                 tabs::sanitize_tab_selection_indices,
                 tabs::sync_tab_bar_state,
                 tabbed_menu::cleanup_tabbed_menu_state,
+                level_select::mark_level_select_dirty_on_unlock_change,
                 level_select::rebuild_level_select_rows,
                 sanitize_menu_selection_indices,
                 scroll_adapter::sync_video_top_scroll_focus_follow,

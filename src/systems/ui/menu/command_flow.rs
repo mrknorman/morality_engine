@@ -181,6 +181,7 @@ pub(super) fn handle_menu_option_commands(
             &mut ctx.stats,
             &ctx.main_menu_overlay_query,
             &ctx.level_select_overlay_query,
+            &ctx.level_unlock_state,
             &ctx.offscreen_camera_query,
             &ctx.main_camera_transform_query,
             &showcase_root_query,

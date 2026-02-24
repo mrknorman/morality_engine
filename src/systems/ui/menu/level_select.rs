@@ -15,6 +15,7 @@ use crate::{
         text::{scaled_font_size, TextRaw},
     },
     startup::system_menu,
+    scenes::{dilemma::content::DilemmaScene, Scene, SceneFlowMode, SceneQueue},
     systems::{
         interaction::{Draggable, UiInputCaptureOwner, UiInputCaptureToken, UiInputPolicy},
         ui::{
@@ -86,6 +87,19 @@ pub(super) struct LevelSelectRuntime {
     dirty: bool,
 }
 
+#[derive(Resource, Default)]
+pub(super) struct LevelUnlockState {
+    reached_in_campaign: Vec<DilemmaScene>,
+}
+
+fn level_select_scene_unlocked(scene: DilemmaScene, unlock_state: &LevelUnlockState) -> bool {
+    cfg!(debug_assertions)
+        || unlock_state
+            .reached_in_campaign
+            .iter()
+            .any(|reached| *reached == scene)
+}
+
 fn level_select_row_center_y(index: usize) -> f32 {
     LEVEL_SELECT_LIST_CONTENT_TOP_Y - (index as f32 + 0.5) * LEVEL_SELECT_LIST_ROW_STEP
 }
@@ -123,6 +137,7 @@ fn spawn_level_select_rows(
     rows_parent: &mut ChildSpawnerCommands<'_>,
     asset_server: &Res<AssetServer>,
     overlay_entity: Entity,
+    unlock_state: &LevelUnlockState,
     rows: &[LevelSelectVisibleRow],
     expansion: &LevelSelectExpansionState,
     query_active: bool,
@@ -134,11 +149,22 @@ fn spawn_level_select_rows(
                 Some(row.id),
                 MenuCommand::None,
             ),
-            LevelSelectVisibleRowKind::File(file) => (
-                row.label.to_string(),
-                None,
-                MenuCommand::StartSingleLevel(file.scene),
-            ),
+            LevelSelectVisibleRowKind::File(file) => {
+                let unlocked = level_select_scene_unlocked(file.scene, unlock_state);
+                (
+                    if unlocked {
+                        row.label.to_string()
+                    } else {
+                        format!("{} [locked]", row.label)
+                    },
+                    None,
+                    if unlocked {
+                        MenuCommand::StartSingleLevel(file.scene)
+                    } else {
+                        MenuCommand::None
+                    },
+                )
+            }
         };
 
         let option_entity = system_menu::spawn_option(
@@ -172,6 +198,7 @@ pub(super) fn spawn_level_select_overlay(
     commands: &mut Commands,
     menu_root: &MenuRoot,
     asset_server: &Res<AssetServer>,
+    unlock_state: &Res<LevelUnlockState>,
     existing_overlay_query: &Query<(), With<LevelSelectOverlay>>,
     offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
     main_camera_transform_query: &Query<&GlobalTransform, With<MainCamera>>,
@@ -357,6 +384,7 @@ pub(super) fn spawn_level_select_overlay(
                     rows_parent,
                     asset_server,
                     overlay_entity,
+                    unlock_state.as_ref(),
                     &initial_rows,
                     &initial_expansion,
                     false,
@@ -458,6 +486,7 @@ pub(super) fn handle_level_select_folder_activation(
 pub(super) fn rebuild_level_select_rows(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    unlock_state: Res<LevelUnlockState>,
     mut overlay_query: Query<
         (Entity, &mut LevelSelectRuntime, &mut SelectableMenu),
         With<LevelSelectOverlay>,
@@ -494,6 +523,7 @@ pub(super) fn rebuild_level_select_rows(
                     rows_parent,
                     &asset_server,
                     overlay_entity,
+                    unlock_state.as_ref(),
                     &next_rows,
                     &expansion,
                     query_active,
@@ -519,6 +549,37 @@ pub(super) fn rebuild_level_select_rows(
         };
 
         runtime.visible_rows = next_rows;
+    }
+}
+
+pub(super) fn track_campaign_reached_dilemmas(
+    scene_queue: Res<SceneQueue>,
+    mut unlock_state: ResMut<LevelUnlockState>,
+) {
+    if scene_queue.flow_mode() != SceneFlowMode::Campaign {
+        return;
+    }
+    let Scene::Dilemma(scene) = scene_queue.current_scene() else {
+        return;
+    };
+    if !unlock_state
+        .reached_in_campaign
+        .iter()
+        .any(|reached| *reached == scene)
+    {
+        unlock_state.reached_in_campaign.push(scene);
+    }
+}
+
+pub(super) fn mark_level_select_dirty_on_unlock_change(
+    unlock_state: Res<LevelUnlockState>,
+    mut runtime_query: Query<&mut LevelSelectRuntime, With<LevelSelectOverlay>>,
+) {
+    if !unlock_state.is_changed() || cfg!(debug_assertions) {
+        return;
+    }
+    for mut runtime in runtime_query.iter_mut() {
+        runtime.dirty = true;
     }
 }
 

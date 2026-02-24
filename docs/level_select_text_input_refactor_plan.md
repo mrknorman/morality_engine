@@ -20,6 +20,7 @@ Refactor the level select overlay into a robust, extensible UI flow with:
 - Stage 3 (catalog/tree model extraction): completed (folder/file rows + expansion state + deterministic row projection).
 - Stage 4 (scroll root-cause fix): completed (explicit list scroll root + deterministic extent/focus-follow).
 - Stage 5 (search integration): completed (SearchBox wiring + incremental filtered projection + ancestor inclusion).
+- Stage 6 (unlock policy/gating): completed (debug all-unlocked; release unlocks campaign-reached dilemmas for current session).
 
 ## Architecture Direction
 
