@@ -98,6 +98,7 @@ impl Background {
     pub fn new(background_type: BackgroundTypes, density: f32, speed: f32) -> Self {
         let sprites: Vec<BackgroundSpriteType> = serde_json::from_str(background_type.content())
             .unwrap_or_else(|err| {
+                // TODO(SCN-002): return a Result and recover with safe defaults when background content is invalid.
                 panic!("Failed to parse background JSON: {}", err);
             });
 

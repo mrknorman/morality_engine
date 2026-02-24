@@ -91,11 +91,13 @@ impl TrainType {
     pub fn load_from_json(train_type: TrainTypes) -> TrainType {
         let train_type: TrainType =
             serde_json::from_str(train_type.content()).unwrap_or_else(|err| {
+                // TODO(SCN-002): replace panic with recoverable content-load error and safe fallback behavior.
                 panic!("Failed to parse train from file {}.", err);
             });
 
         // Additional validation
         if train_type.carriages.is_empty() {
+            // TODO(SCN-002): validate train content at startup and return typed errors instead of panicking.
             panic!("TrainType must have at least one carriage");
         }
 
@@ -237,6 +239,7 @@ impl Train {
                     bounce_audio,
                 )
             } else {
+                // TODO(SCN-002): convert this to a logged setup failure and skip spawn instead of crashing.
                 panic!("Train unable to spawn!");
             }
         };
@@ -261,6 +264,7 @@ impl Train {
         // Continue only if we got the RNG
         let mut rng = match rng_option {
             Some(rng) => rng,
+            // TODO(SCN-002): decouple Train spawn from required RNG resource and use a deterministic fallback.
             None => panic!("Rng not found!"),
         };
 

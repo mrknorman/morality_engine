@@ -251,6 +251,7 @@ impl UtilitarianPath {
     // Helper to get the JSON content based on path parameters
     fn get_json_content(&self) -> &'static str {
         match (&self.outcome, self.number) {
+            // TODO(SCN-001): enforce valid path indices in constructors/callers and remove sentinel panic branch.
             (_, 0) => panic!("Should not be 0"),
 
             (PathOutcome::Pass, 1) => include_str!("./lab/4/path_utilitarian/1/pass.json"),

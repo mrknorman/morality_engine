@@ -737,6 +737,7 @@ static OPTIONS_MENU_COMMAND_REGISTRY: Lazy<schema::CommandRegistry<MenuCommand>>
     });
 
 static OPTIONS_MENU_PAGE_SCHEMA: Lazy<SchemaMenuPageDef> = Lazy::new(|| {
+    // TODO(SCN-002): handle invalid schema with a recoverable fallback options page.
     resolve_options_menu_schema().unwrap_or_else(|error| {
         panic!("invalid options menu schema: {error}");
     })
