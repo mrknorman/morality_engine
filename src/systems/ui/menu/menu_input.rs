@@ -1,4 +1,4 @@
-// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// Migration checklist (`docs/ui_architecture_contract.md`):
 // - replace capture/gate checks with unified interaction state
 // - keep base/dropdown/modal owner routing deterministic
 // - preserve current shortcut semantics while changing data source

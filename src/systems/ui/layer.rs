@@ -5,7 +5,7 @@
 //! (`Base`, `Dropdown`, `Modal`), and systems resolve a single active layer
 //! per owner for deterministic input routing.
 //!
-//! Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+//! Migration checklist (`docs/ui_architecture_contract.md`):
 //! - fold layer arbitration into unified interaction state resolver
 //! - stop deriving capture/gating state independently per module
 use std::collections::HashMap;

@@ -47,7 +47,7 @@ Attach this to scroll items when you want automatic extent aggregation:
 5. Input gating uses `UiInputPolicy` evaluated against `UiInteractionState.input_mode_for_owner(...)`.
 6. Focus/owner arbitration uses `UiInteractionState.focused_owner` and active-layer routing uses `UiInteractionState.active_layers_by_owner`.
 7. Scrollbar visuals (track/thumb) are focus-scoped and hidden for non-focused owners (for example unfocused windows).
-8. See `docs/ui_unified_focus_gating_refactor_plan.md` for canonical phase status.
+8. See `docs/ui_architecture_contract.md` and `docs/ui_compliance_matrix.md` for canonical routing and compliance status.
 
 ## Render-Target Configuration
 1. `ScrollPlugin` initializes `ScrollRenderSettings`.

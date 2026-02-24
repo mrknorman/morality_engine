@@ -90,7 +90,7 @@ Disallowed direction:
 
 ## 7. Documentation Rules
 
-1. Scene runtime API changes must be recorded in `docs/scene_refactor_plan.md`.
+1. Scene runtime API changes must be recorded in `docs/backlog.md` (and scene-specific docs when applicable).
 2. Routing/flow semantics must be documented in a scene flow reference doc.
 3. Compliance status is tracked in `docs/scene_compliance_matrix.md`.
 

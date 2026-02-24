@@ -31,13 +31,11 @@ Covered systems and modules:
 
 ## Unified Input Refactor Status (No Compatibility Layer)
 
-This repo is executing a full replacement of legacy interaction gate/capture APIs.
+This repo executed a full replacement of legacy interaction gate/capture APIs.
 
-- Source plan: `docs/ui_unified_focus_gating_refactor_plan.md`
+- Canonical references: `docs/ui_architecture_contract.md`, `docs/ui_compliance_matrix.md`
 - Migration style: full replacement, no dual-path compatibility bridge
-- Phase policy: every phase must update docs and end with a checkpoint commit
-
-During migration, prefer referencing the unified-refactor plan for canonical state transitions and scope ownership contracts.
+- Historical stage details remain available in git history
 
 ### Phase Completion Snapshot
 

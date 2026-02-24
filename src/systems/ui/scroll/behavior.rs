@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// Migration checklist (`docs/ui_architecture_contract.md`):
 // - remove local capture/focus arbitration
 // - consume unified interaction state for owner, layer, and focus routing
 // - preserve deterministic target ranking for nested scroll roots

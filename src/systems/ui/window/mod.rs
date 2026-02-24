@@ -1,6 +1,6 @@
 use std::{collections::HashMap, f32::consts::FRAC_PI_4};
 
-// Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+// Migration checklist (`docs/ui_architecture_contract.md`):
 // - migrate window interaction gating to unified input policy/state
 // - keep drag/close/resize focus ownership deterministic per root window
 // - remove legacy gate propagation once unified resolver is live

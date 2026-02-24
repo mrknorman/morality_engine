@@ -5,7 +5,7 @@
 //! Visual-state components are downstream presentation outputs and should not be
 //! used as authoritative behavior state in higher-level reducers.
 //!
-//! Migration checklist (`docs/ui_unified_focus_gating_refactor_plan.md`):
+//! Migration checklist (`docs/ui_architecture_contract.md`):
 //! - remove legacy gate/capture APIs
 //! - introduce unified `UiInput*` + `UiInteractionState` model
 //! - keep primitive behavior contracts deterministic during migration
