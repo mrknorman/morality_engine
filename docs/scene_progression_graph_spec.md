@@ -2,6 +2,10 @@
 
 Last updated: 2026-02-24
 
+Authoring workflow companion:
+
+- `docs/scene_flow_graph_authoring.md`
+
 ## Goal
 
 Represent campaign branching as content data instead of hardcoded Rust path trees,

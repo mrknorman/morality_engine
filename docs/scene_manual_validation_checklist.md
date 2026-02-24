@@ -1,6 +1,6 @@
 # Scene Manual Validation Checklist
 
-Last updated: 2026-02-23
+Last updated: 2026-02-24
 
 Use this checklist after scene-flow refactors and before release.
 
@@ -11,6 +11,9 @@ Use this checklist after scene-flow refactors and before release.
   - `cargo test scenes::runtime::tests`
   - `cargo test scenes::flow::tests`
   - `cargo test scenes::tests`
+- Graph contract tests pass:
+  - `cargo test scenes::flow::schema::tests`
+  - `cargo test scenes::flow::validate::tests`
 
 ## Latest Validation Snapshot (2026-02-23)
 
@@ -18,7 +21,20 @@ Use this checklist after scene-flow refactors and before release.
 - `cargo test scenes::runtime::tests`: pass
 - `cargo test scenes::flow::tests`: pass
 - `cargo test scenes::tests`: pass
+- `cargo test scenes::flow::schema::tests`: pass
+- `cargo test scenes::flow::validate::tests`: pass
 - Interactive in-window scenario sweep: not executed in this terminal-only validation pass
+
+## Graph Authoring Gate
+
+- Edit `src/scenes/flow/content/campaign_graph.json`.
+- Run schema + validation tests before gameplay checks.
+- Verify no route-source duplication and no empty `default`/`then` arrays.
+- Spot-check representative paths:
+  - Lab baseline path
+  - Inaction path progression
+  - Deontological path progression
+  - Utilitarian path progression
 
 ## Core Campaign Flow
 
