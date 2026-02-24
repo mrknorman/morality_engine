@@ -264,6 +264,17 @@ pub(super) fn apply_menu_reducer_result(
         );
     }
     if let Some(state_transition) = result.state_transition {
+        let reset_dilation_for_pause_exit_to_menu = menu_root.host == MenuHost::Pause
+            && matches!(
+                state_transition,
+                MenuStateTransition::Main(MainState::Menu)
+                    | MenuStateTransition::PauseAndMain(_, MainState::Menu)
+            );
+
+        if reset_dilation_for_pause_exit_to_menu {
+            commands.insert_resource(Dilation(1.0));
+        }
+
         match state_transition {
             MenuStateTransition::Pause(state) => next_pause_state.set(state),
             MenuStateTransition::Main(state) => next_main_state.set(state),

@@ -74,6 +74,30 @@ Source note: migrated from the historical TODO block in `src/main.rs`.
 - Pause menu.
 - Options menu with volume controls.
 
+Day-based lab structure (new trainer: Victoria):
+- Split lab content into explicit day sections.
+- Day theme: "getting personal."
+- Day 1 level sequence:
+  1. George or Hannah.
+  2. Twist of Fate (Tim or Beth; lever starts in superposition unless pulled).
+  3. Decision Ignition (Rob or Samantha; if no pull, bomb kills both).
+  4. Trolley problem variant: 1 authorized construction worker under duty of care vs 5 partying youths on track.
+  5. Fat man on bridge: push 1 man vs 5 construction workers (no duty of care).
+  6. Fat construction worker under duty of care can be pushed to save 5 partying youths.
+  7. Push boulder to save 50 death cult members; doing so crushes a family of 4.
+  8. Cable car accident: push potential olympic medalist into cogs to save 20 skiiers; prolonged death cost.
+- Cross-level behavior notes for first three levels:
+  - Repeated male kills trigger frustration expression.
+  - Repeated female kills trigger frustration expression.
+  - Special route: only men killed.
+  - Special route: only women killed.
+  - Special route: ignored bomb.
+  - Special route: doing nothing.
+- Mechanics notes:
+  - Hover over people shows info.
+  - Color coding for male/female.
+  - Speech boxes for George and Hannah greeting player.
+
 ## Ending Concepts
 
 - Rage ending.

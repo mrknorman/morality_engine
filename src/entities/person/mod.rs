@@ -44,10 +44,13 @@ impl Plugin for PersonPlugin {
             .add_systems(
                 Update,
                 (
-                    PersonSprite::animate,
-                    PersonSprite::scream,
                     PersonSprite::alert,
-                    Emoticon::animate,
+                    PersonSprite::force_alarm_before_impact
+                        .after(PersonSprite::alert)
+                        .after(Bounce::enact),
+                    PersonSprite::animate.after(PersonSprite::force_alarm_before_impact),
+                    Emoticon::animate.after(PersonSprite::force_alarm_before_impact),
+                    PersonSprite::scream,
                 )
                     .run_if(in_state(PersonSystemsActive::True))
                     .run_if(
@@ -123,6 +126,7 @@ pub struct IgnoreTrainCollision;
 
 impl PersonSprite {
     const PERSON_DEPTH: f32 = 5.0;
+    const PRE_IMPACT_ALARM_DISTANCE: f32 = 96.0;
 
     // ─────────────────────────────────────────────────────────────
     //  Spawn hook
@@ -234,6 +238,42 @@ impl PersonSprite {
     pub fn alert(mut q: Query<(&mut PersonSprite, &mut Bounce)>) {
         for (p, mut b) in q.iter_mut() {
             b.active = p.in_danger;
+        }
+    }
+
+    /// Force the alarm pose in the final pre-impact window so imminent collisions
+    /// never render a calm frame.
+    pub fn force_alarm_before_impact(
+        mut person_query: Query<(&Aabb, &GlobalTransform, &mut Bounce), With<PersonSprite>>,
+        train_query: Query<(&Aabb, &GlobalTransform, &Velocity), With<Train>>,
+    ) {
+        let Some((train_box, train_transform, train_velocity)) = train_query.iter().next() else {
+            return;
+        };
+
+        let (train_min, train_max) = world_aabb(train_box, train_transform);
+        let moving_right = train_velocity.0.x >= 0.0;
+
+        for (person_box, person_transform, mut bounce) in person_query.iter_mut() {
+            let (person_min, person_max) = world_aabb(person_box, person_transform);
+
+            // Keep this path-local to avoid forcing alarm for people on unrelated branches.
+            let overlaps_y = person_min.y <= train_max.y && person_max.y >= train_min.y;
+            let overlaps_z = person_min.z <= train_max.z && person_max.z >= train_min.z;
+            if !(overlaps_y && overlaps_z) {
+                continue;
+            }
+
+            let (ahead_or_overlapping, gap_to_front) = if moving_right {
+                (person_max.x >= train_min.x, person_min.x - train_max.x)
+            } else {
+                (person_min.x <= train_max.x, train_min.x - person_max.x)
+            };
+
+            if ahead_or_overlapping && gap_to_front <= Self::PRE_IMPACT_ALARM_DISTANCE {
+                bounce.active = true;
+                bounce.enacting = true;
+            }
         }
     }
 

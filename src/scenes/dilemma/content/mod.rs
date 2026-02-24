@@ -34,6 +34,7 @@ pub enum DilemmaScene {
     Lab2(Lab2Dilemma),
     PathDeontological(DilemmaPathDeontological, usize),
     PathUtilitarian(DilemmaPathUtilitarian, usize),
+    DayPersonal(DilemmaDayPersonal, usize),
     Lab3(Lab3Dilemma),
     Lab4(Lab4Dilemma),
 }
@@ -47,6 +48,7 @@ impl DilemmaScene {
             Self::Lab2(dilemma) => dilemma.content(),
             Self::PathDeontological(dilemma, _) => dilemma.content(),
             Self::PathUtilitarian(dilemma, _) => dilemma.content(),
+            Self::DayPersonal(dilemma, _) => dilemma.content(),
             Self::Lab3(dilemma) => dilemma.content(),
             Self::Lab4(dilemma) => dilemma.content(),
         }
@@ -137,4 +139,30 @@ define_dilemma! {
         TrolleyestProblem => "./lab/3/path_deontological/1/the_trolleyest_problem.json",
         TrolleygeddonProblem => "./lab/3/path_deontological/2/the_trolleygeddon_problem.json",
     }
+}
+
+define_dilemma! {
+    DilemmaDayPersonal {
+        GeorgeOrHannah => "./lab/day_1/0_george_or_hannah.json",
+        TwistOfFate => "./lab/day_1/1_twist_of_fate.json",
+        DecisionIgnition => "./lab/day_1/2_decision_ignition.json",
+        AuthorizedWorkerVsPartyingYouths => "./lab/day_1/3_authorized_worker_vs_partying_youths.json",
+        FatManOnBridge => "./lab/day_1/4_fat_man_on_bridge.json",
+        FatConstructionWorkerVsPartyingYouths => "./lab/day_1/5_fat_construction_worker_vs_partying_youths.json",
+        BoulderVsDeathCult => "./lab/day_1/6_boulder_vs_death_cult.json",
+        CableCarMedalistVsSkiers => "./lab/day_1/7_cable_car_medalist_vs_skiers.json"
+    }
+}
+
+impl DilemmaScene {
+    pub const DAY_PERSONAL: [Self; 8] = [
+        Self::DayPersonal(DilemmaDayPersonal::GeorgeOrHannah, 0),
+        Self::DayPersonal(DilemmaDayPersonal::TwistOfFate, 1),
+        Self::DayPersonal(DilemmaDayPersonal::DecisionIgnition, 2),
+        Self::DayPersonal(DilemmaDayPersonal::AuthorizedWorkerVsPartyingYouths, 3),
+        Self::DayPersonal(DilemmaDayPersonal::FatManOnBridge, 4),
+        Self::DayPersonal(DilemmaDayPersonal::FatConstructionWorkerVsPartyingYouths, 5),
+        Self::DayPersonal(DilemmaDayPersonal::BoulderVsDeathCult, 6),
+        Self::DayPersonal(DilemmaDayPersonal::CableCarMedalistVsSkiers, 7),
+    ];
 }

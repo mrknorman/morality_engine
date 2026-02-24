@@ -321,9 +321,20 @@
       "from": { "kind": "dilemma", "id": "path_deontological.0" },
       "rules": [
         {
-          "name": "single_fatality_selective_deontologist",
+          "name": "indecisive_action_on_initial_conditions",
           "when": [
-            { "op": "fatalities_eq", "value": 1 }
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.fail_indecisive" },
+            { "kind": "ending", "id": "confused_deontologist" }
+          ]
+        },
+        {
+          "name": "decision_routes_to_selective_deontologist",
+          "when": [
+            { "op": "decisions_gt", "value": 0 }
           ],
           "then": [
             { "kind": "dialogue", "id": "path_deontological.1.pass" },
@@ -338,7 +349,29 @@
     },
     {
       "from": { "kind": "dilemma", "id": "path_deontological.1" },
-      "rules": [],
+      "rules": [
+        {
+          "name": "indecisive_action_on_initial_conditions",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.fail_indecisive" },
+            { "kind": "ending", "id": "confused_deontologist" }
+          ]
+        },
+        {
+          "name": "decision_routes_to_selective_deontologist",
+          "when": [
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.1.pass" },
+            { "kind": "ending", "id": "selective_deontologist" }
+          ]
+        }
+      ],
       "default": [
         { "kind": "dialogue", "id": "path_deontological.2.fail" },
         { "kind": "dilemma", "id": "path_deontological.2" }
@@ -346,7 +379,29 @@
     },
     {
       "from": { "kind": "dilemma", "id": "path_deontological.2" },
-      "rules": [],
+      "rules": [
+        {
+          "name": "indecisive_action_on_initial_conditions",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.fail_indecisive" },
+            { "kind": "ending", "id": "confused_deontologist" }
+          ]
+        },
+        {
+          "name": "decision_routes_to_selective_deontologist",
+          "when": [
+            { "op": "decisions_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_deontological.1.pass" },
+            { "kind": "ending", "id": "selective_deontologist" }
+          ]
+        }
+      ],
       "default": [
         { "kind": "dialogue", "id": "path_deontological.3.fail" },
         { "kind": "ending", "id": "true_deontologist" }
@@ -432,6 +487,95 @@
         { "kind": "dialogue", "id": "path_utilitarian.4.fail" },
         { "kind": "dialogue", "id": "lab_4.outro" },
         { "kind": "dilemma", "id": "lab_4.random_deaths" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.0" },
+      "rules": [],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.1" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.1" },
+      "rules": [],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.2" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.2" },
+      "rules": [
+        {
+          "name": "special_route_if_doing_nothing_overall",
+          "when": [
+            { "op": "total_decisions_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "ending", "id": "day_personal_did_nothing" }
+          ]
+        },
+        {
+          "name": "special_route_if_ignoring_bomb",
+          "when": [
+            { "op": "decisions_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "ending", "id": "day_personal_ignored_bomb" }
+          ]
+        },
+        {
+          "name": "special_route_if_only_men_killed_placeholder",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "ending", "id": "day_personal_all_men_killed" }
+          ]
+        },
+        {
+          "name": "special_route_if_only_women_killed_placeholder",
+          "when": [
+            { "op": "decisions_gt", "value": 0 },
+            { "op": "selected_option_eq", "value": 1 }
+          ],
+          "then": [
+            { "kind": "ending", "id": "day_personal_all_women_killed" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.3" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.3" },
+      "rules": [],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.4" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.4" },
+      "rules": [],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.5" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.5" },
+      "rules": [],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.6" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "day_personal.6" },
+      "rules": [],
+      "default": [
+        { "kind": "dilemma", "id": "day_personal.7" }
       ]
     }
   ]

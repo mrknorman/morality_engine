@@ -33,6 +33,7 @@ pub enum DialogueSceneId {
     Lab3aFailIndecisive,
     Lab3aFailInaction,
     Lab3aPassUtilitarian,
+    PathDeontologicalFailIndecisive,
     Lab3bIntro,
     Lab4Outro,
     PathInaction { stage: u8, outcome: PathOutcomeId },
@@ -58,6 +59,7 @@ impl DialogueSceneId {
             "lab_3.a.fail_indecisive" => Some(Self::Lab3aFailIndecisive),
             "lab_3.a.fail_inaction" => Some(Self::Lab3aFailInaction),
             "lab_3.a.pass_utilitarian" => Some(Self::Lab3aPassUtilitarian),
+            "path_deontological.fail_indecisive" => Some(Self::PathDeontologicalFailIndecisive),
             "lab_3.b.intro" => Some(Self::Lab3bIntro),
             "lab_4.outro" => Some(Self::Lab4Outro),
             _ => None,
@@ -93,6 +95,7 @@ pub enum DilemmaSceneId {
     PathInaction { stage: u8 },
     PathDeontological { stage: u8 },
     PathUtilitarian { stage: u8 },
+    DayPersonal { stage: u8 },
 }
 
 impl DilemmaSceneId {
@@ -122,6 +125,10 @@ impl DilemmaSceneId {
             return Some(Self::PathUtilitarian { stage });
         }
 
+        if let Some(stage) = parse_path_index(id, "day_personal", 0, 7) {
+            return Some(Self::DayPersonal { stage });
+        }
+
         None
     }
 }
@@ -131,9 +138,14 @@ pub enum EndingSceneId {
     IdioticPsychopath,
     ImpatientPsychopath,
     Leverophile,
+    ConfusedDeontologist,
     SelectiveDeontologist,
     TrueDeontologist,
     TrueNeutral,
+    DayPersonalAllMenKilled,
+    DayPersonalAllWomenKilled,
+    DayPersonalIgnoredBomb,
+    DayPersonalDidNothing,
 }
 
 impl EndingSceneId {
@@ -142,9 +154,14 @@ impl EndingSceneId {
             "idiotic_psychopath" => Some(Self::IdioticPsychopath),
             "impatient_psychopath" => Some(Self::ImpatientPsychopath),
             "leverophile" => Some(Self::Leverophile),
+            "confused_deontologist" => Some(Self::ConfusedDeontologist),
             "selective_deontologist" => Some(Self::SelectiveDeontologist),
             "true_deontologist" => Some(Self::TrueDeontologist),
             "true_neutral" => Some(Self::TrueNeutral),
+            "day_personal_all_men_killed" => Some(Self::DayPersonalAllMenKilled),
+            "day_personal_all_women_killed" => Some(Self::DayPersonalAllWomenKilled),
+            "day_personal_ignored_bomb" => Some(Self::DayPersonalIgnoredBomb),
+            "day_personal_did_nothing" => Some(Self::DayPersonalDidNothing),
             _ => None,
         }
     }

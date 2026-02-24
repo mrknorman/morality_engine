@@ -214,6 +214,7 @@ pub enum Lab3aDialogue {
     FailIndecisive,
     FailInaction,
     PassUtilitarian,
+    DeontologicalFailIndecisive,
     DeontologicalPath(DeontologicalPath),
 }
 
@@ -223,6 +224,9 @@ impl DialogueProvider for Lab3aDialogue {
             Self::PassUtilitarian => include_str!("./lab/3/a/pass_utilitarian.json"),
             Self::FailIndecisive => include_str!("./lab/3/a/fail_indecisive.json"),
             Self::FailInaction => include_str!("./lab/3/a/fail_inaction.json"),
+            Self::DeontologicalFailIndecisive => {
+                include_str!("./lab/3/path_deontological/fail_indecisive.json")
+            }
             Self::DeontologicalPath(path) => path.get_json_content(),
         }
     }

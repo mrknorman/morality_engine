@@ -126,9 +126,23 @@ Acceptance criteria:
 - CRT options color update applied consistently.
 - No regressions in existing menu command actions.
 
-### SCN-016 - Campaign graph viewer/editor tooling
+### SCN-017 - Day-based lab arc (Victoria / personal scenarios)
 
 - Status: todo
+- Priority: medium
+- Area: scenes/dilemma, scenes/flow, entities/person, dialogue/ending content
+- Why: next campaign expansion depends on day-structured progression and new personal scenario mechanics.
+Acceptance criteria:
+- Lab flow supports explicit day segmentation and day entry sequencing.
+- Day 1 personal scenario chain is integrated end-to-end in campaign flow.
+- Stage-specific mechanics are implemented where required (hover person info, gender coding, greeting speech boxes, superposition lever start, bomb/no-action outcome).
+- First-three-level special route conditions are tracked and routed (only men killed, only women killed, ignored bomb, doing nothing).
+- Trainer persona/content swap for Victoria is hooked into day-specific dialogue/narration presentation.
+- Notes from `docs/idea_inbox.md` are converted into implementation tickets with test/validation plan before full content pass.
+
+### SCN-016 - Campaign graph viewer/editor tooling
+
+- Status: done
 - Priority: medium
 - Area: scenes/flow, tooling
 - Why: campaign branching is non-linear and difficult to reason about in raw JSON alone.
@@ -138,6 +152,9 @@ Acceptance criteria:
 - Graph validity status is visible in the tool (schema + validation pass/fail).
 - Export or snapshot artifact can be generated for docs/review.
 - Phase-2 scope documented for edit mode (node/edge/rule editing + safe writeback).
+Implementation notes:
+- Export command: `cargo run -- --export-campaign-graph [optional_output_path]`
+- Default artifact path: `docs/campaign_graph_view.html`
 
 ## Later
 

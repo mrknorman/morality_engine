@@ -1,8 +1,9 @@
-use std::{collections::HashMap, fmt, time::Duration};
+use std::{collections::HashMap, fmt, fs::File, path::Path, time::Duration};
 
 use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds};
 use enum_map::{enum_map, Enum};
 use serde::{Deserialize, Serialize};
+use rodio::{Decoder, Source};
 
 use crate::{
     data::{
@@ -77,11 +78,13 @@ impl std::fmt::Display for DialogueActions {
     }
 }
 
+#[derive(Clone)]
 pub struct DialogueLine {
     pub raw_text: String,
     pub hostname: String,
     pub instruction: String,
     pub sound_file: String,
+    pub narration_duration: Option<Duration>,
     pub character: Character,
 }
 
@@ -152,6 +155,8 @@ pub enum DialogueSounds {
 }
 
 impl Dialogue {
+    const MIN_CHAR_REVEAL_SECONDS: f32 = 0.005;
+
     pub fn new(lines: Vec<DialogueLine>) -> Self {
         Dialogue {
             lines,
@@ -163,6 +168,57 @@ impl Dialogue {
             char_duration_millis: 50,
             num_spans: 1,
         }
+    }
+
+    fn narration_asset_path(sound_file: &str) -> std::path::PathBuf {
+        let normalized = sound_file
+            .trim()
+            .trim_start_matches("./")
+            .trim_start_matches('/');
+        Path::new("assets").join(normalized)
+    }
+
+    fn load_narration_duration(sound_file: &str) -> Option<Duration> {
+        let path = Self::narration_asset_path(sound_file);
+        let file = match File::open(&path) {
+            Ok(file) => file,
+            Err(error) => {
+                warn!(
+                    "failed to open narration audio `{}`: {error}; falling back to fixed text speed",
+                    path.display()
+                );
+                return None;
+            }
+        };
+
+        let decoder = match Decoder::try_from(file) {
+            Ok(decoder) => decoder,
+            Err(error) => {
+                warn!(
+                    "failed to decode narration audio `{}`: {error}; falling back to fixed text speed",
+                    path.display()
+                );
+                return None;
+            }
+        };
+
+        decoder.total_duration().or_else(|| {
+            warn!(
+                "narration audio `{}` has unknown duration; falling back to fixed text speed",
+                path.display()
+            );
+            None
+        })
+    }
+
+    fn reveal_interval_for_line(line: &DialogueLine, fallback_millis: u64) -> Duration {
+        let Some(duration) = line.narration_duration else {
+            return Duration::from_millis(fallback_millis);
+        };
+
+        let char_count = line.raw_text.chars().count().max(1);
+        let per_char = duration.as_secs_f32() / char_count as f32;
+        Duration::from_secs_f32(per_char.max(Self::MIN_CHAR_REVEAL_SECONDS))
     }
 
     pub fn load(
@@ -179,11 +235,14 @@ impl Dialogue {
                     username: line.username,
                 });
             };
+            let sound_file = line.sound_file;
+            let narration_duration = Self::load_narration_duration(&sound_file);
             lines.push(DialogueLine {
                 raw_text: line.dialogue,
                 hostname: line.hostname,
                 instruction: line.instruction,
-                sound_file: line.sound_file,
+                sound_file,
+                narration_duration,
                 character,
             });
         }
@@ -270,7 +329,7 @@ impl Dialogue {
         dialogue_audio: Option<Single<Entity, With<DialogueAudio>>>,
     ) {
         for (entity, mut dialogue, audio_pallet) in query.iter_mut() {
-            if let Some(line) = dialogue.lines.get(dialogue.current_line_index) {
+            if let Some(line) = dialogue.lines.get(dialogue.current_line_index).cloned() {
                 if !dialogue.playing
                     && (!ev_advance_dialogue.is_empty() || dialogue.current_line_index == 0)
                 {
@@ -307,7 +366,7 @@ impl Dialogue {
 
                     dialogue.playing = true;
                     dialogue.timer = Timer::new(
-                        Duration::from_millis(dialogue.char_duration_millis),
+                        Self::reveal_interval_for_line(&line, dialogue.char_duration_millis),
                         TimerMode::Repeating,
                     );
                 } else if dialogue.playing {

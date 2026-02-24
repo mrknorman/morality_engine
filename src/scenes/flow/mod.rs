@@ -7,6 +7,7 @@ pub mod engine;
 pub mod ids;
 pub mod schema;
 pub mod validate;
+pub mod visualize;
 
 pub fn next_scenes_for_current_dilemma(
     current_scene: Scene,
@@ -29,8 +30,10 @@ pub fn next_scenes_for_current_dilemma(
 mod tests {
     use super::*;
     use crate::scenes::{
-        dialogue::content::{DialogueScene, Lab3aDialogue, Lab3bDialogue, Lab4Dialogue},
+        dialogue::content::{DialogueScene, Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome},
         dilemma::content::{DilemmaScene, Lab0Dilemma, Lab3Dilemma, Lab4Dilemma},
+        dilemma::lever::LeverState,
+        ending::content::EndingScene,
     };
 
     #[test]
@@ -112,6 +115,83 @@ mod tests {
                 Scene::Dialogue(_),
                 Scene::Dilemma(_)
             ]
+        ));
+    }
+
+    #[test]
+    fn deontological_acting_at_any_stage_routes_to_pass_and_selective_ending() {
+        let stats = GameStats::default();
+
+        for stage in [0usize, 1, 2] {
+            let latest = DilemmaStats {
+                num_decisions: 1,
+                result: Some(LeverState::Selected(1)),
+                ..Default::default()
+            };
+
+            let next = next_scenes_for_current_dilemma(
+                Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[stage]),
+                &latest,
+                &stats,
+            )
+            .expect("expected a route");
+
+            assert!(matches!(
+                next.as_slice(),
+                [
+                    Scene::Dialogue(dialogue),
+                    Scene::Ending(EndingScene::SelectiveDeontologist)
+                ] if *dialogue == DialogueScene::path_deontological(1, PathOutcome::Pass)
+            ));
+        }
+    }
+
+    #[test]
+    fn deontological_indecisive_action_routes_to_fail_indecisive_dialogue() {
+        let stats = GameStats::default();
+
+        for stage in [0usize, 1, 2] {
+            let latest = DilemmaStats {
+                num_decisions: 2,
+                result: Some(LeverState::Selected(0)),
+                ..Default::default()
+            };
+
+            let next = next_scenes_for_current_dilemma(
+                Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[stage]),
+                &latest,
+                &stats,
+            )
+            .expect("expected a route");
+
+            assert!(matches!(
+                next.as_slice(),
+                [
+                    Scene::Dialogue(DialogueScene::Lab3a(Lab3aDialogue::DeontologicalFailIndecisive)),
+                    Scene::Ending(EndingScene::ConfusedDeontologist)
+                ]
+            ));
+        }
+    }
+
+    #[test]
+    fn deontological_final_stage_without_action_routes_to_true_deontologist() {
+        let latest = DilemmaStats::default();
+        let stats = GameStats::default();
+
+        let next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_DEONTOLOGICAL[2]),
+            &latest,
+            &stats,
+        )
+        .expect("expected a route");
+
+        assert!(matches!(
+            next.as_slice(),
+            [
+                Scene::Dialogue(dialogue),
+                Scene::Ending(EndingScene::TrueDeontologist)
+            ] if *dialogue == DialogueScene::path_deontological(3, PathOutcome::Fail)
         ));
     }
 }

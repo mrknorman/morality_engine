@@ -60,6 +60,9 @@ Key guidance:
    - `cargo check`
 5. For substantial branching edits, manually run representative in-game progression paths
    (baseline lab path + inaction/deontological/utilitarian variants).
+6. Export the graph viewer artifact for review:
+   - `cargo run -- --export-campaign-graph`
+   - optional output path: `cargo run -- --export-campaign-graph docs/campaign_graph_view.html`
 
 ## Safety Rules
 

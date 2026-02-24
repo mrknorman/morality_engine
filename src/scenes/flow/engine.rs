@@ -140,6 +140,9 @@ fn typed_scene_ref_for_runtime_scene(scene: Scene) -> Option<TypedSceneRef> {
                 DilemmaScene::PathUtilitarian(_, stage) => DilemmaSceneId::PathUtilitarian {
                     stage: u8::try_from(stage).ok()?,
                 },
+                DilemmaScene::DayPersonal(_, stage) => DilemmaSceneId::DayPersonal {
+                    stage: u8::try_from(stage).ok()?,
+                },
             };
             Some(TypedSceneRef::Dilemma(id))
         }
@@ -182,6 +185,9 @@ fn runtime_scene_from_typed_scene_ref(scene: TypedSceneRef) -> Result<Scene, Flo
                 }
                 DialogueSceneId::Lab3aPassUtilitarian => {
                     DialogueScene::Lab3a(Lab3aDialogue::PassUtilitarian)
+                }
+                DialogueSceneId::PathDeontologicalFailIndecisive => {
+                    DialogueScene::Lab3a(Lab3aDialogue::DeontologicalFailIndecisive)
                 }
                 DialogueSceneId::Lab3bIntro => DialogueScene::Lab3b(Lab3bDialogue::Intro),
                 DialogueSceneId::Lab4Outro => DialogueScene::Lab4(Lab4Dialogue::Outro),
@@ -239,6 +245,14 @@ fn runtime_scene_from_typed_scene_ref(scene: TypedSceneRef) -> Result<Scene, Flo
                             "path_utilitarian stage {stage} is out of range"
                         ))
                     })?,
+                DilemmaSceneId::DayPersonal { stage } => DilemmaScene::DAY_PERSONAL
+                    .get(to_usize(stage))
+                    .copied()
+                    .ok_or_else(|| {
+                        FlowEvalError::RouteMapping(format!(
+                            "day_personal stage {stage} is out of range"
+                        ))
+                    })?,
             };
             Ok(Scene::Dilemma(dilemma))
         }
@@ -247,9 +261,16 @@ fn runtime_scene_from_typed_scene_ref(scene: TypedSceneRef) -> Result<Scene, Flo
                 EndingSceneId::IdioticPsychopath => EndingScene::IdioticPsychopath,
                 EndingSceneId::ImpatientPsychopath => EndingScene::ImpatientPsychopath,
                 EndingSceneId::Leverophile => EndingScene::Leverophile,
+                EndingSceneId::ConfusedDeontologist => EndingScene::ConfusedDeontologist,
                 EndingSceneId::SelectiveDeontologist => EndingScene::SelectiveDeontologist,
                 EndingSceneId::TrueDeontologist => EndingScene::TrueDeontologist,
                 EndingSceneId::TrueNeutral => EndingScene::TrueNeutral,
+                EndingSceneId::DayPersonalAllMenKilled => EndingScene::DayPersonalAllMenKilled,
+                EndingSceneId::DayPersonalAllWomenKilled => {
+                    EndingScene::DayPersonalAllWomenKilled
+                }
+                EndingSceneId::DayPersonalIgnoredBomb => EndingScene::DayPersonalIgnoredBomb,
+                EndingSceneId::DayPersonalDidNothing => EndingScene::DayPersonalDidNothing,
             };
             Ok(Scene::Ending(ending))
         }
