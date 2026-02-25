@@ -18,8 +18,8 @@ use crate::{
         lever::{Lever, LeverRoot, LeverState, LEVER_BASE},
         DilemmaSounds,
     },
-    style::common_ui::CenterLever,
     startup::render::ScreenShakeState,
+    style::common_ui::CenterLever,
     systems::{
         audio::{
             continuous_audio, ContinuousAudio, ContinuousAudioPallet, TransientAudio,
@@ -42,32 +42,33 @@ use crate::{
 pub struct DilemmaDecisionPlugin;
 impl Plugin for DilemmaDecisionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            OnEnter(DilemmaPhase::Decision),
-            DecisionScene::setup.run_if(in_state(GameState::Dilemma)),
-        )
-        .add_systems(
-            Update,
-            DecisionScene::update_stats.run_if(resource_changed::<Lever>),
-        )
-        .add_systems(
-            Update,
-            DecisionScene::sync_pong_state_to_lever.run_if(resource_changed::<Lever>),
-        )
-        .add_systems(
-            Update,
-            DecisionScene::update_screen_shake
-                .run_if(in_state(GameState::Dilemma))
-                .run_if(in_state(DilemmaPhase::Decision)),
-        )
-        .add_systems(
-            OnExit(DilemmaPhase::Decision),
-            (
-                DecisionScene::cleanup,
-                DecisionScene::finalize_stats,
-                DecisionScene::clear_screen_shake,
-            ),
-        );
+        app.init_resource::<DecisionStatsTracker>()
+            .add_systems(
+                OnEnter(DilemmaPhase::Decision),
+                DecisionScene::setup.run_if(in_state(GameState::Dilemma)),
+            )
+            .add_systems(
+                Update,
+                DecisionScene::update_stats.run_if(resource_changed::<Lever>),
+            )
+            .add_systems(
+                Update,
+                DecisionScene::sync_pong_state_to_lever.run_if(resource_changed::<Lever>),
+            )
+            .add_systems(
+                Update,
+                DecisionScene::update_screen_shake
+                    .run_if(in_state(GameState::Dilemma))
+                    .run_if(in_state(DilemmaPhase::Decision)),
+            )
+            .add_systems(
+                OnExit(DilemmaPhase::Decision),
+                (
+                    DecisionScene::cleanup,
+                    DecisionScene::finalize_stats,
+                    DecisionScene::clear_screen_shake,
+                ),
+            );
     }
 }
 
@@ -87,6 +88,28 @@ pub enum LeverActions {
     SelectOption7,
     SelectOption8,
     SelectOption9,
+}
+
+#[derive(Resource, Default, Clone, Copy)]
+struct DecisionStatsTracker {
+    last_recorded_state: Option<LeverState>,
+}
+
+fn should_record_lever_change(
+    last_recorded_state: &mut Option<LeverState>,
+    current_state: LeverState,
+) -> bool {
+    match *last_recorded_state {
+        Some(last_state) if last_state == current_state => false,
+        Some(_) => {
+            *last_recorded_state = Some(current_state);
+            true
+        }
+        None => {
+            *last_recorded_state = Some(current_state);
+            false
+        }
+    }
 }
 
 #[derive(Component)]
@@ -212,6 +235,7 @@ impl DecisionScene {
         stage: Res<DilemmaStage>,
         index: Res<CurrentDilemmaStageIndex>,
         mut lever: ResMut<Lever>,
+        mut tracker: ResMut<DecisionStatsTracker>,
     ) {
         let selected_option = if index.0 == 0 {
             stage.default_option
@@ -221,8 +245,11 @@ impl DecisionScene {
         let state = LeverState::from_option_index(selected_option);
         let option_count = stage.options.len().max(1);
         lever.set_state_and_options(state, option_count);
+        tracker.last_recorded_state = Some(lever.0);
         let color = selected_option.map_or(Color::WHITE, option_color);
-        let initial_click_state = selected_option.unwrap_or(0).min(option_count.saturating_sub(1));
+        let initial_click_state = selected_option
+            .unwrap_or(0)
+            .min(option_count.saturating_sub(1));
         let click_actions = Self::lever_click_pong_actions(option_count);
 
         let mut option_key_mappings = Vec::new();
@@ -371,10 +398,10 @@ impl DecisionScene {
             .with_children(|parent| {
                 let option_count = stage.options.len();
                 for (option_index, option) in stage.options.clone().into_iter().enumerate() {
-                    let key_hint = Self::digit_key_for_option(option_index).map_or(
-                        String::new(),
-                        |_| format!(" [Press {} to select]", option_index + 1),
-                    );
+                    let key_hint = Self::digit_key_for_option(option_index)
+                        .map_or(String::new(), |_| {
+                            format!(" [Press {} to select]", option_index + 1)
+                        });
                     let title_text =
                         format!("Option {}: {}{}\n", option_index + 1, option.name, key_hint);
                     let window_height =
@@ -434,7 +461,11 @@ impl DecisionScene {
         mut stats: ResMut<DilemmaStats>,
         lever: Res<Lever>,
         mut timer: Query<&mut DilemmaTimer>,
+        mut tracker: ResMut<DecisionStatsTracker>,
     ) {
+        if !should_record_lever_change(&mut tracker.last_recorded_state, lever.0) {
+            return;
+        }
         for timer in timer.iter_mut() {
             stats.update(&lever.0, &timer.timer);
         }
@@ -496,5 +527,40 @@ impl DecisionScene {
 
     fn clear_screen_shake(mut screen_shake: ResMut<ScreenShakeState>) {
         screen_shake.target_intensity = 0.0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_seen_state_does_not_count_as_decision() {
+        let mut last = None;
+        assert!(!should_record_lever_change(
+            &mut last,
+            LeverState::Selected(0)
+        ));
+        assert_eq!(last, Some(LeverState::Selected(0)));
+    }
+
+    #[test]
+    fn repeated_state_does_not_count_as_decision() {
+        let mut last = Some(LeverState::Selected(1));
+        assert!(!should_record_lever_change(
+            &mut last,
+            LeverState::Selected(1)
+        ));
+        assert_eq!(last, Some(LeverState::Selected(1)));
+    }
+
+    #[test]
+    fn changed_state_counts_as_decision() {
+        let mut last = Some(LeverState::Selected(0));
+        assert!(should_record_lever_change(
+            &mut last,
+            LeverState::Selected(1)
+        ));
+        assert_eq!(last, Some(LeverState::Selected(1)));
     }
 }
