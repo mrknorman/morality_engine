@@ -100,11 +100,26 @@ pub struct TextInputBoxCancelled {
 pub struct TextInputBox {
     pub owner: Entity,
     pub input_layer: UiLayerKind,
+    insert_ui_layer: bool,
 }
 
 impl TextInputBox {
     pub const fn new(owner: Entity, input_layer: UiLayerKind) -> Self {
-        Self { owner, input_layer }
+        Self {
+            owner,
+            input_layer,
+            insert_ui_layer: true,
+        }
+    }
+
+    pub const fn without_ui_layer(mut self) -> Self {
+        self.insert_ui_layer = false;
+        self
+    }
+
+    #[cfg(test)]
+    pub const fn inserts_ui_layer(&self) -> bool {
+        self.insert_ui_layer
     }
 
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
@@ -117,7 +132,7 @@ impl TextInputBox {
             .copied()
             .unwrap_or_default();
 
-        if world.entity(entity).get::<UiLayer>().is_none() {
+        if root.insert_ui_layer && world.entity(entity).get::<UiLayer>().is_none() {
             world
                 .commands()
                 .entity(entity)
@@ -810,6 +825,28 @@ mod tests {
                 .contains::<Clickable<TextInputBoxActions>>()
         );
         assert!(app.world().entity(entity).contains::<TextInputBoxParts>());
+    }
+
+    #[test]
+    fn text_input_box_can_skip_ui_layer_insertion() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        let owner = app.world_mut().spawn_empty().id();
+        let entity = app
+            .world_mut()
+            .spawn((TextInputBox::new(owner, UiLayerKind::Base).without_ui_layer(),))
+            .id();
+
+        app.update();
+
+        let text_input = app
+            .world()
+            .entity(entity)
+            .get::<TextInputBox>()
+            .copied()
+            .expect("text input box");
+        assert!(!text_input.inserts_ui_layer());
+        assert!(app.world().entity(entity).get::<UiLayer>().is_none());
     }
 
     #[test]

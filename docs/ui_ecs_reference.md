@@ -146,6 +146,27 @@ Major reusable UI features now have root-level insertion/runtime coverage:
   - `scrollbar_insertion_adds_required_components`
   - `scroll_root_runtime_ensure_seeds_content_camera_and_surface_children`
 
+## Level Select Composition (2026-02-25)
+
+Level select is now a composition module over reusable primitives, not a bespoke input path.
+
+- Catalog/projection:
+  - `src/systems/ui/menu/level_select_catalog.rs`
+  - typed folder/file tree with deterministic row projection
+  - top-level folders: `dilemmas`, `chat_logs`
+- Composition/runtime:
+  - `src/systems/ui/menu/level_select.rs`
+  - uses `SearchBox` (composed from `TextInputBox`) and window-native scroll behavior
+  - folder toggles route through explicit messages (`LevelSelectFolderToggleRequested`)
+- Command/reducer routing:
+  - dilemma row command: `LaunchDilemmaFromLevelSelect(...)`
+  - dev builds open launch modal (continue campaign / play once / cancel)
+  - release builds keep direct play-once semantics
+- Scene runtime integration:
+  - `SceneQueue::configure_campaign_from_dilemma(...)` supports continuing campaign from a selected dilemma entry
+
+Reference usage doc: `docs/level_select_usage.md`.
+
 ## Core Interaction Primitives
 
 ### `UiInputPolicy` and `UiInputCaptureToken`

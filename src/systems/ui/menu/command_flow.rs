@@ -33,6 +33,7 @@ pub(super) fn handle_menu_option_commands(
     showcase_root_query: Query<Entity, With<debug_showcase::DebugUiShowcaseRoot>>,
     mut dropdown_anchor_state: ResMut<DropdownAnchorState>,
     mut suppressions: ResMut<OptionCommandSuppressions>,
+    mut folder_toggle_requests: MessageWriter<level_select::LevelSelectFolderToggleRequested>,
     mut option_query: Query<(
         Entity,
         &Selectable,
@@ -40,6 +41,7 @@ pub(super) fn handle_menu_option_commands(
         &MenuOptionCommand,
         &TransientAudioPallet<SystemMenuSounds>,
         Option<&OptionCycler>,
+        Option<&level_select::LevelSelectScrollRow>,
     )>,
     mut ctx: MenuCommandContext,
 ) {
@@ -79,7 +81,7 @@ pub(super) fn handle_menu_option_commands(
     }
 
     let mut pending_option_entities: Vec<Entity> = Vec::new();
-    for (option_entity, _, clickable, _, _, _) in option_query.iter_mut() {
+    for (option_entity, _, clickable, _, _, _, _) in option_query.iter_mut() {
         if clickable.triggered {
             pending_option_entities.push(option_entity);
         }
@@ -87,7 +89,7 @@ pub(super) fn handle_menu_option_commands(
     pending_option_entities.sort_by_key(|entity| entity.to_bits());
 
     for option_entity in pending_option_entities {
-        let Ok((_, selectable, mut clickable, option_command, click_pallet, cycler)) =
+        let Ok((_, selectable, mut clickable, option_command, click_pallet, cycler, level_row)) =
             option_query.get_mut(option_entity)
         else {
             continue;
@@ -145,6 +147,14 @@ pub(super) fn handle_menu_option_commands(
             selectable_menu.selected_index = selectable.index;
         }
 
+        if let Some(folder_id) = level_row.and_then(|row| row.folder_id) {
+            folder_toggle_requests.write(level_select::LevelSelectFolderToggleRequested {
+                overlay_entity: selectable.menu_entity,
+                folder_id,
+            });
+            continue;
+        }
+
         menu_stack.remember_selected_index(selectable_menu.selected_index);
         let current_page = menu_stack.current_page();
 
@@ -181,6 +191,7 @@ pub(super) fn handle_menu_option_commands(
             &mut ctx.stats,
             &ctx.main_menu_overlay_query,
             &ctx.level_select_overlay_query,
+            &ctx.level_select_launch_modal_query,
             &ctx.level_unlock_state,
             &ctx.offscreen_camera_query,
             &ctx.main_camera_transform_query,

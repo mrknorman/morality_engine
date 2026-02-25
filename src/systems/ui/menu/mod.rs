@@ -200,6 +200,7 @@ struct MenuCommandContext<'w, 's> {
     offscreen_camera_query: Query<'w, 's, &'static GlobalTransform, With<OffscreenCamera>>,
     main_menu_overlay_query: Query<'w, 's, (), With<MainMenuOptionsOverlay>>,
     level_select_overlay_query: Query<'w, 's, (), With<level_select::LevelSelectOverlay>>,
+    level_select_launch_modal_query: Query<'w, 's, (), With<level_select::LevelSelectLaunchModal>>,
     level_unlock_state: Res<'w, level_select::LevelUnlockState>,
     // Read-only layer resolution and mutable dropdown visibility live in one ParamSet to keep
     // Visibility access disjoint (avoids Bevy B0001 conflicts).
@@ -886,6 +887,7 @@ impl Plugin for MenusPlugin {
             .init_resource::<InactiveLayerSelectionCache>()
             .init_resource::<level_select::LevelUnlockState>()
             .add_message::<MenuIntent>()
+            .add_message::<level_select::LevelSelectFolderToggleRequested>()
             .add_message::<tabs::TabChanged>();
         app.configure_sets(
             Update,
@@ -953,11 +955,12 @@ impl Plugin for MenusPlugin {
                 // should be handled in the Commands stage with other direct UI command
                 // handlers to preserve deterministic ordering.
                 handle_video_discrete_slider_slot_commands,
+                level_select::handle_level_select_launch_modal_shortcuts,
+                level_select::handle_level_select_launch_modal_option_commands,
                 handle_video_modal_button_commands,
                 handle_resolution_dropdown_item_commands,
                 close_resolution_dropdown_on_outside_click,
                 level_select::sync_level_select_search_query,
-                level_select::handle_level_select_folder_activation,
             )
                 .chain()
                 .in_set(MenuSystems::Commands)
@@ -1000,6 +1003,7 @@ impl Plugin for MenusPlugin {
                 tabs::sync_tab_bar_state,
                 tabbed_menu::cleanup_tabbed_menu_state,
                 level_select::mark_level_select_dirty_on_unlock_change,
+                level_select::apply_level_select_folder_toggle_requests,
                 level_select::rebuild_level_select_rows,
                 sanitize_menu_selection_indices,
                 scroll_adapter::sync_video_top_scroll_focus_follow,

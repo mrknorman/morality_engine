@@ -1,6 +1,6 @@
 # Level Select + TextInput/Search Refactor Plan
 
-Last updated: 2026-02-24
+Last updated: 2026-02-25
 
 ## Goal
 
@@ -21,6 +21,22 @@ Refactor the level select overlay into a robust, extensible UI flow with:
 - Stage 4 (scroll root-cause fix): completed (window-native scroll only + deterministic content extent/focus-follow).
 - Stage 5 (search integration): completed (SearchBox wiring + incremental filtered projection + ancestor inclusion).
 - Stage 6 (unlock policy/gating): completed (debug all-unlocked; release unlocks campaign-reached dilemmas for current session).
+- Stage 7 (dev launch choice modal): completed (dev-only modal for dilemma launches with continue/play-once/cancel routing).
+- Stage 8 (cleanup/review/docs): completed (obsolete command/helper cleanup, docs/backlog updates, targeted validation pass).
+
+## Completion Notes (2026-02-25)
+
+- Catalog hierarchy now has explicit top-level folders: `dilemmas` and `chat_logs`.
+- Dialogue entries are presented with `.log` filename suffixes in level select.
+- Dev dilemma launch flow now opens a launch-mode modal:
+  - continue campaign from selected dilemma
+  - play selected dilemma once
+  - cancel with no scene/state side effects
+- `SceneQueue` includes `configure_campaign_from_dilemma(...)` for campaign continuation from selected dilemma.
+- Validation run:
+  - `cargo check`
+  - `cargo test level_select -- --nocapture`
+  - `cargo test configure_campaign_from_dilemma_sets_campaign_mode_and_queue -- --nocapture`
 
 ## Architecture Direction
 
@@ -236,3 +252,7 @@ Automated:
 2. Run `cargo check` at each stage boundary.
 3. Keep primitive modules domain-agnostic.
 4. Record deviations from this plan in this file with date + rationale.
+
+## Deviations
+
+- 2026-02-25: no material architecture deviations from the stage plan. Stage 8 added `docs/level_select_usage.md` as the missing level-select usage document referenced by cleanup deliverables.

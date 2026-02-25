@@ -1,6 +1,6 @@
 # Project Backlog
 
-Last updated: 2026-02-24
+Last updated: 2026-02-25
 
 This backlog tracks actionable work. Raw brainstorming lives in
 `docs/idea_inbox.md`.
@@ -49,7 +49,7 @@ Acceptance criteria:
 
 ### SCN-004 - Debug + progression level selector
 
-- Status: todo
+- Status: done
 - Priority: medium
 - Area: scenes/menu, scene queue/runtime
 - Why: content iteration is slower without controlled scene entry points.
@@ -57,6 +57,11 @@ Acceptance criteria:
 - Debug mode supports direct jump to selected dilemma/dialogue.
 - Player mode gates selection to unlocked/completed content.
 - SceneQueue integration remains compatible with campaign and single-level flow modes.
+Implementation notes:
+- Level selector uses filesystem-style catalog projection with top-level `dilemmas` and `chat_logs`.
+- Search is incremental and composed from reusable `SearchBox`/`TextInputBox`.
+- Dev dilemma launches use modal choice (`continue campaign`, `play once`, `cancel`).
+- Release path preserves gated play-once launch behavior for reached entries.
 
 ### SCN-005 - Ending collection and restart UX
 

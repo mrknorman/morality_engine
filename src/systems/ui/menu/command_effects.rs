@@ -4,7 +4,7 @@ use super::level_select;
 use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
 use super::*;
 use crate::data::stats::GameStats;
-use crate::scenes::dilemma::content::DilemmaScene;
+use crate::scenes::{dialogue::content::DialogueScene, dilemma::content::DilemmaScene, Scene};
 use crate::scenes::runtime::SceneNavigator;
 
 const MAIN_MENU_OVERLAY_DIM_ALPHA: f32 = 0.8;
@@ -159,6 +159,24 @@ fn handle_start_single_level_command(
     );
 }
 
+fn handle_start_single_dialogue_command(
+    scene: DialogueScene,
+    stats: &mut ResMut<GameStats>,
+    scene_queue: &mut ResMut<SceneQueue>,
+    next_main_state: &mut ResMut<NextState<MainState>>,
+    next_game_state: &mut ResMut<NextState<GameState>>,
+    next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
+) {
+    **stats = GameStats::default();
+    scene_queue.configure_single_scene(Scene::Dialogue(scene));
+    handle_next_scene_command(
+        scene_queue,
+        next_main_state,
+        next_game_state,
+        next_sub_state,
+    );
+}
+
 pub(super) fn apply_menu_reducer_result(
     result: MenuReducerResult,
     menu_entity: Entity,
@@ -191,6 +209,7 @@ pub(super) fn apply_menu_reducer_result(
     stats: &mut ResMut<GameStats>,
     existing_overlay_query: &Query<(), With<MainMenuOptionsOverlay>>,
     existing_level_select_overlay_query: &Query<(), With<level_select::LevelSelectOverlay>>,
+    existing_level_select_launch_modal_query: &Query<(), With<level_select::LevelSelectLaunchModal>>,
     unlock_state: &Res<level_select::LevelUnlockState>,
     offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
     main_camera_transform_query: &Query<&GlobalTransform, With<MainCamera>>,
@@ -232,6 +251,16 @@ pub(super) fn apply_menu_reducer_result(
             main_camera_transform_query,
         );
     }
+    if let Some(scene) = result.open_level_select_launch_modal_scene {
+        level_select::spawn_level_select_launch_modal(
+            commands,
+            menu_entity,
+            scene,
+            menu_root.gate,
+            asset_server,
+            existing_level_select_launch_modal_query,
+        );
+    }
     if result.advance_to_next_scene {
         handle_next_scene_command(
             scene_queue,
@@ -242,6 +271,16 @@ pub(super) fn apply_menu_reducer_result(
     }
     if let Some(scene) = result.start_single_level_scene {
         handle_start_single_level_command(
+            scene,
+            stats,
+            scene_queue,
+            next_main_state,
+            next_game_state,
+            next_sub_state,
+        );
+    }
+    if let Some(scene) = result.start_single_dialogue_scene {
+        handle_start_single_dialogue_command(
             scene,
             stats,
             scene_queue,

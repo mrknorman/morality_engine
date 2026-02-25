@@ -42,11 +42,21 @@ impl Plugin for SearchBoxPlugin {
 pub struct SearchBox {
     pub owner: Entity,
     pub input_layer: UiLayerKind,
+    insert_text_input_ui_layer: bool,
 }
 
 impl SearchBox {
     pub const fn new(owner: Entity, input_layer: UiLayerKind) -> Self {
-        Self { owner, input_layer }
+        Self {
+            owner,
+            input_layer,
+            insert_text_input_ui_layer: true,
+        }
+    }
+
+    pub const fn without_text_input_ui_layer(mut self) -> Self {
+        self.insert_text_input_ui_layer = false;
+        self
     }
 
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
@@ -60,8 +70,12 @@ impl SearchBox {
             .unwrap_or_default();
 
         if world.entity(entity).get::<TextInputBox>().is_none() {
+            let mut text_input = TextInputBox::new(search_box.owner, search_box.input_layer);
+            if !search_box.insert_text_input_ui_layer {
+                text_input = text_input.without_ui_layer();
+            }
             world.commands().entity(entity).insert((
-                TextInputBox::new(search_box.owner, search_box.input_layer),
+                text_input,
                 TextInputBoxPlaceholder::new(config.placeholder.clone()),
             ));
         } else if world.entity(entity).get::<TextInputBoxPlaceholder>().is_none() {
@@ -219,6 +233,7 @@ fn handle_search_box_clear_requests(
 mod tests {
     use super::*;
     use bevy::ecs::system::IntoSystem;
+    use crate::systems::ui::layer::UiLayer;
 
     #[test]
     fn search_box_insert_hook_adds_text_input_box() {
@@ -239,6 +254,27 @@ mod tests {
             .get::<TextInputBoxPlaceholder>()
             .expect("search placeholder");
         assert_eq!(placeholder.0, "Search...");
+    }
+
+    #[test]
+    fn search_box_can_disable_nested_text_input_layer() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        let owner = app.world_mut().spawn_empty().id();
+        let entity = app
+            .world_mut()
+            .spawn((SearchBox::new(owner, UiLayerKind::Base).without_text_input_ui_layer(),))
+            .id();
+        app.update();
+
+        let text_input = app
+            .world()
+            .entity(entity)
+            .get::<TextInputBox>()
+            .copied()
+            .expect("search text input");
+        assert!(!text_input.inserts_ui_layer());
+        assert!(app.world().entity(entity).get::<UiLayer>().is_none());
     }
 
     #[test]

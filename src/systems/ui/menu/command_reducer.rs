@@ -1,5 +1,5 @@
 use super::*;
-use crate::scenes::dilemma::content::DilemmaScene;
+use crate::scenes::{dialogue::content::DialogueScene, dilemma::content::DilemmaScene};
 
 fn apply_push_transition(
     menu_stack: &mut MenuStack,
@@ -38,7 +38,9 @@ pub(super) struct MenuReducerResult {
     pub(super) spawn_exit_unsaved_modal: bool,
     pub(super) open_debug_ui_showcase: bool,
     pub(super) apply_video_settings: bool,
+    pub(super) open_level_select_launch_modal_scene: Option<DilemmaScene>,
     pub(super) start_single_level_scene: Option<DilemmaScene>,
+    pub(super) start_single_dialogue_scene: Option<DialogueScene>,
     pub(super) state_transition: Option<MenuStateTransition>,
     pub(super) exit_application: bool,
 }
@@ -172,8 +174,22 @@ pub(super) fn reduce_menu_command(
             open_level_select_overlay: true,
             ..MenuReducerResult::default()
         },
-        MenuCommand::StartSingleLevel(scene) => MenuReducerResult {
-            start_single_level_scene: Some(scene),
+        MenuCommand::LaunchDilemmaFromLevelSelect(scene) => {
+            if cfg!(debug_assertions) {
+                MenuReducerResult {
+                    open_level_select_launch_modal_scene: Some(scene),
+                    ..MenuReducerResult::default()
+                }
+            } else {
+                MenuReducerResult {
+                    start_single_level_scene: Some(scene),
+                    close_menu: true,
+                    ..MenuReducerResult::default()
+                }
+            }
+        }
+        MenuCommand::StartSingleDialogue(scene) => MenuReducerResult {
+            start_single_dialogue_scene: Some(scene),
             close_menu: true,
             ..MenuReducerResult::default()
         },
@@ -401,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn start_single_level_requests_scene_start_and_closes_menu() {
+    fn launch_dilemma_from_level_select_routes_by_build_mode() {
         let menu_entity = test_menu_entity();
         let mut menu_stack = MenuStack::new(MenuPage::PauseRoot);
         let mut selectable_menu = test_selectable_menu();
@@ -412,7 +428,7 @@ mod tests {
             DilemmaScene::Lab0(crate::scenes::dilemma::content::Lab0Dilemma::IncompetentBandit);
 
         let result = reduce_menu_command(
-            MenuCommand::StartSingleLevel(scene),
+            MenuCommand::LaunchDilemmaFromLevelSelect(scene),
             menu_entity,
             menu_stack.current_page(),
             VideoTabKind::Display,
@@ -423,7 +439,40 @@ mod tests {
             &mut navigation_state,
         );
 
-        assert_eq!(result.start_single_level_scene, Some(scene));
+        if cfg!(debug_assertions) {
+            assert_eq!(result.open_level_select_launch_modal_scene, Some(scene));
+            assert_eq!(result.start_single_level_scene, None);
+            assert!(!result.close_menu);
+        } else {
+            assert_eq!(result.start_single_level_scene, Some(scene));
+            assert!(result.close_menu);
+            assert_eq!(result.open_level_select_launch_modal_scene, None);
+        }
+    }
+
+    #[test]
+    fn start_single_dialogue_requests_scene_start_and_closes_menu() {
+        let menu_entity = test_menu_entity();
+        let mut menu_stack = MenuStack::new(MenuPage::PauseRoot);
+        let mut selectable_menu = test_selectable_menu();
+        let mut settings = VideoSettingsState::default();
+        let mut dropdown_state = DropdownLayerState::default();
+        let mut navigation_state = MenuNavigationState::default();
+        let scene = DialogueScene::Lab0(crate::scenes::dialogue::content::Lab0Dialogue::Intro);
+
+        let result = reduce_menu_command(
+            MenuCommand::StartSingleDialogue(scene),
+            menu_entity,
+            menu_stack.current_page(),
+            VideoTabKind::Display,
+            &mut menu_stack,
+            &mut selectable_menu,
+            &mut settings,
+            &mut dropdown_state,
+            &mut navigation_state,
+        );
+
+        assert_eq!(result.start_single_dialogue_scene, Some(scene));
         assert!(result.close_menu);
     }
 

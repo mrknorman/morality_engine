@@ -9,7 +9,7 @@ use crate::{
         sprites::compound::RectangleSides,
         text::{scaled_font_size, Cell, Column, Row, Table, TextContent},
     },
-    scenes::dilemma::content::DilemmaScene,
+    scenes::{dialogue::content::DialogueScene, dilemma::content::DilemmaScene},
     startup::system_menu::{SystemMenuLayout, CYCLE_ARROW_HALF_WIDTH, PANEL_WIDTH},
     systems::{
         colors::SYSTEM_MENU_COLOR,
@@ -624,7 +624,8 @@ pub enum MenuCommand {
     Pop,
     OpenMainMenuOptionsOverlay,
     OpenLevelSelectOverlay,
-    StartSingleLevel(DilemmaScene),
+    LaunchDilemmaFromLevelSelect(DilemmaScene),
+    StartSingleDialogue(DialogueScene),
     NextScene,
     OpenDebugUiShowcase,
     ToggleVideoTopOption(usize),

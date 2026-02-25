@@ -71,11 +71,22 @@ impl SceneQueue {
         self.flow_mode = SceneFlowMode::Campaign;
     }
 
-    pub fn configure_single_level(&mut self, scene: DilemmaScene) {
-        self.queue = VecDeque::from([Scene::Dilemma(scene), Scene::Menu]);
+    pub fn configure_single_scene(&mut self, scene: Scene) {
+        self.queue = VecDeque::from([scene, Scene::Menu]);
         self.next = self.queue.front().copied();
         self.current = Scene::Menu;
         self.flow_mode = SceneFlowMode::SingleLevel;
+    }
+
+    pub fn configure_campaign_from_dilemma(&mut self, scene: DilemmaScene) {
+        self.queue = VecDeque::from([Scene::Dilemma(scene)]);
+        self.next = self.queue.front().copied();
+        self.current = Scene::Menu;
+        self.flow_mode = SceneFlowMode::Campaign;
+    }
+
+    pub fn configure_single_level(&mut self, scene: DilemmaScene) {
+        self.configure_single_scene(Scene::Dilemma(scene));
     }
 
     pub fn flow_mode(&self) -> SceneFlowMode {
@@ -93,19 +104,6 @@ impl Default for SceneQueue {
             ]),
             next: Some(Scene::Loading),
             current: Scene::Menu,
-            flow_mode: SceneFlowMode::Campaign,
-        }
-    }
-}
-
-impl SceneQueue {
-    fn dilemma_start() -> Self {
-        Self {
-            queue: VecDeque::from([Scene::Dilemma(DilemmaScene::Lab4(
-                Lab4Dilemma::RandomDeaths,
-            ))]),
-            next: None,
-            current: Scene::Dilemma(DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths)),
             flow_mode: SceneFlowMode::Campaign,
         }
     }
@@ -132,6 +130,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn configure_single_scene_sets_expected_queue_and_mode() {
+        let mut queue = SceneQueue::default();
+        let scene = Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro));
+
+        queue.configure_single_scene(scene);
+
+        assert_eq!(queue.flow_mode(), SceneFlowMode::SingleLevel);
+        assert!(matches!(queue.pop(), Some(Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro)))));
+        assert!(matches!(queue.pop(), Some(Scene::Menu)));
+    }
+
+    #[test]
     fn configure_single_level_sets_expected_queue_and_mode() {
         let mut queue = SceneQueue::default();
         let scene = DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit);
@@ -141,6 +151,18 @@ mod tests {
         assert_eq!(queue.flow_mode(), SceneFlowMode::SingleLevel);
         assert!(matches!(queue.pop(), Some(Scene::Dilemma(found)) if found == scene));
         assert!(matches!(queue.pop(), Some(Scene::Menu)));
+    }
+
+    #[test]
+    fn configure_campaign_from_dilemma_sets_campaign_mode_and_queue() {
+        let mut queue = SceneQueue::default();
+        let scene = DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem);
+
+        queue.configure_campaign_from_dilemma(scene);
+
+        assert_eq!(queue.flow_mode(), SceneFlowMode::Campaign);
+        assert!(matches!(queue.pop(), Some(Scene::Dilemma(found)) if found == scene));
+        assert!(queue.pop().is_none());
     }
 
     #[test]

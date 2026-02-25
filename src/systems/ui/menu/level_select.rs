@@ -4,17 +4,19 @@ use bevy::{prelude::*, sprite::Anchor};
 
 use super::{
     level_select_catalog::{
-        self, LevelSelectExpansionState, LevelSelectNodeId, LevelSelectVisibleRow,
+        self, LevelSelectExpansionState, LevelSelectNodeId, LevelSelectPlayableScene,
+        LevelSelectVisibleRow,
         LevelSelectVisibleRowKind,
     },
     *,
 };
 use crate::{
+    data::{states::{DilemmaPhase, GameState, MainState}, stats::GameStats},
     entities::{
         sprites::compound::HollowRectangle,
         text::{scaled_font_size, TextRaw},
     },
-    scenes::{dilemma::content::DilemmaScene, Scene, SceneFlowMode, SceneQueue},
+    scenes::{runtime::SceneNavigator, dilemma::content::DilemmaScene, Scene, SceneFlowMode, SceneQueue},
     startup::system_menu,
     systems::{
         interaction::{
@@ -59,19 +61,40 @@ const LEVEL_SELECT_SELECTED_FONT_SIZE: f32 = scaled_font_size(19.0);
 const LEVEL_SELECT_LIST_CONTENT_TOP_Y: f32 = 146.0;
 const LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING: f32 =
     LEVEL_SELECT_WINDOW_SIZE.y * 0.5 - LEVEL_SELECT_LIST_CONTENT_TOP_Y;
+const LEVEL_SELECT_WINDOW_SCROLL_TRAILING_PADDING: f32 = 12.0;
+const LEVEL_SELECT_LAUNCH_MODAL_SIZE: Vec2 = Vec2::new(560.0, 250.0);
+const LEVEL_SELECT_LAUNCH_MODAL_Z: f32 = 2.0;
+const LEVEL_SELECT_LAUNCH_MODAL_DIM_Z: f32 = -0.05;
+const LEVEL_SELECT_LAUNCH_MODAL_OPTIONS_Y: f32 = -62.0;
+const LEVEL_SELECT_LAUNCH_MODAL_OPTIONS_SPREAD_X: f32 = 150.0;
+const LEVEL_SELECT_LAUNCH_MODAL_OPTION_REGION: Vec2 = Vec2::new(220.0, 38.0);
+const LEVEL_SELECT_LAUNCH_MODAL_OPTION_INDICATOR_X: f32 = 84.0;
 
 #[derive(Component)]
 pub(super) struct LevelSelectOverlay;
 
 #[derive(Component, Clone, Copy)]
 pub(super) struct LevelSelectScrollRow {
-    index: usize,
-    folder_id: Option<LevelSelectNodeId>,
+    pub(super) index: usize,
+    pub(super) folder_id: Option<LevelSelectNodeId>,
 }
 
 #[derive(Component)]
 pub(super) struct LevelSelectSearchBox {
     owner: Entity,
+}
+
+#[derive(Component, Clone, Copy)]
+pub(super) struct LevelSelectLaunchModal {
+    owner: Entity,
+    scene: DilemmaScene,
+}
+
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub(super) enum LevelSelectLaunchModalOption {
+    ContinueCampaign,
+    PlayOnce,
+    Cancel,
 }
 
 #[derive(Component)]
@@ -82,14 +105,25 @@ pub(super) struct LevelSelectRuntime {
     window_entity: Entity,
     rows_root: Entity,
     dirty: bool,
+    scroll_sync_pending: bool,
+}
+
+#[derive(Message, Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct LevelSelectFolderToggleRequested {
+    pub overlay_entity: Entity,
+    pub folder_id: LevelSelectNodeId,
 }
 
 #[derive(Resource, Default)]
 pub(super) struct LevelUnlockState {
-    reached_in_campaign: Vec<DilemmaScene>,
+    reached_in_campaign: Vec<Scene>,
 }
 
-fn level_select_scene_unlocked(scene: DilemmaScene, unlock_state: &LevelUnlockState) -> bool {
+fn level_select_scene_unlocked(scene: LevelSelectPlayableScene, unlock_state: &LevelUnlockState) -> bool {
+    let scene = match scene {
+        LevelSelectPlayableScene::Dilemma(scene) => Scene::Dilemma(scene),
+        LevelSelectPlayableScene::Dialogue(scene) => Scene::Dialogue(scene),
+    };
     cfg!(debug_assertions)
         || unlock_state
             .reached_in_campaign
@@ -112,7 +146,13 @@ fn level_select_last_row_bottom_y(row_count: usize) -> f32 {
 fn level_select_preferred_inner_size(row_count: usize) -> Vec2 {
     let content_top = LEVEL_SELECT_SEARCH_ROW_Y + LEVEL_SELECT_SEARCH_BOX_SIZE.y * 0.5;
     let content_bottom = level_select_last_row_bottom_y(row_count);
-    let height = (content_top - content_bottom + 16.0).max(LEVEL_SELECT_WINDOW_SIZE.y);
+    let measured_height = content_top - content_bottom + 16.0;
+    let scroll_required_height = LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING
+        + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP
+        + LEVEL_SELECT_WINDOW_SCROLL_TRAILING_PADDING;
+    let height = measured_height
+        .max(scroll_required_height)
+        .max(LEVEL_SELECT_WINDOW_SIZE.y);
     Vec2::new(LEVEL_SELECT_WINDOW_SIZE.x, height)
 }
 
@@ -163,15 +203,26 @@ fn spawn_level_select_rows(
             ),
             LevelSelectVisibleRowKind::File(file) => {
                 let unlocked = level_select_scene_unlocked(file.scene, unlock_state);
+                let base_label = match file.scene {
+                    LevelSelectPlayableScene::Dilemma(_) => file.file_name.to_string(),
+                    LevelSelectPlayableScene::Dialogue(_) => format!("{}.log", file.file_name),
+                };
                 (
                     if unlocked {
-                        row.label.to_string()
+                        base_label
                     } else {
-                        format!("{} [locked]", row.label)
+                        format!("{base_label} [locked]")
                     },
                     None,
                     if unlocked {
-                        MenuCommand::StartSingleLevel(file.scene)
+                        match file.scene {
+                            LevelSelectPlayableScene::Dilemma(scene) => {
+                                MenuCommand::LaunchDilemmaFromLevelSelect(scene)
+                            }
+                            LevelSelectPlayableScene::Dialogue(scene) => {
+                                MenuCommand::StartSingleDialogue(scene)
+                            }
+                        }
                     } else {
                         MenuCommand::None
                     },
@@ -204,6 +255,162 @@ fn spawn_level_select_rows(
             },
         ));
     }
+}
+
+fn spawn_level_select_launch_modal_option(
+    commands: &mut Commands,
+    modal_entity: Entity,
+    gate: UiInputPolicy,
+    asset_server: &Res<AssetServer>,
+    option: LevelSelectLaunchModalOption,
+    index: usize,
+    x: f32,
+    label: &'static str,
+) {
+    commands.entity(modal_entity).with_children(|modal| {
+        let option_entity = system_menu::spawn_option(
+            modal,
+            label,
+            x,
+            LEVEL_SELECT_LAUNCH_MODAL_OPTIONS_Y,
+            modal_entity,
+            index,
+            system_menu::SystemMenuOptionVisualStyle::default()
+                .with_indicator_offset(LEVEL_SELECT_LAUNCH_MODAL_OPTION_INDICATOR_X),
+        );
+        modal.commands().entity(option_entity).insert((
+            Name::new(format!("level_select_launch_modal_option_{index}")),
+            MenuPageContent,
+            gate,
+            option,
+            Clickable::with_region(
+                vec![SystemMenuActions::Activate],
+                LEVEL_SELECT_LAUNCH_MODAL_OPTION_REGION,
+            ),
+            system_menu::click_audio_pallet(asset_server, SystemMenuSounds::Click),
+        ));
+    });
+}
+
+pub(super) fn spawn_level_select_launch_modal(
+    commands: &mut Commands,
+    owner: Entity,
+    scene: DilemmaScene,
+    gate: UiInputPolicy,
+    asset_server: &Res<AssetServer>,
+    existing_modal_query: &Query<(), With<LevelSelectLaunchModal>>,
+) {
+    if !cfg!(debug_assertions) || !existing_modal_query.is_empty() {
+        return;
+    }
+
+    let mut modal_entity = None;
+    commands.entity(owner).with_children(|parent| {
+        modal_entity = Some(
+            parent
+                .spawn((
+                    Name::new("level_select_launch_modal"),
+                    MenuPageContent,
+                    LevelSelectLaunchModal { owner, scene },
+                    MenuSurface::new(owner).with_layer(UiLayerKind::Modal),
+                    gate,
+                    SelectableMenu::new(
+                        0,
+                        vec![KeyCode::ArrowLeft, KeyCode::ArrowUp],
+                        vec![KeyCode::ArrowRight, KeyCode::ArrowDown],
+                        vec![KeyCode::Enter],
+                        true,
+                    ),
+                    Transform::from_xyz(0.0, 0.0, LEVEL_SELECT_LAUNCH_MODAL_Z),
+                ))
+                .with_children(|modal| {
+                    modal.spawn((
+                        Name::new("level_select_launch_modal_dimmer"),
+                        Sprite::from_color(
+                            Color::srgba(0.0, 0.0, 0.0, LEVEL_SELECT_OVERLAY_DIM_ALPHA),
+                            Vec2::splat(LEVEL_SELECT_OVERLAY_DIM_SIZE),
+                        ),
+                        Transform::from_xyz(0.0, 0.0, LEVEL_SELECT_LAUNCH_MODAL_DIM_Z),
+                    ));
+                    modal.spawn((
+                        Name::new("level_select_launch_modal_panel"),
+                        Sprite::from_color(Color::BLACK, LEVEL_SELECT_LAUNCH_MODAL_SIZE),
+                        Transform::from_xyz(0.0, 0.0, 0.0),
+                    ));
+                    modal.spawn((
+                        Name::new("level_select_launch_modal_border"),
+                        HollowRectangle {
+                            dimensions: LEVEL_SELECT_LAUNCH_MODAL_SIZE - Vec2::splat(14.0),
+                            thickness: 2.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                        Transform::from_xyz(0.0, 0.0, 0.01),
+                    ));
+                    modal.spawn((
+                        Name::new("level_select_launch_modal_title"),
+                        TextRaw,
+                        Text2d::new("Launch selected dilemma"),
+                        TextFont {
+                            font_size: scaled_font_size(20.0),
+                            weight: FontWeight::BOLD,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                        Anchor::CENTER,
+                        Transform::from_xyz(0.0, 52.0, 0.02),
+                    ));
+                    modal.spawn((
+                        Name::new("level_select_launch_modal_hint"),
+                        TextRaw,
+                        Text2d::new("Choose launch mode"),
+                        TextFont {
+                            font_size: scaled_font_size(13.0),
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                        Anchor::CENTER,
+                        Transform::from_xyz(0.0, 18.0, 0.02),
+                    ));
+                })
+                .id(),
+        );
+    });
+
+    let Some(modal_entity) = modal_entity else {
+        return;
+    };
+
+    spawn_level_select_launch_modal_option(
+        commands,
+        modal_entity,
+        gate,
+        asset_server,
+        LevelSelectLaunchModalOption::ContinueCampaign,
+        0,
+        -LEVEL_SELECT_LAUNCH_MODAL_OPTIONS_SPREAD_X,
+        "CONTINUE [c]",
+    );
+    spawn_level_select_launch_modal_option(
+        commands,
+        modal_entity,
+        gate,
+        asset_server,
+        LevelSelectLaunchModalOption::PlayOnce,
+        1,
+        0.0,
+        "PLAY ONCE [p]",
+    );
+    spawn_level_select_launch_modal_option(
+        commands,
+        modal_entity,
+        gate,
+        asset_server,
+        LevelSelectLaunchModalOption::Cancel,
+        2,
+        LEVEL_SELECT_LAUNCH_MODAL_OPTIONS_SPREAD_X,
+        "CANCEL [esc]",
+    );
 }
 
 pub(super) fn spawn_level_select_overlay(
@@ -268,10 +475,7 @@ pub(super) fn spawn_level_select_overlay(
         ));
     });
 
-    let initial_expansion = {
-        let root = level_select_catalog::level_select_catalog_root();
-        LevelSelectExpansionState::all_expanded(&root)
-    };
+    let initial_expansion = LevelSelectExpansionState::default();
     let initial_rows = level_select_visible_rows(&initial_expansion, "");
 
     let window_entity = commands
@@ -314,7 +518,7 @@ pub(super) fn spawn_level_select_overlay(
         content.spawn((
             Name::new("level_select_search_hint"),
             TextRaw,
-            Text2d::new("Search / select a .dilem file:"),
+            Text2d::new("Search / select .dilem or .log entry:"),
             TextFont {
                 font_size: scaled_font_size(12.0),
                 ..default()
@@ -328,7 +532,7 @@ pub(super) fn spawn_level_select_overlay(
             LevelSelectSearchBox {
                 owner: overlay_entity,
             },
-            SearchBox::new(overlay_entity, UiLayerKind::Base),
+            SearchBox::new(overlay_entity, UiLayerKind::Base).without_text_input_ui_layer(),
             SearchBoxConfig {
                 placeholder: "type to filter folders/files".to_string(),
                 ..default()
@@ -387,6 +591,7 @@ pub(super) fn spawn_level_select_overlay(
         window_entity,
         rows_root,
         dirty: false,
+        scroll_sync_pending: false,
     });
 }
 
@@ -410,66 +615,179 @@ pub(super) fn sync_level_select_search_query(
     }
 }
 
-pub(super) fn handle_level_select_folder_activation(
+pub(super) fn handle_level_select_launch_modal_shortcuts(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    overlay_query: Query<(Entity, &SelectableMenu), With<LevelSelectOverlay>>,
-    mut row_query: Query<
+    interaction_state: Res<UiInteractionState>,
+    modal_query: Query<(Entity, &UiLayer), With<LevelSelectLaunchModal>>,
+    mut option_query: Query<
+        (
+            &Selectable,
+            &LevelSelectLaunchModalOption,
+            &mut Clickable<SystemMenuActions>,
+        ),
+        With<LevelSelectLaunchModalOption>,
+    >,
+) {
+    let requested_option = if keyboard_input.just_pressed(KeyCode::KeyC) {
+        Some(LevelSelectLaunchModalOption::ContinueCampaign)
+    } else if keyboard_input.just_pressed(KeyCode::KeyP) {
+        Some(LevelSelectLaunchModalOption::PlayOnce)
+    } else if keyboard_input.just_pressed(KeyCode::Escape)
+        || keyboard_input.just_pressed(KeyCode::Backspace)
+    {
+        Some(LevelSelectLaunchModalOption::Cancel)
+    } else {
+        None
+    };
+    let Some(requested_option) = requested_option else {
+        return;
+    };
+
+    let active_layers = &interaction_state.active_layers_by_owner;
+    for owner in layer::ordered_active_owners_by_kind(active_layers, UiLayerKind::Modal) {
+        let modal_entity = modal_query
+            .iter()
+            .find_map(|(modal_entity, ui_layer)| {
+                if ui_layer.owner != owner {
+                    return None;
+                }
+                if !layer::is_active_layer_entity_for_owner(active_layers, owner, modal_entity) {
+                    return None;
+                }
+                Some(modal_entity)
+            });
+        let Some(modal_entity) = modal_entity else {
+            continue;
+        };
+
+        for (selectable, option, mut clickable) in option_query.iter_mut() {
+            if selectable.menu_entity != modal_entity || *option != requested_option {
+                continue;
+            }
+            clickable.triggered = true;
+            return;
+        }
+    }
+}
+
+pub(super) fn handle_level_select_launch_modal_option_commands(
+    mut commands: Commands,
+    interaction_state: Res<UiInteractionState>,
+    mut option_query: Query<
         (
             Entity,
             &Selectable,
-            &LevelSelectScrollRow,
+            &LevelSelectLaunchModalOption,
             &mut Clickable<SystemMenuActions>,
+            Option<&TransientAudioPallet<SystemMenuSounds>>,
         ),
-        With<MenuOptionCommand>,
+        With<LevelSelectLaunchModalOption>,
     >,
-    mut runtime_query: Query<&mut LevelSelectRuntime, With<LevelSelectOverlay>>,
+    modal_query: Query<(Entity, &LevelSelectLaunchModal, &UiLayer), With<LevelSelectLaunchModal>>,
+    mut audio_query: Query<(&mut TransientAudio, Option<&DilatableAudio>)>,
+    dilation: Res<Dilation>,
+    mut scene_queue: ResMut<SceneQueue>,
+    mut stats: ResMut<GameStats>,
+    mut next_main_state: ResMut<NextState<MainState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_sub_state: ResMut<NextState<DilemmaPhase>>,
 ) {
-    let activate_requested_global = keyboard_input.just_pressed(KeyCode::Enter)
-        || keyboard_input.just_pressed(KeyCode::ArrowRight);
+    let active_layers = &interaction_state.active_layers_by_owner;
+    let mut selected: Option<(
+        Entity,
+        LevelSelectLaunchModalOption,
+        LevelSelectLaunchModal,
+        Entity,
+        u64,
+    )> = None;
 
-    for (overlay_entity, menu) in overlay_query.iter() {
-        let activate_requested = activate_requested_global
-            || menu
-                .activate_keys
-                .iter()
-                .any(|key| keyboard_input.just_pressed(*key));
-        let mut clicked_folder_to_toggle = None;
-        let mut selected_folder_to_toggle = None;
-        let mut click_rank = 0;
+    for (option_entity, selectable, option, mut clickable, _) in option_query.iter_mut() {
+        if !clickable.triggered {
+            continue;
+        }
+        clickable.triggered = false;
 
-        for (row_entity, selectable, row, mut clickable) in row_query.iter_mut() {
-            if selectable.menu_entity != overlay_entity {
-                continue;
-            }
-
-            if selectable.index == menu.selected_index {
-                selected_folder_to_toggle = row.folder_id;
-            }
-
-            let Some(folder_id) = row.folder_id else {
-                continue;
-            };
-            if !clickable.triggered {
-                continue;
-            }
-
-            clickable.triggered = false;
-            let rank = row_entity.to_bits();
-            if rank >= click_rank {
-                click_rank = rank;
-                clicked_folder_to_toggle = Some(folder_id);
-            }
+        let Ok((modal_entity, modal_data, ui_layer)) = modal_query.get(selectable.menu_entity) else {
+            continue;
+        };
+        if layer::active_layer_kind_for_owner(active_layers, ui_layer.owner) != UiLayerKind::Modal {
+            continue;
+        }
+        if !layer::is_active_layer_entity_for_owner(active_layers, ui_layer.owner, modal_entity) {
+            continue;
         }
 
-        let folder_to_toggle = clicked_folder_to_toggle
-            .or_else(|| activate_requested.then_some(selected_folder_to_toggle).flatten());
-        let Some(folder_id) = folder_to_toggle else {
+        let candidate = (
+            option_entity,
+            *option,
+            *modal_data,
+            modal_entity,
+            option_entity.to_bits(),
+        );
+        if selected
+            .as_ref()
+            .is_none_or(|(_, _, _, _, best_rank)| candidate.4 > *best_rank)
+        {
+            selected = Some(candidate);
+        }
+    }
+
+    let Some((selected_entity, option, modal_data, modal_entity, _)) = selected else {
+        return;
+    };
+
+    if let Ok((_, _, _, _, click_pallet)) = option_query.get_mut(selected_entity) {
+        if let Some(click_pallet) = click_pallet {
+            TransientAudioPallet::play_transient_audio(
+                selected_entity,
+                &mut commands,
+                click_pallet,
+                SystemMenuSounds::Click,
+                dilation.0,
+                &mut audio_query,
+            );
+        }
+    }
+
+    match option {
+        LevelSelectLaunchModalOption::ContinueCampaign => {
+            *stats = GameStats::default();
+            scene_queue.configure_campaign_from_dilemma(modal_data.scene);
+            SceneNavigator::next_state_vector_or_fallback(&mut scene_queue).set_state(
+                &mut next_main_state,
+                &mut next_game_state,
+                &mut next_sub_state,
+            );
+            commands.entity(modal_data.owner).despawn_related::<Children>();
+            commands.entity(modal_data.owner).despawn();
+        }
+        LevelSelectLaunchModalOption::PlayOnce => {
+            *stats = GameStats::default();
+            scene_queue.configure_single_level(modal_data.scene);
+            SceneNavigator::next_state_vector_or_fallback(&mut scene_queue).set_state(
+                &mut next_main_state,
+                &mut next_game_state,
+                &mut next_sub_state,
+            );
+            commands.entity(modal_data.owner).despawn_related::<Children>();
+            commands.entity(modal_data.owner).despawn();
+        }
+        LevelSelectLaunchModalOption::Cancel => {
+            commands.entity(modal_entity).despawn_related::<Children>();
+            commands.entity(modal_entity).despawn();
+        }
+    }
+}
+
+pub(super) fn apply_level_select_folder_toggle_requests(
+    mut toggle_requests: MessageReader<LevelSelectFolderToggleRequested>,
+    mut runtime_query: Query<&mut LevelSelectRuntime, With<LevelSelectOverlay>>,
+) {
+    for request in toggle_requests.read() {
+        let Ok(mut runtime) = runtime_query.get_mut(request.overlay_entity) else {
             continue;
         };
-        let Ok(mut runtime) = runtime_query.get_mut(overlay_entity) else {
-            continue;
-        };
-        runtime.expansion.toggle(folder_id);
+        runtime.expansion.toggle(request.folder_id);
         runtime.dirty = true;
     }
 }
@@ -618,6 +936,7 @@ pub(super) fn rebuild_level_select_rows(
         };
 
         runtime.visible_rows = next_rows;
+        runtime.scroll_sync_pending = true;
     }
 }
 
@@ -628,9 +947,10 @@ pub(super) fn track_campaign_reached_dilemmas(
     if scene_queue.flow_mode() != SceneFlowMode::Campaign {
         return;
     }
-    let Scene::Dilemma(scene) = scene_queue.current_scene() else {
+    let scene = scene_queue.current_scene();
+    if !matches!(scene, Scene::Dilemma(_) | Scene::Dialogue(_)) {
         return;
-    };
+    }
     if !unlock_state
         .reached_in_campaign
         .iter()
@@ -654,7 +974,10 @@ pub(super) fn mark_level_select_dirty_on_unlock_change(
 
 pub(super) fn sync_level_select_scroll_focus_follow(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    overlay_query: Query<(Entity, &SelectableMenu, &LevelSelectRuntime), With<LevelSelectOverlay>>,
+    mut overlay_query: Query<
+        (Entity, &SelectableMenu, &mut LevelSelectRuntime),
+        With<LevelSelectOverlay>,
+    >,
     mut root_query: Query<
         (&ScrollableRoot, &mut ScrollState, &mut ScrollFocusFollowLock),
         With<ScrollableRoot>,
@@ -668,15 +991,20 @@ pub(super) fn sync_level_select_scroll_focus_follow(
         || keyboard_input.just_pressed(KeyCode::Home)
         || keyboard_input.just_pressed(KeyCode::End);
 
-    for (overlay_entity, menu, runtime) in overlay_query.iter() {
+    for (overlay_entity, menu, mut runtime) in overlay_query.iter_mut() {
         let row_count = runtime.visible_rows.len();
+        let force_sync = runtime.scroll_sync_pending;
         let selection_changed =
             previous_selection_by_owner.insert(overlay_entity, menu.selected_index)
                 != Some(menu.selected_index);
         if menu.selected_index >= row_count {
+            if force_sync {
+                runtime.scroll_sync_pending = false;
+            }
             continue;
         }
 
+        let mut synced = false;
         for (root, mut state, mut focus_lock) in root_query.iter_mut() {
             if root.owner != overlay_entity || root.axis != ScrollAxis::Vertical {
                 continue;
@@ -684,10 +1012,13 @@ pub(super) fn sync_level_select_scroll_focus_follow(
             if keyboard_navigation {
                 focus_lock.manual_override = false;
             }
+            if force_sync {
+                focus_lock.manual_override = false;
+            }
             if focus_lock.manual_override {
                 break;
             }
-            if !keyboard_navigation && !selection_changed {
+            if !keyboard_navigation && !selection_changed && !force_sync {
                 break;
             }
 
@@ -697,7 +1028,11 @@ pub(super) fn sync_level_select_scroll_focus_follow(
                 LEVEL_SELECT_LIST_ROW_STEP,
                 LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING,
             );
+            synced = true;
             break;
+        }
+        if synced || force_sync {
+            runtime.scroll_sync_pending = false;
         }
     }
 }
@@ -773,9 +1108,13 @@ mod tests {
     fn level_select_scroll_content_height_matches_row_geometry() {
         let row_count = 19;
         let preferred_inner = level_select_preferred_inner_size(row_count);
+        let required_scroll_height = LEVEL_SELECT_WINDOW_SCROLL_LEADING_PADDING
+            + row_count as f32 * LEVEL_SELECT_LIST_ROW_STEP
+            + LEVEL_SELECT_WINDOW_SCROLL_TRAILING_PADDING;
 
         assert!(preferred_inner.y > LEVEL_SELECT_WINDOW_SIZE.y);
         assert!(preferred_inner.x >= LEVEL_SELECT_WINDOW_SIZE.x);
+        assert!(preferred_inner.y >= required_scroll_height);
     }
 
     #[test]
@@ -785,9 +1124,9 @@ mod tests {
         let mut search_query_system = IntoSystem::into_system(sync_level_select_search_query);
         search_query_system.initialize(&mut world);
 
-        let mut folder_activation_system =
-            IntoSystem::into_system(handle_level_select_folder_activation);
-        folder_activation_system.initialize(&mut world);
+        let mut folder_toggle_system =
+            IntoSystem::into_system(apply_level_select_folder_toggle_requests);
+        folder_toggle_system.initialize(&mut world);
 
         let mut rebuild_system = IntoSystem::into_system(rebuild_level_select_rows);
         rebuild_system.initialize(&mut world);
@@ -801,21 +1140,15 @@ mod tests {
     }
 
     #[test]
-    fn folder_activation_marks_runtime_dirty_and_toggles_expansion() {
+    fn folder_toggle_requests_mark_runtime_dirty_and_toggle_expansion() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<ButtonInput<KeyCode>>();
+        app.add_message::<LevelSelectFolderToggleRequested>();
         let overlay = app
             .world_mut()
             .spawn((
                 LevelSelectOverlay,
-                SelectableMenu::new(
-                    0,
-                    vec![KeyCode::ArrowUp],
-                    vec![KeyCode::ArrowDown],
-                    vec![KeyCode::Enter],
-                    true,
-                ),
+                SelectableMenu::new(0, vec![], vec![], vec![], true),
             ))
             .id();
 
@@ -831,33 +1164,19 @@ mod tests {
             window_entity,
             rows_root,
             dirty: false,
+            scroll_sync_pending: false,
         });
 
-        let row_entity = app.world_mut().spawn((
-            Selectable::new(overlay, 0),
-            LevelSelectScrollRow {
-                index: 0,
-                folder_id: Some(folder_id),
-            },
-            Clickable::<SystemMenuActions>::with_region(
-                vec![SystemMenuActions::Activate],
-                LEVEL_SELECT_ROW_REGION,
-            ),
-            MenuOptionCommand(MenuCommand::None),
-        )).id();
-        if let Some(mut clickable) = app
-            .world_mut()
-            .entity_mut(row_entity)
-            .get_mut::<Clickable<SystemMenuActions>>()
-        {
-            clickable.triggered = true;
-        }
+        app.world_mut().write_message(LevelSelectFolderToggleRequested {
+            overlay_entity: overlay,
+            folder_id,
+        });
 
-        let mut system = IntoSystem::into_system(handle_level_select_folder_activation);
+        let mut system = IntoSystem::into_system(apply_level_select_folder_toggle_requests);
         system.initialize(app.world_mut());
         system
             .run((), app.world_mut())
-            .expect("folder activation should run");
+            .expect("folder toggle should run");
         system.apply_deferred(app.world_mut());
 
         let runtime = app
@@ -867,5 +1186,115 @@ mod tests {
             .expect("level select runtime");
         assert!(runtime.dirty);
         assert!(!runtime.expansion.is_expanded(folder_id));
+    }
+
+    #[test]
+    fn scroll_focus_follow_honors_pending_sync_without_keyboard_navigation() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<ButtonInput<KeyCode>>();
+
+        let overlay = app
+            .world_mut()
+            .spawn((
+                LevelSelectOverlay,
+                SelectableMenu::new(
+                    3,
+                    vec![KeyCode::ArrowUp],
+                    vec![KeyCode::ArrowDown],
+                    vec![KeyCode::Enter],
+                    true,
+                ),
+            ))
+            .id();
+
+        let window_entity = app.world_mut().spawn_empty().id();
+        let rows_root = app.world_mut().spawn_empty().id();
+        app.world_mut().entity_mut(overlay).insert(LevelSelectRuntime {
+            expansion: LevelSelectExpansionState::default(),
+            visible_rows: vec![
+                LevelSelectVisibleRow {
+                    id: LevelSelectNodeId("a"),
+                    label: "a",
+                    depth: 0,
+                    kind: LevelSelectVisibleRowKind::Folder,
+                },
+                LevelSelectVisibleRow {
+                    id: LevelSelectNodeId("b"),
+                    label: "b",
+                    depth: 0,
+                    kind: LevelSelectVisibleRowKind::Folder,
+                },
+                LevelSelectVisibleRow {
+                    id: LevelSelectNodeId("c"),
+                    label: "c",
+                    depth: 0,
+                    kind: LevelSelectVisibleRowKind::Folder,
+                },
+                LevelSelectVisibleRow {
+                    id: LevelSelectNodeId("d"),
+                    label: "d",
+                    depth: 0,
+                    kind: LevelSelectVisibleRowKind::Folder,
+                },
+            ],
+            query_normalized: String::new(),
+            window_entity,
+            rows_root,
+            dirty: false,
+            scroll_sync_pending: false,
+        });
+
+        let scroll_root = app
+            .world_mut()
+            .spawn((
+                ScrollableRoot::new(overlay, ScrollAxis::Vertical),
+                ScrollState {
+                    offset_px: 0.0,
+                    content_extent: 500.0,
+                    viewport_extent: 120.0,
+                    max_offset: 380.0,
+                },
+                ScrollFocusFollowLock {
+                    manual_override: true,
+                },
+            ))
+            .id();
+
+        let mut system = IntoSystem::into_system(sync_level_select_scroll_focus_follow);
+        system.initialize(app.world_mut());
+        system
+            .run((), app.world_mut())
+            .expect("focus follow should initialize previous selection");
+        system.apply_deferred(app.world_mut());
+
+        if let Some(mut runtime) = app
+            .world_mut()
+            .entity_mut(overlay)
+            .get_mut::<LevelSelectRuntime>()
+        {
+            runtime.scroll_sync_pending = true;
+        }
+
+        system
+            .run((), app.world_mut())
+            .expect("focus follow should run with pending sync");
+        system.apply_deferred(app.world_mut());
+
+        let state = app
+            .world()
+            .entity(scroll_root)
+            .get::<ScrollState>()
+            .copied()
+            .expect("scroll state");
+        let lock = app
+            .world()
+            .entity(scroll_root)
+            .get::<ScrollFocusFollowLock>()
+            .copied()
+            .expect("focus lock");
+
+        assert!(state.offset_px > 0.0);
+        assert!(!lock.manual_override);
     }
 }

@@ -11,7 +11,7 @@ macro_rules! define_dialogue {
             $($variant:ident => $path:literal),* $(,)?
         }
     ) => {
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         pub enum $enum_name {
             $($variant),*
         }
@@ -26,7 +26,7 @@ macro_rules! define_dialogue {
     };
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 #[require(Transform, Visibility)]
 pub enum DialogueScene {
     Lab0(Lab0Dialogue),
@@ -95,7 +95,7 @@ define_dialogue! {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lab2aDialogue {
     FailIndecisive,
     Fail,
@@ -111,14 +111,14 @@ define_dialogue! {
     }
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 // Define outcome enum for more flexibility
 pub enum PathOutcome {
     Pass,
     Fail,
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 // Path configuration for the inaction path
 pub struct InactionPath {
     number: usize,
@@ -171,7 +171,7 @@ impl DialogueProvider for Lab2aDialogue {
     }
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 
 pub struct DeontologicalPath {
     number: usize,
@@ -209,7 +209,7 @@ impl DeontologicalPath {
     }
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lab3aDialogue {
     FailIndecisive,
     FailInaction,
@@ -238,7 +238,7 @@ define_dialogue! {
     }
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lab4Dialogue {
     UtilitarianPath(UtilitarianPath),
     Outro,
@@ -253,7 +253,7 @@ impl DialogueProvider for Lab4Dialogue {
     }
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 
 pub struct UtilitarianPath {
     number: usize,
