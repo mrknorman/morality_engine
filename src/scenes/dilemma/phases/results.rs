@@ -263,7 +263,7 @@ impl DilemmaResultsScene {
                     (
                         TextColor(PRIMARY_COLOR),
                         TextEmotion::Happy,
-                        AsciiString(format!("DILEMMA RESULTS")),
+                        AsciiString("DILEMMA RESULTS".to_string()),
                         Transform::from_xyz(0.0, 300.0, 1.0)
                     ),
                     (

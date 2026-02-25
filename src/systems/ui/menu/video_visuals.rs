@@ -426,7 +426,7 @@ pub(super) fn sync_video_discrete_slider_widgets(
             }
 
             let values = key.values();
-            let steps = key.slider_steps().unwrap_or_else(|| values.len()).max(1);
+            let steps = key.slider_steps().unwrap_or(values.len()).max(1);
             let selected_index = key
                 .selected_index(settings.pending)
                 .min(values.len().saturating_sub(1));

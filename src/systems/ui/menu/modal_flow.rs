@@ -397,17 +397,15 @@ pub(super) fn handle_video_modal_button_commands(
         return;
     };
 
-    if let Ok((_, _, _, _, click_pallet)) = button_query.get_mut(selected_entity) {
-        if let Some(click_pallet) = click_pallet {
-            TransientAudioPallet::play_transient_audio(
-                selected_entity,
-                &mut commands,
-                click_pallet,
-                SystemMenuSounds::Click,
-                dilation.0,
-                &mut audio_query,
-            );
-        }
+    if let Ok((_, _, _, _, Some(click_pallet))) = button_query.get_mut(selected_entity) {
+        TransientAudioPallet::play_transient_audio(
+            selected_entity,
+            &mut commands,
+            click_pallet,
+            SystemMenuSounds::Click,
+            dilation.0,
+            &mut audio_query,
+        );
     }
 
     match button {

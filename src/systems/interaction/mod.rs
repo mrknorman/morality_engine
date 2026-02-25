@@ -270,17 +270,12 @@ pub enum UiInputMode {
     Captured,
 }
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum UiInputPolicy {
+    #[default]
     WorldOnly,
     CapturedOnly,
     Any,
-}
-
-impl Default for UiInputPolicy {
-    fn default() -> Self {
-        Self::WorldOnly
-    }
 }
 
 impl UiInputPolicy {
@@ -781,14 +776,8 @@ impl InteractionVisualPalette {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct InteractionState(pub usize);
-
-impl Default for InteractionState {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 #[derive(Component, Clone)]
 #[require(Clickable<T>, InteractionState)]
@@ -1362,7 +1351,7 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
         let is_hovered = if let Some(region) = clickable.region {
             is_cursor_within_region(
                 cursor_position,
-                &transform,
+                transform,
                 global_transform,
                 region,
                 Vec2::ZERO,
@@ -1396,12 +1385,12 @@ pub fn clickable_system<T: Send + Sync + Copy + 'static>(
 
     if let Some((entity, _, on_hover_mode)) = hovered_top {
         aggregate.option_to_click = Some(on_hover_mode);
-        if let Ok((_, _, _, _, _, _, _, visual_state, _, _)) = clickable_query.get_mut(entity) {
-            if let Some(mut visual_state) = visual_state {
-                visual_state.hovered = true;
-                if mouse_input.pressed(MouseButton::Left) {
-                    visual_state.pressed = true;
-                }
+        if let Ok((_, _, _, _, _, _, _, Some(mut visual_state), _, _)) =
+            clickable_query.get_mut(entity)
+        {
+            visual_state.hovered = true;
+            if mouse_input.pressed(MouseButton::Left) {
+                visual_state.pressed = true;
             }
         }
         if mouse_input.just_pressed(MouseButton::Left) {

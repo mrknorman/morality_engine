@@ -34,7 +34,7 @@ use content::EndingScene;
 
 use super::{Scene, SceneQueue};
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize, Resource)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize, Resource, Default)]
 pub struct Ending {
     pub name: String,
     pub description: String,
@@ -46,17 +46,6 @@ impl Ending {
     pub fn try_new(ending_content: EndingScene) -> Result<Self, JsonError> {
         let json_content = ending_content.content();
         serde_json::from_str(json_content)
-    }
-}
-
-impl Default for Ending {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            description: String::new(),
-            narration: String::new(),
-            narration_path: String::new(),
-        }
     }
 }
 

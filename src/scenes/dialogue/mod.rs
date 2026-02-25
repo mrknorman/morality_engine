@@ -84,11 +84,8 @@ impl DialogueScene {
             Some(Scene::Dialogue(_)) => queue.pop(),
             Some(_) | None => None,
         };
-        match next_scene {
-            Some(Scene::Dialogue(content)) => {
-                dialogue_vector.push(content);
-            }
-            _ => (),
+        if let Some(Scene::Dialogue(content)) = next_scene {
+            dialogue_vector.push(content);
         };
 
         let dialogue_bundle = match Dialogue::init(&asset_server, &dialogue_vector, &character_map)

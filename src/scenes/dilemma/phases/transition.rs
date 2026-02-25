@@ -63,7 +63,7 @@ fn setup(
         DilemmaScene::generate_common_parameters(&stage);
 
     let option_value = if index.0 == 0 {
-        stage.default_option.clone()
+        stage.default_option
     } else {
         lever.selected_index().or(stage.default_option)
     };
@@ -88,7 +88,7 @@ fn setup(
     let mut train_velocity = Vec3::ZERO;
     for (entity, mut velocity, transform) in train_query.iter_mut() {
         train_velocity = velocity.0;
-        train_transform = transform.clone();
+        train_transform = *transform;
         velocity.0 = Vec3::ZERO;
         commands.entity(entity).insert(PointToPointTranslation::new(
             transform.translation,

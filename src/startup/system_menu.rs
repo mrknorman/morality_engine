@@ -40,7 +40,7 @@ const SELECTION_INDICATOR_X: f32 = 132.0;
 const SELECTION_INDICATOR_Z: f32 = 0.2;
 
 fn interactive_hovered(hoverable: &Hoverable, state: &InteractionVisualState) -> bool {
-    hoverable.hovered && !(state.keyboard_locked && !state.selected)
+    hoverable.hovered && (!state.keyboard_locked || state.selected)
 }
 
 #[derive(Component)]

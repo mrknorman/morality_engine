@@ -254,7 +254,7 @@ impl DilemmaRunStatsScope {
         start..end
     }
 
-    pub fn entries<'a>(self, stats: &'a GameStats) -> &'a [DilemmaStats] {
+    pub fn entries(self, stats: &GameStats) -> &[DilemmaStats] {
         let range = self.range(stats.dilemma_stats.len());
         &stats.dilemma_stats[range]
     }

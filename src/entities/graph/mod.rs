@@ -60,10 +60,10 @@ impl Graph {
     ) -> Self {
         Graph {
             inter_layer_distance: inter_layer_distance * scale,
-            num_nodes_per_layer: num_nodes_per_layer,
+            num_nodes_per_layer,
             inter_node_distance: inter_node_distance * scale,
             node_outer_radius: node_outer_radius * scale,
-            node_border_thickness: node_border_thickness,
+            node_border_thickness,
         }
     }
 
@@ -103,14 +103,14 @@ impl Graph {
             parent.spawn((
                 Mesh2d(annulus_mesh_handle.clone()),
                 MeshMaterial2d(outline_material.clone()),
-                node_transform.clone(),
+                node_transform,
             ));
 
             parent.spawn((
                 GraphNode,
                 Mesh2d(circle_mesh_handle.clone()),
                 MeshMaterial2d(material_handle.clone()),
-                node_transform.clone(),
+                node_transform,
             ));
         }
     }

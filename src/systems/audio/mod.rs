@@ -77,7 +77,7 @@ impl TransientAudio {
         let mut cooldown_timer = Timer::from_seconds(cooldown_time_seconds, TimerMode::Once);
         cooldown_timer.tick(Duration::from_secs_f32(cooldown_time_seconds));
         TransientAudio {
-            source: source,
+            source,
             cooldown_timer,
             persistent,
             volume,
@@ -154,7 +154,7 @@ where
         if let Some(components) = components {
             world.commands().entity(entity).with_children(|parent| {
                 for component in components.iter() {
-                    let mut playback_settings = component.settings.clone();
+                    let mut playback_settings = component.settings;
                     if component.dilatable {
                         if let Some(d) = dilation {
                             playback_settings.speed = d;
@@ -248,12 +248,10 @@ where
                     parent.spawn(audio);
                 }
             });
+        } else if dilatable {
+            commands.spawn((audio, DilatableAudio));
         } else {
-            if dilatable {
-                commands.spawn((audio, DilatableAudio));
-            } else {
-                commands.spawn(audio);
-            }
+            commands.spawn(audio);
         }
 
         transient_audio.cooldown_timer.reset();

@@ -55,13 +55,11 @@ pub(super) fn resolve_tabbed_focus(input: TabbedFocusInputs) -> TabbedFocusTrans
         || input.hovered_tab_index.is_some()
         || input.hovered_option_index.is_some();
 
-    if input.tab_pressed {
-        focus = TabbedMenuFocus::Tabs;
-        option_lock = None;
-    } else if focus == TabbedMenuFocus::Options
+    if input.tab_pressed
+        || (focus == TabbedMenuFocus::Options
         && input.up_pressed
         && selected_option_index == 0
-        && input.previous_selected_index == 0
+        && input.previous_selected_index == 0)
     {
         focus = TabbedMenuFocus::Tabs;
         option_lock = None;

@@ -102,7 +102,7 @@ impl HollowRectangle {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let shape = {
             if let Some(shape) = world.entity(entity).get::<Self>() {
-                shape.clone()
+                *shape
             } else {
                 return;
             }

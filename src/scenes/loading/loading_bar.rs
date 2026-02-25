@@ -238,7 +238,6 @@ impl LoadingBar {
                         TextLayout {
                             justify: Justify::Left,
                             linebreak: LineBreak::WordBoundary,
-                            ..default()
                         },
                         Anchor::BOTTOM_LEFT,
                     ))

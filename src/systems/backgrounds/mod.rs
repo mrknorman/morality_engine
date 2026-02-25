@@ -261,7 +261,7 @@ impl Background {
 
                 // Apply text color if available
                 if let Some(ref text_color) = color {
-                    child_entity.insert(text_color.clone());
+                    child_entity.insert(*text_color);
                 }
             });
         }

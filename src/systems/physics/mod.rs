@@ -132,7 +132,7 @@ impl AngularVelocity {
                     angular_velocity.0.y * delta_time,
                     angular_velocity.0.z * delta_time,
                 );
-                transform.rotation = transform.rotation * rotation_delta;
+                transform.rotation *= rotation_delta;
             }
         }
     }
@@ -197,9 +197,7 @@ impl Gravity {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let transform: Option<Transform> = {
             let entity_mut = world.entity(entity);
-            entity_mut
-                .get::<Transform>()
-                .map(|transform: &Transform| transform.clone())
+            entity_mut.get::<Transform>().copied()
         };
 
         if let Some(transform) = transform {
@@ -297,9 +295,7 @@ impl Friction {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let transform: Option<Transform> = {
             let entity_mut = world.entity(entity);
-            entity_mut
-                .get::<Transform>()
-                .map(|transform: &Transform| transform.clone())
+            entity_mut.get::<Transform>().copied()
         };
 
         if let Some(transform) = transform {

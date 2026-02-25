@@ -107,7 +107,6 @@ fn default_nowrap_layout() -> TextLayout {
     TextLayout {
         justify: Justify::Center,
         linebreak: LineBreak::NoWrap,
-        ..default()
     }
 }
 
@@ -142,15 +141,9 @@ impl Default for TextTitle {
     }
 }
 
-#[derive(Component, Deserialize, Clone)]
+#[derive(Component, Deserialize, Clone, Default)]
 pub struct TextFrames {
     pub frames: Vec<String>,
-}
-
-impl Default for TextFrames {
-    fn default() -> Self {
-        Self { frames: vec![] }
-    }
 }
 
 impl TextFrames {
@@ -223,7 +216,7 @@ impl GlyphString {
         let glyph_string = world.entity(entity).get::<GlyphString>().unwrap();
 
         let text = glyph_string.text.clone();
-        let depth = glyph_string.depth.clone();
+        let depth = glyph_string.depth;
 
         let lines: Vec<&str> = text.lines().collect();
         let lines_count = lines.len();
@@ -311,7 +304,7 @@ impl Animated {
     }
 }
 
-pub fn get_text_width(text: &String) -> f32 {
+pub fn get_text_width(text: &str) -> f32 {
     let text_length = text
         .lines()
         .map(|line| line.chars().count())
@@ -320,7 +313,7 @@ pub fn get_text_width(text: &String) -> f32 {
     text_length as f32 * scaled_text_units(BASE_TEXT_WIDTH_PER_CHAR)
 }
 
-pub fn get_text_height(text: &String) -> f32 {
+pub fn get_text_height(text: &str) -> f32 {
     text.lines().count() as f32 * scaled_text_units(BASE_TEXT_HEIGHT_PER_LINE)
 }
 
@@ -334,7 +327,6 @@ pub fn get_text_height(text: &String) -> f32 {
     InteractionVisualState,
     InteractionVisualPalette = default_button_visual_palette()
 )]
-
 pub struct TextButton;
 
 fn default_button_text() -> Text2d {
@@ -397,17 +389,17 @@ fn get_anchor_offset(anchor: &Anchor, dimensions: Vec2) -> Vec2 {
     let width = dimensions.x;
     let height = dimensions.y;
 
-    match anchor {
-        &Anchor::TOP_LEFT => Vec2::new(-width / 2.0, height / 2.0),
-        &Anchor::TOP_CENTER => Vec2::new(0.0, height / 2.0),
-        &Anchor::TOP_RIGHT => Vec2::new(width / 2.0, height / 2.0),
-        &Anchor::CENTER_LEFT => Vec2::new(-width / 2.0, 0.0),
-        &Anchor::CENTER => Vec2::new(0.0, 0.0),
-        &Anchor::CENTER_RIGHT => Vec2::new(width / 2.0, 0.0),
-        &Anchor::BOTTOM_LEFT => Vec2::new(-width / 2.0, -height / 2.0),
-        &Anchor::BOTTOM_CENTER => Vec2::new(0.0, -height / 2.0),
-        &Anchor::BOTTOM_RIGHT => Vec2::new(width / 2.0, -height / 2.0),
-        &Anchor(offset) => offset,
+    match *anchor {
+        Anchor::TOP_LEFT => Vec2::new(-width / 2.0, height / 2.0),
+        Anchor::TOP_CENTER => Vec2::new(0.0, height / 2.0),
+        Anchor::TOP_RIGHT => Vec2::new(width / 2.0, height / 2.0),
+        Anchor::CENTER_LEFT => Vec2::new(-width / 2.0, 0.0),
+        Anchor::CENTER => Vec2::new(0.0, 0.0),
+        Anchor::CENTER_RIGHT => Vec2::new(width / 2.0, 0.0),
+        Anchor::BOTTOM_LEFT => Vec2::new(-width / 2.0, -height / 2.0),
+        Anchor::BOTTOM_CENTER => Vec2::new(0.0, -height / 2.0),
+        Anchor::BOTTOM_RIGHT => Vec2::new(width / 2.0, -height / 2.0),
+        Anchor(offset) => offset,
     }
 }
 
@@ -802,18 +794,10 @@ impl TextContent {
 #[derive(Clone, Component)]
 #[component(on_insert = Cell::on_insert)]
 #[require(Transform, Visibility)]
+#[derive(Default)]
 pub struct Cell {
     text: TextContent,
     border: BorderedRectangle,
-}
-
-impl Default for Cell {
-    fn default() -> Self {
-        Self {
-            text: TextContent::default(),
-            border: BorderedRectangle::default(),
-        }
-    }
 }
 
 #[derive(Component)]
@@ -858,7 +842,6 @@ impl Cell {
                 TextBounds {
                     width: Some(text.bounds.x),
                     height: Some(text.bounds.y),
-                    ..default()
                 },
                 Transform::from_translation(offset.extend(0.0)),
             ));

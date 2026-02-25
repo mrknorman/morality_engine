@@ -137,15 +137,10 @@ impl PointToPointTranslation {
     }
 }
 
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Default)]
 #[require(Transform)]
 #[component(on_insert = TransformAnchor::on_insert)]
 pub struct TransformAnchor(pub Transform);
-impl Default for TransformAnchor {
-    fn default() -> Self {
-        Self(Transform::default())
-    }
-}
 
 impl TransformAnchor {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {

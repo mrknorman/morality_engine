@@ -276,7 +276,7 @@ impl DilemmaConsequenceScene {
                         TextButton::new(
                             vec![DilemmaConsequenceActions::ShowResults],
                             vec![KeyCode::Enter],
-                            format!("[Behold the consequences!]"),
+                            "[Behold the consequences!]".to_string(),
                         ),
                         ActionPallet::<DilemmaConsequenceActions, DilemmaSounds>(enum_map!(
                         DilemmaConsequenceActions::ShowResults => vec![

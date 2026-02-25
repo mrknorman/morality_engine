@@ -132,10 +132,7 @@ fn level_select_scene_unlocked(
         LevelSelectPlayableScene::Dialogue(scene) => Scene::Dialogue(scene),
     };
     cfg!(debug_assertions)
-        || unlock_state
-            .reached_in_campaign
-            .iter()
-            .any(|reached| *reached == scene)
+        || unlock_state.reached_in_campaign.contains(&scene)
 }
 
 fn level_select_row_center_y(index: usize) -> f32 {
@@ -743,17 +740,15 @@ pub(super) fn handle_level_select_launch_modal_option_commands(
         return;
     };
 
-    if let Ok((_, _, _, _, click_pallet)) = option_query.get_mut(selected_entity) {
-        if let Some(click_pallet) = click_pallet {
-            TransientAudioPallet::play_transient_audio(
-                selected_entity,
-                &mut commands,
-                click_pallet,
-                SystemMenuSounds::Click,
-                dilation.0,
-                &mut audio_query,
-            );
-        }
+    if let Ok((_, _, _, _, Some(click_pallet))) = option_query.get_mut(selected_entity) {
+        TransientAudioPallet::play_transient_audio(
+            selected_entity,
+            &mut commands,
+            click_pallet,
+            SystemMenuSounds::Click,
+            dilation.0,
+            &mut audio_query,
+        );
     }
 
     match option {
@@ -965,11 +960,7 @@ pub(super) fn track_campaign_reached_dilemmas(
     if !matches!(scene, Scene::Dilemma(_) | Scene::Dialogue(_)) {
         return;
     }
-    if !unlock_state
-        .reached_in_campaign
-        .iter()
-        .any(|reached| *reached == scene)
-    {
+    if !unlock_state.reached_in_campaign.contains(&scene) {
         unlock_state.reached_in_campaign.push(scene);
     }
 }

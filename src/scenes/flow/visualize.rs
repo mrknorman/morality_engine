@@ -540,8 +540,7 @@ fn sanitize_mermaid_label_text(input: &str) -> String {
         .replace('<', " lt ")
         .replace('>', " gt ")
         .replace('|', "/")
-        .replace('"', "")
-        .replace('`', "")
+        .replace(['"', '`'], "")
 }
 
 fn describe_validation_error(error: &GraphValidationError) -> String {

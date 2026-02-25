@@ -110,23 +110,17 @@ impl Junction {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let junction: Option<Junction> = {
             let entity_mut = world.entity(entity);
-            entity_mut
-                .get::<Junction>()
-                .map(|train: &Junction| train.clone())
+            entity_mut.get::<Junction>().cloned()
         };
 
         let color: Option<TextColor> = {
             let entity_mut = world.entity(entity);
-            entity_mut
-                .get::<TextColor>()
-                .map(|color: &TextColor| color.clone())
+            entity_mut.get::<TextColor>().copied()
         };
 
         let color_translation: Option<ColorTranslation> = {
             let entity_mut = world.entity(entity);
-            entity_mut
-                .get::<ColorTranslation>()
-                .map(|translation: &ColorTranslation| translation.clone())
+            entity_mut.get::<ColorTranslation>().cloned()
         };
 
         let Some(asset_server) = world.get_resource::<AssetServer>() else {

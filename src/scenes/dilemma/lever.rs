@@ -64,9 +64,9 @@ pub enum LeverState {
 }
 
 impl LeverState {
-    pub fn to_int(&self) -> Option<usize> {
+    pub fn as_index(self) -> Option<usize> {
         match self {
-            LeverState::Selected(index) => Some(*index),
+            LeverState::Selected(index) => Some(index),
             LeverState::Random => None,
         }
     }

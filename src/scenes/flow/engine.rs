@@ -95,7 +95,7 @@ fn evaluate_with_graph(
     };
 
     let selected_option_for =
-        |entry: &DilemmaStats| entry.result.and_then(|state| state.to_int()).unwrap_or(0);
+        |entry: &DilemmaStats| entry.result.and_then(|state| state.as_index()).unwrap_or(0);
     let previous_selected_options = stats
         .dilemma_stats
         .iter()

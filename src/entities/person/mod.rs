@@ -109,14 +109,9 @@ pub struct BloodSprite(pub u8);
 #[derive(Component)]
 #[require(Anchor = default_person_anchor(), Gravity, TextSprite, Bounce, Visibility, Volatile)]
 #[component(on_insert = PersonSprite::on_insert)]
+#[derive(Default)]
 pub struct PersonSprite {
     pub in_danger: bool,
-}
-
-impl Default for PersonSprite {
-    fn default() -> Self {
-        Self { in_danger: false }
-    }
 }
 #[derive(Component)]
 pub struct Bloodied;

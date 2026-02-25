@@ -12,7 +12,7 @@ pub fn get_letter(keyword: char) -> String {
 }
 
 pub fn get_vector(text: String) -> Vec<String> {
-    text.chars().map(|c| get_letter(c)).collect()
+    text.chars().map(get_letter).collect()
 }
 
 const DEFAULT: &str = r#"Merlin set missing character!

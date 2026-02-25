@@ -667,16 +667,12 @@ fn handle_text_input_keyboard(
             }
         }
 
-        if backspace && caret.index > 0 {
-            if remove_char_at(&mut value.0, caret.index - 1) {
-                caret.index -= 1;
-                text_changed = true;
-            }
+        if backspace && caret.index > 0 && remove_char_at(&mut value.0, caret.index - 1) {
+            caret.index -= 1;
+            text_changed = true;
         }
-        if delete {
-            if remove_char_at(&mut value.0, caret.index) {
-                text_changed = true;
-            }
+        if delete && remove_char_at(&mut value.0, caret.index) {
+            text_changed = true;
         }
 
         for character in inserted.iter().copied() {

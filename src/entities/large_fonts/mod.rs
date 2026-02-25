@@ -149,7 +149,6 @@ impl AsciiString {
                     TextLayout {
                         justify: Justify::Left,
                         linebreak: LineBreak::NoWrap,
-                        ..default()
                     },
                     ColorAnchor::default(),
                     Text2d::new(ascii_char),
@@ -158,7 +157,7 @@ impl AsciiString {
 
                 // Add color if available
                 if let Some(color) = &color {
-                    entity_cmd.insert(color.clone());
+                    entity_cmd.insert(*color);
                 }
 
                 // Add emotion-specific components

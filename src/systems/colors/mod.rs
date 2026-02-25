@@ -366,7 +366,7 @@ impl Fade {
     fn on_insert(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
         let fade: Option<Fade> = {
             let entity_mut = world.entity(entity);
-            entity_mut.get::<Fade>().map(|fade: &Fade| fade.clone())
+            entity_mut.get::<Fade>().cloned()
         };
 
         if let Some(fade) = fade {
@@ -384,7 +384,6 @@ impl Fade {
 
 #[derive(Clone, Component)]
 #[component(on_insert = ColorAnchor::on_insert)]
-
 pub struct ColorAnchor(pub Color);
 
 impl ColorAnchor {
@@ -474,7 +473,7 @@ impl Flicker {
                 self.flicker_timer.unpause();
                 self.enacting = true;
             }
-            return false;
+            false
         } else {
             self.flicker_timer.tick(dt);
             if self.flicker_timer.is_finished() {
@@ -489,7 +488,7 @@ impl Flicker {
             // Compute sub-cycle toggle: alternate on/off every half toggle_period.
             let elapsed = self.flicker_timer.elapsed();
             let cycle = elapsed.as_secs_f32() % self.toggle_period.as_secs_f32();
-            return cycle < (self.toggle_period.as_secs_f32() / 2.0);
+            cycle < (self.toggle_period.as_secs_f32() / 2.0)
         }
     }
 }

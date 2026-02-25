@@ -220,17 +220,15 @@ pub(super) fn handle_resolution_dropdown_item_commands(
         else {
             continue;
         };
-        if let Ok((_, _, _, _, _, _, _, click_pallet)) = item_query.get_mut(item_entity) {
-            if let Some(click_pallet) = click_pallet {
-                TransientAudioPallet::play_transient_audio(
-                    item_entity,
-                    &mut commands,
-                    click_pallet,
-                    SystemMenuSounds::Click,
-                    dilation.0,
-                    &mut audio_query,
-                );
-            }
+        if let Ok((_, _, _, _, _, _, _, Some(click_pallet))) = item_query.get_mut(item_entity) {
+            TransientAudioPallet::play_transient_audio(
+                item_entity,
+                &mut commands,
+                click_pallet,
+                SystemMenuSounds::Click,
+                dilation.0,
+                &mut audio_query,
+            );
         }
 
         let Ok((resolved_menu_entity, menu_stack, selectable_menu)) = menu_query.get(menu_entity)

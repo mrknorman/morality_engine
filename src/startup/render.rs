@@ -458,14 +458,8 @@ fn apply_camera_shake(
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 struct RenderTargetHandle(pub Handle<Image>);
-
-impl Default for RenderTargetHandle {
-    fn default() -> Self {
-        RenderTargetHandle(Handle::default())
-    }
-}
 
 #[derive(Component)]
 struct ScanMesh;

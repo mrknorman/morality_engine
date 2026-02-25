@@ -314,7 +314,7 @@ mod tests {
     }
 
     fn baseline_utilitarian_path(latest: &DilemmaStats, _: &GameStats, stage: usize) -> Vec<Scene> {
-        let selected_option = latest.result.and_then(|state| state.to_int()).unwrap_or(0);
+        let selected_option = latest.result.and_then(|state| state.as_index()).unwrap_or(0);
 
         match (selected_option, stage) {
             (0, 4) => vec![
