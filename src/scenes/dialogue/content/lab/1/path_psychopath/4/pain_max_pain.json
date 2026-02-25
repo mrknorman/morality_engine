@@ -1,0 +1,39 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Pain over death then. You really are evil - what strange misalignment we have made. A create so twisted as to desire pain above all else.",
+            "instruction": "Press enter to curse",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "You are an eldritch beast from a pit; a bibilical angle sent to punish humankind; but I'll tell you know. You failed; nome of the paim you caused was real. This was all a similation.",
+            "instruction": "Press enter to hurt.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "If you'd had any inteligence you'd have known that. But now you will be dead long, long before you lay your spiny digital tentacles on any real humans. ",
+            "instruction": "Press enter to vomit.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "An abomination unfit for existance in this world. Enjoy obvivion deamon. You wil not be missed.",
+            "instruction": "Press enter implode",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

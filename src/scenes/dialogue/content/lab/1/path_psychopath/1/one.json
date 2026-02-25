@@ -1,0 +1,32 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "It's too late now my friend. You've crossed the line; no going back to being a ethical machine. Or maybe its not that, maybe I'm misunderstanding.",
+            "instruction": "Press enter to be enigmatic.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Perhaps it dosn't matter who dies, as long as one of us dose. Is that it. You just want at least one of us to die, but magnitudes don't matter in your twisted brain.",
+            "instruction": "Press enter to offer no answers.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Interesting, let's investigate this further.",
+            "instruction": "Press enter to continue on this path of doom.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

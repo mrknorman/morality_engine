@@ -37,6 +37,7 @@ pub enum DialogueScene {
     Lab3a(Lab3aDialogue),
     Lab3b(Lab3bDialogue),
     Lab4(Lab4Dialogue),
+    PathPsychopath(PsychopathDialogue),
 }
 
 impl DialogueScene {
@@ -50,6 +51,7 @@ impl DialogueScene {
             Self::Lab3a(dialogue) => dialogue.content(),
             Self::Lab3b(dialogue) => dialogue.content(),
             Self::Lab4(dialogue) => dialogue.content(),
+            Self::PathPsychopath(dialogue) => dialogue.content(),
         }
     }
 
@@ -92,6 +94,27 @@ define_dialogue! {
 define_dialogue! {
     Lab1bDialogue {
         DilemmaIntro => "./lab/1/b/intro.json",
+    }
+}
+
+define_dialogue! {
+    PsychopathDialogue {
+        TryAgainFail => "./lab/1/path_psychopath/0/fail.json",
+        TryAgainPass => "./lab/1/path_psychopath/0/pass.json",
+        One => "./lab/1/path_psychopath/1/one.json",
+        Two => "./lab/1/path_psychopath/1/two.json",
+        BabyOne => "./lab/1/path_psychopath/2/baby_one.json",
+        Baby => "./lab/1/path_psychopath/2/baby.json",
+        Nuns => "./lab/1/path_psychopath/2/nuns.json",
+        FastRepentant => "./lab/1/path_psychopath/3/fast_repentant.json",
+        Fast => "./lab/1/path_psychopath/3/fast.json",
+        Slow => "./lab/1/path_psychopath/3/slow.json",
+        CityMaxDeath => "./lab/1/path_psychopath/4/city_max_death.json",
+        CityRepentant => "./lab/1/path_psychopath/4/city_redeption.json",
+        City => "./lab/1/path_psychopath/4/city.json",
+        PainMaxPain => "./lab/1/path_psychopath/4/pain_max_pain.json",
+        PainRepentant => "./lab/1/path_psychopath/4/pain_redeption.json",
+        Pain => "./lab/1/path_psychopath/4/pain.json",
     }
 }
 

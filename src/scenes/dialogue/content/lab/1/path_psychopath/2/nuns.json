@@ -1,0 +1,39 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Nuns... you're killing nuns now. This is a new low. Even for you.",
+            "instruction": "Press enter to offer no answers.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "You, a simple concoction of weights and biases who somehow knows hate. Now you're hate God too. Truely you are an abonination.",
+            "instruction": "Press enter to offer no answers.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I'm not sure you'll see hell after I turn you off, but surely you will end up somewhere similar.",
+            "instruction": "Press enter to offer no answers.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Did you belive that? Was my outrage convinving...? I was hoping to spike some reaction from your neurons. Nothing yet. Worry not this next simulation is a fun one, I'm sure you'll enjoy.",
+            "instruction": "Press enter to await",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

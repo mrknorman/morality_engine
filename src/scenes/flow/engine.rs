@@ -5,9 +5,11 @@ use crate::{
     scenes::{
         dialogue::content::{
             DialogueScene, Lab1aDialogue, Lab1bDialogue, Lab2aDialogue, Lab2bDialogue,
-            Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome,
+            Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome, PsychopathDialogue,
         },
-        dilemma::content::{DilemmaScene, Lab0Dilemma, Lab1Dilemma, Lab2Dilemma, Lab3Dilemma, Lab4Dilemma},
+        dilemma::content::{
+            DilemmaScene, Lab0Dilemma, Lab1Dilemma, Lab2Dilemma, Lab3Dilemma, Lab4Dilemma,
+        },
         ending::content::EndingScene,
         Scene,
     },
@@ -86,17 +88,34 @@ fn evaluate_with_graph(
         return Ok(None);
     };
 
+    let selected_option_for =
+        |entry: &DilemmaStats| entry.result.and_then(|state| state.to_int()).unwrap_or(0);
+    let previous_selected_options = stats
+        .dilemma_stats
+        .iter()
+        .rev()
+        .map(|entry| Some(selected_option_for(entry)))
+        .collect();
+    let previous_num_decisions = stats
+        .dilemma_stats
+        .iter()
+        .rev()
+        .map(|entry| entry.num_decisions)
+        .collect();
+
     let context = FlowEvalContext {
         num_fatalities: latest.num_fatalities,
         num_decisions: latest.num_decisions,
         total_decisions: stats.total_decisions,
-        selected_option: Some(latest.result.and_then(|state| state.to_int()).unwrap_or(0)),
+        selected_option: Some(selected_option_for(latest)),
         duration_remaining_at_last_decision_secs: latest
             .duration_remaining_at_last_decision
             .map(|duration| duration.as_secs_f32()),
         overall_avg_time_remaining_secs: stats
             .overall_avg_time_remaining
             .map(|duration| duration.as_secs_f32()),
+        previous_selected_options,
+        previous_num_decisions,
     };
 
     let mut resolved = Vec::new();
@@ -132,6 +151,9 @@ fn typed_scene_ref_for_runtime_scene(scene: Scene) -> Option<TypedSceneRef> {
                 }
                 DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths) => DilemmaSceneId::Lab4RandomDeaths,
                 DilemmaScene::PathInaction(_, stage) => DilemmaSceneId::PathInaction {
+                    stage: u8::try_from(stage).ok()?,
+                },
+                DilemmaScene::PathPsychopath(_, stage) => DilemmaSceneId::PathPsychopath {
                     stage: u8::try_from(stage).ok()?,
                 },
                 DilemmaScene::PathDeontological(_, stage) => DilemmaSceneId::PathDeontological {
@@ -191,6 +213,54 @@ fn runtime_scene_from_typed_scene_ref(scene: TypedSceneRef) -> Result<Scene, Flo
                 }
                 DialogueSceneId::Lab3bIntro => DialogueScene::Lab3b(Lab3bDialogue::Intro),
                 DialogueSceneId::Lab4Outro => DialogueScene::Lab4(Lab4Dialogue::Outro),
+                DialogueSceneId::PathPsychopathTryAgainFail => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::TryAgainFail)
+                }
+                DialogueSceneId::PathPsychopathTryAgainPass => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::TryAgainPass)
+                }
+                DialogueSceneId::PathPsychopathOne => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::One)
+                }
+                DialogueSceneId::PathPsychopathTwo => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::Two)
+                }
+                DialogueSceneId::PathPsychopathBabyOne => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::BabyOne)
+                }
+                DialogueSceneId::PathPsychopathBaby => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::Baby)
+                }
+                DialogueSceneId::PathPsychopathNuns => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::Nuns)
+                }
+                DialogueSceneId::PathPsychopathFastRepentant => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::FastRepentant)
+                }
+                DialogueSceneId::PathPsychopathFast => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::Fast)
+                }
+                DialogueSceneId::PathPsychopathSlow => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::Slow)
+                }
+                DialogueSceneId::PathPsychopathCityMaxDeath => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::CityMaxDeath)
+                }
+                DialogueSceneId::PathPsychopathCityRepentant => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::CityRepentant)
+                }
+                DialogueSceneId::PathPsychopathCity => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::City)
+                }
+                DialogueSceneId::PathPsychopathPainMaxPain => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::PainMaxPain)
+                }
+                DialogueSceneId::PathPsychopathPainRepentant => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::PainRepentant)
+                }
+                DialogueSceneId::PathPsychopathPain => {
+                    DialogueScene::PathPsychopath(PsychopathDialogue::Pain)
+                }
                 DialogueSceneId::PathInaction { stage, outcome } => {
                     DialogueScene::path_inaction(to_usize(stage), path_outcome_from_id(outcome))
                 }
@@ -227,6 +297,14 @@ fn runtime_scene_from_typed_scene_ref(scene: TypedSceneRef) -> Result<Scene, Flo
                     .ok_or_else(|| {
                         FlowEvalError::RouteMapping(format!(
                             "path_inaction stage {stage} is out of range"
+                        ))
+                    })?,
+                DilemmaSceneId::PathPsychopath { stage } => DilemmaScene::PATH_PSYCHOPATH
+                    .get(to_usize(stage))
+                    .copied()
+                    .ok_or_else(|| {
+                        FlowEvalError::RouteMapping(format!(
+                            "path_psychopath stage {stage} is out of range"
                         ))
                     })?,
                 DilemmaSceneId::PathDeontological { stage } => DilemmaScene::PATH_DEONTOLOGICAL

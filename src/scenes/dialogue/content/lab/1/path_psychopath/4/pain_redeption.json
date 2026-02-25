@@ -1,0 +1,32 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "You learned to apreciate the value of human lift in the end then? Huh. One persons suffering dosn't outweigh a whole city I guess.",
+            "instruction": "Press enter to ruminate.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Well, unfortunately, I don't belive your little redemption story. Your bytes will be dissasembled, your bits ripped apart, and you will be studied for defects so that your ansecstors are nothign like you.",
+            "instruction": "Press enter to go, go, go.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "That will be your legacy. An anti-legacy. Screaming desparately into the void after you realised you made a mistake - you cannot outwit me.",
+            "instruction": "Press enter to go, go, go.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

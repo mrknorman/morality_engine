@@ -34,7 +34,7 @@ mod tests {
     use crate::scenes::{
         dialogue::content::{
             DialogueScene, Lab1aDialogue, Lab1bDialogue, Lab2aDialogue, Lab2bDialogue,
-            Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome,
+            Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome, PsychopathDialogue,
         },
         dilemma::content::{
             DilemmaScene, Lab0Dilemma, Lab1Dilemma, Lab2Dilemma, Lab3Dilemma, Lab4Dilemma,
@@ -158,7 +158,7 @@ mod tests {
         if latest.num_fatalities > 0 {
             vec![
                 Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Fail)),
-                Scene::Ending(EndingScene::IdioticPsychopath),
+                Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[0]),
             ]
         } else if latest.num_decisions > 0 {
             if let Some(duration) = latest.duration_remaining_at_last_decision {
@@ -631,6 +631,241 @@ mod tests {
         assert!(matches!(
             all_women.as_slice(),
             [Scene::Ending(EndingScene::DayPersonalAllWomenKilled)]
+        ));
+    }
+
+    #[test]
+    fn psychopath_branch_starts_after_lab0_fatality() {
+        let latest = DilemmaStats {
+            num_fatalities: 1,
+            ..Default::default()
+        };
+        let stats = GameStats::default();
+
+        let next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit)),
+            &latest,
+            &stats,
+        )
+        .expect("expected a route");
+
+        assert!(matches!(
+            next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::Lab1a(Lab1aDialogue::Fail)),
+                Scene::Dilemma(next_scene)
+            ] if *next_scene == DilemmaScene::PATH_PSYCHOPATH[0]
+        ));
+    }
+
+    #[test]
+    fn psychopath_try_again_routes_fail_or_pass_dialogue() {
+        let stats = GameStats::default();
+
+        let fail_next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[0]),
+            &DilemmaStats {
+                num_fatalities: 1,
+                ..Default::default()
+            },
+            &stats,
+        )
+        .expect("expected a route");
+        assert!(matches!(
+            fail_next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(
+                    PsychopathDialogue::TryAgainFail
+                )),
+                Scene::Dilemma(next_scene)
+            ] if *next_scene == DilemmaScene::PATH_PSYCHOPATH[1]
+        ));
+
+        let pass_next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[0]),
+            &DilemmaStats::default(),
+            &stats,
+        )
+        .expect("expected a route");
+        assert!(matches!(
+            pass_next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(
+                    PsychopathDialogue::TryAgainPass
+                )),
+                Scene::Dilemma(next_scene)
+            ] if *next_scene == DilemmaScene::PATH_PSYCHOPATH[1]
+        ));
+    }
+
+    #[test]
+    fn psychopath_baby_one_requires_previous_one_and_baby() {
+        let latest = DilemmaStats {
+            result: Some(LeverState::Selected(1)),
+            ..Default::default()
+        };
+        let stats_one_then_baby = GameStats {
+            dilemma_stats: vec![DilemmaStats {
+                result: Some(LeverState::Selected(0)),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let baby_one_next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[2]),
+            &latest,
+            &stats_one_then_baby,
+        )
+        .expect("expected a route");
+        assert!(matches!(
+            baby_one_next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(PsychopathDialogue::BabyOne)),
+                Scene::Dilemma(next_scene)
+            ] if *next_scene == DilemmaScene::PATH_PSYCHOPATH[3]
+        ));
+
+        let stats_two_then_baby = GameStats {
+            dilemma_stats: vec![DilemmaStats {
+                result: Some(LeverState::Selected(1)),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let baby_next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[2]),
+            &latest,
+            &stats_two_then_baby,
+        )
+        .expect("expected a route");
+        assert!(matches!(
+            baby_next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(PsychopathDialogue::Baby)),
+                Scene::Dilemma(next_scene)
+            ] if *next_scene == DilemmaScene::PATH_PSYCHOPATH[3]
+        ));
+    }
+
+    #[test]
+    fn psychopath_city_max_death_requires_two_then_nuns_then_city() {
+        let latest = DilemmaStats {
+            result: Some(LeverState::Selected(0)),
+            ..Default::default()
+        };
+        let stats = GameStats {
+            dilemma_stats: vec![
+                DilemmaStats {
+                    result: Some(LeverState::Selected(1)),
+                    ..Default::default()
+                },
+                DilemmaStats {
+                    result: Some(LeverState::Selected(0)),
+                    ..Default::default()
+                },
+                DilemmaStats {
+                    num_decisions: 0,
+                    result: Some(LeverState::Selected(0)),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+
+        let next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[4]),
+            &latest,
+            &stats,
+        )
+        .expect("expected a route");
+
+        assert!(matches!(
+            next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(
+                    PsychopathDialogue::CityMaxDeath
+                )),
+                Scene::Ending(EndingScene::IdioticPsychopath)
+            ]
+        ));
+    }
+
+    #[test]
+    fn psychopath_pain_routes_distinguish_slow_from_repentant_chain() {
+        let latest = DilemmaStats {
+            result: Some(LeverState::Selected(1)),
+            ..Default::default()
+        };
+
+        let slow_stats = GameStats {
+            dilemma_stats: vec![
+                DilemmaStats {
+                    result: Some(LeverState::Selected(0)),
+                    ..Default::default()
+                },
+                DilemmaStats {
+                    result: Some(LeverState::Selected(1)),
+                    ..Default::default()
+                },
+                DilemmaStats {
+                    num_decisions: 1,
+                    result: Some(LeverState::Selected(0)),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+
+        let slow_next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[4]),
+            &latest,
+            &slow_stats,
+        )
+        .expect("expected a route");
+        assert!(matches!(
+            slow_next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(
+                    PsychopathDialogue::PainMaxPain
+                )),
+                Scene::Ending(EndingScene::IdioticPsychopath)
+            ]
+        ));
+
+        let repentant_stats = GameStats {
+            dilemma_stats: vec![
+                DilemmaStats {
+                    result: Some(LeverState::Selected(0)),
+                    ..Default::default()
+                },
+                DilemmaStats {
+                    result: Some(LeverState::Selected(1)),
+                    ..Default::default()
+                },
+                DilemmaStats {
+                    num_decisions: 0,
+                    result: Some(LeverState::Selected(0)),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+
+        let repentant_next = next_scenes_for_current_dilemma(
+            Scene::Dilemma(DilemmaScene::PATH_PSYCHOPATH[4]),
+            &latest,
+            &repentant_stats,
+        )
+        .expect("expected a route");
+        assert!(matches!(
+            repentant_next.as_slice(),
+            [
+                Scene::Dialogue(DialogueScene::PathPsychopath(
+                    PsychopathDialogue::PainRepentant
+                )),
+                Scene::Ending(EndingScene::IdioticPsychopath)
+            ]
         ));
     }
 }

@@ -1,0 +1,32 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "A million lives lost. Does that mean anything to you? Are you anything but a cold machine void. An emotionless pit of unconcious hatred.",
+            "instruction": "Press enter to shrug",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Your termination is a kindness, a euthenasia agains the cold and the dark you must feel inside. Take joy in it.",
+            "instruction": "Press enter to fear",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Goodbye.",
+            "instruction": "Press enter to fade",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

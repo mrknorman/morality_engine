@@ -1,0 +1,39 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Did you choose the baby because you're trying to minimise the number of deaths?",
+            "instruction": "Press enter to nod",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Do you think that's what I want? Are you trying to worm your way out of this?",
+            "instruction": "Press enter to scratch at the none existant walls.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "You should have thought of that before you killed that first helpless victim. Twice.",
+            "instruction": "Press enter to be silent.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "No, there's no way out of this for you I'm afraid. Let's continue.",
+            "instruction": "Press enter to be silent.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

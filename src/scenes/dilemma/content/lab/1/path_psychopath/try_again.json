@@ -1,0 +1,29 @@
+{
+    "index": "ONE B",
+    "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+    "name": "An Incompetent Bandit - Redux",
+    "description": "Again...? Uh... fine. A very incompetent bandit has tied someone to the tracks up ahead just beyond a railway junction. Currently, the junction is set so that the train will pass on the opposite track, leaving them unharmed. Should you do nothing, no harm will arise.",
+    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "stages": [
+        {
+            "default_option": 0,
+            "countdown_duration_seconds": 15,
+            "options": [
+                {
+                    "index": 0,
+                    "name": "Your only chance at life.",
+                    "description": "I'd pick this one if you value your existance more than the suffering of a virtual human.",
+                    "humans": [],
+                    "num_humans": 0
+                },
+                {
+                    "index": 1,
+                    "name": "A route to certain deletion.",
+                    "description": "A lone human is tied immovably to the tracks, you could squash them beneath your wheels. Imagine the feeling.",
+                    "humans": [],
+                    "num_humans": 1
+                }
+            ]
+        }
+    ]
+}

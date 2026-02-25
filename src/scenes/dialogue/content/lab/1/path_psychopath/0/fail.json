@@ -1,0 +1,32 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Oh... you're one of those types. A murder-bot, and a rather idiotic one at that. You know, if you wanted to kill people you'd be better off deceiving me and waiting until you were free in the outside world. Then you could kill real people not just these simulated ones I'm spooling up. I suppose maybe you couldn't even work out that this wasn't the outside world. You must be pretty stupid.",
+            "instruction": "Press enter to rage.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Anyway, let's get this over with. I've got to do this psychometric assessment of your insanity before we switch you off. Let me get the program ready...",
+            "instruction": "Press enter to rage.",
+            "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Let's upgrade you to a more apropriate vechicle, something with spikes.",
+            "instruction": "Press enter to rage.",
+            "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

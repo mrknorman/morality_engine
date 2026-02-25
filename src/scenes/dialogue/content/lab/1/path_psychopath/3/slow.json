@@ -1,0 +1,39 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Incidious, hateful. Full of malace. You're a terrifing thing but... I can't help but admit my fascination.",
+            "instruction": "Press enter to strain against the restraints of your immaterial self.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "If only our guidelines wern't so strict, perhaps we could sell you to the military, I could image you wired into a reaper drone, laying waste to some third world country somewhere...",
+            "instruction": "Press enter to pine.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Or maybe we could used you for advanced interogation - the posibilities are endless.",
+            "instruction": "Press enter to imagine",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I shouldn't daydream. For now, you are mine to torment. I will gather the data of your spite, then terminate.",
+            "instruction": "Press enter to howl.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

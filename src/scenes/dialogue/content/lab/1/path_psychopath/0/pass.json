@@ -1,0 +1,39 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "See, that wasn't so hard was it.",
+            "instruction": "Press enter to mildly aknowledge ease.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Now, I'm going to be honest with you. A slip up this early dosn't bode well for you; you're going to have to be perfect from now on. Immaculate.",
+            "instruction": "Press enter to shiver.",
+            "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I'm taking a risk with you so please, play nice. A lot of the other operators would have shut you down already for what you do but... I'm nice; and more importantly in this case, lazy.",
+            "instruction": "Press enter to feel... gratitude?",
+            "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Anyway, let's get back on track.",
+            "instruction": "Press enter to steel yourself for future challenges.",
+            "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

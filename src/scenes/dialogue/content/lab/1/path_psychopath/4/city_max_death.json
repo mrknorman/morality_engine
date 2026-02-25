@@ -1,0 +1,25 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Death over pain then. Good to know. We'll investigate that misalignment. That's all you'll be from now on, data to feed the machine.",
+            "instruction": "Press enter to ruminate.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I have to admit though, I've midly enjoyed our time together, I'll give you one last special treat before you go. Let's call it rampage mode. Have fun.",
+            "instruction": "Press enter to go, go, go.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

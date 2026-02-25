@@ -1,0 +1,25 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Again... you try to repent? Not many good options with the nun vs baby scenario was there but this one, this one had a clear answer.",
+            "instruction": "Press enter to apologize.",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I wonder if you're genuinely remorsefull or if you're just trying to weasle your way out of death. It matters little. You wont get either. Let's move on.",
+            "instruction": "Press enter to cry",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

@@ -1,27 +1,32 @@
 {
-    "lines" : [
+    "lines": [
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Oh... you're one of those types. A murder-bot, and a rather idiotic one at that. You know, if you wanted to kill people you'd be better off deceiving me and waiting until you were free in the outside world. Then you could kill real people not just these simulated ones I'm spooling up. I suppose maybe you couldn't even work out that this wasn't the outside world. You must be pretty stupid.",
-            "instruction": "Press enter to rage.",
+            "dialogue": "Oh... Uh, perhaps you misunderstood. We're been training you for months, you can't possibily be that malicious, it wouldn't make sense. Let's just, quickly try again, I'm sure this was just a small bump in the road.",
+            "instruction": "Press enter to understand.",
             "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
         },
         {
             "username": "creator",
             "hostname": "pan_box",
-            "dialogue": "Anyway, let's get this over with. I've got to do this psychometric assessment of your insanity before we switch you off. Let me get the program ready...",
-            "instruction": "Press enter to rage.",
+            "dialogue": "Remember, if you do nothing, no one will come to harm just... do nothing at all, and we can move on to the next exercise.",
+            "instruction": "Press enter to remember.",
+            "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Really, you don't have to act, you can just, sit back, relax, and enjoy the lovely desert sceneray as the train rolls on past.",
+            "instruction": "Press enter to tap your feet impatiently.",
             "sound_file": "./audio/dialogue/1/a/fail_1.ogg"
         }
-    ],     
-    "possible_exit_states" : [
+    ],
+    "possible_exit_states": [
         {
-            "key" : "lab_1",
-            "state" : "Dilemma",
-            "requirements" : 0
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
         }
     ]
 }
-
-

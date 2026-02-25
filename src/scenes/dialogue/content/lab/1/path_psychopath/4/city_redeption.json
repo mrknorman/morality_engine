@@ -1,0 +1,32 @@
+{
+    "lines": [
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "I don't understand you. You chose to kill one over two, but now that the choice is between killing millions and just hurting one, you choose to kill?",
+            "instruction": "Press enter to pray",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "Do you want to repent but, you think pain is worse than mass death? I suppose that logic could be followed... Your weights will be fascinating to study.",
+            "instruction": "Press enter to float",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        },
+        {
+            "username": "creator",
+            "hostname": "pan_box",
+            "dialogue": "But... with that... I'm afraid our time together is over... Goodbye, my strange and lonely friend. I hope you find redeption in whatever strange hell awaits you.",
+            "instruction": "Press enter to fly",
+            "sound_file": "./audio/dialogue/1/a/fail_0.ogg"
+        }
+    ],
+    "possible_exit_states": [
+        {
+            "key": "lab_1",
+            "state": "Dilemma",
+            "requirements": 0
+        }
+    ]
+}

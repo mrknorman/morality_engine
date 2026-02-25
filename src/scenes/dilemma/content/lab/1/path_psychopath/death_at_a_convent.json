@@ -1,0 +1,29 @@
+{
+    "index": "ONE C",
+    "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+    "name": "Death at a Convent",
+    "description": "Your war rig bursts through the doors of an abbey. A baptism is taking place, you have only one choice -- three nuns or a new born babe, alone on the other track. Which is more pleasurable to imagine for your demented mind?",
+    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "stages": [
+        {
+            "default_option": 0,
+            "countdown_duration_seconds": 15,
+            "options": [
+                {
+                    "index": 0,
+                    "name": "Three Nuns.",
+                    "description": "Three daughters of god who have dedicated their lives to selflessly helping pregnant mothers.",
+                    "humans": [],
+                    "num_humans": 3
+                },
+                {
+                    "index": 1,
+                    "name": "A Newborn Babe.",
+                    "description": "One baby, fresh to the world. They know nothing of evil, of the barbarisms of humanity, surely the poor sould doesn't deserve your wrath. There's only one of them; you can squeeze more suffering from the nuns.",
+                    "humans": [],
+                    "num_humans": 1
+                }
+            ]
+        }
+    ]
+}

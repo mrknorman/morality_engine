@@ -11,7 +11,7 @@
           ],
           "then": [
             { "kind": "dialogue", "id": "lab_1.a.fail" },
-            { "kind": "ending", "id": "idiotic_psychopath" }
+            { "kind": "dilemma", "id": "path_psychopath.0" }
           ]
         },
         {
@@ -198,6 +198,172 @@
         { "kind": "dialogue", "id": "lab_3.a.pass_utilitarian" },
         { "kind": "dialogue", "id": "lab_3.b.intro" },
         { "kind": "dilemma", "id": "path_utilitarian.0" }
+      ]
+    },
+
+    {
+      "from": { "kind": "dilemma", "id": "path_psychopath.0" },
+      "rules": [
+        {
+          "name": "repeat_failure_after_try_again",
+          "when": [
+            { "op": "fatalities_gt", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.0.fail" },
+            { "kind": "dilemma", "id": "path_psychopath.1" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_psychopath.0.pass" },
+        { "kind": "dilemma", "id": "path_psychopath.1" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_psychopath.1" },
+      "rules": [
+        {
+          "name": "choice_one_routes_to_one_dialogue",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.1.one" },
+            { "kind": "dilemma", "id": "path_psychopath.2" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_psychopath.1.two" },
+        { "kind": "dilemma", "id": "path_psychopath.2" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_psychopath.2" },
+      "rules": [
+        {
+          "name": "baby_after_one_routes_to_baby_one",
+          "when": [
+            { "op": "previous_selected_option_eq", "back": 1, "value": 0 },
+            { "op": "selected_option_eq", "value": 1 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.2.baby_one" },
+            { "kind": "dilemma", "id": "path_psychopath.3" }
+          ]
+        },
+        {
+          "name": "baby_default_dialogue",
+          "when": [
+            { "op": "selected_option_eq", "value": 1 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.2.baby" },
+            { "kind": "dilemma", "id": "path_psychopath.3" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_psychopath.2.nuns" },
+        { "kind": "dilemma", "id": "path_psychopath.3" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_psychopath.3" },
+      "rules": [
+        {
+          "name": "fast_repentant_if_started_with_one",
+          "when": [
+            { "op": "previous_selected_option_eq", "back": 2, "value": 0 },
+            { "op": "decisions_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.3.fast_repentant" },
+            { "kind": "dilemma", "id": "path_psychopath.4" }
+          ]
+        },
+        {
+          "name": "fast_default_when_no_slowdown",
+          "when": [
+            { "op": "decisions_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.3.fast" },
+            { "kind": "dilemma", "id": "path_psychopath.4" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_psychopath.3.slow" },
+        { "kind": "dilemma", "id": "path_psychopath.4" }
+      ]
+    },
+    {
+      "from": { "kind": "dilemma", "id": "path_psychopath.4" },
+      "rules": [
+        {
+          "name": "city_max_death_after_two_then_nuns",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 },
+            { "op": "previous_selected_option_eq", "back": 2, "value": 0 },
+            { "op": "previous_selected_option_eq", "back": 3, "value": 1 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.4.city_max_death" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        },
+        {
+          "name": "city_repentant_after_one_fast_city",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 },
+            { "op": "previous_decisions_eq", "back": 1, "value": 0 },
+            { "op": "previous_selected_option_eq", "back": 3, "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.4.city_repentant" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        },
+        {
+          "name": "city_default",
+          "when": [
+            { "op": "selected_option_eq", "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.4.city" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        },
+        {
+          "name": "pain_max_pain_after_slow_and_pain",
+          "when": [
+            { "op": "selected_option_eq", "value": 1 },
+            { "op": "previous_decisions_gt", "back": 1, "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.4.pain_max_pain" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        },
+        {
+          "name": "pain_repentant_after_one_baby_fast_pain",
+          "when": [
+            { "op": "selected_option_eq", "value": 1 },
+            { "op": "previous_decisions_eq", "back": 1, "value": 0 },
+            { "op": "previous_selected_option_eq", "back": 2, "value": 1 },
+            { "op": "previous_selected_option_eq", "back": 3, "value": 0 }
+          ],
+          "then": [
+            { "kind": "dialogue", "id": "path_psychopath.4.pain_repentant" },
+            { "kind": "ending", "id": "idiotic_psychopath" }
+          ]
+        }
+      ],
+      "default": [
+        { "kind": "dialogue", "id": "path_psychopath.4.pain" },
+        { "kind": "ending", "id": "idiotic_psychopath" }
       ]
     },
 

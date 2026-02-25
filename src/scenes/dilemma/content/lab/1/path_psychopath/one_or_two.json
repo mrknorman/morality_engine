@@ -1,0 +1,29 @@
+{
+    "index": "ONE B",
+    "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+    "name": "Double or Nothing",
+    "description": "You roll across empty desert in your machine built for suffering. Ahead, a decision. You'll hit one group, that obvious; but who? One or two. You can kill one, or you can kill two -- its your decision. In the wasteland only blood rules.",
+    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "stages": [
+        {
+            "default_option": 0,
+            "countdown_duration_seconds": 15,
+            "options": [
+                {
+                    "index": 0,
+                    "name": "One wastelander.",
+                    "description": "One lone nomad; they've survived so much to get here. You could end them.",
+                    "humans": [],
+                    "num_humans": 1
+                },
+                {
+                    "index": 1,
+                    "name": "Two survivors.",
+                    "description": "The apocalypse took many victims; but somehow, these two survived; two lovers in an empty ocean of anguish. Not for long.",
+                    "humans": [],
+                    "num_humans": 2
+                }
+            ]
+        }
+    ]
+}

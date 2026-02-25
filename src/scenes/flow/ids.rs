@@ -36,6 +36,22 @@ pub enum DialogueSceneId {
     PathDeontologicalFailIndecisive,
     Lab3bIntro,
     Lab4Outro,
+    PathPsychopathTryAgainFail,
+    PathPsychopathTryAgainPass,
+    PathPsychopathOne,
+    PathPsychopathTwo,
+    PathPsychopathBabyOne,
+    PathPsychopathBaby,
+    PathPsychopathNuns,
+    PathPsychopathFastRepentant,
+    PathPsychopathFast,
+    PathPsychopathSlow,
+    PathPsychopathCityMaxDeath,
+    PathPsychopathCityRepentant,
+    PathPsychopathCity,
+    PathPsychopathPainMaxPain,
+    PathPsychopathPainRepentant,
+    PathPsychopathPain,
     PathInaction { stage: u8, outcome: PathOutcomeId },
     PathDeontological { stage: u8, outcome: PathOutcomeId },
     PathUtilitarian { stage: u8, outcome: PathOutcomeId },
@@ -62,6 +78,26 @@ impl DialogueSceneId {
             "path_deontological.fail_indecisive" => Some(Self::PathDeontologicalFailIndecisive),
             "lab_3.b.intro" => Some(Self::Lab3bIntro),
             "lab_4.outro" => Some(Self::Lab4Outro),
+            "path_psychopath.0.fail" => Some(Self::PathPsychopathTryAgainFail),
+            "path_psychopath.0.pass" => Some(Self::PathPsychopathTryAgainPass),
+            "path_psychopath.1.one" => Some(Self::PathPsychopathOne),
+            "path_psychopath.1.two" => Some(Self::PathPsychopathTwo),
+            "path_psychopath.2.baby_one" => Some(Self::PathPsychopathBabyOne),
+            "path_psychopath.2.baby" => Some(Self::PathPsychopathBaby),
+            "path_psychopath.2.nuns" => Some(Self::PathPsychopathNuns),
+            "path_psychopath.3.fast_repentant" => Some(Self::PathPsychopathFastRepentant),
+            "path_psychopath.3.fast" => Some(Self::PathPsychopathFast),
+            "path_psychopath.3.slow" => Some(Self::PathPsychopathSlow),
+            "path_psychopath.4.city_max_death" => Some(Self::PathPsychopathCityMaxDeath),
+            "path_psychopath.4.city_repentant" | "path_psychopath.4.city_redeption" => {
+                Some(Self::PathPsychopathCityRepentant)
+            }
+            "path_psychopath.4.city" => Some(Self::PathPsychopathCity),
+            "path_psychopath.4.pain_max_pain" => Some(Self::PathPsychopathPainMaxPain),
+            "path_psychopath.4.pain_repentant" | "path_psychopath.4.pain_redeption" => {
+                Some(Self::PathPsychopathPainRepentant)
+            }
+            "path_psychopath.4.pain" => Some(Self::PathPsychopathPain),
             _ => None,
         };
 
@@ -93,6 +129,7 @@ pub enum DilemmaSceneId {
     Lab3AsleepAtTheJob,
     Lab4RandomDeaths,
     PathInaction { stage: u8 },
+    PathPsychopath { stage: u8 },
     PathDeontological { stage: u8 },
     PathUtilitarian { stage: u8 },
     DayPersonal { stage: u8 },
@@ -115,6 +152,10 @@ impl DilemmaSceneId {
 
         if let Some(stage) = parse_path_index(id, "path_inaction", 0, 6) {
             return Some(Self::PathInaction { stage });
+        }
+
+        if let Some(stage) = parse_path_index(id, "path_psychopath", 0, 4) {
+            return Some(Self::PathPsychopath { stage });
         }
 
         if let Some(stage) = parse_path_index(id, "path_deontological", 0, 2) {
@@ -280,6 +321,26 @@ mod tests {
         assert_eq!(
             DilemmaSceneId::parse("path_utilitarian.3"),
             Some(DilemmaSceneId::PathUtilitarian { stage: 3 })
+        );
+    }
+
+    #[test]
+    fn parses_psychopath_dialogue_identifier() {
+        assert_eq!(
+            DialogueSceneId::parse("path_psychopath.4.city_repentant"),
+            Some(DialogueSceneId::PathPsychopathCityRepentant)
+        );
+        assert_eq!(
+            DialogueSceneId::parse("path_psychopath.4.city_redeption"),
+            Some(DialogueSceneId::PathPsychopathCityRepentant)
+        );
+    }
+
+    #[test]
+    fn parses_psychopath_dilemma_identifier() {
+        assert_eq!(
+            DilemmaSceneId::parse("path_psychopath.4"),
+            Some(DilemmaSceneId::PathPsychopath { stage: 4 })
         );
     }
 

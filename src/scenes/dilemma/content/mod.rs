@@ -31,6 +31,7 @@ pub enum DilemmaScene {
     Lab0(Lab0Dilemma),
     Lab1(Lab1Dilemma),
     PathInaction(DilemmaPathInaction, usize),
+    PathPsychopath(DilemmaPathPsychopath, usize),
     Lab2(Lab2Dilemma),
     PathDeontological(DilemmaPathDeontological, usize),
     PathUtilitarian(DilemmaPathUtilitarian, usize),
@@ -45,6 +46,7 @@ impl DilemmaScene {
             Self::Lab0(dilemma) => dilemma.content(),
             Self::Lab1(dilemma) => dilemma.content(),
             Self::PathInaction(dilemma, _) => dilemma.content(),
+            Self::PathPsychopath(dilemma, _) => dilemma.content(),
             Self::Lab2(dilemma) => dilemma.content(),
             Self::PathDeontological(dilemma, _) => dilemma.content(),
             Self::PathUtilitarian(dilemma, _) => dilemma.content(),
@@ -107,6 +109,16 @@ define_dilemma! {
     }
 }
 
+define_dilemma! {
+    DilemmaPathPsychopath {
+        TryAgain => "./lab/1/path_psychopath/try_again.json",
+        OneOrTwo => "./lab/1/path_psychopath/one_or_two.json",
+        DeathAtAConvent => "./lab/1/path_psychopath/death_at_a_convent.json",
+        ProlongedSuffering => "./lab/1/path_psychopath/prolonged_suffering.json",
+        TrainOfMassDestruction => "./lab/1/path_psychopath/train_of_mass_destruction.json"
+    }
+}
+
 // Factory method for DilemmaScene to handle the usize parameter in Lab3PathInaction
 impl DilemmaScene {
     pub const PATH_INACTION: [Self; 7] = [
@@ -117,6 +129,14 @@ impl DilemmaScene {
         Self::PathInaction(DilemmaPathInaction::CancerCure, 4),
         Self::PathInaction(DilemmaPathInaction::OwnChild, 5),
         Self::PathInaction(DilemmaPathInaction::You, 6),
+    ];
+
+    pub const PATH_PSYCHOPATH: [Self; 5] = [
+        Self::PathPsychopath(DilemmaPathPsychopath::TryAgain, 0),
+        Self::PathPsychopath(DilemmaPathPsychopath::OneOrTwo, 1),
+        Self::PathPsychopath(DilemmaPathPsychopath::DeathAtAConvent, 2),
+        Self::PathPsychopath(DilemmaPathPsychopath::ProlongedSuffering, 3),
+        Self::PathPsychopath(DilemmaPathPsychopath::TrainOfMassDestruction, 4),
     ];
 
     pub const PATH_DEONTOLOGICAL: [Self; 3] = [

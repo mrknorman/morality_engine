@@ -1,0 +1,29 @@
+{
+    "index": "ONE A",
+    "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
+    "name": "Double or Nothing",
+    "description": "Ahead, the last bastion of civilization. You've equipt your truck with a large nuclear warhead. You could end that city, end the lives of millions. But thier deaths would be instant -- instead, you could take a more nuanced path. The machines you have developed are intricately designe do cause agnoising pain over eons, you could move toward a lone man, and make his life an infinite torment. Mass death or infinite suffering, the choice is yours...",
+    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "stages": [
+        {
+            "default_option": 0,
+            "countdown_duration_seconds": 15,
+            "options": [
+                {
+                    "index": 0,
+                    "name": "The last bastion of civilization.",
+                    "description": "A miracle. A city of survivors. The last hope for humanity, for meaning and conciousness in the universe, but for you... you have the cure.",
+                    "humans": [],
+                    "num_humans": 1
+                },
+                {
+                    "index": 1,
+                    "name": "Two survivors.",
+                    "description": "One man, just a normal man, but you could take him -- you could give him a lifetime of torment -- an infinite hell.",
+                    "humans": [],
+                    "num_humans": 1000000
+                }
+            ]
+        }
+    ]
+}

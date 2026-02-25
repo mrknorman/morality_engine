@@ -69,6 +69,9 @@ pub enum FlowCondition {
     OverallAvgRemainingIsNone,
     OverallAvgRemainingLtSecs { value: f32 },
     OverallAvgRemainingGteSecs { value: f32 },
+    PreviousSelectedOptionEq { back: usize, value: usize },
+    PreviousDecisionsEq { back: usize, value: usize },
+    PreviousDecisionsGt { back: usize, value: usize },
 }
 
 impl FlowCondition {
@@ -101,11 +104,20 @@ impl FlowCondition {
             Self::OverallAvgRemainingGteSecs { value } => context
                 .overall_avg_time_remaining_secs
                 .is_some_and(|seconds| seconds >= *value),
+            Self::PreviousSelectedOptionEq { back, value } => context
+                .previous_selected_option(*back)
+                .is_some_and(|selected| selected == *value),
+            Self::PreviousDecisionsEq { back, value } => context
+                .previous_num_decisions(*back)
+                .is_some_and(|decisions| decisions == *value),
+            Self::PreviousDecisionsGt { back, value } => context
+                .previous_num_decisions(*back)
+                .is_some_and(|decisions| decisions > *value),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct FlowEvalContext {
     pub num_fatalities: usize,
     pub num_decisions: usize,
@@ -113,6 +125,27 @@ pub struct FlowEvalContext {
     pub selected_option: Option<usize>,
     pub duration_remaining_at_last_decision_secs: Option<f32>,
     pub overall_avg_time_remaining_secs: Option<f32>,
+    pub previous_selected_options: Vec<Option<usize>>,
+    pub previous_num_decisions: Vec<usize>,
+}
+
+impl FlowEvalContext {
+    fn previous_selected_option(&self, back: usize) -> Option<usize> {
+        if back == 0 {
+            return None;
+        }
+        self.previous_selected_options
+            .get(back - 1)
+            .copied()
+            .flatten()
+    }
+
+    fn previous_num_decisions(&self, back: usize) -> Option<usize> {
+        if back == 0 {
+            return None;
+        }
+        self.previous_num_decisions.get(back - 1).copied()
+    }
 }
 
 #[cfg(test)]
@@ -163,6 +196,8 @@ mod tests {
             selected_option: None,
             duration_remaining_at_last_decision_secs: None,
             overall_avg_time_remaining_secs: None,
+            previous_selected_options: vec![],
+            previous_num_decisions: vec![],
         };
 
         let resolved = route.resolve_then(&context);
