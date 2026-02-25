@@ -7,20 +7,19 @@ use serde::{
     de::{Deserializer, Error},
     Deserialize, Serialize,
 };
-use std::{fmt, path::PathBuf, str::FromStr, time::Duration};
 use serde_json::Error as JsonError;
+use std::{fmt, path::PathBuf, str::FromStr, time::Duration};
 
 use crate::{
-    data::{
-        states::DilemmaPhase,
-        stats::GameStats,
-    },
+    data::{states::DilemmaPhase, stats::GameStats},
     entities::text::{scaled_font_size, TextRaw},
+    entities::train::content::TrainTypes,
     scenes::{flow::next_scenes_for_current_dilemma, SceneFlowMode, SceneQueue},
     systems::{inheritance::BequeathTextColor, motion::Pulse, time::Dilation},
 };
 
 use super::content::*;
+use super::visuals::{DilemmaVisualSelection, DilemmaVisualSelectionLoader};
 
 fn has_dilemma_timers(q: Query<&DilemmaTimer>) -> bool {
     !q.is_empty()
@@ -172,6 +171,10 @@ fn default_speed() -> f32 {
     70.0
 }
 
+fn default_train_type() -> TrainTypes {
+    TrainTypes::SteamTrain
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct DilemmaLoader {
     index: String,
@@ -180,6 +183,10 @@ pub struct DilemmaLoader {
     description: String,
     stages: Vec<DilemmaStageLoader>,
     music_path: PathBuf,
+    #[serde(default = "default_train_type")]
+    train: TrainTypes,
+    #[serde(default)]
+    visuals: DilemmaVisualSelectionLoader,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -349,6 +356,8 @@ pub struct Dilemma {
     pub description: String,
     pub stages: Vec<DilemmaStage>,
     pub music_path: PathBuf,
+    pub train: TrainTypes,
+    pub visuals: DilemmaVisualSelection,
 }
 
 #[derive(Debug)]
@@ -422,6 +431,8 @@ impl Dilemma {
             description: loaded_dilemma.description,
             stages,
             music_path: loaded_dilemma.music_path,
+            train: loaded_dilemma.train,
+            visuals: loaded_dilemma.visuals.into_runtime(),
         })
     }
 
@@ -445,5 +456,35 @@ impl Dilemma {
         };
 
         queue.replace(next_scenes);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scenes::dilemma::{
+        content::{DilemmaPathPsychopath, DilemmaScene, Lab0Dilemma},
+        visuals::DEFAULT_VISUAL_PROFILE,
+    };
+
+    #[test]
+    fn dilemma_visuals_default_when_not_specified() {
+        let dilemma = Dilemma::try_new(&DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit))
+            .expect("lab_0 dilemma should parse");
+
+        assert_eq!(dilemma.visuals.profile, DEFAULT_VISUAL_PROFILE);
+        assert_eq!(dilemma.visuals.intensity, 0);
+    }
+
+    #[test]
+    fn dilemma_visuals_parse_from_content_json() {
+        let dilemma = Dilemma::try_new(&DilemmaScene::PathPsychopath(
+            DilemmaPathPsychopath::OneOrTwo,
+            1,
+        ))
+        .expect("psychopath dilemma should parse");
+
+        assert_eq!(dilemma.visuals.profile, "apocalypse");
+        assert_eq!(dilemma.visuals.intensity, 1);
     }
 }

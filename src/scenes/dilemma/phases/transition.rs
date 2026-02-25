@@ -8,6 +8,7 @@ use crate::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
         junction::Junction,
         lever::{Lever, LeverState},
+        visuals::AmbientBackgroundElement,
     },
     systems::{
         backgrounds::{Background, BackgroundSystems},
@@ -162,7 +163,10 @@ pub fn update_viscera_speeds(
     stage: Res<DilemmaStage>,
     mut sprites: Query<
         (&mut CameraVelocity, &Transform),
-        Or<(With<BloodSprite>, With<ExplodedGlyph>)>,
+        (
+            Or<(With<BloodSprite>, With<ExplodedGlyph>)>,
+            Without<AmbientBackgroundElement>,
+        ),
     >,
 ) {
     for (mut velocity, transform) in &mut sprites {
@@ -175,9 +179,109 @@ pub fn update_viscera_speeds(
 }
 
 pub fn stop_viscera(
-    mut sprites: Query<&mut CameraVelocity, Or<(With<BloodSprite>, With<ExplodedGlyph>)>>,
+    mut sprites: Query<
+        &mut CameraVelocity,
+        (
+            Or<(With<BloodSprite>, With<ExplodedGlyph>)>,
+            Without<AmbientBackgroundElement>,
+        ),
+    >,
 ) {
     for mut velocity in &mut sprites {
         velocity.0.x = 0.0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scenes::dilemma::dilemma::DilemmaStage;
+    use std::time::Duration;
+
+    #[test]
+    fn update_viscera_speeds_skips_ambient_background_elements() {
+        let mut app = App::new();
+        app.insert_resource(DilemmaStage {
+            countdown_duration: Duration::from_secs_f32(10.0),
+            options: vec![],
+            default_option: None,
+            speed: 70.0,
+        });
+
+        let ambient = app
+            .world_mut()
+            .spawn((
+                BloodSprite(1),
+                AmbientBackgroundElement,
+                CameraVelocity(Vec3::new(12.0, 0.0, 0.0)),
+                Transform::from_xyz(0.0, 0.0, 1.0),
+            ))
+            .id();
+
+        let gameplay = app
+            .world_mut()
+            .spawn((
+                BloodSprite(1),
+                CameraVelocity(Vec3::new(4.0, 0.0, 0.0)),
+                Transform::from_xyz(0.0, 0.0, 8.0),
+            ))
+            .id();
+
+        app.add_systems(Update, update_viscera_speeds);
+        app.update();
+
+        let ambient_velocity = app
+            .world()
+            .get::<CameraVelocity>(ambient)
+            .expect("ambient entity should still exist")
+            .0
+            .x;
+        let gameplay_velocity = app
+            .world()
+            .get::<CameraVelocity>(gameplay)
+            .expect("gameplay entity should still exist")
+            .0
+            .x;
+
+        assert_eq!(ambient_velocity, 12.0);
+        assert_ne!(gameplay_velocity, 4.0);
+    }
+
+    #[test]
+    fn stop_viscera_skips_ambient_background_elements() {
+        let mut app = App::new();
+
+        let ambient = app
+            .world_mut()
+            .spawn((
+                ExplodedGlyph,
+                AmbientBackgroundElement,
+                CameraVelocity(Vec3::new(9.0, 0.0, 0.0)),
+            ))
+            .id();
+
+        let gameplay = app
+            .world_mut()
+            .spawn((ExplodedGlyph, CameraVelocity(Vec3::new(9.0, 0.0, 0.0))))
+            .id();
+
+        app.add_systems(Update, stop_viscera);
+        app.update();
+
+        let ambient_velocity = app
+            .world()
+            .get::<CameraVelocity>(ambient)
+            .expect("ambient entity should still exist")
+            .0
+            .x;
+        let gameplay_velocity = app
+            .world()
+            .get::<CameraVelocity>(gameplay)
+            .expect("gameplay entity should still exist")
+            .0
+            .x;
+
+        assert_eq!(ambient_velocity, 9.0);
+        assert_eq!(gameplay_velocity, 0.0);
     }
 }

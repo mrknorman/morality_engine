@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "desert_default",
+      "background_layers": [
+        {
+          "background_type": "desert",
+          "density_base": 0.00002,
+          "density_per_intensity": 0.0,
+          "speed_base": 0.0,
+          "speed_per_stage_speed": -0.007142857,
+          "alpha_multiplier": 1.0
+        }
+      ],
+      "ambient_smoke": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "apocalypse",
+      "background_layers": [
+        {
+          "background_type": "apocalypse",
+          "density_base": 0.000012,
+          "density_per_intensity": 0.0,
+          "speed_base": 0.0,
+          "speed_per_stage_speed": -0.0064285716,
+          "alpha_multiplier": 0.92
+        }
+      ],
+      "ambient_smoke": {
+        "enabled": true,
+        "base_count": 2,
+        "count_per_intensity": 4,
+        "frame_seconds": 0.32,
+        "rise_speed": 8.0,
+        "drift_speed": -2.5,
+        "drift_jitter": 1.2,
+        "min_x": -880.0,
+        "max_x": 880.0,
+        "min_y": -220.0,
+        "max_y": 260.0
+      },
+      "ambient_viscera": {
+        "enabled": true,
+        "body_parts_base_count": 4,
+        "body_parts_per_intensity": 6,
+        "blood_base_count": 16,
+        "blood_per_intensity": 20,
+        "min_x": -900.0,
+        "max_x": 900.0,
+        "min_y": -260.0,
+        "max_y": 110.0
+      }
+    }
+  ]
+}

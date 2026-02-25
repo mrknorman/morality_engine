@@ -13,7 +13,7 @@ use crate::{
         track::Track,
         train::Train,
     },
-    scenes::dilemma::{dilemma::DilemmaStage, lever::Lever},
+    scenes::dilemma::{dilemma::DilemmaStage, lever::Lever, visuals::AmbientBackgroundElement},
     systems::{
         audio::{
             continuous_audio, ContinuousAudio, ContinuousAudioPallet, OneShotAudio,
@@ -304,7 +304,7 @@ impl Junction {
         mut commands: Commands,
         junction_query: Query<Entity, With<Junction>>,
         body_parts_query: Query<Entity, (With<CharacterSprite>, Without<ChildOf>)>,
-        blood_query: Query<Entity, With<BloodSprite>>,
+        blood_query: Query<Entity, (With<BloodSprite>, Without<AmbientBackgroundElement>)>,
     ) {
         for entity in junction_query.iter() {
             commands.entity(entity).despawn();

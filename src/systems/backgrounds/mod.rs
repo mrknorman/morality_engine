@@ -98,14 +98,14 @@ pub struct Background {
 impl Background {
     /// Creates a new Background with the given type, density, and speed
     pub fn new(background_type: BackgroundTypes, density: f32, speed: f32) -> Self {
-        let sprites: Vec<BackgroundSpriteType> = match serde_json::from_str(background_type.content())
-        {
-            Ok(sprites) => sprites,
-            Err(error) => {
-                warn!("failed to parse background JSON: {error}; using empty sprite set");
-                Vec::new()
-            }
-        };
+        let sprites: Vec<BackgroundSpriteType> =
+            match serde_json::from_str(background_type.content()) {
+                Ok(sprites) => sprites,
+                Err(error) => {
+                    warn!("failed to parse background JSON: {error}; using empty sprite set");
+                    Vec::new()
+                }
+            };
 
         Self {
             sprites,
@@ -141,8 +141,13 @@ impl Background {
 
             for &child_entity in children {
                 if let Ok((mut velocity, transform)) = sprites.get_mut(child_entity) {
-                    let distance_from_bottom = (screen_height - transform.translation.y).max(0.0);
-                    let x_speed = distance_from_bottom * parent_speed;
+                    let scale_factor = transform.scale.x.max(0.0);
+                    let x_speed = parallax_speed(
+                        screen_height,
+                        transform.translation.y,
+                        parent_speed,
+                        scale_factor,
+                    );
                     velocity.0.x = x_speed;
                 }
             }
@@ -217,9 +222,7 @@ impl Background {
                             scale_factor,
                             random_offset,
                             lod.clone(),
-                            (screen_height / 2.0 - y_range).max(0.0)
-                                * background.speed
-                                * scale_factor,
+                            parallax_speed(screen_height, y_range, background.speed, scale_factor),
                         ));
                     }
                 }
@@ -268,6 +271,10 @@ impl Background {
 // Configuration for sprite positioning and wrapping
 const SPAWN_VARIANCE: f32 = 100.0;
 
+pub fn parallax_speed(screen_height: f32, y: f32, parent_speed: f32, scale_factor: f32) -> f32 {
+    (screen_height / 2.0 - y).max(0.0) * parent_speed * scale_factor.max(0.0)
+}
+
 #[derive(Component)]
 #[require(TextSprite)]
 pub struct BackgroundSprite {
@@ -276,6 +283,13 @@ pub struct BackgroundSprite {
 }
 
 impl BackgroundSprite {
+    pub fn new(screen_width: f32, random_offset: f32) -> Self {
+        Self {
+            screen_width,
+            random_offset,
+        }
+    }
+
     /// Repositions sprites that have moved off-screen
     pub fn wrap_sprites(mut sprites: Query<(&BackgroundSprite, &mut Transform)>) {
         for (sprite, mut transform) in &mut sprites {

@@ -3,11 +3,17 @@
     "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
     "name": "Prolonged Suffering",
     "description": "There are no diverging paths here -- just one choie. You've found that if you slow down, your instruments of torment significantly increase the suffering of those you impale. Will you hit the brakes to prolong their suffering?",
-    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "music_path": "./audio/music/evil_exe.ogg",
+    "train": "psychopath_truck",
+    "visuals": {
+        "profile": "apocalypse",
+        "intensity": 3
+    },
     "stages": [
         {
             "default_option": 0,
             "countdown_duration_seconds": 15,
+            "speed": 105,
             "options": [
                 {
                     "index": 0,

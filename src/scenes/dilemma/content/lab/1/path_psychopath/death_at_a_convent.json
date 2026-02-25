@@ -3,11 +3,17 @@
     "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
     "name": "Death at a Convent",
     "description": "Your war rig bursts through the doors of an abbey. A baptism is taking place, you have only one choice -- three nuns or a new born babe, alone on the other track. Which is more pleasurable to imagine for your demented mind?",
-    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "music_path": "./audio/music/evil_exe.ogg",
+    "train": "psychopath_truck",
+    "visuals": {
+        "profile": "apocalypse",
+        "intensity": 2
+    },
     "stages": [
         {
             "default_option": 0,
             "countdown_duration_seconds": 15,
+            "speed": 105,
             "options": [
                 {
                     "index": 0,

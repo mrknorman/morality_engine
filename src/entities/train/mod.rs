@@ -82,6 +82,8 @@ fn activate_systems(
 #[derive(Deserialize, Clone)]
 pub struct TrainType {
     pub carriages: Vec<String>,
+    #[serde(default)]
+    pub carriage_step_x: Option<f32>,
     pub smoke: Option<Vec<String>>,
     pub track_audio_path: String,
     pub stopped_audio_path: String,
@@ -93,6 +95,7 @@ impl TrainType {
     fn fallback() -> Self {
         Self {
             carriages: vec![String::from("____"), String::from("____")],
+            carriage_step_x: None,
             smoke: Some(vec![String::from("~~")]),
             track_audio_path: String::from("./audio/effects/static.ogg"),
             stopped_audio_path: String::from("./audio/effects/static.ogg"),
@@ -115,12 +118,16 @@ impl TrainType {
             self.carriages = vec![String::from("____")];
         }
 
-        if self.smoke.as_ref().is_none_or(Vec::is_empty) {
+        if self.smoke.is_none() {
             warn!("train content has no smoke frames; using fallback smoke frame");
             self.smoke = Some(vec![String::from("~~")]);
         }
 
-        if self.rising_smoke.as_ref().is_none_or(|frames| frames.len() < 7) {
+        if self
+            .rising_smoke
+            .as_ref()
+            .is_none_or(|frames| frames.len() < 7)
+        {
             warn!("train content has insufficient rising smoke frames; using fallback set");
             self.rising_smoke = Some(vec![
                 String::from(" . "),
@@ -131,6 +138,11 @@ impl TrainType {
                 String::from(" **"),
                 String::from("***"),
             ]);
+        }
+
+        if self.carriage_step_x.is_some_and(|step| step <= 0.0) {
+            warn!("train content has non-positive carriage_step_x; using default spacing");
+            self.carriage_step_x = None;
         }
 
         self
@@ -185,8 +197,6 @@ impl Train {
     const BASE_TRAIN_HEIGHT: f32 = 32.0; // 3 glyph lines
     const BASE_TRAIN_WIDTH: f32 = 30.0; // side-to-side depth
     const BASE_CARRIAGE_STEP_X: f32 = 85.0;
-    const BASE_CARRIAGE_HEADROOM_X: f32 = 110.0;
-    const BASE_AABB_CENTER_STEP_X: f32 = 42.5;
     const BASE_CARRIAGE_Y: f32 = -46.0;
     const BASE_TRACK_ALIGNMENT_OFFSET_Y: f32 = -30.0;
     const BASE_SMOKE_X: f32 = -35.0;
@@ -220,6 +230,7 @@ impl Train {
             color,
             train_state,
             bounce_audio,
+            carriage_step_x,
         ) = {
             if let (Some(train), Some(color), Some(train_state)) = (
                 world.entity(entity).get::<Train>(),
@@ -289,6 +300,9 @@ impl Train {
                     *color,
                     *train_state,
                     bounce_audio,
+                    train_type
+                        .carriage_step_x
+                        .unwrap_or(Self::BASE_CARRIAGE_STEP_X),
                 )
             } else {
                 warn!("train entity missing required components; skipping train setup");
@@ -299,10 +313,12 @@ impl Train {
         let train_height = scaled_text_units(Self::BASE_TRAIN_HEIGHT);
         let train_width = scaled_text_units(Self::BASE_TRAIN_WIDTH);
 
-        let len_x = scaled_text_units(Self::BASE_CARRIAGE_STEP_X) * (carriages.len() as f32 - 1.0)
-            + scaled_text_units(Self::BASE_CARRIAGE_HEADROOM_X); // whole train
+        let aabb_headroom_x = carriage_step_x + 25.0;
+        let aabb_center_step_x = carriage_step_x * 0.5;
+        let len_x = scaled_text_units(carriage_step_x) * (carriages.len() as f32 - 1.0)
+            + scaled_text_units(aabb_headroom_x); // whole train
         let centre = Vec3::new(
-            -(carriages.len() as f32 - 1.0) * scaled_text_units(Self::BASE_AABB_CENTER_STEP_X),
+            -(carriages.len() as f32 - 1.0) * scaled_text_units(aabb_center_step_x),
             0.0,
             0.0,
         );
@@ -394,27 +410,33 @@ impl Train {
                 // Update translation for next carriage
                 if train_state == TrainState::Wrecked {
                     // Vary the distance for wrecked trains (except first position)
+                    let min_step = (carriage_step_x - 15.0).max(20.0);
+                    let max_step = carriage_step_x + 15.0;
                     carriage_translation.x -=
-                        rng.random_range(scaled_text_units(70.0)..scaled_text_units(100.0));
+                        rng.random_range(scaled_text_units(min_step)..scaled_text_units(max_step));
                 } else {
-                    carriage_translation.x -= scaled_text_units(Self::BASE_CARRIAGE_STEP_X);
+                    carriage_translation.x -= scaled_text_units(carriage_step_x);
                 }
             }
 
             if train_state != TrainState::Wrecked {
-                parent.spawn((
-                    TrainSmoke,
-                    TextSprite,
-                    Text2d(smoke_frames[0].clone()),
-                    TextFrames::new(smoke_frames),
-                    Transform::from_xyz(
-                        scaled_text_units(Self::BASE_SMOKE_X),
-                        scaled_text_units(Self::BASE_SMOKE_Y),
-                        0.1,
-                    ),
-                    color,
-                    ColorAnchor(color.0),
-                ));
+                // Explicit empty smoke list in content disables smoke for this train variant.
+                if !smoke_frames.is_empty() {
+                    parent.spawn((
+                        TrainSmoke,
+                        Wobble::default(),
+                        TextSprite,
+                        Text2d(smoke_frames[0].clone()),
+                        TextFrames::new(smoke_frames),
+                        Transform::from_xyz(
+                            scaled_text_units(Self::BASE_SMOKE_X),
+                            scaled_text_units(Self::BASE_SMOKE_Y),
+                            0.1,
+                        ),
+                        color,
+                        ColorAnchor(color.0),
+                    ));
+                }
             } else if train_state == TrainState::Wrecked {
                 // Clone once for creating the TextFrames component.
                 let text_frames = TextFrames::new(burning_frames.clone());
@@ -459,5 +481,37 @@ impl Train {
                 ));
             };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explicit_empty_smoke_list_is_preserved() {
+        let truck = TrainType::load_from_json(TrainTypes::PsychopathTruck);
+        assert!(truck.smoke.as_ref().is_some_and(|frames| frames.is_empty()));
+    }
+
+    #[test]
+    fn non_positive_carriage_step_falls_back_to_default_spacing() {
+        let parsed: TrainType = serde_json::from_str(
+            r#"{
+                "carriages": ["cab"],
+                "carriage_step_x": 0.0,
+                "smoke": [],
+                "track_audio_path": "./audio/effects/static.ogg",
+                "stopped_audio_path": "./audio/effects/static.ogg",
+                "rising_smoke": ["1","2","3","4","5","6","7"]
+            }"#,
+        )
+        .expect("inline train json should parse");
+
+        let normalized = parsed.normalized();
+        assert!(
+            normalized.carriage_step_x.is_none(),
+            "non-positive carriage step should reset to default spacing"
+        );
     }
 }

@@ -1,0 +1,10 @@
+{
+  "carriages": [
+    "\nh_ __\n|=|##L_\n|_|__._]\n\"=\"=(_)\n",
+    "\n _______________________\n|jgs                    |\n|                       |\n|_______________________|\n `(_)(_)`       `(_)(_)\n"
+  ],
+  "carriage_step_x": 110.0,
+  "smoke": [],
+  "track_audio_path": "./audio/effects/train/track.ogg",
+  "stopped_audio_path": "./audio/effects/train/steam_release.ogg"
+}

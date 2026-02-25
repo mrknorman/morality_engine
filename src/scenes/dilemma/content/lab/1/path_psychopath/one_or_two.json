@@ -3,11 +3,17 @@
     "narration_path": "./audio/narration/lab/0/incompetent_bandit.ogg",
     "name": "Double or Nothing",
     "description": "You roll across empty desert in your machine built for suffering. Ahead, a decision. You'll hit one group, that obvious; but who? One or two. You can kill one, or you can kill two -- its your decision. In the wasteland only blood rules.",
-    "music_path": "./audio/music/algorithm_of_fate.ogg",
+    "music_path": "./audio/music/evil_exe.ogg",
+    "train": "psychopath_truck",
+    "visuals": {
+        "profile": "apocalypse",
+        "intensity": 1
+    },
     "stages": [
         {
             "default_option": 0,
             "countdown_duration_seconds": 15,
+            "speed": 105,
             "options": [
                 {
                     "index": 0,

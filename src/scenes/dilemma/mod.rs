@@ -1,14 +1,15 @@
 use crate::{
     data::{
+        rng::GlobalRng,
         states::{DilemmaPhase, GameState, MainState},
         stats::{DilemmaRunStatsScope, DilemmaStats, GameStats},
     },
     entities::{
         large_fonts::{AsciiString, TextEmotion},
         person::{BloodSprite, PersonPlugin},
-        text::{scaled_font_size, TextWindow},
+        text::{scaled_font_size, TextFrames, TextSprite, TextWindow},
         track::Track,
-        train::{content::TrainTypes, Train},
+        train::Train,
     },
     scenes::dilemma::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
@@ -17,7 +18,7 @@ use crate::{
     scenes::runtime::SceneNavigator,
     systems::{
         audio::{continuous_audio, MusicAudio},
-        backgrounds::{content::BackgroundTypes, Background},
+        backgrounds::{parallax_speed, Background, BackgroundSprite},
         colors::{
             option_color, AlphaTranslation, Fade, BACKGROUND_COLOR, DIM_BACKGROUND_COLOR,
             PRIMARY_COLOR,
@@ -25,16 +26,17 @@ use crate::{
         inheritance::BequeathTextAlpha,
         interaction::Draggable,
         motion::PointToPointTranslation,
-        physics::ExplodedGlyph,
+        physics::{CameraVelocity, ExplodedGlyph},
         ui::window::UiWindowTitle,
     },
 };
-use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds};
+use bevy::{audio::Volume, prelude::*, sprite::Anchor, text::TextBounds, window::PrimaryWindow};
 use enum_map::Enum;
 use phases::{
     consequence::DilemmaConsequencePlugin, decision::DilemmaDecisionPlugin,
     intro::DilemmaIntroPlugin, results::DilemmaResultsPlugin, skip::DilemmaSkipPlugin,
 };
+use rand::Rng;
 use std::{collections::HashSet, time::Duration};
 
 pub mod phases;
@@ -47,6 +49,11 @@ use content::DilemmaScene;
 use lever::LeverPlugin;
 mod junction;
 use junction::JunctionPlugin;
+pub mod visuals;
+use visuals::{
+    resolve_visuals, smoke_frames, AmbientBackgroundElement, AmbientSmokeAnimation,
+    AmbientSmokePlume, AMBIENT_BLOOD_GLYPHS, AMBIENT_BODY_PART_GLYPHS,
+};
 
 use super::{Scene, SceneQueue};
 
@@ -57,6 +64,10 @@ impl Plugin for DilemmaScenePlugin {
             .add_systems(
                 OnExit(GameState::Dilemma),
                 DilemmaScene::cleanup_detached_viscera,
+            )
+            .add_systems(
+                Update,
+                AmbientSmokeAnimation::animate.run_if(in_state(GameState::Dilemma)),
             )
             .add_systems(
                 OnEnter(MainState::Menu),
@@ -99,6 +110,8 @@ impl DilemmaScene {
         mut commands: Commands,
         queue: Res<SceneQueue>,
         asset_server: Res<AssetServer>,
+        mut rng: ResMut<GlobalRng>,
+        window: Single<&Window, With<PrimaryWindow>>,
         stats: Res<GameStats>,
         mut next_main_state: ResMut<NextState<MainState>>,
         mut next_game_state: ResMut<NextState<GameState>>,
@@ -157,72 +170,228 @@ impl DilemmaScene {
         let (transition_duration, train_x_displacement, _, _) =
             Self::generate_common_parameters(&stage);
 
-        commands.spawn((
-            scene,
-            DespawnOnExit(GameState::Dilemma),
-            children![
-                (
-                    MusicAudio,
-                    AudioPlayer::<AudioSource>(asset_server.load(dilemma.music_path.clone())),
-                    PlaybackSettings {
-                        paused: false,
-                        volume: Volume::Linear(0.3),
-                        ..continuous_audio()
+        let resolved_visuals = resolve_visuals(&dilemma.visuals, stage.speed);
+        let smoke_frames = smoke_frames();
+        let screen_width = window.width() / 2.0 + 100.0;
+        let screen_height = window.height();
+        let perspective_scale = |y: f32| -> f32 {
+            let t = ((y + screen_height / 2.0) / screen_height).clamp(0.0, 1.0);
+            1.0 - 0.5 * t
+        };
+        let mut background_entities: Vec<(Entity, f32)> = Vec::new();
+        const BACKGROUND_SPAWN_VARIANCE: f32 = 100.0;
+
+        let scene_root = commands
+            .spawn((scene, DespawnOnExit(GameState::Dilemma)))
+            .id();
+        commands.entity(scene_root).with_children(|parent| {
+            parent.spawn((
+                MusicAudio,
+                AudioPlayer::<AudioSource>(asset_server.load(dilemma.music_path.clone())),
+                PlaybackSettings {
+                    paused: false,
+                    volume: Volume::Linear(0.3),
+                    ..continuous_audio()
+                },
+            ));
+
+            parent.spawn((
+                TextColor(PRIMARY_COLOR),
+                TextEmotion::Happy,
+                AsciiString(format!("DILEMMA {}", dilemma.index)),
+                Fade {
+                    duration: transition_duration,
+                    paused: true,
+                },
+                Transform::from_xyz(0.0, 300.0, 1.0),
+            ));
+
+            parent.spawn((
+                TextWindow {
+                    title: Some(UiWindowTitle {
+                        text: format!("Description: {}", dilemma.name.clone()),
+                        ..default()
+                    }),
+                    ..default()
+                },
+                TextBounds {
+                    width: Some(400.0),
+                    height: None,
+                },
+                Draggable::default(),
+                TextColor(PRIMARY_COLOR),
+                Text2d::new(&dilemma.description),
+                TextFont {
+                    font_size: scaled_font_size(12.0),
+                    ..default()
+                },
+                Anchor::TOP_LEFT,
+                Transform::from_xyz(-600.0, 200.0, 2.0),
+            ));
+
+            for layer in &resolved_visuals.background_layers {
+                let target_alpha =
+                    (DIM_BACKGROUND_COLOR.alpha() * layer.alpha_multiplier).clamp(0.0, 1.0);
+                let background_entity = parent
+                    .spawn((
+                        TextColor(BACKGROUND_COLOR),
+                        Background::new(layer.background_type, layer.density, layer.speed),
+                        BequeathTextAlpha,
+                        AlphaTranslation::new(target_alpha, transition_duration, true),
+                    ))
+                    .id();
+                background_entities.push((background_entity, layer.speed));
+            }
+
+            parent.spawn((
+                Train(dilemma.train),
+                PointToPointTranslation::new(
+                    Self::TRAIN_INITIAL_POSITION,
+                    Self::TRAIN_INITIAL_POSITION + train_x_displacement,
+                    transition_duration,
+                    true,
+                ),
+            ));
+        });
+
+        let primary_background = background_entities.first().copied();
+        if let Some((primary_background_entity, background_speed)) = primary_background {
+            commands
+                .entity(primary_background_entity)
+                .with_children(|background_parent| {
+                    if let Some(ambient_smoke) = &resolved_visuals.ambient_smoke {
+                        if !smoke_frames.is_empty() {
+                            let smoke_text_frames = TextFrames::new(smoke_frames.clone());
+                            for plume_index in 0..ambient_smoke.count {
+                                let x = rng
+                                    .uniform
+                                    .random_range(ambient_smoke.min_x..=ambient_smoke.max_x);
+                                let y = rng
+                                    .uniform
+                                    .random_range(ambient_smoke.min_y..=ambient_smoke.max_y);
+                                let frame_index = plume_index % smoke_frames.len();
+                                let scale_factor = perspective_scale(y);
+                                let random_offset = rng.uniform.random_range(
+                                    screen_width..screen_width + BACKGROUND_SPAWN_VARIANCE,
+                                );
+                                let speed = parallax_speed(
+                                    screen_height,
+                                    y,
+                                    background_speed,
+                                    scale_factor,
+                                );
+
+                                background_parent.spawn((
+                                    AmbientBackgroundElement,
+                                    AmbientSmokePlume,
+                                    AmbientSmokeAnimation::new(
+                                        ambient_smoke.frame_seconds,
+                                        frame_index,
+                                    ),
+                                    BackgroundSprite::new(screen_width, random_offset),
+                                    CameraVelocity(Vec3::new(speed, 0.0, 0.0)),
+                                    TextSprite,
+                                    Text2d::new(smoke_frames[frame_index].clone()),
+                                    smoke_text_frames.clone(),
+                                    TextColor(BACKGROUND_COLOR),
+                                    Transform {
+                                        translation: Vec3::new(x, y, 0.0),
+                                        scale: Vec3::splat(scale_factor),
+                                        ..default()
+                                    },
+                                    BequeathTextAlpha,
+                                    AlphaTranslation::new(
+                                        (DIM_BACKGROUND_COLOR.alpha() * 0.9).clamp(0.0, 1.0),
+                                        transition_duration,
+                                        true,
+                                    ),
+                                ));
+                            }
+                        }
                     }
-                ),
-                (
-                    TextColor(PRIMARY_COLOR),
-                    TextEmotion::Happy,
-                    AsciiString(format!("DILEMMA {}", dilemma.index)),
-                    Fade {
-                        duration: transition_duration,
-                        paused: true
-                    },
-                    Transform::from_xyz(0.0, 300.0, 1.0)
-                ),
-                (
-                    TextWindow {
-                        title: Some(UiWindowTitle {
-                            text: format!("Description: {}", dilemma.name.clone()),
-                            ..default()
-                        }),
-                        ..default()
-                    },
-                    TextBounds {
-                        width: Some(400.0),
-                        height: None
-                    },
-                    Draggable::default(),
-                    TextColor(PRIMARY_COLOR),
-                    Text2d::new(&dilemma.description),
-                    TextFont {
-                        font_size: scaled_font_size(12.0),
-                        ..default()
-                    },
-                    Anchor::TOP_LEFT,
-                    Transform::from_xyz(-600.0, 200.0, 2.0)
-                ),
-                (
-                    TextColor(BACKGROUND_COLOR),
-                    Background::new(
-                        BackgroundTypes::Desert,
-                        0.00002,
-                        -0.5 * (stage.speed / 70.0)
-                    ),
-                    BequeathTextAlpha,
-                    AlphaTranslation::new(DIM_BACKGROUND_COLOR.alpha(), transition_duration, true)
-                ),
-                (
-                    Train(TrainTypes::SteamTrain),
-                    PointToPointTranslation::new(
-                        Self::TRAIN_INITIAL_POSITION,
-                        Self::TRAIN_INITIAL_POSITION + train_x_displacement,
-                        transition_duration,
-                        true
-                    )
-                )
-            ],
-        ));
+
+                    if let Some(ambient_viscera) = &resolved_visuals.ambient_viscera {
+                        for _ in 0..ambient_viscera.body_parts_count {
+                            let x = rng
+                                .uniform
+                                .random_range(ambient_viscera.min_x..=ambient_viscera.max_x);
+                            let y = rng
+                                .uniform
+                                .random_range(ambient_viscera.min_y..=ambient_viscera.max_y);
+                            let glyph_index =
+                                rng.uniform.random_range(0..AMBIENT_BODY_PART_GLYPHS.len());
+                            let glyph = AMBIENT_BODY_PART_GLYPHS[glyph_index];
+                            let tint = rng.uniform.random_range(0.0..=1.8);
+                            let scale_factor = perspective_scale(y);
+                            let random_offset = rng.uniform.random_range(
+                                screen_width..screen_width + BACKGROUND_SPAWN_VARIANCE,
+                            );
+                            let speed =
+                                parallax_speed(screen_height, y, background_speed, scale_factor);
+
+                            background_parent.spawn((
+                                AmbientBackgroundElement,
+                                ExplodedGlyph,
+                                BackgroundSprite::new(screen_width, random_offset),
+                                CameraVelocity(Vec3::new(speed, 0.0, 0.0)),
+                                TextSprite,
+                                Text2d::new(glyph),
+                                TextColor(Color::srgba(2.5, tint, tint, 1.0)),
+                                Transform {
+                                    translation: Vec3::new(x, y, 0.0),
+                                    scale: Vec3::splat(scale_factor),
+                                    ..default()
+                                },
+                                BequeathTextAlpha,
+                                AlphaTranslation::new(
+                                    (DIM_BACKGROUND_COLOR.alpha() * 0.95).clamp(0.0, 1.0),
+                                    transition_duration,
+                                    true,
+                                ),
+                            ));
+                        }
+
+                        for _ in 0..ambient_viscera.blood_count {
+                            let x = rng
+                                .uniform
+                                .random_range(ambient_viscera.min_x..=ambient_viscera.max_x);
+                            let y = rng
+                                .uniform
+                                .random_range(ambient_viscera.min_y..=ambient_viscera.max_y);
+                            let glyph_index =
+                                rng.uniform.random_range(0..AMBIENT_BLOOD_GLYPHS.len());
+                            let glyph = AMBIENT_BLOOD_GLYPHS[glyph_index];
+                            let scale_factor = perspective_scale(y);
+                            let random_offset = rng.uniform.random_range(
+                                screen_width..screen_width + BACKGROUND_SPAWN_VARIANCE,
+                            );
+                            let speed =
+                                parallax_speed(screen_height, y, background_speed, scale_factor);
+
+                            background_parent.spawn((
+                                AmbientBackgroundElement,
+                                BloodSprite(rng.uniform.random_range(1..=3)),
+                                BackgroundSprite::new(screen_width, random_offset),
+                                CameraVelocity(Vec3::new(speed, 0.0, 0.0)),
+                                TextSprite,
+                                Text2d::new(glyph),
+                                TextColor(Color::srgba(2.0, 0.0, 0.0, 1.0)),
+                                Transform {
+                                    translation: Vec3::new(x, y, 0.0),
+                                    scale: Vec3::splat(scale_factor),
+                                    ..default()
+                                },
+                                BequeathTextAlpha,
+                                AlphaTranslation::new(
+                                    (DIM_BACKGROUND_COLOR.alpha() * 0.95).clamp(0.0, 1.0),
+                                    transition_duration,
+                                    true,
+                                ),
+                            ));
+                        }
+                    }
+                });
+        }
 
         commands.spawn((
             DespawnOnExit(DilemmaPhase::Intro),
