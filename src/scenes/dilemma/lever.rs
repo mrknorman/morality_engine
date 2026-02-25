@@ -1,10 +1,7 @@
 use crate::{
     entities::text::scaled_font_size,
     startup::cursor::CursorMode,
-    systems::{
-        colors::option_color,
-        interaction::ClickableCursorIcons,
-    },
+    systems::{colors::option_color, interaction::ClickableCursorIcons},
 };
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},

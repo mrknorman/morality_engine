@@ -19,9 +19,7 @@ use crate::{
     entities::sprites::compound::HollowRectangle,
     startup::cursor::CustomCursor,
     systems::{
-        interaction::{
-            ui_input_policy_allows_mode, Hoverable, UiInputPolicy, UiInteractionState,
-        },
+        interaction::{ui_input_policy_allows_mode, Hoverable, UiInputPolicy, UiInteractionState},
         ui::layer::{UiLayer, UiLayerKind},
     },
 };

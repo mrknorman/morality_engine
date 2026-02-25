@@ -287,7 +287,9 @@ impl UtilitarianPath {
     pub fn new(number: usize, outcome: PathOutcome) -> Self {
         let normalized_number = number.clamp(1, 4);
         if normalized_number != number {
-            warn!("utilitarian path index {number} is out of range; clamped to {normalized_number}");
+            warn!(
+                "utilitarian path index {number} is out of range; clamped to {normalized_number}"
+            );
         }
         Self {
             number: normalized_number,

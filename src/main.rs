@@ -16,9 +16,7 @@ fn main() {
             Ok(summary) => {
                 println!(
                     "Campaign graph viewer exported to {} (routes: {}, validation errors: {})",
-                    export_path,
-                    summary.route_count,
-                    summary.validation_error_count
+                    export_path, summary.route_count, summary.validation_error_count
                 );
             }
             Err(error) => {
@@ -49,7 +47,9 @@ fn main() {
 
 fn campaign_graph_export_path_from_args() -> Option<String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let export_flag_index = args.iter().position(|arg| arg == "--export-campaign-graph")?;
+    let export_flag_index = args
+        .iter()
+        .position(|arg| arg == "--export-campaign-graph")?;
     Some(
         args.get(export_flag_index + 1)
             .cloned()

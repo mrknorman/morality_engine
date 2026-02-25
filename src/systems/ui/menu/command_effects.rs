@@ -4,8 +4,8 @@ use super::level_select;
 use super::modal_flow::{spawn_apply_confirm_modal, spawn_exit_unsaved_modal};
 use super::*;
 use crate::data::stats::GameStats;
-use crate::scenes::{dialogue::content::DialogueScene, dilemma::content::DilemmaScene, Scene};
 use crate::scenes::runtime::SceneNavigator;
+use crate::scenes::{dialogue::content::DialogueScene, dilemma::content::DilemmaScene, Scene};
 
 const MAIN_MENU_OVERLAY_DIM_ALPHA: f32 = 0.8;
 const MAIN_MENU_OVERLAY_DIM_SIZE: f32 = 6000.0;
@@ -137,8 +137,11 @@ fn handle_next_scene_command(
     next_game_state: &mut ResMut<NextState<GameState>>,
     next_sub_state: &mut ResMut<NextState<DilemmaPhase>>,
 ) {
-    SceneNavigator::next_state_vector_or_fallback(scene_queue)
-        .set_state(next_main_state, next_game_state, next_sub_state);
+    SceneNavigator::next_state_vector_or_fallback(scene_queue).set_state(
+        next_main_state,
+        next_game_state,
+        next_sub_state,
+    );
 }
 
 fn handle_start_single_level_command(
@@ -209,7 +212,10 @@ pub(super) fn apply_menu_reducer_result(
     stats: &mut ResMut<GameStats>,
     existing_overlay_query: &Query<(), With<MainMenuOptionsOverlay>>,
     existing_level_select_overlay_query: &Query<(), With<level_select::LevelSelectOverlay>>,
-    existing_level_select_launch_modal_query: &Query<(), With<level_select::LevelSelectLaunchModal>>,
+    existing_level_select_launch_modal_query: &Query<
+        (),
+        With<level_select::LevelSelectLaunchModal>,
+    >,
     unlock_state: &Res<level_select::LevelUnlockState>,
     offscreen_camera_query: &Query<&GlobalTransform, With<OffscreenCamera>>,
     main_camera_transform_query: &Query<&GlobalTransform, With<MainCamera>>,

@@ -7,11 +7,23 @@ use super::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GraphValidationError {
-    DuplicateRouteSource { from: SceneRef },
-    UnsupportedRouteSource { from: SceneRef },
-    EmptyDefaultRoute { from: SceneRef },
-    EmptyRuleRoute { from: SceneRef, rule_name: String },
-    DuplicateRuleName { from: SceneRef, rule_name: String },
+    DuplicateRouteSource {
+        from: SceneRef,
+    },
+    UnsupportedRouteSource {
+        from: SceneRef,
+    },
+    EmptyDefaultRoute {
+        from: SceneRef,
+    },
+    EmptyRuleRoute {
+        from: SceneRef,
+        rule_name: String,
+    },
+    DuplicateRuleName {
+        from: SceneRef,
+        rule_name: String,
+    },
     UnknownSceneId {
         context: String,
         error: SceneIdParseError,
@@ -37,7 +49,10 @@ pub fn validate_graph(graph: &SceneProgressionGraph) -> Vec<GraphValidationError
 fn validate_route(route: &RouteDefinition, errors: &mut Vec<GraphValidationError>) {
     validate_scene_ref(&route.from, "route.from", errors);
 
-    if !matches!(TypedSceneRef::try_from(&route.from), Ok(TypedSceneRef::Dilemma(_))) {
+    if !matches!(
+        TypedSceneRef::try_from(&route.from),
+        Ok(TypedSceneRef::Dilemma(_))
+    ) {
         errors.push(GraphValidationError::UnsupportedRouteSource {
             from: route.from.clone(),
         });
@@ -142,10 +157,9 @@ mod tests {
 
         let errors = validate_graph(&graph);
 
-        assert!(errors.iter().any(|error| matches!(
-            error,
-            GraphValidationError::DuplicateRouteSource { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|error| matches!(error, GraphValidationError::DuplicateRouteSource { .. })));
     }
 
     #[test]
@@ -163,10 +177,9 @@ mod tests {
 
         let errors = validate_graph(&graph);
 
-        assert!(errors.iter().any(|error| matches!(
-            error,
-            GraphValidationError::EmptyDefaultRoute { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|error| matches!(error, GraphValidationError::EmptyDefaultRoute { .. })));
     }
 
     #[test]
@@ -195,10 +208,9 @@ mod tests {
 
         let errors = validate_graph(&graph);
 
-        assert!(errors.iter().any(|error| matches!(
-            error,
-            GraphValidationError::DuplicateRuleName { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|error| matches!(error, GraphValidationError::DuplicateRuleName { .. })));
     }
 
     #[test]
@@ -216,9 +228,8 @@ mod tests {
 
         let errors = validate_graph(&graph);
 
-        assert!(errors.iter().any(|error| matches!(
-            error,
-            GraphValidationError::UnsupportedRouteSource { .. }
-        )));
+        assert!(errors
+            .iter()
+            .any(|error| matches!(error, GraphValidationError::UnsupportedRouteSource { .. })));
     }
 }

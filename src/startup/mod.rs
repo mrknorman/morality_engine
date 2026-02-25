@@ -9,8 +9,8 @@ use crate::systems::resize::ResizePlugin;
 use crate::systems::ui::discrete_slider::DiscreteSliderPlugin;
 use crate::systems::ui::hover_box::HoverBoxPlugin;
 use crate::systems::ui::menu::MenusPlugin;
-use crate::systems::ui::search_box::SearchBoxPlugin;
 use crate::systems::ui::scroll::ScrollPlugin;
+use crate::systems::ui::search_box::SearchBoxPlugin;
 use crate::systems::ui::text_input_box::TextInputBoxPlugin;
 use crate::systems::ui::window::UiWindowPlugin;
 use crate::{

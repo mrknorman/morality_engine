@@ -737,15 +737,14 @@ static OPTIONS_MENU_COMMAND_REGISTRY: Lazy<schema::CommandRegistry<MenuCommand>>
         .expect("options menu command registry must have unique command ids")
     });
 
-static OPTIONS_MENU_PAGE_SCHEMA: Lazy<SchemaMenuPageDef> = Lazy::new(|| {
-    match resolve_options_menu_schema() {
+static OPTIONS_MENU_PAGE_SCHEMA: Lazy<SchemaMenuPageDef> =
+    Lazy::new(|| match resolve_options_menu_schema() {
         Ok(schema) => schema,
         Err(error) => {
             warn!("invalid options menu schema: {error}; using fallback options page");
             fallback_options_menu_schema()
         }
-    }
-});
+    });
 
 fn leak_schema_text(text: String) -> &'static str {
     Box::leak(text.into_boxed_str())

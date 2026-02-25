@@ -17,8 +17,8 @@ use crate::{
         colors::{ColorAnchor, SYSTEM_MENU_COLOR},
         interaction::{
             ui_input_policy_allows_mode, Clickable, Hoverable, InteractionVisualPalette,
-            InteractionVisualState, OptionCycler, SelectableMenu, SystemMenuActions,
-            UiInputPolicy, UiInteractionState,
+            InteractionVisualState, OptionCycler, SelectableMenu, SystemMenuActions, UiInputPolicy,
+            UiInteractionState,
         },
         ui::selector::SelectorSurface,
     },
@@ -594,8 +594,7 @@ pub fn play_navigation_sound_owner_scoped<S, F>(
     F: QueryFilter,
 {
     for (menu_entity, menu, pallet, gate) in menu_query.iter() {
-        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(menu_entity))
-        {
+        if !ui_input_policy_allows_mode(gate, interaction_state.input_mode_for_owner(menu_entity)) {
             continue;
         }
         play_navigation_switch(

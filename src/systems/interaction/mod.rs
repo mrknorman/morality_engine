@@ -383,9 +383,17 @@ impl UiInteractionState {
 pub fn refresh_ui_interaction_state(
     pause_state: Option<Res<State<PauseState>>>,
     capture_query: Query<Option<&UiInputCaptureOwner>, With<UiInputCaptureToken>>,
-    layer_query: Query<(Entity, &UiLayer, Option<&Visibility>, Option<&UiInputPolicy>)>,
+    layer_query: Query<(
+        Entity,
+        &UiLayer,
+        Option<&Visibility>,
+        Option<&UiInputPolicy>,
+    )>,
     focus_scope_query: Query<(Option<&UiInputPolicy>, &SelectableScopeOwner)>,
-    owner_transform_query: Query<(&GlobalTransform, Option<&InheritedVisibility>), Without<TextSpan>>,
+    owner_transform_query: Query<
+        (&GlobalTransform, Option<&InheritedVisibility>),
+        Without<TextSpan>,
+    >,
     mut ui_state: ResMut<UiInteractionState>,
 ) {
     let paused = pause_state
@@ -423,11 +431,7 @@ pub fn refresh_ui_interaction_state(
 
     let mut active_layers_by_owner: HashMap<Entity, UiInteractionActiveLayer> = HashMap::new();
     for (entity, layer, visibility, policy) in layer_query.iter() {
-        if visibility
-            .copied()
-            .unwrap_or(Visibility::Visible)
-            == Visibility::Hidden
-        {
+        if visibility.copied().unwrap_or(Visibility::Visible) == Visibility::Hidden {
             continue;
         }
         let mode = owner_mode(layer.owner, input_mode, global_capture, &captured_owners);
@@ -451,13 +455,19 @@ pub fn refresh_ui_interaction_state(
         }
     }
 
-    let focused_owner =
-        resolve_focused_scope_owner(focus_scope_query.iter().filter_map(|(policy, scope_owner)| {
-            let mode = owner_mode(scope_owner.owner, input_mode, global_capture, &captured_owners);
+    let focused_owner = resolve_focused_scope_owner(focus_scope_query.iter().filter_map(
+        |(policy, scope_owner)| {
+            let mode = owner_mode(
+                scope_owner.owner,
+                input_mode,
+                global_capture,
+                &captured_owners,
+            );
             if !ui_input_policy_allows_mode(policy, mode) {
                 return None;
             }
-            let Ok((owner_global, inherited_visibility)) = owner_transform_query.get(scope_owner.owner)
+            let Ok((owner_global, inherited_visibility)) =
+                owner_transform_query.get(scope_owner.owner)
             else {
                 return None;
             };
@@ -465,7 +475,8 @@ pub fn refresh_ui_interaction_state(
                 return None;
             }
             Some((scope_owner.owner, owner_global.translation().z))
-        }));
+        },
+    ));
 
     ui_state.input_mode = input_mode;
     ui_state.global_capture = global_capture;
@@ -2542,8 +2553,10 @@ mod tests {
             .spawn((SelectableScopeOwner::new(owner), UiInputPolicy::Any));
         app.world_mut()
             .spawn((UiLayer::new(owner, UiLayerKind::Base), Visibility::Visible));
-        app.world_mut()
-            .spawn((UiLayer::new(owner, UiLayerKind::Dropdown), Visibility::Visible));
+        app.world_mut().spawn((
+            UiLayer::new(owner, UiLayerKind::Dropdown),
+            Visibility::Visible,
+        ));
         let modal_entity = app
             .world_mut()
             .spawn((UiLayer::new(owner, UiLayerKind::Modal), Visibility::Hidden))
@@ -2552,7 +2565,10 @@ mod tests {
         app.update();
         let state = app.world().resource::<UiInteractionState>();
         assert_eq!(
-            state.active_layers_by_owner.get(&owner).map(|layer| layer.kind),
+            state
+                .active_layers_by_owner
+                .get(&owner)
+                .map(|layer| layer.kind),
             Some(UiLayerKind::Dropdown)
         );
 
@@ -2562,7 +2578,10 @@ mod tests {
         app.update();
         let state = app.world().resource::<UiInteractionState>();
         assert_eq!(
-            state.active_layers_by_owner.get(&owner).map(|layer| layer.kind),
+            state
+                .active_layers_by_owner
+                .get(&owner)
+                .map(|layer| layer.kind),
             Some(UiLayerKind::Modal)
         );
     }
@@ -2594,8 +2613,10 @@ mod tests {
 
         let owner_captured = owner_with_z(app.world_mut(), 4.0);
         let owner_world = owner_with_z(app.world_mut(), 3.0);
-        app.world_mut().spawn(SelectableScopeOwner::new(owner_captured));
-        app.world_mut().spawn(SelectableScopeOwner::new(owner_world));
+        app.world_mut()
+            .spawn(SelectableScopeOwner::new(owner_captured));
+        app.world_mut()
+            .spawn(SelectableScopeOwner::new(owner_world));
 
         let captured_layer = app
             .world_mut()
@@ -2614,18 +2635,26 @@ mod tests {
             ))
             .id();
 
-        app.world_mut()
-            .spawn((UiInputCaptureToken, UiInputCaptureOwner::new(owner_captured)));
+        app.world_mut().spawn((
+            UiInputCaptureToken,
+            UiInputCaptureOwner::new(owner_captured),
+        ));
         app.update();
 
         let state = app.world().resource::<UiInteractionState>();
         assert_eq!(state.input_mode, UiInputMode::Captured);
         assert_eq!(
-            state.active_layers_by_owner.get(&owner_captured).map(|layer| layer.entity),
+            state
+                .active_layers_by_owner
+                .get(&owner_captured)
+                .map(|layer| layer.entity),
             Some(captured_layer)
         );
         assert_eq!(
-            state.active_layers_by_owner.get(&owner_world).map(|layer| layer.entity),
+            state
+                .active_layers_by_owner
+                .get(&owner_world)
+                .map(|layer| layer.entity),
             Some(world_layer)
         );
         assert_eq!(
@@ -2760,9 +2789,11 @@ mod tests {
         }
 
         {
-            let mut query =
-                app.world_mut()
-                    .query::<(&mut ClickablePong<u8>, &mut Clickable<u8>, &mut InteractionState)>();
+            let mut query = app.world_mut().query::<(
+                &mut ClickablePong<u8>,
+                &mut Clickable<u8>,
+                &mut InteractionState,
+            )>();
             let (mut pong, mut clickable, mut state) = query
                 .get_mut(app.world_mut(), entity)
                 .expect("pong/clickable/state missing");

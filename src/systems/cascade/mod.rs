@@ -15,9 +15,7 @@ use crate::{
     data::rng::GlobalRng,
     entities::text::scaled_font_size,
     startup::cursor::CustomCursor,
-    systems::interaction::{
-        ui_input_policy_allows_mode, UiInputPolicy, UiInteractionState,
-    },
+    systems::interaction::{ui_input_policy_allows_mode, UiInputPolicy, UiInteractionState},
 };
 
 use super::{

@@ -78,7 +78,11 @@ impl SearchBox {
                 text_input,
                 TextInputBoxPlaceholder::new(config.placeholder.clone()),
             ));
-        } else if world.entity(entity).get::<TextInputBoxPlaceholder>().is_none() {
+        } else if world
+            .entity(entity)
+            .get::<TextInputBoxPlaceholder>()
+            .is_none()
+        {
             world
                 .commands()
                 .entity(entity)
@@ -202,7 +206,14 @@ fn clear_search_box_on_text_input_cancel(
 
 fn handle_search_box_clear_requests(
     mut clear_requests: MessageReader<SearchBoxClearRequested>,
-    mut query: Query<(&SearchBoxConfig, &mut TextInputBoxValue, &mut SearchBoxQuery), With<SearchBox>>,
+    mut query: Query<
+        (
+            &SearchBoxConfig,
+            &mut TextInputBoxValue,
+            &mut SearchBoxQuery,
+        ),
+        With<SearchBox>,
+    >,
     mut text_changed_writer: MessageWriter<TextInputBoxChanged>,
     mut search_changed_writer: MessageWriter<SearchBoxQueryChanged>,
 ) {
@@ -232,8 +243,8 @@ fn handle_search_box_clear_requests(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::IntoSystem;
     use crate::systems::ui::layer::UiLayer;
+    use bevy::ecs::system::IntoSystem;
 
     #[test]
     fn search_box_insert_hook_adds_text_input_box() {
@@ -285,17 +296,19 @@ mod tests {
         app.add_message::<SearchBoxQueryChanged>();
 
         let owner = app.world_mut().spawn_empty().id();
-        let entity = app.world_mut().spawn((
-            SearchBox::new(owner, UiLayerKind::Base),
-            SearchBoxConfig::default(),
-            SearchBoxQuery::default(),
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                SearchBox::new(owner, UiLayerKind::Base),
+                SearchBoxConfig::default(),
+                SearchBoxQuery::default(),
+            ))
+            .id();
 
-        app.world_mut()
-            .write_message(TextInputBoxChanged {
-                entity,
-                value: String::from("  TeSt  "),
-            });
+        app.world_mut().write_message(TextInputBoxChanged {
+            entity,
+            value: String::from("  TeSt  "),
+        });
 
         let mut system = IntoSystem::into_system(sync_search_query_from_text_input_changes);
         system.initialize(app.world_mut());
@@ -317,8 +330,7 @@ mod tests {
     fn search_box_systems_initialize_without_query_alias_panics() {
         let mut world = World::new();
 
-        let mut changed_system =
-            IntoSystem::into_system(sync_search_query_from_text_input_changes);
+        let mut changed_system = IntoSystem::into_system(sync_search_query_from_text_input_changes);
         changed_system.initialize(&mut world);
 
         let mut submitted_system =

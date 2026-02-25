@@ -55,10 +55,26 @@ pub const OPTION_3_COLOR: Color = Color::srgb(
 );
 
 const OPTION_COLOR_FALLBACKS: [Color; 4] = [
-    Color::srgb(0.3075 * OPTION_GLOW, 0.9150 * OPTION_GLOW, 0.3860 * OPTION_GLOW),
-    Color::srgb(0.9800 * OPTION_GLOW, 0.8800 * OPTION_GLOW, 0.2200 * OPTION_GLOW),
-    Color::srgb(0.6300 * OPTION_GLOW, 0.4385 * OPTION_GLOW, 0.9660 * OPTION_GLOW),
-    Color::srgb(0.8500 * OPTION_GLOW, 0.4600 * OPTION_GLOW, 0.7300 * OPTION_GLOW),
+    Color::srgb(
+        0.3075 * OPTION_GLOW,
+        0.9150 * OPTION_GLOW,
+        0.3860 * OPTION_GLOW,
+    ),
+    Color::srgb(
+        0.9800 * OPTION_GLOW,
+        0.8800 * OPTION_GLOW,
+        0.2200 * OPTION_GLOW,
+    ),
+    Color::srgb(
+        0.6300 * OPTION_GLOW,
+        0.4385 * OPTION_GLOW,
+        0.9660 * OPTION_GLOW,
+    ),
+    Color::srgb(
+        0.8500 * OPTION_GLOW,
+        0.4600 * OPTION_GLOW,
+        0.7300 * OPTION_GLOW,
+    ),
 ];
 
 pub fn option_color(option_index: usize) -> Color {

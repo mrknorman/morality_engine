@@ -1,10 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    fmt::Write as _,
-    fs,
-    io,
-    path::Path,
-};
+use std::{collections::BTreeMap, fmt::Write as _, fs, io, path::Path};
 
 use super::{
     schema::{RouteDefinition, RouteRule, SceneProgressionGraph, SceneRef},
@@ -406,7 +400,11 @@ fn build_parse_error_html(error: &str) -> String {
 
 fn build_mermaid_diagram(graph: &SceneProgressionGraph, filter: RouteFilter) -> String {
     let mut edges = Vec::new();
-    for route in graph.routes.iter().filter(|route| filter.matches_route(route)) {
+    for route in graph
+        .routes
+        .iter()
+        .filter(|route| filter.matches_route(route))
+    {
         build_route_edges(route, &mut edges);
     }
 

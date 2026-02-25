@@ -256,7 +256,12 @@ impl TryFrom<&SceneRef> for TypedSceneRef {
     }
 }
 
-fn parse_path_with_outcome(id: &str, prefix: &str, min_stage: u8, max_stage: u8) -> Option<(u8, PathOutcomeId)> {
+fn parse_path_with_outcome(
+    id: &str,
+    prefix: &str,
+    min_stage: u8,
+    max_stage: u8,
+) -> Option<(u8, PathOutcomeId)> {
     let mut parts = id.split('.');
     if parts.next()? != prefix {
         return None;

@@ -137,7 +137,10 @@ mod tests {
         queue.configure_single_scene(scene);
 
         assert_eq!(queue.flow_mode(), SceneFlowMode::SingleLevel);
-        assert!(matches!(queue.pop(), Some(Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro)))));
+        assert!(matches!(
+            queue.pop(),
+            Some(Scene::Dialogue(DialogueScene::Lab0(Lab0Dialogue::Intro)))
+        ));
         assert!(matches!(queue.pop(), Some(Scene::Menu)));
     }
 

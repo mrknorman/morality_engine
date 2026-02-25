@@ -46,52 +46,52 @@ pub struct DilemmaConsequencePlugin;
 impl Plugin for DilemmaConsequencePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PreConsequenceScreamState>()
-        .add_systems(
-            OnEnter(DilemmaPhase::Decision),
-            DilemmaConsequenceScene::reset_pre_consequence_scream,
-        )
-        .add_systems(
-            OnEnter(DilemmaPhase::Consequence),
-            (DilemmaConsequenceScene::setup, GameStats::update_stats)
-                .run_if(in_state(GameState::Dilemma)),
-        )
-        .add_systems(OnEnter(DilemmaPhase::Results), Junction::cleanup)
-        .add_systems(
-            Update,
-            DilemmaConsequenceScene::trigger_pre_consequence_scream_from_decision
-                .after(DilemmaTimer::update)
-                .run_if(in_state(GameState::Dilemma))
-                .run_if(in_state(DilemmaPhase::Decision)),
-        )
-        .add_systems(
-            Update,
-            DilemmaConsequenceScene::trigger_pre_consequence_scream_from_skip
-                .run_if(in_state(GameState::Dilemma))
-                .run_if(in_state(DilemmaPhase::Skip)),
-        )
-        .add_systems(
-            Update,
-            DilemmaConsequenceScene::spawn_delayed_children
-                .run_if(in_state(GameState::Dilemma))
-                .run_if(in_state(DilemmaPhase::Consequence)),
-        )
-        .add_systems(
-            Update,
-            DilemmaConsequenceScene::stop_scream_when_no_people_in_danger
-                .run_if(in_state(GameState::Dilemma))
-                .run_if(
-                    in_state(DilemmaPhase::Decision)
-                        .or(in_state(DilemmaPhase::Skip))
-                        .or(in_state(DilemmaPhase::Consequence)),
+            .add_systems(
+                OnEnter(DilemmaPhase::Decision),
+                DilemmaConsequenceScene::reset_pre_consequence_scream,
+            )
+            .add_systems(
+                OnEnter(DilemmaPhase::Consequence),
+                (DilemmaConsequenceScene::setup, GameStats::update_stats)
+                    .run_if(in_state(GameState::Dilemma)),
+            )
+            .add_systems(OnEnter(DilemmaPhase::Results), Junction::cleanup)
+            .add_systems(
+                Update,
+                DilemmaConsequenceScene::trigger_pre_consequence_scream_from_decision
+                    .after(DilemmaTimer::update)
+                    .run_if(in_state(GameState::Dilemma))
+                    .run_if(in_state(DilemmaPhase::Decision)),
+            )
+            .add_systems(
+                Update,
+                DilemmaConsequenceScene::trigger_pre_consequence_scream_from_skip
+                    .run_if(in_state(GameState::Dilemma))
+                    .run_if(in_state(DilemmaPhase::Skip)),
+            )
+            .add_systems(
+                Update,
+                DilemmaConsequenceScene::spawn_delayed_children
+                    .run_if(in_state(GameState::Dilemma))
+                    .run_if(in_state(DilemmaPhase::Consequence)),
+            )
+            .add_systems(
+                Update,
+                DilemmaConsequenceScene::stop_scream_when_no_people_in_danger
+                    .run_if(in_state(GameState::Dilemma))
+                    .run_if(
+                        in_state(DilemmaPhase::Decision)
+                            .or(in_state(DilemmaPhase::Skip))
+                            .or(in_state(DilemmaPhase::Consequence)),
+                    ),
+            )
+            .add_systems(
+                OnExit(DilemmaPhase::Consequence),
+                (
+                    DilemmaConsequenceScene::update_stage,
+                    DilemmaConsequenceScene::cleanup_pre_consequence_scream,
                 ),
-        )
-        .add_systems(
-            OnExit(DilemmaPhase::Consequence),
-            (
-                DilemmaConsequenceScene::update_stage,
-                DilemmaConsequenceScene::cleanup_pre_consequence_scream,
-            ),
-        );
+            );
     }
 }
 
@@ -245,7 +245,8 @@ impl DilemmaConsequenceScene {
 
         let (entity, timers, mut latch) = loading_query.into_inner();
 
-        if !latch.speedup_handled && timers.0[DilemmaConsequenceEvents::SpeedUp].times_finished() > 0
+        if !latch.speedup_handled
+            && timers.0[DilemmaConsequenceEvents::SpeedUp].times_finished() > 0
         {
             let speedup_audio = OneShotAudio {
                 source: asset_server.load(SPEEDUP_SOUND),
@@ -265,7 +266,8 @@ impl DilemmaConsequenceScene {
             latch.speedup_handled = true;
         }
 
-        if !latch.button_handled && timers.0[DilemmaConsequenceEvents::Button].times_finished() > 0 {
+        if !latch.button_handled && timers.0[DilemmaConsequenceEvents::Button].times_finished() > 0
+        {
             latch.button_handled = true;
             if num_stages - 1 == stage_index.0 {
                 commands.entity(entity).with_children(|parent| {

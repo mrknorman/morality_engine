@@ -217,7 +217,8 @@
       ],
       "default": [
         { "kind": "dialogue", "id": "path_psychopath.0.pass" },
-        { "kind": "dilemma", "id": "path_psychopath.1" }
+        { "kind": "dialogue", "id": "lab_1.b.intro" },
+        { "kind": "dilemma", "id": "lab_1.near_sighted_bandit" }
       ]
     },
     {

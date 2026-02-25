@@ -91,7 +91,8 @@ impl DialogueScene {
             _ => (),
         };
 
-        let dialogue_bundle = match Dialogue::init(&asset_server, &dialogue_vector, &character_map) {
+        let dialogue_bundle = match Dialogue::init(&asset_server, &dialogue_vector, &character_map)
+        {
             Ok(dialogue_bundle) => dialogue_bundle,
             Err(error) => {
                 warn!("failed to load dialogue content: {error}; falling back to menu");
@@ -143,10 +144,7 @@ impl DialogueScene {
                 },
             ]),
             children![
-                (
-                    dialogue_bundle,
-                    Transform::from_xyz(-500.0, 0.0, 1.0),
-                ),
+                (dialogue_bundle, Transform::from_xyz(-500.0, 0.0, 1.0),),
                 (
                     Graph::new(45.0, vec![2, 3, 2], 10.0, 20.0, 4.0, 2.0),
                     Transform::from_xyz(300.0, 0.0, 0.5)

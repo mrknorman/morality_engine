@@ -659,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn psychopath_try_again_routes_fail_or_pass_dialogue() {
+    fn psychopath_try_again_routes_fail_or_rejoin_main_loop() {
         let stats = GameStats::default();
 
         let fail_next = next_scenes_for_current_dilemma(
@@ -693,8 +693,9 @@ mod tests {
                 Scene::Dialogue(DialogueScene::PathPsychopath(
                     PsychopathDialogue::TryAgainPass
                 )),
-                Scene::Dilemma(next_scene)
-            ] if *next_scene == DilemmaScene::PATH_PSYCHOPATH[1]
+                Scene::Dialogue(DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro)),
+                Scene::Dilemma(DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit))
+            ]
         ));
     }
 

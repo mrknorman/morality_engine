@@ -2,16 +2,11 @@ use bevy::prelude::*;
 
 use crate::{
     entities::{
-        large_fonts::AsciiPlugin,
-        sprites::SpritePlugin,
-        text::TextPlugin,
-        train::TrainPlugin,
+        large_fonts::AsciiPlugin, sprites::SpritePlugin, text::TextPlugin, train::TrainPlugin,
     },
     style::ui::IOPlugin,
     systems::{
-        backgrounds::BackgroundPlugin,
-        cascade::CascadePlugin,
-        interaction::InteractionPlugin,
+        backgrounds::BackgroundPlugin, cascade::CascadePlugin, interaction::InteractionPlugin,
         scheduling::TimingPlugin,
     },
 };

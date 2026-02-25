@@ -15,6 +15,8 @@ use crate::{
     },
 };
 
+#[cfg(test)]
+use super::schema::SceneRef;
 use super::{
     ids::{DialogueSceneId, DilemmaSceneId, EndingSceneId, PathOutcomeId, TypedSceneRef},
     schema::{FlowEvalContext, SceneProgressionGraph},
@@ -38,7 +40,11 @@ impl std::fmt::Display for FlowEvalError {
         match self {
             Self::GraphParse(message) => write!(f, "{message}"),
             Self::GraphValidation(errors) => {
-                write!(f, "campaign graph failed validation with {} error(s)", errors.len())
+                write!(
+                    f,
+                    "campaign graph failed validation with {} error(s)",
+                    errors.len()
+                )
             }
             Self::RouteMapping(message) => write!(f, "{message}"),
         }
@@ -344,15 +350,21 @@ fn runtime_scene_from_typed_scene_ref(scene: TypedSceneRef) -> Result<Scene, Flo
                 EndingSceneId::TrueDeontologist => EndingScene::TrueDeontologist,
                 EndingSceneId::TrueNeutral => EndingScene::TrueNeutral,
                 EndingSceneId::DayPersonalAllMenKilled => EndingScene::DayPersonalAllMenKilled,
-                EndingSceneId::DayPersonalAllWomenKilled => {
-                    EndingScene::DayPersonalAllWomenKilled
-                }
+                EndingSceneId::DayPersonalAllWomenKilled => EndingScene::DayPersonalAllWomenKilled,
                 EndingSceneId::DayPersonalIgnoredBomb => EndingScene::DayPersonalIgnoredBomb,
                 EndingSceneId::DayPersonalDidNothing => EndingScene::DayPersonalDidNothing,
             };
             Ok(Scene::Ending(ending))
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) fn runtime_scene_from_graph_ref(scene_ref: &SceneRef) -> Result<Scene, FlowEvalError> {
+    let typed = TypedSceneRef::try_from(scene_ref).map_err(|error| {
+        FlowEvalError::RouteMapping(format!("invalid scene id in graph reference: {error}"))
+    })?;
+    runtime_scene_from_typed_scene_ref(typed)
 }
 
 fn path_outcome_from_id(outcome: PathOutcomeId) -> PathOutcome {

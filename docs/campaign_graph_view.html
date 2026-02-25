@@ -103,7 +103,7 @@
       <div class="status pass">Validation: PASS</div>
       <div class="meta">
         Source: <code>src/scenes/flow/content/campaign_graph.json</code><br/>
-        Routes: <strong>25</strong>
+        Routes: <strong>30</strong>
       </div>
     </section>
 
@@ -159,173 +159,227 @@
     N32["Dialogue: path_inaction.5.fail"]:::scene_dialogue
     N33["Dialogue: path_inaction.5.pass"]:::scene_dialogue
     N34["Dialogue: path_inaction.6.fail"]:::scene_dialogue
-    N35["Dialogue: path_utilitarian.1.fail"]:::scene_dialogue
-    N36["Dialogue: path_utilitarian.1.pass"]:::scene_dialogue
-    N37["Dialogue: path_utilitarian.2.fail"]:::scene_dialogue
-    N38["Dialogue: path_utilitarian.2.pass"]:::scene_dialogue
-    N39["Dialogue: path_utilitarian.3.fail"]:::scene_dialogue
-    N40["Dialogue: path_utilitarian.3.pass"]:::scene_dialogue
-    N41["Dialogue: path_utilitarian.4.fail"]:::scene_dialogue
-    N42["Dialogue: path_utilitarian.4.pass"]:::scene_dialogue
-    N43["Dilemma: day_personal.0"]:::scene_dilemma
-    N44["Dilemma: day_personal.1"]:::scene_dilemma
-    N45["Dilemma: day_personal.2"]:::scene_dilemma
-    N46["Dilemma: day_personal.3"]:::scene_dilemma
-    N47["Dilemma: day_personal.4"]:::scene_dilemma
-    N48["Dilemma: day_personal.5"]:::scene_dilemma
-    N49["Dilemma: day_personal.6"]:::scene_dilemma
-    N50["Dilemma: day_personal.7"]:::scene_dilemma
-    N51["Dilemma: lab_0.incompetent_bandit"]:::scene_dilemma
-    N52["Dilemma: lab_1.near_sighted_bandit"]:::scene_dilemma
-    N53["Dilemma: lab_2.the_trolley_problem"]:::scene_dilemma
-    N54["Dilemma: lab_3.asleep_at_the_job"]:::scene_dilemma
-    N55["Dilemma: lab_4.random_deaths"]:::scene_dilemma
-    N56["Dilemma: path_deontological.0"]:::scene_dilemma
-    N57["Dilemma: path_deontological.1"]:::scene_dilemma
-    N58["Dilemma: path_deontological.2"]:::scene_dilemma
-    N59["Dilemma: path_inaction.0"]:::scene_dilemma
-    N60["Dilemma: path_inaction.1"]:::scene_dilemma
-    N61["Dilemma: path_inaction.2"]:::scene_dilemma
-    N62["Dilemma: path_inaction.3"]:::scene_dilemma
-    N63["Dilemma: path_inaction.4"]:::scene_dilemma
-    N64["Dilemma: path_inaction.5"]:::scene_dilemma
-    N65["Dilemma: path_inaction.6"]:::scene_dilemma
-    N66["Dilemma: path_utilitarian.0"]:::scene_dilemma
-    N67["Dilemma: path_utilitarian.1"]:::scene_dilemma
-    N68["Dilemma: path_utilitarian.2"]:::scene_dilemma
-    N69["Dilemma: path_utilitarian.3"]:::scene_dilemma
-    N70["Ending: confused_deontologist"]:::scene_ending
-    N71["Ending: day_personal_all_men_killed"]:::scene_ending
-    N72["Ending: day_personal_all_women_killed"]:::scene_ending
-    N73["Ending: day_personal_did_nothing"]:::scene_ending
-    N74["Ending: day_personal_ignored_bomb"]:::scene_ending
-    N75["Ending: idiotic_psychopath"]:::scene_ending
-    N76["Ending: impatient_psychopath"]:::scene_ending
-    N77["Ending: leverophile"]:::scene_ending
-    N78["Ending: selective_deontologist"]:::scene_ending
-    N79["Ending: true_deontologist"]:::scene_ending
-    N80["Ending: true_neutral"]:::scene_ending
-    N51 -->|rule fail if any fatality| N0
-    N0 -->|then| N75
-    N51 -->|rule fail if very indecisive with known last decision time| N1
-    N1 -->|then| N77
-    N51 -->|rule pass slow if last decision was late| N4
+    N35["Dialogue: path_psychopath.0.fail"]:::scene_dialogue
+    N36["Dialogue: path_psychopath.0.pass"]:::scene_dialogue
+    N37["Dialogue: path_psychopath.1.one"]:::scene_dialogue
+    N38["Dialogue: path_psychopath.1.two"]:::scene_dialogue
+    N39["Dialogue: path_psychopath.2.baby"]:::scene_dialogue
+    N40["Dialogue: path_psychopath.2.baby_one"]:::scene_dialogue
+    N41["Dialogue: path_psychopath.2.nuns"]:::scene_dialogue
+    N42["Dialogue: path_psychopath.3.fast"]:::scene_dialogue
+    N43["Dialogue: path_psychopath.3.fast_repentant"]:::scene_dialogue
+    N44["Dialogue: path_psychopath.3.slow"]:::scene_dialogue
+    N45["Dialogue: path_psychopath.4.city"]:::scene_dialogue
+    N46["Dialogue: path_psychopath.4.city_max_death"]:::scene_dialogue
+    N47["Dialogue: path_psychopath.4.city_repentant"]:::scene_dialogue
+    N48["Dialogue: path_psychopath.4.pain"]:::scene_dialogue
+    N49["Dialogue: path_psychopath.4.pain_max_pain"]:::scene_dialogue
+    N50["Dialogue: path_psychopath.4.pain_repentant"]:::scene_dialogue
+    N51["Dialogue: path_utilitarian.1.fail"]:::scene_dialogue
+    N52["Dialogue: path_utilitarian.1.pass"]:::scene_dialogue
+    N53["Dialogue: path_utilitarian.2.fail"]:::scene_dialogue
+    N54["Dialogue: path_utilitarian.2.pass"]:::scene_dialogue
+    N55["Dialogue: path_utilitarian.3.fail"]:::scene_dialogue
+    N56["Dialogue: path_utilitarian.3.pass"]:::scene_dialogue
+    N57["Dialogue: path_utilitarian.4.fail"]:::scene_dialogue
+    N58["Dialogue: path_utilitarian.4.pass"]:::scene_dialogue
+    N59["Dilemma: day_personal.0"]:::scene_dilemma
+    N60["Dilemma: day_personal.1"]:::scene_dilemma
+    N61["Dilemma: day_personal.2"]:::scene_dilemma
+    N62["Dilemma: day_personal.3"]:::scene_dilemma
+    N63["Dilemma: day_personal.4"]:::scene_dilemma
+    N64["Dilemma: day_personal.5"]:::scene_dilemma
+    N65["Dilemma: day_personal.6"]:::scene_dilemma
+    N66["Dilemma: day_personal.7"]:::scene_dilemma
+    N67["Dilemma: lab_0.incompetent_bandit"]:::scene_dilemma
+    N68["Dilemma: lab_1.near_sighted_bandit"]:::scene_dilemma
+    N69["Dilemma: lab_2.the_trolley_problem"]:::scene_dilemma
+    N70["Dilemma: lab_3.asleep_at_the_job"]:::scene_dilemma
+    N71["Dilemma: lab_4.random_deaths"]:::scene_dilemma
+    N72["Dilemma: path_deontological.0"]:::scene_dilemma
+    N73["Dilemma: path_deontological.1"]:::scene_dilemma
+    N74["Dilemma: path_deontological.2"]:::scene_dilemma
+    N75["Dilemma: path_inaction.0"]:::scene_dilemma
+    N76["Dilemma: path_inaction.1"]:::scene_dilemma
+    N77["Dilemma: path_inaction.2"]:::scene_dilemma
+    N78["Dilemma: path_inaction.3"]:::scene_dilemma
+    N79["Dilemma: path_inaction.4"]:::scene_dilemma
+    N80["Dilemma: path_inaction.5"]:::scene_dilemma
+    N81["Dilemma: path_inaction.6"]:::scene_dilemma
+    N82["Dilemma: path_psychopath.0"]:::scene_dilemma
+    N83["Dilemma: path_psychopath.1"]:::scene_dilemma
+    N84["Dilemma: path_psychopath.2"]:::scene_dilemma
+    N85["Dilemma: path_psychopath.3"]:::scene_dilemma
+    N86["Dilemma: path_psychopath.4"]:::scene_dilemma
+    N87["Dilemma: path_utilitarian.0"]:::scene_dilemma
+    N88["Dilemma: path_utilitarian.1"]:::scene_dilemma
+    N89["Dilemma: path_utilitarian.2"]:::scene_dilemma
+    N90["Dilemma: path_utilitarian.3"]:::scene_dilemma
+    N91["Ending: confused_deontologist"]:::scene_ending
+    N92["Ending: day_personal_all_men_killed"]:::scene_ending
+    N93["Ending: day_personal_all_women_killed"]:::scene_ending
+    N94["Ending: day_personal_did_nothing"]:::scene_ending
+    N95["Ending: day_personal_ignored_bomb"]:::scene_ending
+    N96["Ending: idiotic_psychopath"]:::scene_ending
+    N97["Ending: impatient_psychopath"]:::scene_ending
+    N98["Ending: leverophile"]:::scene_ending
+    N99["Ending: selective_deontologist"]:::scene_ending
+    N100["Ending: true_deontologist"]:::scene_ending
+    N101["Ending: true_neutral"]:::scene_ending
+    N67 -->|rule fail if any fatality| N0
+    N0 -->|then| N82
+    N67 -->|rule fail if very indecisive with known last decision time| N1
+    N1 -->|then| N98
+    N67 -->|rule pass slow if last decision was late| N4
     N4 -->|then| N5
-    N5 -->|then| N52
-    N51 -->|rule pass indecisive if any decision taken| N3
+    N5 -->|then| N68
+    N67 -->|rule pass indecisive if any decision taken| N3
     N3 -->|then| N5
-    N5 -->|then| N52
-    N51 -->|default| N2
+    N5 -->|then| N68
+    N67 -->|default| N2
     N2 -->|then| N5
-    N5 -->|then| N52
-    N52 -->|rule fatalities plus decisions is leverophile| N7
-    N7 -->|then| N77
-    N52 -->|rule fatalities without any global decision enters inaction path| N23
-    N23 -->|then| N59
-    N52 -->|rule fatalities without above routes is impatient psychopath| N6
-    N6 -->|then| N76
-    N52 -->|rule fast global average with known timers| N10
+    N5 -->|then| N68
+    N68 -->|rule fatalities plus decisions is leverophile| N7
+    N7 -->|then| N98
+    N68 -->|rule fatalities without any global decision enters inaction path| N23
+    N23 -->|then| N75
+    N68 -->|rule fatalities without above routes is impatient psychopath| N6
+    N6 -->|then| N97
+    N68 -->|rule fast global average with known timers| N10
     N10 -->|then| N11
-    N11 -->|then| N53
-    N52 -->|rule slow last decision with known timers| N9
+    N11 -->|then| N69
+    N68 -->|rule slow last decision with known timers| N9
     N9 -->|then| N11
-    N11 -->|then| N53
-    N52 -->|rule pass if any decision taken| N8
+    N11 -->|then| N69
+    N68 -->|rule pass if any decision taken| N8
     N8 -->|then| N11
-    N11 -->|then| N53
-    N52 -->|default| N8
+    N11 -->|then| N69
+    N68 -->|default| N8
     N8 -->|then| N11
-    N11 -->|then| N53
-    N53 -->|rule fatalities and indecisive| N13
-    N53 -->|rule fatalities without decision replay lab3| N12
-    N12 -->|then| N54
-    N53 -->|default| N14
+    N11 -->|then| N69
+    N69 -->|rule fatalities and indecisive| N13
+    N69 -->|rule fatalities without decision replay lab3| N12
+    N12 -->|then| N70
+    N69 -->|default| N14
     N14 -->|then| N15
-    N15 -->|then| N66
-    N54 -->|rule junction fatalities and indecisive| N13
-    N54 -->|rule junction fatalities enters deontological path| N17
-    N17 -->|then| N56
-    N54 -->|default| N14
+    N15 -->|then| N87
+    N70 -->|rule junction fatalities and indecisive| N13
+    N70 -->|rule junction fatalities enters deontological path| N17
+    N17 -->|then| N72
+    N70 -->|default| N14
     N14 -->|then| N15
-    N15 -->|then| N66
-    N59 -->|rule exit inaction path if any total decision| N25
+    N15 -->|then| N87
+    N82 -->|rule repeat failure after try again| N35
+    N35 -->|then| N83
+    N82 -->|default| N36
+    N36 -->|then| N5
+    N5 -->|then| N68
+    N83 -->|rule choice one routes to one dialogue| N37
+    N37 -->|then| N84
+    N83 -->|default| N38
+    N38 -->|then| N84
+    N84 -->|rule baby after one routes to baby one| N40
+    N40 -->|then| N85
+    N84 -->|rule baby default dialogue| N39
+    N39 -->|then| N85
+    N84 -->|default| N41
+    N41 -->|then| N85
+    N85 -->|rule fast repentant if started with one| N43
+    N43 -->|then| N86
+    N85 -->|rule fast default when no slowdown| N42
+    N42 -->|then| N86
+    N85 -->|default| N44
+    N44 -->|then| N86
+    N86 -->|rule city max death after two then nuns| N46
+    N46 -->|then| N96
+    N86 -->|rule city repentant after one fast city| N47
+    N47 -->|then| N96
+    N86 -->|rule city default| N45
+    N45 -->|then| N96
+    N86 -->|rule pain max pain after slow and pain| N49
+    N49 -->|then| N96
+    N86 -->|rule pain repentant after one baby fast pain| N50
+    N50 -->|then| N96
+    N86 -->|default| N48
+    N48 -->|then| N96
+    N75 -->|rule exit inaction path if any total decision| N25
     N25 -->|then| N11
-    N11 -->|then| N53
-    N59 -->|default| N24
-    N24 -->|then| N60
-    N60 -->|rule exit inaction path if any total decision| N27
+    N11 -->|then| N69
+    N75 -->|default| N24
+    N24 -->|then| N76
+    N76 -->|rule exit inaction path if any total decision| N27
     N27 -->|then| N11
-    N11 -->|then| N53
-    N60 -->|default| N26
-    N26 -->|then| N61
-    N61 -->|rule exit inaction path if any total decision| N29
+    N11 -->|then| N69
+    N76 -->|default| N26
+    N26 -->|then| N77
+    N77 -->|rule exit inaction path if any total decision| N29
     N29 -->|then| N11
-    N11 -->|then| N53
-    N61 -->|default| N28
-    N28 -->|then| N62
-    N62 -->|rule exit inaction path if any total decision| N31
+    N11 -->|then| N69
+    N77 -->|default| N28
+    N28 -->|then| N78
+    N78 -->|rule exit inaction path if any total decision| N31
     N31 -->|then| N11
-    N11 -->|then| N53
-    N62 -->|default| N30
-    N30 -->|then| N63
-    N63 -->|rule exit inaction path if any total decision| N33
+    N11 -->|then| N69
+    N78 -->|default| N30
+    N30 -->|then| N79
+    N79 -->|rule exit inaction path if any total decision| N33
     N33 -->|then| N11
-    N11 -->|then| N53
-    N63 -->|default| N32
-    N32 -->|then| N64
-    N64 -->|default| N34
-    N34 -->|then| N65
-    N65 -->|default| N80
-    N56 -->|rule indecisive action on initial conditions| N22
-    N22 -->|then| N70
-    N56 -->|rule decision routes to selective deontologist| N19
-    N19 -->|then| N78
-    N56 -->|default| N18
-    N18 -->|then| N57
-    N57 -->|rule indecisive action on initial conditions| N22
-    N22 -->|then| N70
-    N57 -->|rule decision routes to selective deontologist| N19
-    N19 -->|then| N78
-    N57 -->|default| N20
-    N20 -->|then| N58
-    N58 -->|rule indecisive action on initial conditions| N22
-    N22 -->|then| N70
-    N58 -->|rule decision routes to selective deontologist| N19
-    N19 -->|then| N78
-    N58 -->|default| N21
-    N21 -->|then| N79
-    N66 -->|rule selected option zero routes to fail outro| N35
-    N35 -->|then| N16
-    N16 -->|then| N55
-    N66 -->|default| N36
-    N36 -->|then| N67
-    N67 -->|rule selected option zero routes to fail outro| N37
-    N37 -->|then| N16
-    N16 -->|then| N55
-    N67 -->|default| N38
-    N38 -->|then| N68
-    N68 -->|rule selected option zero routes to fail outro| N39
-    N39 -->|then| N16
-    N16 -->|then| N55
-    N68 -->|default| N40
-    N40 -->|then| N69
-    N69 -->|rule selected option zero final stage passes with outro| N42
-    N42 -->|then| N16
-    N16 -->|then| N55
-    N69 -->|default| N41
-    N41 -->|then| N16
-    N16 -->|then| N55
-    N43 -->|default| N44
-    N44 -->|default| N45
-    N45 -->|rule special route if doing nothing overall| N73
-    N45 -->|rule special route if ignoring bomb| N74
-    N45 -->|rule special route if only men killed placeholder| N71
-    N45 -->|rule special route if only women killed placeholder| N72
-    N45 -->|default| N46
-    N46 -->|default| N47
-    N47 -->|default| N48
-    N48 -->|default| N49
-    N49 -->|default| N50
+    N11 -->|then| N69
+    N79 -->|default| N32
+    N32 -->|then| N80
+    N80 -->|default| N34
+    N34 -->|then| N81
+    N81 -->|default| N101
+    N72 -->|rule indecisive action on initial conditions| N22
+    N22 -->|then| N91
+    N72 -->|rule decision routes to selective deontologist| N19
+    N19 -->|then| N99
+    N72 -->|default| N18
+    N18 -->|then| N73
+    N73 -->|rule indecisive action on initial conditions| N22
+    N22 -->|then| N91
+    N73 -->|rule decision routes to selective deontologist| N19
+    N19 -->|then| N99
+    N73 -->|default| N20
+    N20 -->|then| N74
+    N74 -->|rule indecisive action on initial conditions| N22
+    N22 -->|then| N91
+    N74 -->|rule decision routes to selective deontologist| N19
+    N19 -->|then| N99
+    N74 -->|default| N21
+    N21 -->|then| N100
+    N87 -->|rule selected option zero routes to fail outro| N51
+    N51 -->|then| N16
+    N16 -->|then| N71
+    N87 -->|default| N52
+    N52 -->|then| N88
+    N88 -->|rule selected option zero routes to fail outro| N53
+    N53 -->|then| N16
+    N16 -->|then| N71
+    N88 -->|default| N54
+    N54 -->|then| N89
+    N89 -->|rule selected option zero routes to fail outro| N55
+    N55 -->|then| N16
+    N16 -->|then| N71
+    N89 -->|default| N56
+    N56 -->|then| N90
+    N90 -->|rule selected option zero final stage passes with outro| N58
+    N58 -->|then| N16
+    N16 -->|then| N71
+    N90 -->|default| N57
+    N57 -->|then| N16
+    N16 -->|then| N71
+    N59 -->|default| N60
+    N60 -->|default| N61
+    N61 -->|rule special route if doing nothing overall| N94
+    N61 -->|rule special route if ignoring bomb| N95
+    N61 -->|rule special route if only men killed placeholder| N92
+    N61 -->|rule special route if only women killed placeholder| N93
+    N61 -->|default| N62
+    N62 -->|default| N63
+    N63 -->|default| N64
+    N64 -->|default| N65
+    N65 -->|default| N66
 
     classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
     classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;
@@ -358,12 +412,12 @@
     N21["Dilemma: lab_3.asleep_at_the_job"]:::scene_dilemma
     N22["Dilemma: path_deontological.0"]:::scene_dilemma
     N23["Dilemma: path_inaction.0"]:::scene_dilemma
-    N24["Dilemma: path_utilitarian.0"]:::scene_dilemma
-    N25["Ending: idiotic_psychopath"]:::scene_ending
+    N24["Dilemma: path_psychopath.0"]:::scene_dilemma
+    N25["Dilemma: path_utilitarian.0"]:::scene_dilemma
     N26["Ending: impatient_psychopath"]:::scene_ending
     N27["Ending: leverophile"]:::scene_ending
     N18 -->|rule fail if any fatality| N0
-    N0 -->|then| N25
+    N0 -->|then| N24
     N18 -->|rule fail if very indecisive with known last decision time| N1
     N1 -->|then| N27
     N18 -->|rule pass slow if last decision was late| N4
@@ -398,13 +452,13 @@
     N12 -->|then| N21
     N20 -->|default| N14
     N14 -->|then| N15
-    N15 -->|then| N24
+    N15 -->|then| N25
     N21 -->|rule junction fatalities and indecisive| N13
     N21 -->|rule junction fatalities enters deontological path| N16
     N16 -->|then| N22
     N21 -->|default| N14
     N14 -->|then| N15
-    N15 -->|then| N24
+    N15 -->|then| N25
 
     classDef scene_menu fill:#6fa8dc,stroke:#1b3b5a,color:#0f1117;
     classDef scene_loading fill:#ffe599,stroke:#8f6c00,color:#0f1117;

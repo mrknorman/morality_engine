@@ -897,12 +897,7 @@ impl Window {
             let mut top_window_z: Option<f32> = None;
             {
                 for (entity, window, global_transform, _, gate) in windows.p0().iter() {
-                    if !Self::window_interaction_allowed(
-                        entity,
-                        window,
-                        gate,
-                        &interaction_state,
-                    ) {
+                    if !Self::window_interaction_allowed(entity, window, gate, &interaction_state) {
                         continue;
                     }
                     if !Self::is_cursor_over_window_surface(
@@ -922,12 +917,7 @@ impl Window {
             let mut candidate: Option<(Entity, ResizeCorner, f32, f32, f32)> = None;
             {
                 for (entity, window, global_transform, _, gate) in windows.p0().iter() {
-                    if !Self::window_interaction_allowed(
-                        entity,
-                        window,
-                        gate,
-                        &interaction_state,
-                    ) {
+                    if !Self::window_interaction_allowed(entity, window, gate, &interaction_state) {
                         continue;
                     }
                     let z = global_transform.translation().z;
@@ -2373,9 +2363,7 @@ impl WindowCloseButton {
                         .copied()
                 })
             })
-            .or_else(|| {
-                root.and_then(|root| world.entity(root).get::<UiInputPolicy>().copied())
-            });
+            .or_else(|| root.and_then(|root| world.entity(root).get::<UiInputPolicy>().copied()));
         let click_sound = world
             .get_resource::<AssetServer>()
             .map(|assets| assets.load("./audio/effects/mouse_click.ogg"));

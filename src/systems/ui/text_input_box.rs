@@ -18,8 +18,9 @@ use crate::{
     startup::cursor::CustomCursor,
     systems::{
         interaction::{
-            clickable_system, hoverable_system, scoped_owner_has_focus, ui_input_policy_allows_mode,
-            Clickable, Hoverable, InteractionSystem, UiInputPolicy, UiInteractionState,
+            clickable_system, hoverable_system, scoped_owner_has_focus,
+            ui_input_policy_allows_mode, Clickable, Hoverable, InteractionSystem, UiInputPolicy,
+            UiInteractionState,
         },
         ui::layer::{self, UiLayer, UiLayerKind},
     },
@@ -144,10 +145,13 @@ impl TextInputBox {
             .get::<Clickable<TextInputBoxActions>>()
             .is_none()
         {
-            world.commands().entity(entity).insert(Clickable::with_region(
-                vec![TextInputBoxActions::Focus],
-                style.size,
-            ));
+            world
+                .commands()
+                .entity(entity)
+                .insert(Clickable::with_region(
+                    vec![TextInputBoxActions::Focus],
+                    style.size,
+                ));
         }
 
         let mut root_transform = world
@@ -180,11 +184,7 @@ impl TextInputBox {
             .get::<TextInputBoxFocus>()
             .is_some_and(|focus| focus.focused);
         let show_placeholder = value.is_empty() && !focused;
-        let label_text = if show_placeholder {
-            placeholder
-        } else {
-            value
-        };
+        let label_text = if show_placeholder { placeholder } else { value };
         let label_color = if show_placeholder {
             style.placeholder_color
         } else {
@@ -260,10 +260,11 @@ impl TextInputBox {
             return;
         };
 
-        world
-            .commands()
-            .entity(entity)
-            .insert(TextInputBoxParts { border, label, caret });
+        world.commands().entity(entity).insert(TextInputBoxParts {
+            border,
+            label,
+            caret,
+        });
     }
 }
 
@@ -383,7 +384,10 @@ fn char_count(text: &str) -> usize {
 }
 
 fn byte_index_for_char(text: &str, index: usize) -> usize {
-    text.char_indices().nth(index).map(|(byte, _)| byte).unwrap_or(text.len())
+    text.char_indices()
+        .nth(index)
+        .map(|(byte, _)| byte)
+        .unwrap_or(text.len())
 }
 
 fn remove_char_at(text: &mut String, index: usize) -> bool {
@@ -467,12 +471,16 @@ fn is_input_interactable(
     if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
         return false;
     }
-    if !ui_input_policy_allows_mode(policy, interaction_state.input_mode_for_owner(text_input.owner))
-    {
+    if !ui_input_policy_allows_mode(
+        policy,
+        interaction_state.input_mode_for_owner(text_input.owner),
+    ) {
         return false;
     }
-    if layer::active_layer_kind_for_owner(&interaction_state.active_layers_by_owner, text_input.owner)
-        != text_input.input_layer
+    if layer::active_layer_kind_for_owner(
+        &interaction_state.active_layers_by_owner,
+        text_input.owner,
+    ) != text_input.input_layer
     {
         return false;
     }
@@ -517,7 +525,8 @@ fn apply_text_input_click_focus(
         }
     }
 
-    let mut clear_focus_owners: std::collections::HashSet<Entity> = std::collections::HashSet::new();
+    let mut clear_focus_owners: std::collections::HashSet<Entity> =
+        std::collections::HashSet::new();
     if mouse_input.just_pressed(MouseButton::Left) {
         for (_, text_input, policy, inherited_visibility, _, focus, _) in query.iter_mut() {
             if !focus.focused {
@@ -526,7 +535,8 @@ fn apply_text_input_click_focus(
             if clicked_by_owner.contains_key(&text_input.owner) {
                 continue;
             }
-            if !is_input_interactable(text_input, policy, inherited_visibility, &interaction_state) {
+            if !is_input_interactable(text_input, policy, inherited_visibility, &interaction_state)
+            {
                 continue;
             }
             clear_focus_owners.insert(text_input.owner);
@@ -608,8 +618,16 @@ fn handle_text_input_keyboard(
         return;
     }
 
-    for (entity, text_input, policy, inherited_visibility, limits, mut value, mut focus, mut caret) in
-        query.iter_mut()
+    for (
+        entity,
+        text_input,
+        policy,
+        inherited_visibility,
+        limits,
+        mut value,
+        mut focus,
+        mut caret,
+    ) in query.iter_mut()
     {
         if !focus.focused {
             continue;
@@ -761,8 +779,9 @@ fn sync_text_input_visuals(
             let effective_index = caret_state.index.min(char_count(&value.0));
             let char_advance = (style.font_size * style.text_advance_factor).max(1.0);
             let max_x = style.size.x * 0.5 - style.padding.x;
-            let caret_x = (-style.size.x * 0.5 + style.padding.x + effective_index as f32 * char_advance)
-                .clamp(-style.size.x * 0.5 + style.padding.x, max_x);
+            let caret_x =
+                (-style.size.x * 0.5 + style.padding.x + effective_index as f32 * char_advance)
+                    .clamp(-style.size.x * 0.5 + style.padding.x, max_x);
             transform.translation.x = caret_x;
             transform.translation.y = 0.0;
             transform.translation.z = 0.03;
@@ -819,11 +838,10 @@ mod tests {
             .expect("text input box layer");
         assert_eq!(layer.owner, owner);
         assert_eq!(layer.kind, UiLayerKind::Base);
-        assert!(
-            app.world()
-                .entity(entity)
-                .contains::<Clickable<TextInputBoxActions>>()
-        );
+        assert!(app
+            .world()
+            .entity(entity)
+            .contains::<Clickable<TextInputBoxActions>>());
         assert!(app.world().entity(entity).contains::<TextInputBoxParts>());
     }
 
@@ -866,17 +884,15 @@ mod tests {
         app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
             .press(KeyCode::KeyA);
-        assert!(
-            app.world()
-                .resource::<ButtonInput<KeyCode>>()
-                .just_pressed(KeyCode::KeyA)
-        );
-        assert!(
-            app.world()
-                .entity(entity)
-                .get::<TextInputBoxFocus>()
-                .is_some_and(|focus| focus.focused)
-        );
+        assert!(app
+            .world()
+            .resource::<ButtonInput<KeyCode>>()
+            .just_pressed(KeyCode::KeyA));
+        assert!(app
+            .world()
+            .entity(entity)
+            .get::<TextInputBoxFocus>()
+            .is_some_and(|focus| focus.focused));
         let interactable = {
             let world = app.world();
             let text_input = world

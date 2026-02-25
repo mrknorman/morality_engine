@@ -3,11 +3,12 @@ use std::collections::HashSet;
 use crate::scenes::{
     dialogue::content::{
         DialogueScene, Lab0Dialogue, Lab1aDialogue, Lab1bDialogue, Lab2aDialogue, Lab2bDialogue,
-        Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome,
+        Lab3aDialogue, Lab3bDialogue, Lab4Dialogue, PathOutcome, PsychopathDialogue,
     },
     dilemma::content::{
-        DilemmaPathDeontological, DilemmaPathInaction, DilemmaPathUtilitarian, DilemmaScene,
-        Lab0Dilemma, Lab1Dilemma, Lab2Dilemma, Lab3Dilemma, Lab4Dilemma,
+        DilemmaDayPersonal, DilemmaPathDeontological, DilemmaPathInaction, DilemmaPathPsychopath,
+        DilemmaPathUtilitarian, DilemmaScene, Lab0Dilemma, Lab1Dilemma, Lab2Dilemma, Lab3Dilemma,
+        Lab4Dilemma,
     },
 };
 
@@ -118,6 +119,10 @@ fn dialogue_file(
 }
 
 pub(super) fn level_select_catalog_root() -> LevelSelectFolderNode {
+    // Keep this catalog aligned with graph-driven campaign flow.
+    // The test `graph_referenced_scenes_are_in_level_select_catalog` enforces that every
+    // dialogue/dilemma referenced in `src/scenes/flow/content/campaign_graph.json` has
+    // a corresponding level-select entry.
     LevelSelectFolderNode {
         id: LevelSelectNodeId("root"),
         label: "LEVEL SELECT",
@@ -126,131 +131,235 @@ pub(super) fn level_select_catalog_root() -> LevelSelectFolderNode {
                 "dilemmas",
                 "dilemmas",
                 vec![
-            dilemma_file(
-                "lab_0_incompetent_bandit",
-                "lab0_incompetent_bandit.dilem",
-                DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit),
-            ),
-            dilemma_file(
-                "lab_1_near_sighted_bandit",
-                "lab1_near_sighted_bandit.dilem",
-                DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit),
-            ),
-            dilemma_file(
-                "lab_2_the_trolley_problem",
-                "lab2_the_trolley_problem.dilem",
-                DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem),
-            ),
-            folder(
-                "path_inaction",
-                "path_inaction",
-                vec![
                     dilemma_file(
-                        "path_inaction_0",
-                        "empty_choice.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::EmptyChoice, 0),
+                        "lab_0_incompetent_bandit",
+                        "lab0_incompetent_bandit.dilem",
+                        DilemmaScene::Lab0(Lab0Dilemma::IncompetentBandit),
                     ),
                     dilemma_file(
-                        "path_inaction_1",
-                        "plenty_of_time.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::PlentyOfTime, 1),
+                        "lab_1_near_sighted_bandit",
+                        "lab1_near_sighted_bandit.dilem",
+                        DilemmaScene::Lab1(Lab1Dilemma::NearSightedBandit),
                     ),
                     dilemma_file(
-                        "path_inaction_2",
-                        "little_time.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::LittleTime, 2),
+                        "lab_2_the_trolley_problem",
+                        "lab2_the_trolley_problem.dilem",
+                        DilemmaScene::Lab2(Lab2Dilemma::TheTrolleyProblem),
+                    ),
+                    folder(
+                        "path_inaction",
+                        "path_inaction",
+                        vec![
+                            dilemma_file(
+                                "path_inaction_0",
+                                "empty_choice.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::EmptyChoice, 0),
+                            ),
+                            dilemma_file(
+                                "path_inaction_1",
+                                "plenty_of_time.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::PlentyOfTime, 1),
+                            ),
+                            dilemma_file(
+                                "path_inaction_2",
+                                "little_time.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::LittleTime, 2),
+                            ),
+                            dilemma_file(
+                                "path_inaction_3",
+                                "five_or_nothing.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::FiveOrNothing, 3),
+                            ),
+                            dilemma_file(
+                                "path_inaction_4",
+                                "a_cure_for_cancer.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::CancerCure, 4),
+                            ),
+                            dilemma_file(
+                                "path_inaction_5",
+                                "your_own_child.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::OwnChild, 5),
+                            ),
+                            dilemma_file(
+                                "path_inaction_6",
+                                "you.dilem",
+                                DilemmaScene::PathInaction(DilemmaPathInaction::You, 6),
+                            ),
+                        ],
+                    ),
+                    folder(
+                        "path_psychopath",
+                        "path_psychopath",
+                        vec![
+                            dilemma_file(
+                                "path_psychopath_0",
+                                "try_again.dilem",
+                                DilemmaScene::PathPsychopath(DilemmaPathPsychopath::TryAgain, 0),
+                            ),
+                            dilemma_file(
+                                "path_psychopath_1",
+                                "one_or_two.dilem",
+                                DilemmaScene::PathPsychopath(DilemmaPathPsychopath::OneOrTwo, 1),
+                            ),
+                            dilemma_file(
+                                "path_psychopath_2",
+                                "death_at_a_convent.dilem",
+                                DilemmaScene::PathPsychopath(
+                                    DilemmaPathPsychopath::DeathAtAConvent,
+                                    2,
+                                ),
+                            ),
+                            dilemma_file(
+                                "path_psychopath_3",
+                                "prolonged_suffering.dilem",
+                                DilemmaScene::PathPsychopath(
+                                    DilemmaPathPsychopath::ProlongedSuffering,
+                                    3,
+                                ),
+                            ),
+                            dilemma_file(
+                                "path_psychopath_4",
+                                "train_of_mass_destruction.dilem",
+                                DilemmaScene::PathPsychopath(
+                                    DilemmaPathPsychopath::TrainOfMassDestruction,
+                                    4,
+                                ),
+                            ),
+                        ],
                     ),
                     dilemma_file(
-                        "path_inaction_3",
-                        "five_or_nothing.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::FiveOrNothing, 3),
+                        "lab_3_asleep_at_the_job",
+                        "lab3_asleep_at_the_job.dilem",
+                        DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob),
+                    ),
+                    folder(
+                        "path_deontological",
+                        "path_deontological",
+                        vec![
+                            dilemma_file(
+                                "path_deontological_0",
+                                "trolleyer_problem.dilem",
+                                DilemmaScene::PathDeontological(
+                                    DilemmaPathDeontological::TrolleyerProblem,
+                                    0,
+                                ),
+                            ),
+                            dilemma_file(
+                                "path_deontological_1",
+                                "trolleyest_problem.dilem",
+                                DilemmaScene::PathDeontological(
+                                    DilemmaPathDeontological::TrolleyestProblem,
+                                    1,
+                                ),
+                            ),
+                            dilemma_file(
+                                "path_deontological_2",
+                                "trolleygeddon_problem.dilem",
+                                DilemmaScene::PathDeontological(
+                                    DilemmaPathDeontological::TrolleygeddonProblem,
+                                    2,
+                                ),
+                            ),
+                        ],
+                    ),
+                    folder(
+                        "path_utilitarian",
+                        "path_utilitarian",
+                        vec![
+                            dilemma_file(
+                                "path_utilitarian_0",
+                                "one_fifth.dilem",
+                                DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::OneFifth, 0),
+                            ),
+                            dilemma_file(
+                                "path_utilitarian_1",
+                                "margin_of_error.dilem",
+                                DilemmaScene::PathUtilitarian(
+                                    DilemmaPathUtilitarian::MarginOfError,
+                                    1,
+                                ),
+                            ),
+                            dilemma_file(
+                                "path_utilitarian_2",
+                                "negligible_difference.dilem",
+                                DilemmaScene::PathUtilitarian(
+                                    DilemmaPathUtilitarian::NegligibleDifference,
+                                    2,
+                                ),
+                            ),
+                            dilemma_file(
+                                "path_utilitarian_3",
+                                "unorthodox_surgery.dilem",
+                                DilemmaScene::PathUtilitarian(
+                                    DilemmaPathUtilitarian::UnorthodoxSurgery,
+                                    3,
+                                ),
+                            ),
+                        ],
                     ),
                     dilemma_file(
-                        "path_inaction_4",
-                        "a_cure_for_cancer.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::CancerCure, 4),
+                        "lab_4_random_deaths",
+                        "lab4_random_deaths.dilem",
+                        DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths),
                     ),
-                    dilemma_file(
-                        "path_inaction_5",
-                        "your_own_child.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::OwnChild, 5),
+                    folder(
+                        "day_personal",
+                        "day_personal",
+                        vec![
+                            dilemma_file(
+                                "day_personal_0_george_or_hannah",
+                                "0_george_or_hannah.dilem",
+                                DilemmaScene::DayPersonal(DilemmaDayPersonal::GeorgeOrHannah, 0),
+                            ),
+                            dilemma_file(
+                                "day_personal_1_twist_of_fate",
+                                "1_twist_of_fate.dilem",
+                                DilemmaScene::DayPersonal(DilemmaDayPersonal::TwistOfFate, 1),
+                            ),
+                            dilemma_file(
+                                "day_personal_2_decision_ignition",
+                                "2_decision_ignition.dilem",
+                                DilemmaScene::DayPersonal(DilemmaDayPersonal::DecisionIgnition, 2),
+                            ),
+                            dilemma_file(
+                                "day_personal_3_authorized_worker_vs_partying_youths",
+                                "3_authorized_worker_vs_partying_youths.dilem",
+                                DilemmaScene::DayPersonal(
+                                    DilemmaDayPersonal::AuthorizedWorkerVsPartyingYouths,
+                                    3,
+                                ),
+                            ),
+                            dilemma_file(
+                                "day_personal_4_fat_man_on_bridge",
+                                "4_fat_man_on_bridge.dilem",
+                                DilemmaScene::DayPersonal(DilemmaDayPersonal::FatManOnBridge, 4),
+                            ),
+                            dilemma_file(
+                                "day_personal_5_fat_construction_worker_vs_partying_youths",
+                                "5_fat_construction_worker_vs_partying_youths.dilem",
+                                DilemmaScene::DayPersonal(
+                                    DilemmaDayPersonal::FatConstructionWorkerVsPartyingYouths,
+                                    5,
+                                ),
+                            ),
+                            dilemma_file(
+                                "day_personal_6_boulder_vs_death_cult",
+                                "6_boulder_vs_death_cult.dilem",
+                                DilemmaScene::DayPersonal(
+                                    DilemmaDayPersonal::BoulderVsDeathCult,
+                                    6,
+                                ),
+                            ),
+                            dilemma_file(
+                                "day_personal_7_cable_car_medalist_vs_skiers",
+                                "7_cable_car_medalist_vs_skiers.dilem",
+                                DilemmaScene::DayPersonal(
+                                    DilemmaDayPersonal::CableCarMedalistVsSkiers,
+                                    7,
+                                ),
+                            ),
+                        ],
                     ),
-                    dilemma_file(
-                        "path_inaction_6",
-                        "you.dilem",
-                        DilemmaScene::PathInaction(DilemmaPathInaction::You, 6),
-                    ),
-                ],
-            ),
-            dilemma_file(
-                "lab_3_asleep_at_the_job",
-                "lab3_asleep_at_the_job.dilem",
-                DilemmaScene::Lab3(Lab3Dilemma::AsleepAtTheJob),
-            ),
-            folder(
-                "path_deontological",
-                "path_deontological",
-                vec![
-                    dilemma_file(
-                        "path_deontological_0",
-                        "trolleyer_problem.dilem",
-                        DilemmaScene::PathDeontological(
-                            DilemmaPathDeontological::TrolleyerProblem,
-                            0,
-                        ),
-                    ),
-                    dilemma_file(
-                        "path_deontological_1",
-                        "trolleyest_problem.dilem",
-                        DilemmaScene::PathDeontological(
-                            DilemmaPathDeontological::TrolleyestProblem,
-                            1,
-                        ),
-                    ),
-                    dilemma_file(
-                        "path_deontological_2",
-                        "trolleygeddon_problem.dilem",
-                        DilemmaScene::PathDeontological(
-                            DilemmaPathDeontological::TrolleygeddonProblem,
-                            2,
-                        ),
-                    ),
-                ],
-            ),
-            folder(
-                "path_utilitarian",
-                "path_utilitarian",
-                vec![
-                    dilemma_file(
-                        "path_utilitarian_0",
-                        "one_fifth.dilem",
-                        DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::OneFifth, 0),
-                    ),
-                    dilemma_file(
-                        "path_utilitarian_1",
-                        "margin_of_error.dilem",
-                        DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::MarginOfError, 1),
-                    ),
-                    dilemma_file(
-                        "path_utilitarian_2",
-                        "negligible_difference.dilem",
-                        DilemmaScene::PathUtilitarian(
-                            DilemmaPathUtilitarian::NegligibleDifference,
-                            2,
-                        ),
-                    ),
-                    dilemma_file(
-                        "path_utilitarian_3",
-                        "unorthodox_surgery.dilem",
-                        DilemmaScene::PathUtilitarian(DilemmaPathUtilitarian::UnorthodoxSurgery, 3),
-                    ),
-                ],
-            ),
-            dilemma_file(
-                "lab_4_random_deaths",
-                "lab4_random_deaths.dilem",
-                DilemmaScene::Lab4(Lab4Dilemma::RandomDeaths),
-            ),
                 ],
             ),
             folder(
@@ -310,6 +419,154 @@ pub(super) fn level_select_catalog_root() -> LevelSelectFolderNode {
                                     DialogueScene::Lab1b(Lab1bDialogue::DilemmaIntro),
                                 )],
                             ),
+                            folder(
+                                "dialogue_path_psychopath",
+                                "path_psychopath",
+                                vec![
+                                    folder(
+                                        "dialogue_path_psychopath_0",
+                                        "0",
+                                        vec![
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_0_fail",
+                                                "fail",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::TryAgainFail,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_0_pass",
+                                                "pass",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::TryAgainPass,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                    folder(
+                                        "dialogue_path_psychopath_1",
+                                        "1",
+                                        vec![
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_1_one",
+                                                "one",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::One,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_1_two",
+                                                "two",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::Two,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                    folder(
+                                        "dialogue_path_psychopath_2",
+                                        "2",
+                                        vec![
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_2_baby_one",
+                                                "baby_one",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::BabyOne,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_2_baby",
+                                                "baby",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::Baby,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_2_nuns",
+                                                "nuns",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::Nuns,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                    folder(
+                                        "dialogue_path_psychopath_3",
+                                        "3",
+                                        vec![
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_3_fast_repentant",
+                                                "fast_repentant",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::FastRepentant,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_3_fast",
+                                                "fast",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::Fast,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_3_slow",
+                                                "slow",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::Slow,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                    folder(
+                                        "dialogue_path_psychopath_4",
+                                        "4",
+                                        vec![
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_4_city_max_death",
+                                                "city_max_death",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::CityMaxDeath,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_4_city_repentant",
+                                                "city_repentant",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::CityRepentant,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_4_city",
+                                                "city",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::City,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_4_pain_max_pain",
+                                                "pain_max_pain",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::PainMaxPain,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_4_pain_repentant",
+                                                "pain_repentant",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::PainRepentant,
+                                                ),
+                                            ),
+                                            dialogue_file(
+                                                "dialogue_path_psychopath_4_pain",
+                                                "pain",
+                                                DialogueScene::PathPsychopath(
+                                                    PsychopathDialogue::Pain,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
                         ],
                     ),
                     folder(
@@ -361,8 +618,33 @@ pub(super) fn level_select_catalog_root() -> LevelSelectFolderNode {
                                 "path_inaction",
                                 vec![
                                     dialogue_file(
-                                        "dialogue_path_inaction_pass",
-                                        "pass",
+                                        "dialogue_path_inaction_pass_1",
+                                        "pass_1",
+                                        DialogueScene::path_inaction(1, PathOutcome::Pass),
+                                    ),
+                                    dialogue_file(
+                                        "dialogue_path_inaction_pass_2",
+                                        "pass_2",
+                                        DialogueScene::path_inaction(2, PathOutcome::Pass),
+                                    ),
+                                    dialogue_file(
+                                        "dialogue_path_inaction_pass_3",
+                                        "pass_3",
+                                        DialogueScene::path_inaction(3, PathOutcome::Pass),
+                                    ),
+                                    dialogue_file(
+                                        "dialogue_path_inaction_pass_4",
+                                        "pass_4",
+                                        DialogueScene::path_inaction(4, PathOutcome::Pass),
+                                    ),
+                                    dialogue_file(
+                                        "dialogue_path_inaction_pass_5",
+                                        "pass_5",
+                                        DialogueScene::path_inaction(5, PathOutcome::Pass),
+                                    ),
+                                    dialogue_file(
+                                        "dialogue_path_inaction_pass_6",
+                                        "pass_6",
                                         DialogueScene::path_inaction(6, PathOutcome::Pass),
                                     ),
                                     dialogue_file(
@@ -660,10 +942,8 @@ fn query_match(label: &str, query: &str) -> bool {
 
 fn file_matches_query(file: &LevelSelectFileNode, query: &str) -> bool {
     query_match(file.file_name, query)
-        || matches!(
-            file.scene,
-            LevelSelectPlayableScene::Dialogue(_)
-        ) && query_match(&format!("{}.log", file.file_name), query)
+        || matches!(file.scene, LevelSelectPlayableScene::Dialogue(_))
+            && query_match(&format!("{}.log", file.file_name), query)
 }
 
 #[cfg(test)]
@@ -678,13 +958,26 @@ fn collect_folder_ids(folder: &LevelSelectFolderNode, expanded: &mut HashSet<Lev
 
 #[cfg(test)]
 mod tests {
+    use crate::scenes::{
+        flow::{
+            engine,
+            schema::{SceneProgressionGraph, SceneRef},
+        },
+        Scene,
+    };
+
     use super::*;
+
+    const CAMPAIGN_GRAPH_JSON: &str =
+        include_str!("../../../scenes/flow/content/campaign_graph.json");
 
     #[test]
     fn flattened_default_rows_include_dilemma_and_dialogue_entries() {
         let rows = default_level_select_file_rows();
         assert!(rows.len() > 30);
-        assert!(rows.iter().any(|row| row.label == "lab0_incompetent_bandit.dilem"));
+        assert!(rows
+            .iter()
+            .any(|row| row.label == "lab0_incompetent_bandit.dilem"));
         assert!(rows.iter().any(|row| row.label == "empty_choice.dilem"));
         assert!(rows.iter().any(|row| row.label == "intro"));
     }
@@ -723,8 +1016,10 @@ mod tests {
 
         assert!(rows.iter().any(|row| row.label == "path_utilitarian"
             && matches!(row.kind, LevelSelectVisibleRowKind::Folder)));
-        assert!(rows.iter().any(|row| row.label == "unorthodox_surgery.dilem"
-            && matches!(row.kind, LevelSelectVisibleRowKind::File(_))));
+        assert!(rows
+            .iter()
+            .any(|row| row.label == "unorthodox_surgery.dilem"
+                && matches!(row.kind, LevelSelectVisibleRowKind::File(_))));
     }
 
     #[test]
@@ -733,7 +1028,9 @@ mod tests {
         let expansion = LevelSelectExpansionState::default();
         let rows = visible_rows_for_query(&root, &expansion, "LAB4_RANDOM_DEATHS");
 
-        assert!(rows.iter().any(|row| row.label == "lab4_random_deaths.dilem"));
+        assert!(rows
+            .iter()
+            .any(|row| row.label == "lab4_random_deaths.dilem"));
     }
 
     #[test]
@@ -744,5 +1041,54 @@ mod tests {
 
         assert!(rows.iter().any(|row| row.label == "pass_utilitarian"
             && matches!(row.kind, LevelSelectVisibleRowKind::File(_))));
+    }
+
+    #[test]
+    fn graph_referenced_scenes_are_in_level_select_catalog() {
+        let graph: SceneProgressionGraph =
+            serde_json::from_str(CAMPAIGN_GRAPH_JSON).expect("campaign graph should parse");
+
+        let catalog_rows = default_level_select_file_rows();
+        let catalog_scenes = catalog_rows
+            .iter()
+            .filter_map(|row| match row.kind {
+                LevelSelectVisibleRowKind::File(file) => Some(file.scene),
+                LevelSelectVisibleRowKind::Folder => None,
+            })
+            .collect::<Vec<_>>();
+
+        let mut graph_refs = Vec::<SceneRef>::new();
+        for route in &graph.routes {
+            graph_refs.push(route.from.clone());
+            for scene in &route.default_then {
+                graph_refs.push(scene.clone());
+            }
+            for rule in &route.rules {
+                for scene in &rule.then {
+                    graph_refs.push(scene.clone());
+                }
+            }
+        }
+
+        for scene_ref in graph_refs {
+            let expected = match &scene_ref {
+                SceneRef::Dilemma { .. } | SceneRef::Dialogue { .. } => {
+                    let runtime_scene = engine::runtime_scene_from_graph_ref(&scene_ref)
+                        .expect("graph scene ref should map to runtime scene");
+                    match runtime_scene {
+                        Scene::Dilemma(scene) => LevelSelectPlayableScene::Dilemma(scene),
+                        Scene::Dialogue(scene) => LevelSelectPlayableScene::Dialogue(scene),
+                        Scene::Menu | Scene::Loading | Scene::Ending(_) => continue,
+                    }
+                }
+                SceneRef::Menu | SceneRef::Loading | SceneRef::Ending { .. } => continue,
+            };
+
+            assert!(
+                catalog_scenes.contains(&expected),
+                "level select missing graph scene reference: {:?}",
+                scene_ref
+            );
+        }
     }
 }

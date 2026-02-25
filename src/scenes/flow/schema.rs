@@ -161,7 +161,10 @@ mod tests {
 
         assert_eq!(graph.version, 1);
         assert!(!graph.routes.is_empty());
-        assert!(graph.routes.iter().all(|route| !route.default_then.is_empty()));
+        assert!(graph
+            .routes
+            .iter()
+            .all(|route| !route.default_then.is_empty()));
     }
 
     #[test]

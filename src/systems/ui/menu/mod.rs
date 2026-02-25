@@ -901,7 +901,10 @@ impl Plugin for MenusPlugin {
                     .before(discrete_slider::DiscreteSliderSystems::SyncSlots),
             ),
         );
-        app.add_systems(PreUpdate, level_select::focus_level_select_search_on_typed_input);
+        app.add_systems(
+            PreUpdate,
+            level_select::focus_level_select_search_on_typed_input,
+        );
         app.add_systems(
             Update,
             (

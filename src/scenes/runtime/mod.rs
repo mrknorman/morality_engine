@@ -90,7 +90,8 @@ mod tests {
     fn advance_moves_queue_and_returns_route() {
         let mut queue = SceneQueue::default();
 
-        let (scene, state_vector) = SceneNavigator::advance(&mut queue).expect("queue should advance");
+        let (scene, state_vector) =
+            SceneNavigator::advance(&mut queue).expect("queue should advance");
 
         assert!(matches!(scene, Scene::Loading));
         assert_eq!(
