@@ -10,7 +10,7 @@ use crate::{
     entities::{
         person::{BloodSprite, Emoticon, EmotionSounds, PersonSprite},
         text::{scaled_text_units, CharacterSprite, TextSprite},
-        track::Track,
+        track::{Track, TrackSkin},
         train::Train,
     },
     scenes::dilemma::{dilemma::DilemmaStage, lever::Lever, visuals::AmbientBackgroundElement},
@@ -86,6 +86,7 @@ pub struct Turnout;
 #[component(on_insert = Junction::on_insert)]
 pub struct Junction {
     pub stage: DilemmaStage,
+    pub track_skin: TrackSkin,
 }
 
 impl Junction {
@@ -169,6 +170,7 @@ impl Junction {
 
         let mut commands = world.commands();
         if let Some(junction) = junction {
+            let track_skin = junction.track_skin;
             let stage: DilemmaStage = junction.stage;
             let branch_y_positions: Vec<Transform> = (0..stage.options.len())
                 .map(|branch_index| {
@@ -180,7 +182,7 @@ impl Junction {
             commands.entity(entity).with_children(|junction| {
                 let mut trunk_entity = junction.spawn((
                     TrunkTrack,
-                    Track::new(2000),
+                    Track::new_with_skin(2000, track_skin),
                     Transform::from_translation(Junction::TRUNK_TRANSLATION),
                 ));
 
@@ -208,7 +210,7 @@ impl Junction {
                                         BranchTrack {
                                             index: branch_index,
                                         },
-                                        Track::new(300),
+                                        Track::new_with_skin(300, track_skin),
                                         TextColor(option_color(branch_index)),
                                         y_position,
                                     ))

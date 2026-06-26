@@ -1,19 +1,38 @@
 use crate::entities::text::TextSprite;
 use bevy::prelude::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TrackSkin {
+    #[default]
+    Rail,
+    Road,
+}
+
+impl TrackSkin {
+    const fn segment(self) -> &'static str {
+        match self {
+            TrackSkin::Rail => "~",
+            TrackSkin::Road => "=",
+        }
+    }
+}
+
 #[derive(Component)]
 #[require(TextSprite, Text2d)]
 pub struct Track;
 
 impl Track {
-    const TRACK_STRING: &str = "~";
-    pub const LENGTH: usize = Self::TRACK_STRING.len();
+    pub const LENGTH: usize = 1;
 
-    pub fn generate_track(length: usize) -> String {
-        Self::TRACK_STRING.to_string().repeat(length)
+    pub fn generate_track(length: usize, skin: TrackSkin) -> String {
+        skin.segment().repeat(length)
     }
 
     pub fn new(length: usize) -> (Track, Text2d) {
-        (Track, Text2d::new(Self::generate_track(length)))
+        Self::new_with_skin(length, TrackSkin::Rail)
+    }
+
+    pub fn new_with_skin(length: usize, skin: TrackSkin) -> (Track, Text2d) {
+        (Track, Text2d::new(Self::generate_track(length, skin)))
     }
 }

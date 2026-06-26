@@ -5,7 +5,7 @@ use crate::{
     entities::{person::BloodSprite, train::Train},
     scenes::dilemma::{
         content::DilemmaScene,
-        dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
+        dilemma::{CurrentDilemmaStageIndex, Dilemma, DilemmaStage},
         junction::Junction,
         lever::{Lever, LeverState},
         visuals::AmbientBackgroundElement,
@@ -50,6 +50,7 @@ fn update_lever(
 }
 
 fn setup(
+    dilemma: Res<Dilemma>,
     stage: Res<DilemmaStage>,
     index: Res<CurrentDilemmaStageIndex>,
     lever: Res<Lever>,
@@ -74,6 +75,7 @@ fn setup(
         DespawnOnExit(GameState::Dilemma),
         Junction {
             stage: stage.clone(),
+            track_skin: DilemmaScene::track_skin_for_train(dilemma.train),
         },
         ColorTranslation::new(initial_color, transition_duration, false),
         PointToPointTranslation::new(

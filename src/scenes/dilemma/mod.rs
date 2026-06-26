@@ -8,8 +8,8 @@ use crate::{
         large_fonts::{AsciiString, TextEmotion},
         person::{BloodSprite, PersonPlugin},
         text::{scaled_font_size, TextFrames, TextSprite, TextWindow},
-        track::Track,
-        train::Train,
+        track::{Track, TrackSkin},
+        train::{content::TrainTypes, Train},
     },
     scenes::dilemma::{
         dilemma::{CurrentDilemmaStageIndex, DilemmaStage},
@@ -104,6 +104,13 @@ impl DilemmaScene {
     );
     pub fn track_color_for_option(option_index: usize) -> Color {
         option_color(option_index)
+    }
+
+    pub const fn track_skin_for_train(train_type: TrainTypes) -> TrackSkin {
+        match train_type {
+            TrainTypes::SteamTrain => TrackSkin::Rail,
+            TrainTypes::PsychopathTruck => TrackSkin::Road,
+        }
     }
 
     fn setup(
@@ -396,7 +403,7 @@ impl DilemmaScene {
         commands.spawn((
             DespawnOnExit(DilemmaPhase::Intro),
             TextColor(BACKGROUND_COLOR),
-            Track::new(2000),
+            Track::new_with_skin(2000, Self::track_skin_for_train(dilemma.train)),
             Transform::from_translation(Self::MAIN_TRACK_TRANSLATION_END),
         ));
 
